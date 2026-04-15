@@ -52,7 +52,16 @@ export default function HomePage() {
         body: JSON.stringify(form),
       });
 
-      const data = await res.json();
+      const rawText = await res.text();
+
+      let data: any;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        setError(`Raw backend error: ${rawText}`);
+        setLoading(false);
+        return;
+      }
 
       if (!data.success) {
         setError(data.message || "Unknown backend error");
@@ -155,7 +164,7 @@ export default function HomePage() {
         )}
 
         {error && (
-          <div className="mt-8 rounded-xl bg-red-100 text-red-800 p-5">
+          <div className="mt-8 rounded-xl bg-red-100 text-red-800 p-5 whitespace-pre-wrap">
             {error}
           </div>
         )}

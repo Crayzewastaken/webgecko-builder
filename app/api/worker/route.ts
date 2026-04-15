@@ -64,10 +64,6 @@ ${JSON.stringify(userInput)}
     const projectName: string = rawProject?.name || "";
     const projectId = projectName.split("/")[1];
 
-    if (!projectId) {
-      throw new Error("No projectId returned");
-    }
-
     const rawStitchResult: any = await stitchClient.callTool(
       "generate_screen_from_text",
       {
@@ -80,16 +76,8 @@ ${JSON.stringify(userInput)}
       rawStitchResult?.outputComponents?.find((x: any) => x.design)
         ?.design?.screens || [];
 
-    if (!screens.length) {
-      throw new Error("No screens returned from Stitch");
-    }
-
     const firstScreen = screens[0];
     const downloadUrl = firstScreen?.htmlCode?.downloadUrl;
-
-    if (!downloadUrl) {
-      throw new Error("No Stitch html downloadUrl returned");
-    }
 
     const stitchHtml = await fetch(downloadUrl).then((r) => r.text());
 
@@ -99,17 +87,7 @@ ${JSON.stringify(userInput)}
       messages: [
         {
           role: "user",
-          content: `
-Take this Stitch frontend HTML and convert it into production-ready deployable static HTML.
-
-Requirements:
-- preserve design exactly
-- fix navigation
-- fix forms
-- output ONLY full HTML
-
-${stitchHtml}
-          `,
+          content: stitchHtml,
         },
       ],
     });
@@ -119,20 +97,14 @@ ${stitchHtml}
         ? backendResponse.content[0].text
         : stitchHtml;
 
-    const fileName = `site-${Date.now()}.html`;
-
-    await resend.emails.send({
+    const emailResult = await resend.emails.send({
       from: "AI Builder <onboarding@resend.dev>",
       to: process.env.RESULT_TO_EMAIL!,
-      subject: `New Generated Website - ${spec.projectTitle}`,
-      html: `
-        <h2>New Website Generated</h2>
-        <p><strong>Business:</strong> ${userInput.businessName || spec.projectTitle}</p>
-        <p>The generated website HTML is attached.</p>
-      `,
+      subject: `Generated Website - ${spec.projectTitle}`,
+      html: `<p>Your generated website is attached.</p>`,
       attachments: [
         {
-          filename: fileName,
+          filename: `site-${Date.now()}.html`,
           content: Buffer.from(finalHtml).toString("base64"),
         },
       ],
@@ -140,8 +112,8 @@ ${stitchHtml}
 
     return NextResponse.json({
       success: true,
+      resendId: emailResult.data?.id,
       message: "Website sent to your email successfully",
-      projectId,
     });
   } catch (error: any) {
     return NextResponse.json({
