@@ -24,15 +24,10 @@ function extractJson(text: string) {
   return JSON.parse(text.slice(start, end + 1));
 }
 
-function slugify(input: string) {
-  return input
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-export async function GET() {
+export async function POST(req: Request) {
   try {
+    const userInput = await req.json();
+
     // STEP 1: Claude upgrades user request into advanced Stitch prompt
     const promptResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
@@ -47,7 +42,9 @@ Return ONLY valid JSON:
   "stitchPrompt": "string"
 }
 
-Generate the best advanced premium consulting website generation prompt.
+Transform this user brief into the best advanced premium website generation prompt for Stitch:
+
+${JSON.stringify(userInput)}
           `,
         },
       ],
@@ -61,22 +58,23 @@ Generate the best advanced premium consulting website generation prompt.
     const spec = extractJson(promptText) as PromptSpec;
 
     // STEP 2: Stitch builds frontend
-    const project = await stitchClient.callTool("create_project", {
+    const project = (await stitchClient.callTool("create_project", {
       title: spec.projectTitle,
-    });
+    })) as any;
 
     const projectId = project?.name?.split("/")[1];
+
     if (!projectId) {
       throw new Error("No projectId returned");
     }
 
-    const stitchResult = await stitchClient.callTool(
+    const stitchResult = (await stitchClient.callTool(
       "generate_screen_from_text",
       {
         projectId,
         prompt: spec.stitchPrompt,
       }
-    );
+    )) as any;
 
     const screens =
       stitchResult?.outputComponents?.find((x: any) => x.design)
@@ -128,16 +126,18 @@ ${stitchHtml}
         ? backendResponse.content[0].text
         : stitchHtml;
 
+    const fileName = `site-${Date.now()}.html`;
+
     fs.writeFileSync(
-      path.join(process.cwd(), "public", "generated-site.html"),
+      path.join(process.cwd(), "public", fileName),
       finalHtml,
       "utf8"
     );
 
     return NextResponse.json({
       success: true,
+      page: `/${fileName}`,
       projectId,
-      page: "/generated-site.html",
     });
   } catch (error: any) {
     return NextResponse.json({
