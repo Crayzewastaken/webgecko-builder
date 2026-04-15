@@ -1,12 +1,13 @@
-import fs from "fs";
-import path from "path";
 import { NextResponse } from "next/server";
 import { stitchClient } from "@/lib/stitch";
 import Anthropic from "@anthropic-ai/sdk";
+import { Resend } from "resend";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 });
+
+const resend = new Resend(process.env.RESEND_API_KEY!);
 
 type PromptSpec = {
   projectTitle: string;
@@ -41,7 +42,7 @@ Return ONLY valid JSON:
   "stitchPrompt": "string"
 }
 
-Transform this user brief into the best advanced premium website generation prompt for Stitch:
+Transform this client brief into the best advanced premium website generation prompt for Stitch:
 
 ${JSON.stringify(userInput)}
           `,
@@ -54,9 +55,8 @@ ${JSON.stringify(userInput)}
         ? promptResponse.content[0].text
         : "{}";
 
-    const spec: PromptSpec = extractJson(promptText);
+    const spec = extractJson(promptText);
 
-    // EXPLICIT TYPE FIX FOR VERCEL
     const rawProject: any = await stitchClient.callTool("create_project", {
       title: spec.projectTitle,
     });
@@ -103,12 +103,9 @@ ${JSON.stringify(userInput)}
 Take this Stitch frontend HTML and convert it into production-ready deployable static HTML.
 
 Requirements:
-- fix all internal navigation
 - preserve design exactly
-- keep buttons working
+- fix navigation
 - fix forms
-- normalize assets
-- make deployable for hosting
 - output ONLY full HTML
 
 ${stitchHtml}
@@ -124,15 +121,26 @@ ${stitchHtml}
 
     const fileName = `site-${Date.now()}.html`;
 
-    fs.writeFileSync(
-      path.join(process.cwd(), "public", fileName),
-      finalHtml,
-      "utf8"
-    );
+    await resend.emails.send({
+      from: "AI Builder <onboarding@resend.dev>",
+      to: process.env.RESULT_TO_EMAIL!,
+      subject: `New Generated Website - ${spec.projectTitle}`,
+      html: `
+        <h2>New Website Generated</h2>
+        <p><strong>Business:</strong> ${userInput.businessName || spec.projectTitle}</p>
+        <p>The generated website HTML is attached.</p>
+      `,
+      attachments: [
+        {
+          filename: fileName,
+          content: Buffer.from(finalHtml).toString("base64"),
+        },
+      ],
+    });
 
     return NextResponse.json({
       success: true,
-      page: `/${fileName}`,
+      message: "Website sent to your email successfully",
       projectId,
     });
   } catch (error: any) {
