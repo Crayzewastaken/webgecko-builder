@@ -24,7 +24,8 @@ export default function HomePage() {
   });
 
   const [loading, setLoading] = useState(false);
-  const [resultUrl, setResultUrl] = useState("");
+  const [result, setResult] = useState("");
+  const [error, setError] = useState("");
 
   function updateField(key: keyof FormData, value: string) {
     setForm((prev) => ({
@@ -36,20 +37,30 @@ export default function HomePage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setResultUrl("");
+    setResult("");
+    setError("");
 
-    const res = await fetch("/api/worker", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(form),
-    });
+    try {
+      const res = await fetch("/api/worker", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (data.page) {
-      setResultUrl(data.page);
+      if (!data.success) {
+        setError(data.message || "Unknown backend error");
+      } else {
+        setResult(
+          data.message ||
+            "Website generated and emailed successfully"
+        );
+      }
+    } catch (err: any) {
+      setError(err.message || "Frontend request failed");
     }
 
     setLoading(false);
@@ -134,16 +145,15 @@ export default function HomePage() {
           </button>
         </form>
 
-        {resultUrl && (
-          <div className="mt-8 rounded-xl bg-gray-100 p-5">
-            <p className="font-medium mb-2">Finished website:</p>
-            <a
-              href={resultUrl}
-              target="_blank"
-              className="underline"
-            >
-              {resultUrl}
-            </a>
+        {result && (
+          <div className="mt-8 rounded-xl bg-green-100 text-green-800 p-5">
+            {result}
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-8 rounded-xl bg-red-100 text-red-800 p-5">
+            {error}
           </div>
         )}
       </div>
