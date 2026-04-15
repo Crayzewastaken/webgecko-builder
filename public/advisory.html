@@ -1,0 +1,331 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&amp;family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-fixed-dim": "#bcc7de",
+                    "on-primary-container": "#79849a",
+                    "surface-container": "#eceef0",
+                    "tertiary-fixed": "#89f5e7",
+                    "on-tertiary-fixed": "#00201d",
+                    "on-secondary": "#ffffff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-secondary-container": "#54647a",
+                    "surface": "#f7f9fb",
+                    "on-tertiary-fixed-variant": "#005049",
+                    "on-tertiary": "#ffffff",
+                    "secondary-fixed": "#d3e4fe",
+                    "on-error": "#ffffff",
+                    "secondary-fixed-dim": "#b7c8e1",
+                    "primary": "#000000",
+                    "primary-fixed": "#d8e3fb",
+                    "on-secondary-fixed": "#0b1c30",
+                    "on-tertiary-container": "#0c9488",
+                    "surface-variant": "#e0e3e5",
+                    "tertiary-container": "#00201d",
+                    "secondary": "#505f76",
+                    "on-surface-variant": "#45464d",
+                    "background": "#f7f9fb",
+                    "surface-container-highest": "#e0e3e5",
+                    "secondary-container": "#d0e1fb",
+                    "surface-bright": "#f7f9fb",
+                    "surface-container-low": "#f2f4f6",
+                    "outline": "#76777d",
+                    "on-primary-fixed-variant": "#3c475a",
+                    "surface-tint": "#545f73",
+                    "inverse-surface": "#2d3133",
+                    "error": "#ba1a1a",
+                    "tertiary-fixed-dim": "#6bd8cb",
+                    "surface-dim": "#d8dadc",
+                    "error-container": "#ffdad6",
+                    "on-secondary-fixed-variant": "#38485d",
+                    "on-primary": "#ffffff",
+                    "surface-container-high": "#e6e8ea",
+                    "outline-variant": "#c6c6cd",
+                    "tertiary": "#000000",
+                    "on-error-container": "#93000a",
+                    "on-primary-fixed": "#111c2d",
+                    "on-surface": "#191c1e",
+                    "on-background": "#191c1e",
+                    "inverse-on-surface": "#eff1f3",
+                    "inverse-primary": "#bcc7de",
+                    "primary-container": "#111c2d"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Noto Serif"],
+                    "body": ["Manrope"],
+                    "label": ["Manrope"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .tonal-shift { background-color: #f2f4f6; }
+        .font-notoSerif { font-family: 'Noto Serif', serif; }
+        .font-manrope { font-family: 'Manrope', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body overflow-x-hidden">
+<!-- TopAppBar Component -->
+<header class="fixed top-0 w-full z-50 bg-[#f7f9fb]/80 backdrop-blur-xl shadow-[0px_40px_80px_rgba(25,28,30,0.04)] flex justify-between items-center px-8 h-20 max-w-full mx-auto">
+<div class="flex items-center gap-4" data-hamburger="true">
+<span class="material-symbols-outlined text-[#0f172a]" data-icon="menu">menu</span>
+<span class="font-notoSerif text-xl tracking-[0.1em] text-[#0f172a]">The Executive</span>
+</div>
+<nav class="hidden md:flex items-center space-gap-8 gap-8">
+<a class="font-notoSerif tracking-tight font-semibold text-[#0f172a] border-b-2 border-[#89f5e7] transition-colors duration-300" href="/portfolio.html" target="_top">Portfolio</a>
+<a class="font-notoSerif tracking-tight font-semibold text-[#505f76] hover:text-[#0f172a] transition-colors duration-300" href="/insights.html" target="_top">Insights</a>
+<a class="font-notoSerif tracking-tight font-semibold text-[#505f76] hover:text-[#0f172a] transition-colors duration-300" href="/leadership.html" target="_top">Leadership</a>
+<a class="font-notoSerif tracking-tight font-semibold text-[#505f76] hover:text-[#0f172a] transition-colors duration-300" href="/advisory.html" target="_top">Advisory</a>
+</nav>
+<a href="/contact-us.html" target="_top" class="bg-primary text-on-primary px-6 py-2 rounded-xl font-medium active:scale-95 transition-transform">Contact Us</a>
+</header>
+<main class="pt-20">
+<!-- Hero Section: Perspective Grid -->
+<section class="relative min-h-[795px] flex items-center px-8 py-20 overflow-hidden">
+<div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+<div class="lg:col-span-6 z-10">
+<span class="font-label text-xs tracking-[0.2em] uppercase text-on-surface-variant mb-6 block">ESTABLISHED AUTHORITIES</span>
+<h1 class="font-headline text-5xl md:text-7xl leading-tight text-on-surface mb-8">Architecting the <span class="italic">Future of Global</span> Enterprise.</h1>
+<p class="font-body text-lg md:text-xl text-secondary mb-10 max-w-xl leading-relaxed">
+                        Where strategic precision meets architectural elegance. We deliver bespoke advisory services for the world's most discerning organizations.
+                    </p>
+<div class="flex flex-wrap gap-4">
+<button class="bg-tertiary-fixed text-on-tertiary-fixed px-8 py-4 rounded-xl font-bold tracking-wide hover:opacity-90 transition-all">
+                            VIEW PORTFOLIO
+                        </button>
+<button class="bg-transparent border border-outline-variant/30 text-on-surface px-8 py-4 rounded-xl font-bold tracking-wide hover:bg-surface-container-low transition-all">
+                            OUR ADVISORY
+                        </button>
+</div>
+</div>
+<div class="lg:col-span-6 relative flex justify-center">
+<!-- Asymmetric Image Layout -->
+<div class="relative w-full h-[600px]">
+<div class="absolute top-0 right-0 w-[85%] h-[90%] overflow-hidden rounded-xl shadow-2xl">
+<img alt="" class="w-full h-full object-cover" data-alt="High-end minimalist architectural interior with clean lines, soft natural lighting, and a single designer chair, reflecting premium corporate authority." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCtWQXgxh3u8IVgSIuOSJaR8FTbHVipMyu7MOCeRQ3BBqV5vuF9Qe78j9cJSr0ipZbWiRKDTq7384QBlTf2hyUTU1bYnm6-qa8ccmylywAdoY19_GvHhSdbPHqWu5ras_aDACLTPS7ZrD8Ui87PlVBve8sjfN9ysDFdiNXqT48zXqCcNuNuB2ta-XBNYp1ahczYWxbrwW4i65cOvvOOFmk4jTbwLybRdROlEplOVzfywWFaLCyR1LrLaXTd3v0bu99UdB5EN-6Lzlo">
+</div>
+<div class="absolute -bottom-8 -left-8 w-[50%] h-[50%] overflow-hidden rounded-xl shadow-xl border-8 border-surface">
+<img alt="" class="w-full h-full object-cover" data-alt="Close-up of a professional hand signing a leather-bound document on a dark marble desk with a premium fountain pen." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBGcMsfVGSZ5x3-igoktd39COmb-ddA2OlLWD6zY4prNhc1K0CwsVDa1hHdb1DCS3LcK7TteRFFI1xu9FM0HOri8yY-6MGv02bl7Y2kpNVh5ujvu8gAz7TBoCwIZrgmqYs5eidRj-hnASIbZtXk6RVmWdDGLRxVSm3Vg5wM1oXK6CtXtBoGEBR_lm0-kiemDBNiOSW1tQDUIqKC-MRi3CFjOxhTYy_i5LdixNvDV9I-eMtt5nJhj4aQO_2VgeYrPKBcllzPn8Ar_as">
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Value Propositions: Tonal Shift Section -->
+<section class="bg-surface-container-low py-32 px-8">
+<div class="max-w-7xl mx-auto">
+<div class="mb-20 text-center max-w-3xl mx-auto">
+<h2 class="font-headline text-3xl md:text-5xl mb-6">Strategic Imperatives</h2>
+<p class="font-body text-secondary">Our methodology is rooted in the synthesis of structural integrity and financial agility.</p>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Proposition Card 1 -->
+<div class="bg-surface-container-lowest p-10 rounded-xl flex flex-col justify-between h-80 hover:shadow-xl transition-all group">
+<div>
+<span class="material-symbols-outlined text-tertiary-fixed-dim text-4xl mb-6" data-icon="domain">domain</span>
+<h3 class="font-headline text-2xl mb-4">Structural Legacy</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed">Building frameworks that withstand market volatility and generational shifts.</p>
+</div>
+<div class="text-tertiary-fixed-dim font-bold tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">01</div>
+</div>
+<!-- Proposition Card 2 -->
+<div class="bg-surface-container-lowest p-10 rounded-xl flex flex-col justify-between h-80 hover:shadow-xl transition-all group">
+<div>
+<span class="material-symbols-outlined text-tertiary-fixed-dim text-4xl mb-6" data-icon="article">article</span>
+<h3 class="font-headline text-2xl mb-4">Editorial Insights</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed">Curated intelligence and reporting designed for the modern decision-maker.</p>
+</div>
+<div class="text-tertiary-fixed-dim font-bold tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">02</div>
+</div>
+<!-- Proposition Card 3 -->
+<div class="bg-surface-container-lowest p-10 rounded-xl flex flex-col justify-between h-80 hover:shadow-xl transition-all group">
+<div>
+<span class="material-symbols-outlined text-tertiary-fixed-dim text-4xl mb-6" data-icon="verified_user">verified_user</span>
+<h3 class="font-headline text-2xl mb-4">Risk Sovereignty</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed">Absolute discretion and precise defensive positioning in a digital world.</p>
+</div>
+<div class="text-tertiary-fixed-dim font-bold tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">03</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Testimonials: Glassmorphism Overlay -->
+<section class="relative py-32 px-8 overflow-hidden bg-primary-container text-white">
+<div class="absolute inset-0 opacity-20">
+<img alt="" class="w-full h-full object-cover" data-alt="Subtle abstract background texture with fine grain and organic fluid shapes in deep navy and slate tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAl-JE9-PRHrEZcQX0mblyaPax_E_IXpf7So4kvSEUNFWVA8jNzFc0btDWDBLzmafDUi3Poy7SA6v2S5MtKdvlDiQ__Tq3ZFU1wSTBj7wdm6CSCdqDcWs33sPjwojpBsdYT9YOTIaz5SxiPNtlLTYlYLrRhEl0CG9luWsaqqzEAO2c2F3HEBOQOAOBmW5PKlxRyc1MghDJlxDxyFFuLTg96WzscHBEEheIoRCD7OfRmzhEN2h4FE76ZCh_MEncVDBXNqQtpxhOjPGQ">
+</div>
+<div class="max-w-7xl mx-auto relative z-10">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+<div>
+<h2 class="font-headline text-4xl md:text-6xl mb-8 leading-tight">Trusted by <span class="text-tertiary-fixed italic">Visionaries</span>.</h2>
+<p class="text-on-primary-container text-lg mb-12">The world's leading executives rely on The Architectural Ledger for clarity amidst the noise.</p>
+</div>
+<div class="space-y-8">
+<!-- Glass Card -->
+<div class="bg-white/10 backdrop-blur-md p-10 rounded-xl border border-white/5 shadow-2xl">
+<span class="material-symbols-outlined text-tertiary-fixed mb-6" data-icon="format_quote" style="font-variation-settings: 'FILL' 1;">format_quote</span>
+<p class="font-headline text-xl mb-8 italic leading-relaxed">"Their approach to corporate strategy is more akin to fine architecture than consulting. It’s about building something that lasts."</p>
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full overflow-hidden">
+<img alt="" class="w-full h-full object-cover" data-alt="Professional headshot of a mature male executive with silver hair, wearing a charcoal tailored suit, soft studio lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAwakXCGS1jThQ5n5U2ZPnPhzVRFsAGcHPI2D2u8F4177l8Kt2CupzRjzTjeEnPIGRR8lfDXrSpmP3qJziAEa-tsjxLr2xwieoKYjcWwVjFmTfo6lXbnGzLZ_JNIkbH6wVRhKeq4ArfaRLieY7rLk36pGw9MALEHnUnKC3Q7aC2z4KD1-nt5ngstIL-60WwpK7EaAITpwXcdzuKf-UY0qa39Ipthjo-hbtj-PfR3dek8-5gznamzqpi-aRHD6xgusaUX5Uu8F8QVlA">
+</div>
+<div>
+<h4 class="font-bold text-sm">Marcus V. Sterling</h4>
+<p class="text-xs text-on-primary-container uppercase tracking-widest">CEO, Sterling Financial Group</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Insights Preview: Editorial List (No Dividers) -->
+<section class="py-32 px-8">
+<div class="max-w-7xl mx-auto">
+<div class="flex justify-between items-end mb-16">
+<div>
+<span class="font-label text-xs tracking-[0.2em] uppercase text-on-surface-variant mb-4 block">LATEST INSIGHTS</span>
+<h2 class="font-headline text-4xl">The Executive Editorial</h2>
+</div>
+<button class="hidden md:block text-on-surface font-bold tracking-tight border-b border-on-surface pb-1">View Archive</button>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+<div class="lg:col-span-7">
+<div class="group cursor-pointer">
+<div class="aspect-[16/9] overflow-hidden rounded-xl mb-8">
+<img alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Aerial drone shot of a modern glass skyscraper reflecting a dramatic orange and purple sunset in a global business hub." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBuX7PfvTnK55qfnRfyEzd15i5-DINkG-PZ_wfrz6GMseuRxif2CB5IEYSJ8uOS3tbEGoj2zFVH6sytuvqNBQSLv29nYOOyJvgIjaQ6xC9v1uuUqClw2nwAqgI07j8XbWUzk8w_HCGgBE7TKgHR9G8q-KBg6zk5sfAFnjrWTDDMCXxBtUkjsRELtx0SnZOaoufDwSqaCAIIRb5Xrf2z5Gs0CDEtQWdw5zpAckcMvmTxo-KqC8t6s8d3Jyn_n4rVW1GOXnFPYJ-26ok">
+</div>
+<span class="font-label text-xs text-on-tertiary-container bg-tertiary-fixed px-3 py-1 rounded-full mb-4 inline-block">ADVISORY</span>
+<h3 class="font-headline text-3xl mb-4 group-hover:text-secondary transition-colors">The Structural Integrity of Emerging Markets</h3>
+<p class="text-on-surface-variant max-w-2xl mb-6">An analysis of the foundational shifts in developing economies and the architectural strategies required for sustained growth.</p>
+<span class="text-xs text-outline font-medium tracking-widest uppercase">JUNE 2024 • 12 MIN READ</span>
+</div>
+</div>
+<div class="lg:col-span-5 flex flex-col justify-between py-4">
+<!-- List Item 1 (No Divider) -->
+<div class="group cursor-pointer pb-12">
+<span class="text-xs text-on-surface-variant uppercase tracking-widest mb-2 block">LEADERSHIP</span>
+<h4 class="font-headline text-xl group-hover:text-secondary transition-colors">Quiet Authority: The Power of Restraint</h4>
+<p class="text-sm text-on-surface-variant mt-2">Redefining leadership Presence in the age of digital noise.</p>
+</div>
+<!-- List Item 2 (No Divider) -->
+<div class="group cursor-pointer pb-12">
+<span class="text-xs text-on-surface-variant uppercase tracking-widest mb-2 block">INSIGHTS</span>
+<h4 class="font-headline text-xl group-hover:text-secondary transition-colors">Fiscal Symmetry in Post-Pandemic Cycles</h4>
+<p class="text-sm text-on-surface-variant mt-2">Achieving balance between capital expenditure and liquid reserves.</p>
+</div>
+<!-- List Item 3 (No Divider) -->
+<div class="group cursor-pointer">
+<span class="text-xs text-on-surface-variant uppercase tracking-widest mb-2 block">CAREERS</span>
+<h4 class="font-headline text-xl group-hover:text-secondary transition-colors">Cultivating the Architectural Mindset</h4>
+<p class="text-sm text-on-surface-variant mt-2">Why we hire for depth rather than breadth.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer Component -->
+<footer class="bg-[#f2f4f6] dark:bg-[#0b121f] w-full py-16 px-8 tonal-shift-top">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-12 max-w-7xl mx-auto">
+<div class="md:col-span-1">
+<span class="font-notoSerif text-lg font-medium italic text-[#0f172a] block mb-6">The Architectural Ledger</span>
+<p class="font-manrope text-xs leading-relaxed text-[#45464d] max-w-xs">Elevating global discourse through architectural precision and financial wisdom.</p>
+</div>
+<div class="md:col-span-1">
+<h5 class="font-manrope text-xs font-bold uppercase tracking-widest mb-6">Navigation</h5>
+<ul class="space-y-4">
+<li><a class="font-manrope text-xs text-[#45464d] hover:text-[#89f5e7] transition-all" href="/portfolio.html" target="_top">Portfolio</a></li>
+<li><a class="font-manrope text-xs text-[#45464d] hover:text-[#89f5e7] transition-all" href="/insights.html" target="_top">Insights</a></li>
+<li><a class="font-manrope text-xs text-[#45464d] hover:text-[#89f5e7] transition-all" href="/leadership.html" target="_top">Leadership</a></li>
+</ul>
+</div>
+<div class="md:col-span-1">
+<h5 class="font-manrope text-xs font-bold uppercase tracking-widest mb-6">Information</h5>
+<ul class="space-y-4">
+<li><a class="font-manrope text-xs text-[#45464d] hover:text-[#89f5e7] transition-all" href="#">Privacy Policy</a></li>
+<li><a class="font-manrope text-xs text-[#45464d] hover:text-[#89f5e7] transition-all" href="#">Terms of Service</a></li>
+<li><a class="font-manrope text-xs text-[#45464d] hover:text-[#89f5e7] transition-all" href="#">Cookie Policy</a></li>
+</ul>
+</div>
+<div class="md:col-span-1">
+<h5 class="font-manrope text-xs font-bold uppercase tracking-widest mb-6">Contact</h5>
+<p class="font-manrope text-xs text-[#45464d] mb-4">Inquiries: advisory@exec-editorial.com</p>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-sm" data-icon="public">public</span>
+<span class="material-symbols-outlined text-sm" data-icon="alternate_email">alternate_email</span>
+</div>
+</div>
+</div>
+<div class="max-w-7xl mx-auto mt-16 pt-8 border-t border-outline-variant/10">
+<p class="font-manrope text-xs text-[#45464d]">© 2024 The Architectural Ledger. All Rights Reserved.</p>
+</div>
+</footer>
+<!-- NavigationDrawer (Mobile Only, Hidden by default logic - represented here as an overlay conceptually) -->
+<div class="hidden fixed inset-0 z-[100]" id="mobile-drawer">
+<div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+<aside class="fixed left-0 top-0 h-screen w-80 z-[60] bg-white dark:bg-[#111c2d] shadow-2xl transition-transform duration-200 ease-in-out">
+<div class="p-8 border-b border-surface-container">
+<span class="font-notoSerif text-2xl font-bold text-[#0f172a]">Executive Editorial</span>
+</div>
+<nav class="p-4 space-y-2">
+<div class="flex items-center gap-4 p-4 rounded-xl bg-[#f2f4f6] text-[#0f172a] font-bold">
+<span class="material-symbols-outlined" data-icon="domain">domain</span>
+<span class="font-manrope text-sm font-medium tracking-wide uppercase">Portfolio</span>
+</div>
+<div class="flex items-center gap-4 p-4 rounded-xl text-[#505f76] hover:bg-[#f7f9fb]">
+<span class="material-symbols-outlined" data-icon="article">article</span>
+<span class="font-manrope text-sm font-medium tracking-wide uppercase">Insights</span>
+</div>
+<div class="flex items-center gap-4 p-4 rounded-xl text-[#505f76] hover:bg-[#f7f9fb]">
+<span class="material-symbols-outlined" data-icon="groups">groups</span>
+<span class="font-manrope text-sm font-medium tracking-wide uppercase">Leadership</span>
+</div>
+<div class="flex items-center gap-4 p-4 rounded-xl text-[#505f76] hover:bg-[#f7f9fb]">
+<span class="material-symbols-outlined" data-icon="verified_user">verified_user</span>
+<span class="font-manrope text-sm font-medium tracking-wide uppercase">Advisory</span>
+</div>
+<div class="flex items-center gap-4 p-4 rounded-xl text-[#505f76] hover:bg-[#f7f9fb]">
+<span class="material-symbols-outlined" data-icon="work">work</span>
+<span class="font-manrope text-sm font-medium tracking-wide uppercase">Careers</span>
+</div>
+</nav>
+</aside>
+</div>
+<script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const btn = document.querySelector('[data-hamburger]');
+        const nav = document.querySelector('nav');
+        if (btn && nav) {
+          btn.addEventListener('click', () => {
+            nav.style.display =
+              nav.style.display === 'block' ? 'none' : 'block';
+          });
+        }
+      });
+    </script></body></html>

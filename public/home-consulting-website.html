@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Editorial Authority | Premium Consulting</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;family=Newsreader:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline-variant": "#c4c6cc",
+                        "on-tertiary-container": "#a17f3b",
+                        "surface-bright": "#f8f9fa",
+                        "on-primary-fixed-variant": "#3a4859",
+                        "inverse-on-surface": "#f0f1f2",
+                        "primary": "#000000",
+                        "primary-container": "#0f1c2c",
+                        "on-primary-fixed": "#0f1c2c",
+                        "secondary-fixed": "#d1e4fb",
+                        "on-secondary-fixed": "#091d2e",
+                        "error": "#ba1a1a",
+                        "secondary-fixed-dim": "#b5c8df",
+                        "surface-variant": "#e1e3e4",
+                        "on-tertiary-fixed": "#261900",
+                        "surface-tint": "#525f71",
+                        "surface-container": "#edeeef",
+                        "inverse-surface": "#2e3132",
+                        "secondary-container": "#cfe2f9",
+                        "tertiary": "#000000",
+                        "on-secondary": "#ffffff",
+                        "on-background": "#191c1d",
+                        "surface-container-lowest": "#ffffff",
+                        "primary-fixed-dim": "#bac8dc",
+                        "on-tertiary-fixed-variant": "#5d4201",
+                        "surface-container-low": "#f3f4f5",
+                        "on-primary": "#ffffff",
+                        "tertiary-container": "#261900",
+                        "on-secondary-container": "#526478",
+                        "on-surface": "#191c1d",
+                        "on-secondary-fixed-variant": "#36485b",
+                        "surface": "#f8f9fa",
+                        "tertiary-fixed-dim": "#e9c176",
+                        "surface-dim": "#d9dadb",
+                        "on-surface-variant": "#44474c",
+                        "outline": "#74777d",
+                        "on-primary-container": "#778598",
+                        "surface-container-highest": "#e1e3e4",
+                        "error-container": "#ffdad6",
+                        "on-error": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed": "#ffdea5",
+                        "secondary": "#4e6073",
+                        "surface-container-high": "#e7e8e9",
+                        "inverse-primary": "#bac8dc",
+                        "background": "#f8f9fa",
+                        "primary-fixed": "#d6e4f9"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Newsreader"],
+                        "body": ["Manrope"],
+                        "label": ["Manrope"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Manrope', sans-serif; background-color: #f8f9fa; }
+        .perspective-grid { perspective: 1000px; }
+        .asymmetric-overlap { margin-top: -15%; }
+        .glass-nav { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="text-on-background overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-6 py-4 w-full bg-[#0D1B2A]/80 backdrop-blur-xl dark:bg-[#0D1B2A]/90 shadow-[0_20px_40px_rgba(25,28,29,0.05)]">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-white hover:opacity-80 transition-opacity cursor-pointer scale-95 duration-200 ease-in-out" data-icon="menu">menu</span>
+<h1 class="text-xl font-['Newsreader'] font-bold text-white tracking-tighter">The Editorial Authority</h1>
+</div>
+<nav class="hidden md:flex gap-8 items-center">
+<a class="font-['Manrope'] uppercase tracking-widest text-xs text-white/40 hover:text-white transition-colors" href="#">Insights</a>
+<a class="font-['Manrope'] uppercase tracking-widest text-xs text-white/40 hover:text-white transition-colors" href="#">Expertise</a>
+<a class="font-['Manrope'] uppercase tracking-widest text-xs text-white border-b border-white/20 pb-1" href="#">Case Studies</a>
+<a class="font-['Manrope'] uppercase tracking-widest text-xs text-white/40 hover:text-white transition-colors" href="#">About</a>
+</nav>
+<div class="w-10 h-10 rounded-full bg-surface-container overflow-hidden border border-white/10">
+<img alt="Consultant" class="w-full h-full object-cover" data-alt="close-up portrait of a professional male consultant with a confident expression in a sharp suit against a neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuChu4fbh9Bfr9ninZeVdQ5rq5nCQANyWq-SOH7yGnywPyKFUz1_pjuT952VN5j9al-PkSh1RASt-kSQg2SfrnmVxG0z4m2vBX2GwIK-j-Q01AayBMRPqr9IT87xDuRfvw7ZmRIHO64koJyrFDFyW5y9qFE9XXGTqcBHsIy-mWR52VtnfF-h93hm-lAvgT4RarqCBQCC-cmjntXbiVrWD3Gh7BxjiQ3G5kbTgDN_uXW5S0rG3ALk67cCgZgQHk3B-2Nooszbh3tuVUR5"/>
+</div>
+</header>
+<main class="pt-24">
+<!-- Hero: Perspective Architecture -->
+<section class="relative w-full min-h-[795px] flex flex-col justify-center px-6 md:px-20 bg-surface">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+<div class="lg:col-span-7 z-10">
+<p class="font-['Manrope'] text-xs uppercase tracking-[0.3em] text-secondary mb-6">Strategic Architecture</p>
+<h2 class="font-['Newsreader'] italic font-medium text-6xl md:text-8xl tracking-tight leading-[0.9] text-primary">
+                        Navigating the <br/>Complexity of <br/>Modern Commerce.
+                    </h2>
+<div class="mt-12 flex items-center gap-8">
+<button class="bg-primary text-on-primary px-10 py-5 text-sm font-['Manrope'] uppercase tracking-widest hover:scale-[0.98] transition-transform duration-200">
+                            Partner with us
+                        </button>
+<a class="font-['Manrope'] text-xs uppercase tracking-widest font-semibold border-b border-primary/20 pb-1 hover:border-primary transition-all" href="#">
+                            View our methodology
+                        </a>
+</div>
+</div>
+<div class="lg:col-span-5 relative mt-12 lg:mt-0">
+<div class="relative w-full aspect-[4/5] rounded-md overflow-hidden shadow-2xl">
+<img alt="Modern Skyscraper" class="w-full h-full object-cover" data-alt="low angle view of a sleek modern glass skyscraper reaching into a clear blue sky with crisp reflections and sharp geometry" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAR4ey_C-ZFd5nGMT8FvKESiHiFiQAPN5QxTg-AbMxJUWTNvuU01GdXbUM0I_xI--_ZXb74YLZl7nWFcyckcHDPtha3yM05KE5Sd1NEIpfugAvbfCZcFYxEBhBHk6cqWwPfYtEg2mqtZiiOo2G6FCHtkt6dZQE5Vi38UGQJDE0y2pveLZ5WVAWOeaEacvto2mCxNfnasVPk18tpOEV4JIds--NzF_S_w-aXfllxrbMUJLdwU5r7QpfRLpO-BeI26z-_hwUkblX4GG9f"/>
+</div>
+<div class="absolute -bottom-10 -left-10 w-2/3 aspect-square bg-surface-container-highest p-8 hidden md:block">
+<p class="font-['Newsreader'] italic text-2xl text-primary leading-tight">
+                            "Excellence is not an act, but a habit of curation."
+                        </p>
+<p class="font-['Manrope'] text-[10px] uppercase tracking-widest mt-4 text-on-surface-variant">The Editorial Mandate</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Key Expertise: Asymmetric Grid -->
+<section class="py-32 px-6 md:px-20 bg-surface-container-low">
+<div class="max-w-7xl mx-auto">
+<div class="flex flex-col md:flex-row justify-between items-end mb-24 gap-8">
+<div class="max-w-xl">
+<p class="font-['Manrope'] text-xs uppercase tracking-[0.3em] text-secondary mb-4">Our Domains</p>
+<h3 class="font-['Newsreader'] text-5xl md:text-6xl text-primary tracking-tighter">Strategic Intelligence &amp; Governance</h3>
+</div>
+<div class="text-right">
+<span class="material-symbols-outlined text-4xl text-primary/20" data-icon="military_tech">military_tech</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-1px bg-outline-variant/10">
+<div class="p-12 bg-surface hover:bg-surface-container-lowest transition-colors group cursor-pointer">
+<span class="material-symbols-outlined text-3xl mb-8 group-hover:text-primary transition-colors" data-icon="auto_stories">auto_stories</span>
+<h4 class="font-['Newsreader'] text-2xl mb-4 italic">Corporate Narrative</h4>
+<p class="font-['Manrope'] text-sm leading-relaxed text-on-surface-variant opacity-70">Synthesizing complex operations into powerful, market-leading identities that resonate with global stakeholders.</p>
+</div>
+<div class="p-12 bg-surface hover:bg-surface-container-lowest transition-colors group cursor-pointer">
+<span class="material-symbols-outlined text-3xl mb-8 group-hover:text-primary transition-colors" data-icon="visibility">visibility</span>
+<h4 class="font-['Newsreader'] text-2xl mb-4 italic">Visionary Foresight</h4>
+<p class="font-['Manrope'] text-sm leading-relaxed text-on-surface-variant opacity-70">Leveraging deep data analytics and trend forecasting to predict shifts in consumer and industrial landscapes.</p>
+</div>
+<div class="p-12 bg-surface hover:bg-surface-container-lowest transition-colors group cursor-pointer">
+<span class="material-symbols-outlined text-3xl mb-8 group-hover:text-primary transition-colors" data-icon="history_edu">history_edu</span>
+<h4 class="font-['Newsreader'] text-2xl mb-4 italic">Legacy Transformation</h4>
+<p class="font-['Manrope'] text-sm leading-relaxed text-on-surface-variant opacity-70">Modernizing institutional frameworks without compromising the core heritage that defines market authority.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Recent Insights: Editorial Cards -->
+<section class="py-32 px-6 md:px-20 bg-surface">
+<div class="max-w-7xl mx-auto">
+<div class="mb-20">
+<p class="font-['Manrope'] text-xs uppercase tracking-[0.3em] text-secondary mb-4">The Journal</p>
+<h3 class="font-['Newsreader'] text-5xl text-primary tracking-tighter italic">Recent Insights</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-16">
+<!-- Article 1 -->
+<div class="group">
+<div class="relative overflow-hidden aspect-[3/4] mb-8">
+<img alt="Office Space" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="minimalist and bright contemporary office interior with long white tables and large windows letting in soft natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAiz9C_uZpu60EHiZqtI7ekqAA_G35aRSHJH5SY2ypd9GJnw9_tlQDU-Wxiee8NJYzD4xo2qVDF79sOwdFKkGPW_nyCTFGbRAVtbbpHtJ1Qu56PYC33fTYz3QEVzBCc_diEeBEwh1UI8V597Rv2G7nCyUrGXrYecJPIsWugM2jvqzqot4oOdRapFHqU4MQLrct_qVulAtKM36DfrDmdFWJYhphhLjy0IImlYBwo9sv8wzSwbXsGg0JYv00LU_bl6xHF4V5RhIr8DIV4"/>
+<div class="absolute top-6 left-6 bg-primary text-white text-[10px] uppercase tracking-widest px-3 py-1">Strategy</div>
+</div>
+<h5 class="font-['Newsreader'] text-3xl leading-tight mb-4 group-hover:italic transition-all">The Quiet Rise of Tonal Branding in Tech</h5>
+<p class="font-['Manrope'] text-xs text-on-surface-variant uppercase tracking-widest mb-4">May 12, 2024 — 8 min read</p>
+<p class="font-['Manrope'] text-sm text-on-surface-variant/80 line-clamp-3">In an era of digital noise, the most successful brands are adopting a "whisper strategy" to communicate authority...</p>
+</div>
+<!-- Article 2 -->
+<div class="group mt-12 md:mt-0">
+<div class="relative overflow-hidden aspect-[3/4] mb-8">
+<img alt="Collaboration" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="overhead shot of a professional collaborative session with hands pointing at architectural blueprints and high-end tech on a dark table" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDlUikITvvB_K2uFc7OwpCypFnOp7adecWHBDjYi29vswrjVcOtPzXmGo8xyCwcK9rFgbJhEDW2Q5iDFAyFMHvEupxDtC_v4J6z4u6MGa24HLlKHOy_cwxIdRUXtJSIAunSqYqBlhO81J8exEUZ9IY_S2uqAV-KsT8ZoKGUkWayZxg5TWuXVdM02o-98qbbm3WH4byGpuFNVMqtzQFB1rixNY_jHDmrl9IZOf4pDLTY4pylmbPrHqwZnQRihm8Rnx-dXYrGrtTS3_eh"/>
+<div class="absolute top-6 left-6 bg-primary text-white text-[10px] uppercase tracking-widest px-3 py-1">Economics</div>
+</div>
+<h5 class="font-['Newsreader'] text-3xl leading-tight mb-4 group-hover:italic transition-all">Resilient Chains: Rewriting Supply in 2025</h5>
+<p class="font-['Manrope'] text-xs text-on-surface-variant uppercase tracking-widest mb-4">April 28, 2024 — 12 min read</p>
+<p class="font-['Manrope'] text-sm text-on-surface-variant/80 line-clamp-3">A deep dive into how global logistics are shifting from efficiency-first to reliability-first models following geopolitical shifts...</p>
+</div>
+<!-- Article 3 -->
+<div class="group mt-24 lg:mt-0">
+<div class="relative overflow-hidden aspect-[3/4] mb-8">
+<img alt="Analysis" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="black and white macro photograph of fine textured paper with elegant typography and deep shadows creating an intellectual mood" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFz4IoVk6fuB50BCZ2JojsujNNgj7d_xXI2xmqj8LN0_Udswgi7GhKarjo3fNcj3e3ft5REEZWAlFOVOjPxDBI0KYfAu4OdcfdSHDsZIntin72HVfDN34RGYlq-QekuBowpUHGaQWTbQ2ddHyB8jzthGZzo87INn3NlLt_Oqv-Lxs4cLbMrUIq7Ip7mkX_BV3anMYbxTUJfaKjPNy4TRezEZpvbieM-Kd4lnEySLl4_8sS1dcszc88g124qWAPGUNM-ubfm2q8yXSF"/>
+<div class="absolute top-6 left-6 bg-primary text-white text-[10px] uppercase tracking-widest px-3 py-1">Philosophy</div>
+</div>
+<h5 class="font-['Newsreader'] text-3xl leading-tight mb-4 group-hover:italic transition-all">The Ethics of Algorithmic Curation</h5>
+<p class="font-['Manrope'] text-xs text-on-surface-variant uppercase tracking-widest mb-4">April 15, 2024 — 15 min read</p>
+<p class="font-['Manrope'] text-sm text-on-surface-variant/80 line-clamp-3">Balancing human intuition with machine precision: the new frontier for executive decision-making in the age of AI...</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Client Results: Tonal Layering Section -->
+<section class="py-32 bg-primary-container text-white overflow-hidden">
+<div class="max-w-7xl mx-auto px-6 md:px-20 grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+<div class="relative">
+<div class="w-full aspect-video bg-surface/10 rounded-lg overflow-hidden glass-nav">
+<img alt="Professional Detail" class="w-full h-full object-cover mix-blend-overlay opacity-50" data-alt="abstract close-up of high-end office materials, fountain pen on heavy stock paper with soft focus and moody deep blue lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC51Gsbhg-DsXlwaCFaef7NpaD8S710EiHt-l4XeMVS1o8m02QoQjjKa2QcltVkJW10c7Kfke7BBoSrmTFDVnBOLFqOLbEkpr69okQPCOSQDt6DOSEM2rUc660oW00cC8NB-kDQRenzU2kEiJsWnJ8pbujPZvH044MvIJv4_hzhzgbVrddXi6XqI8gkQMCBYyTq4f017sAeSJgfuSti_gO-inrawswTScAMdOL3lHrW9G674poh3LIqho6x1K1KSHByE6jstPeS5xnw"/>
+</div>
+<div class="absolute -bottom-10 -right-10 bg-white p-10 text-primary hidden md:block">
+<h6 class="font-['Newsreader'] text-7xl font-bold tracking-tighter">42%</h6>
+<p class="font-['Manrope'] text-[10px] uppercase tracking-[0.2em] font-bold">Operational Alpha Increase</p>
+</div>
+</div>
+<div>
+<p class="font-['Manrope'] text-xs uppercase tracking-[0.3em] text-on-primary-container mb-6">Impact Analysis</p>
+<h3 class="font-['Newsreader'] text-5xl md:text-6xl mb-8 tracking-tight italic">Tangible Mastery.</h3>
+<p class="font-['Manrope'] text-lg text-on-primary-container/80 leading-relaxed mb-12">
+                        Our results aren't just measured in quarterly growth, but in the long-term structural integrity of our clients' market positions. We provide the editorial lens needed to see beyond the noise.
+                    </p>
+<div class="flex flex-col gap-6">
+<div class="border-t border-white/10 pt-6 flex justify-between items-center group cursor-pointer">
+<span class="font-['Manrope'] text-sm uppercase tracking-widest">Global Asset Management Firm</span>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-opacity" data-icon="arrow_forward">arrow_forward</span>
+</div>
+<div class="border-t border-white/10 pt-6 flex justify-between items-center group cursor-pointer">
+<span class="font-['Manrope'] text-sm uppercase tracking-widest">Tier-1 Automotive Consortium</span>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-opacity" data-icon="arrow_forward">arrow_forward</span>
+</div>
+<div class="border-t border-white/10 pt-6 flex justify-between items-center group cursor-pointer">
+<span class="font-['Manrope'] text-sm uppercase tracking-widest">European Sovereign Fund</span>
+<span class="material-symbols-outlined opacity-0 group-hover:opacity-100 transition-opacity" data-icon="arrow_forward">arrow_forward</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- CTA Section: The Signature Hero -->
+<section class="py-40 bg-surface flex flex-col items-center justify-center text-center px-6">
+<h2 class="font-['Newsreader'] text-6xl md:text-[120px] text-primary tracking-tighter leading-none mb-12 italic">Begin the dialogue.</h2>
+<p class="font-['Manrope'] max-w-xl text-on-surface-variant mb-12 text-lg">
+                Excellence is a collaborative pursuit. Contact us to discuss your firm's trajectory and how our curation can define your future.
+            </p>
+<button class="bg-primary text-on-primary px-16 py-6 text-xs font-['Manrope'] uppercase tracking-[0.4em] hover:scale-[1.02] transition-transform">
+                Request Consultation
+            </button>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-[#0D1B2A] dark:bg-[#050a10] w-full pt-20 pb-10 flex flex-col items-center px-10 gap-6 text-center">
+<h2 class="text-lg font-['Newsreader'] text-white">The Editorial Authority</h2>
+<div class="flex flex-wrap justify-center gap-8 mb-4">
+<a class="font-['Manrope'] text-[10px] uppercase tracking-widest text-gray-400 hover:text-white transition-all underline-offset-4" href="#">Privacy Policy</a>
+<a class="font-['Manrope'] text-[10px] uppercase tracking-widest text-gray-400 hover:text-white transition-all underline-offset-4" href="#">Terms of Service</a>
+<a class="font-['Manrope'] text-[10px] uppercase tracking-widest text-gray-400 hover:text-white transition-all underline-offset-4" href="#">LinkedIn</a>
+<a class="font-['Manrope'] text-[10px] uppercase tracking-widest text-white underline underline-offset-4" href="#">Insights</a>
+</div>
+<p class="font-['Manrope'] text-[10px] uppercase tracking-widest text-gray-300 dark:text-gray-500">© 2024 Editorial Authority. All rights reserved.</p>
+</footer>
+</body></html>

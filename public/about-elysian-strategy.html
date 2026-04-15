@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>About | Sovereign Editorial</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,700;1,400&amp;family=Manrope:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#ffdea5",
+                        "secondary-fixed-dim": "#c6c6c9",
+                        "inverse-surface": "#2f3131",
+                        "on-tertiary-fixed-variant": "#5d4201",
+                        "on-secondary-container": "#636467",
+                        "surface": "#f9f9f9",
+                        "secondary-fixed": "#e2e2e5",
+                        "primary-fixed-dim": "#b1c7f2",
+                        "on-tertiary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "surface-container-low": "#f3f3f3",
+                        "inverse-on-surface": "#f1f1f1",
+                        "on-primary-container": "#6f84ac",
+                        "inverse-primary": "#b1c7f2",
+                        "outline": "#74777f",
+                        "surface-tint": "#495f84",
+                        "surface-variant": "#e2e2e2",
+                        "on-primary": "#ffffff",
+                        "on-background": "#1a1c1c",
+                        "on-error-container": "#93000a",
+                        "primary-fixed": "#d6e3ff",
+                        "outline-variant": "#c4c6cf",
+                        "secondary": "#5d5e61",
+                        "on-surface-variant": "#44474e",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-surface": "#1a1c1c",
+                        "on-secondary-fixed": "#1a1c1e",
+                        "on-error": "#ffffff",
+                        "surface-bright": "#f9f9f9",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-container": "#a17f3b",
+                        "tertiary-fixed-dim": "#e9c176",
+                        "primary-container": "#001b3d",
+                        "surface-container": "#eeeeee",
+                        "surface-container-high": "#e8e8e8",
+                        "on-primary-fixed": "#001b3d",
+                        "on-secondary-fixed-variant": "#454749",
+                        "on-tertiary-fixed": "#261900",
+                        "tertiary": "#000000",
+                        "primary": "#000000",
+                        "background": "#f9f9f9",
+                        "error": "#ba1a1a",
+                        "surface-dim": "#dadada",
+                        "tertiary-container": "#261900",
+                        "on-primary-fixed-variant": "#31476b",
+                        "secondary-container": "#e2e2e5",
+                        "surface-container-lowest": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Noto Serif"],
+                        "body": ["Manrope"],
+                        "label": ["Manrope"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Manrope', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        h1, h2, h3, .serif {
+            font-family: 'Noto Serif', serif;
+        }
+        /* Glassmorphism utility not fully covered by Tailwind */
+        .glass-header {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-[#f9f9f9]/80 dark:bg-[#001B3D]/80 backdrop-blur-md shadow-[0_16px_32px_-12px_rgba(0,0,0,0.04)]">
+<div class="flex justify-between items-center max-w-7xl mx-auto px-8 py-6">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[#000000] dark:text-[#ffffff]">menu</span>
+<span class="text-xl font-bold font-['Noto_Serif'] text-[#000000] dark:text-[#ffffff]">Sovereign Editorial</span>
+</div>
+<nav class="hidden md:flex gap-8 items-center">
+<a class="text-[#5d5e61] dark:text-[#e2e2e5] font-['Manrope'] hover:text-[#a17f3b] transition-colors duration-300" href="#">Home</a>
+<a class="text-[#000000] dark:text-[#ffffff] border-b-2 border-[#a17f3b] pb-1 font-['Manrope']" href="#">About</a>
+<a class="text-[#5d5e61] dark:text-[#e2e2e5] font-['Manrope'] hover:text-[#a17f3b] transition-colors duration-300" href="#">Services</a>
+<a class="text-[#5d5e61] dark:text-[#e2e2e5] font-['Manrope'] hover:text-[#a17f3b] transition-colors duration-300" href="#">Contact</a>
+</nav>
+<button class="px-6 py-2 bg-primary text-on-primary rounded-lg font-label font-medium hover:opacity-80 transition-all">
+                Inquiry
+            </button>
+</div>
+</header>
+<main class="pt-32">
+<!-- Hero Section: Intentional Asymmetry -->
+<section class="max-w-7xl mx-auto px-8 mb-32">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-12 items-end">
+<div class="md:col-span-8">
+<span class="text-on-tertiary-container font-label tracking-[0.2em] uppercase text-xs mb-6 block">Our Genesis</span>
+<h1 class="text-6xl md:text-8xl text-primary leading-tight font-headline">The Quiet <br/>Authority of <span class="italic">Expertise.</span></h1>
+</div>
+<div class="md:col-span-4 pb-4">
+<p class="text-lg text-secondary leading-relaxed border-l border-outline-variant pl-8 italic">
+                        "In an era of noise, we prioritize the editorial precision of strategic thought."
+                    </p>
+</div>
+</div>
+</section>
+<!-- Mission: Tonal Layering -->
+<section class="bg-surface-container-low py-24 mb-32">
+<div class="max-w-7xl mx-auto px-8">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-24 items-center">
+<div class="relative">
+<div class="aspect-[4/5] bg-surface-container-highest overflow-hidden rounded-lg shadow-sm">
+<img alt="The Sovereign Environment" class="w-full h-full object-cover grayscale opacity-90" data-alt="Monochrome interior of a minimalist high-end office with floor to ceiling windows and structured architectural shadows" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAW9T53oo9Rc-1g4H5pBYf1i-EawAeSM2KgcisBY8Bp2td3dHt-QeGmUeKIn3kPixgZ5ojQyvGt6AFY9GJH-GtrfZ4eb0A9X0YQI3rE91YDvWq5t1r1yY7y7hnSqxtgvjH2pkY5VmI1Ln6-gvehengH_8GODvPZKyDwDIJHP7FWF9h0WAtqVK490B0pEIOiEtwy1ZfSN11G_glQV51mLdMZ9FfKzBV1ulumTXfXwYr2SUetZCde-0igOMyga0BQwrmjDrFzlTBaSUMD"/>
+</div>
+<div class="absolute -bottom-8 -right-8 w-48 h-48 bg-tertiary-fixed p-8 flex items-center justify-center">
+<span class="text-on-tertiary-fixed font-headline text-4xl italic">1994</span>
+</div>
+</div>
+<div>
+<h2 class="text-4xl font-headline text-primary mb-8">Architects of Narrative</h2>
+<p class="text-lg text-secondary mb-8 leading-relaxed">
+                            Founded on the principle that strategy is a form of editorial craft, Sovereign Editorial Consulting provides bespoke advisory for organizations navigating high-stakes transitions. We do not just solve problems; we refine the very identity of the enterprises we serve.
+                        </p>
+<div class="space-y-6">
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-on-tertiary-container mt-1" data-icon="verified_user">verified_user</span>
+<div>
+<h4 class="font-bold text-primary font-body">Unwavering Discretion</h4>
+<p class="text-sm text-secondary">Our legacy is built on the silent trust of industry titans.</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-on-tertiary-container mt-1" data-icon="history_edu">history_edu</span>
+<div>
+<h4 class="font-bold text-primary font-body">Editorial Precision</h4>
+<p class="text-sm text-secondary">Every recommendation is distilled to its most potent essence.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Leadership: Bento Grid Style -->
+<section class="max-w-7xl mx-auto px-8 mb-32">
+<div class="flex flex-col md:flex-row justify-between items-baseline mb-16 gap-4">
+<h2 class="text-4xl font-headline text-primary">The Curators</h2>
+<div class="h-px flex-grow bg-outline-variant/30 mx-8 hidden md:block"></div>
+<p class="font-label text-secondary-fixed-dim uppercase tracking-widest text-sm">Leadership Collective</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Bio Card 1 -->
+<div class="group">
+<div class="bg-surface-container-lowest p-1 mb-6 rounded-lg transition-all duration-500 group-hover:shadow-xl">
+<div class="aspect-[3/4] overflow-hidden rounded-lg relative">
+<img alt="Julian Vane" class="w-full h-full object-cover grayscale transition-transform duration-700 group-hover:scale-105" data-alt="Professional portrait of a senior consultant in a charcoal suit, cinematic soft side lighting against a dark library background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBB-5Ko4IX65u71g9p4Ok1ZLJRJLj4I0j_YtP2zi8dV48f-tglOYKDUm662jNOpI43RI-80C79GE1tzaejzFAkgd9IJueuWd2q_7Kt_TDMXm-hIdMz2Z1nMy6gL_XknOtHrLH59OM-I0NOlPxTEknQdfuL8Jz-I88P8qm3zyfrn8v27pAT5wwDtPWg3nzUq1ONInZOAnOK0ZYQCKcPQNnbavTQqkUUEVW8UB7w9EGFVFR5S2SyDWmd0eeCj9ShVy9WAeFyb0vGpstda"/>
+<div class="absolute inset-0 bg-gradient-to-t from-primary-container/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-8">
+<p class="text-on-primary text-sm italic">"Precision is the ultimate luxury in strategy."</p>
+</div>
+</div>
+</div>
+<h3 class="text-2xl font-headline text-primary">Julian Vane</h3>
+<p class="text-on-tertiary-container font-label text-xs uppercase tracking-widest mt-1 mb-4">Founding Partner</p>
+<p class="text-secondary text-sm leading-relaxed">
+                        Former policy advisor with over three decades of experience in geopolitical risk and institutional narrative.
+                    </p>
+</div>
+<!-- Bio Card 2 -->
+<div class="group">
+<div class="bg-surface-container-lowest p-1 mb-6 rounded-lg transition-all duration-500 group-hover:shadow-xl">
+<div class="aspect-[3/4] overflow-hidden rounded-lg relative">
+<img alt="Helena Thorne" class="w-full h-full object-cover grayscale transition-transform duration-700 group-hover:scale-105" data-alt="Close-up portrait of a female executive with silver hair, confident expression, soft natural window light, muted beige studio background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA8zgY1DJ__62g1uS5z1bhzIn1XZKxxnS7zyIdHx0vHuR_s0ujtVk5XVVeIa7OvHKH7rwCmUAf1Mjiw9UeDOOxK3vC54eAZSbmfwxQG8w-2-bVKDRkm5DK2MoHBr2jLu03OaHbyImz046h8ke8g0kyPXTz7sgdRXcr1CBnSJIRai5BwODRhP3bNwdj5eKaaqJnjKVYRupSc-EjB6nnICGAZ9TVjVXvhWSX7JbuZ7Yaqhox-bEJJPPNh6cuvWjtN_A94yTBVbRYAFpKv"/>
+<div class="absolute inset-0 bg-gradient-to-t from-primary-container/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-8">
+<p class="text-on-primary text-sm italic">"Clarity is not found; it is constructed."</p>
+</div>
+</div>
+</div>
+<h3 class="text-2xl font-headline text-primary">Helena Thorne</h3>
+<p class="text-on-tertiary-container font-label text-xs uppercase tracking-widest mt-1 mb-4">Chief Strategist</p>
+<p class="text-secondary text-sm leading-relaxed">
+                        Specializes in corporate structural realignment and the psychology of executive leadership.
+                    </p>
+</div>
+<!-- Bio Card 3 -->
+<div class="group">
+<div class="bg-surface-container-lowest p-1 mb-6 rounded-lg transition-all duration-500 group-hover:shadow-xl">
+<div class="aspect-[3/4] overflow-hidden rounded-lg relative">
+<img alt="Arthur Sterling" class="w-full h-full object-cover grayscale transition-transform duration-700 group-hover:scale-105" data-alt="Modern professional male in a bespoke navy blazer, standing in a brightly lit glass atrium, high-key lighting style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAPBApsPNPMOuat5WdOUC3BGBMzkTLklh7ztO1zhZvvoyc5xyQRN8kPqbm1FVzIirkcR7Vk0ulPgY9xE9v8_Fuif-PVrb_UIl2rETX297O_nV8DjactlIHico5NEevBfjrWovbm2EwSlPMt3CB9Jpy1EzkQ1mBeLBFCkGP8jZwKIyHUeux-PnQJg3k9qOiqZPk0tZ4honADLjedh_doRqMkidl8z369hZpkee-qs_arS6x1YrICnr4z_OQmelq_3xrpX4Xuc2UoZBwz"/>
+<div class="absolute inset-0 bg-gradient-to-t from-primary-container/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-8">
+<p class="text-on-primary text-sm italic">"The strongest systems are the most invisible."</p>
+</div>
+</div>
+</div>
+<h3 class="text-2xl font-headline text-primary">Arthur Sterling</h3>
+<p class="text-on-tertiary-container font-label text-xs uppercase tracking-widest mt-1 mb-4">Director of Operations</p>
+<p class="text-secondary text-sm leading-relaxed">
+                        A master of logistical symphony, ensuring that high-level visions are executed with tactical perfection.
+                    </p>
+</div>
+</div>
+</section>
+<!-- CTA: Midnight Navy Depth -->
+<section class="max-w-7xl mx-auto px-8 mb-32">
+<div class="relative bg-primary-container rounded-lg p-16 overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-br from-primary via-primary-container to-primary opacity-90"></div>
+<!-- Subtle Grain Texture -->
+<div class="absolute inset-0 mix-blend-overlay opacity-20 pointer-events-none" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCS306fxqiCSSz7o3y9GbYrsZFv1KqWzye5kjCmmC_GxpM5rxi6I3Yj8gpJ7MiVhiUFyC0URDKyVFnhZXxKLGFsd0ax9TVyPLqgP24s-jFD2H5_X0gUJJtG_DKpZxZa_PeSvx9e_8z_-Hc2NhEBbBjlH6UFM-mCQJK6GoD0_PrExeZHUGOd24SwIpwdpRJjutJNWcVifP3GNX0OY-EY3TPUCEYuE1xtpLO0fY_hx1V4ZQ88HaLl_puk_7hN8FfGna-ernOtLkPZKHsD');"></div>
+<div class="relative z-10 text-center max-w-2xl mx-auto">
+<h2 class="text-4xl font-headline text-on-primary mb-6">Begin a New Chapter</h2>
+<p class="text-on-primary-container mb-10 text-lg">
+                        Our consultation process is as rigorous as it is exclusive. We invite you to discuss the future of your institution.
+                    </p>
+<button class="bg-tertiary-fixed text-on-tertiary-fixed px-10 py-4 rounded-lg font-bold hover:scale-[1.02] transition-transform">
+                        Schedule a Private Briefing
+                    </button>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-[#f3f3f3] dark:bg-[#001B3D] w-full py-12">
+<div class="max-w-7xl mx-auto px-8 flex flex-col md:flex-row justify-between items-center gap-6">
+<div class="flex flex-col items-center md:items-start gap-2">
+<span class="font-['Noto_Serif'] font-bold text-[#000000] text-xl">Sovereign Editorial</span>
+<p class="font-['Manrope'] text-sm tracking-wide text-[#5d5e61] dark:text-[#ffffff] opacity-70">
+                    © 2024 Sovereign Editorial Consulting. All rights reserved.
+                </p>
+</div>
+<div class="flex gap-8">
+<a class="text-[#5d5e61] font-['Manrope'] text-sm hover:underline decoration-[#a17f3b] decoration-2 underline-offset-4" href="#">Home</a>
+<a class="font-bold text-[#000000] font-['Manrope'] text-sm hover:underline decoration-[#a17f3b] decoration-2 underline-offset-4" href="#">About</a>
+<a class="text-[#5d5e61] font-['Manrope'] text-sm hover:underline decoration-[#a17f3b] decoration-2 underline-offset-4" href="#">Services</a>
+<a class="text-[#5d5e61] font-['Manrope'] text-sm hover:underline decoration-[#a17f3b] decoration-2 underline-offset-4" href="#">Contact</a>
+<a class="text-[#5d5e61] font-['Manrope'] text-sm hover:underline decoration-[#a17f3b] decoration-2 underline-offset-4" href="#">Privacy</a>
+</div>
+</div>
+</footer>
+</body></html>

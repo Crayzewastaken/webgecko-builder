@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;700;900&amp;family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-fixed": "#d6e3ff",
+                    "outline": "#74777f",
+                    "tertiary-fixed": "#ffdea5",
+                    "secondary": "#506169",
+                    "error": "#ba1a1a",
+                    "on-surface-variant": "#44474e",
+                    "on-tertiary-container": "#a17f3b",
+                    "on-secondary": "#ffffff",
+                    "surface-container-low": "#f3f3f3",
+                    "surface-container": "#eeeeee",
+                    "surface-container-highest": "#e2e2e2",
+                    "tertiary-fixed-dim": "#e9c176",
+                    "surface-dim": "#dadada",
+                    "secondary-container": "#d1e2ec",
+                    "on-secondary-container": "#55656d",
+                    "on-primary-fixed": "#001b3d",
+                    "tertiary": "#000000",
+                    "on-surface": "#1a1c1c",
+                    "surface-variant": "#e2e2e2",
+                    "on-background": "#1a1c1c",
+                    "primary-container": "#001b3d",
+                    "surface-tint": "#495f84",
+                    "secondary-fixed": "#d4e5ef",
+                    "on-primary": "#ffffff",
+                    "outline-variant": "#c4c6cf",
+                    "on-tertiary-fixed-variant": "#5d4201",
+                    "surface-container-lowest": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-primary-fixed-variant": "#31476b",
+                    "background": "#f9f9f9",
+                    "inverse-on-surface": "#f1f1f1",
+                    "on-secondary-fixed-variant": "#394951",
+                    "on-tertiary-fixed": "#261900",
+                    "surface": "#f9f9f9",
+                    "inverse-primary": "#b1c7f2",
+                    "on-tertiary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "primary-fixed-dim": "#b1c7f2",
+                    "error-container": "#ffdad6",
+                    "surface-bright": "#f9f9f9",
+                    "surface-container-high": "#e8e8e8",
+                    "inverse-surface": "#2f3131",
+                    "on-primary-container": "#6f84ac",
+                    "secondary-fixed-dim": "#b8c9d3",
+                    "on-secondary-fixed": "#0d1e25",
+                    "primary": "#000000",
+                    "tertiary-container": "#261900"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Noto Serif"],
+                    "body": ["Manrope"],
+                    "label": ["Manrope"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .editorial-shadow {
+            box-shadow: 0px 20px 40px rgba(0, 27, 61, 0.06);
+        }
+        .hero-gradient {
+            background: linear-gradient(135deg, #000000 0%, #001b3d 100%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface font-body text-on-surface selection:bg-tertiary-fixed-dim selection:text-on-tertiary-fixed">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-[#f9f9f9]/80 backdrop-blur-xl shadow-[0px_20px_40px_rgba(0,27,61,0.06)]">
+<div class="max-w-7xl mx-auto px-8 flex justify-between items-center h-20">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-black" data-icon="menu">menu</span>
+<span class="font-['Noto_Serif'] font-bold text-2xl tracking-tighter text-black">THE ARCHITECTURAL ATELIER</span>
+</div>
+<nav class="hidden md:flex items-center gap-8 font-['Noto_Serif'] text-lg tracking-tight">
+<a class="text-[#e9c176] border-b-2 border-[#e9c176] pb-1" href="#">Home</a>
+<a class="text-black/70 hover:text-black transition-colors" href="#">About</a>
+<a class="text-black/70 hover:text-black transition-colors" href="#">Services</a>
+<a class="text-black/70 hover:text-black transition-colors" href="#">Insights</a>
+<a class="text-black/70 hover:text-black transition-colors" href="#">Contact</a>
+</nav>
+<button class="bg-primary text-on-primary px-6 py-2 text-sm font-label font-bold tracking-widest hover:bg-primary-container transition-all duration-300">CONSULT</button>
+</div>
+</header>
+<main class="pt-20">
+<!-- Hero Section -->
+<section class="relative h-[795px] flex items-center overflow-hidden hero-gradient">
+<div class="absolute inset-0 opacity-40">
+<img class="w-full h-full object-cover grayscale" data-alt="dramatic architectural shot of a modern skyscraper reaching into a deep blue twilight sky with sharp geometric angles" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZOArsOIOSd7JbLIeCT_mrN_NHywaHccaMmtbLNlgQ-VuIsm4fUzPibl7Jhsjur7osjXvZ-3tHFcQ08_H_-cFtMiR_40ITOaYNWyb1rybC1EknSL5mZA6v0M7ZduCYj66vM_0oCCsE7R2fG2k0MMsvOKFbpXm0NYEi4zXmbgl8xknnkf5Qnfo4wJyL2KW_hiJrJyNQyvYTVnN_dXDdKhcfVX66B7Rz4cmL1PlOMSxp1AYrzwGaK5e8NfbC8A3wGqDD3qfYVoUZt6s"/>
+</div>
+<div class="relative max-w-7xl mx-auto px-8 w-full z-10">
+<div class="max-w-3xl">
+<span class="font-label text-tertiary-fixed-dim tracking-[0.3em] uppercase text-xs mb-6 block">Legacy. Strategy. Mastery.</span>
+<h1 class="font-headline text-white text-6xl md:text-8xl font-black leading-[1.1] tracking-tighter mb-8">Architecting Corporate Dynasties.</h1>
+<p class="font-body text-white/70 text-xl md:text-2xl leading-relaxed mb-12 max-w-2xl">We don't just consult; we build structural integrity into the DNA of global enterprises through relentless precision and editorial foresight.</p>
+<div class="flex flex-col sm:flex-row gap-6">
+<button class="bg-tertiary-fixed-dim text-on-tertiary-fixed px-10 py-5 font-bold tracking-widest text-sm hover:opacity-90 transition-opacity">EXPLORE THE ATELIER</button>
+<button class="border-b-2 border-tertiary-fixed-dim text-white px-4 py-5 font-bold tracking-widest text-sm flex items-center gap-3 hover:gap-5 transition-all">VIEW CASE STUDIES <span class="material-symbols-outlined">arrow_forward</span></button>
+</div>
+</div>
+</div>
+</section>
+<!-- Our Expertise (Bento Grid) -->
+<section class="py-32 bg-surface">
+<div class="max-w-7xl mx-auto px-8">
+<div class="flex flex-col md:flex-row justify-between items-end mb-24 gap-8">
+<div class="max-w-2xl">
+<h2 class="font-headline text-5xl font-bold tracking-tight mb-6">Our Expertise</h2>
+<p class="font-body text-on-surface-variant text-lg">Specialized structural interventions for the most demanding market environments.</p>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+<!-- Major Column -->
+<div class="md:col-span-7 group relative overflow-hidden bg-surface-container-lowest p-12 editorial-shadow">
+<div class="relative z-10">
+<span class="material-symbols-outlined text-4xl mb-8 text-tertiary-fixed-dim" data-icon="account_balance">account_balance</span>
+<h3 class="font-headline text-3xl font-bold mb-4">Capital Architecture</h3>
+<p class="font-body text-on-surface-variant mb-8 max-w-md">Restructuring the financial foundations of billion-dollar enterprises for sustainable longevity and tax efficiency.</p>
+<a class="font-label font-bold text-sm tracking-widest text-primary border-b border-tertiary-fixed-dim pb-1 inline-block" href="#">LEARN MORE</a>
+</div>
+<div class="absolute bottom-0 right-0 w-1/2 h-full opacity-5 group-hover:opacity-10 transition-opacity">
+<img class="w-full h-full object-cover object-left" data-alt="close-up of intricate blueprint drawings with professional drafting tools on a clean white surface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDh4Sb6r7gZ-CKxL94MqLX0_QiHq2dtST7KxivVv1LtgTSHYVhh9fHOKekDB_DB8J8j5HiNZooFiavwIGDwPGl5hEddhzfv2Wdp0BFshiCkgTstQoMxsRt0krbNjpo_saDQFD_Ijj6mzgUSHrSwdjglaNBPNj6pZl_7aENA_YcEnaxEUICfkAETHGmPlTvBKHv8ThTJqA2Tbm1-YO6OjjjgR87Kb9yMiYLsOq8T2IoJi6tBNaB_J3jhXU6DuUSBov13ACinCfVm3J4"/>
+</div>
+</div>
+<!-- Minor Column -->
+<div class="md:col-span-5 bg-primary-container p-12 text-white flex flex-col justify-between">
+<div>
+<span class="material-symbols-outlined text-4xl mb-8 text-tertiary-fixed-dim" data-icon="hub">hub</span>
+<h3 class="font-headline text-3xl font-bold mb-4">Structural Scaling</h3>
+<p class="text-white/70 mb-8">Designing the operational framework that allows rapid expansion without compromising core heritage.</p>
+</div>
+<a class="font-label font-bold text-sm tracking-widest text-tertiary-fixed-dim flex items-center gap-2" href="#">INTERVENE <span class="material-symbols-outlined">trending_flat</span></a>
+</div>
+<!-- Row 2 -->
+<div class="md:col-span-4 bg-surface-container-low p-10 border-t-4 border-primary">
+<span class="material-symbols-outlined text-3xl mb-6 text-primary" data-icon="security">security</span>
+<h4 class="font-headline text-xl font-bold mb-2">Risk Resilience</h4>
+<p class="text-sm text-on-surface-variant">Stress-testing business models against global volatility and geopolitical shifts.</p>
+</div>
+<div class="md:col-span-4 bg-surface-container-low p-10 border-t-4 border-primary">
+<span class="material-symbols-outlined text-3xl mb-6 text-primary" data-icon="psychology">psychology</span>
+<h4 class="font-headline text-xl font-bold mb-2">Executive Coaching</h4>
+<p class="text-sm text-on-surface-variant">Sharpening the cognitive edges of high-performance leadership teams.</p>
+</div>
+<div class="md:col-span-4 bg-surface-container-low p-10 border-t-4 border-primary">
+<span class="material-symbols-outlined text-3xl mb-6 text-primary" data-icon="lightbulb">lightbulb</span>
+<h4 class="font-headline text-xl font-bold mb-2">Future Mapping</h4>
+<p class="text-sm text-on-surface-variant">Utilizing proprietary foresight tools to architect market-leading positions.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- About Us Teaser -->
+<section class="py-32 bg-surface-container overflow-hidden">
+<div class="max-w-7xl mx-auto px-8 grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+<div class="relative">
+<div class="absolute -top-12 -left-12 w-64 h-64 bg-tertiary-fixed-dim opacity-20 -z-10"></div>
+<img class="w-full aspect-[4/5] object-cover editorial-shadow" data-alt="professional executive in a sharp charcoal suit standing by a tall glass window overlooking a metropolitan skyline" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB3BSr0MVaHjeR0eOYOeLZJ6LUU8UXEfcO-IjQX1GowjLZHA6zgahhzjNUoqJKDqZMFzOvbB812PlEzofF6HGz1tqE2WfKZ2Zc4tE618Oe--xU02vT89ZHMVOq-Gcq_oOhg8lyc8l1iG6XVmuPGM9_020h_e3pQpo1G67RlZEriTN0zTWYPqib_LwTKtfL-OwkmA2mVoiBLnZE1WaYb430enLjfmmRHVu_MZ1WrkdWE3OFECypTNE4gw1CEtv2dfTOkpcwph4UEWtk"/>
+<div class="absolute bottom-8 right-8 bg-white p-8 max-w-xs shadow-xl">
+<p class="font-headline italic text-xl text-primary">"The best way to predict the future is to architect it."</p>
+</div>
+</div>
+<div>
+<span class="font-label text-primary tracking-[0.3em] uppercase text-xs mb-6 block">Our Ethos</span>
+<h2 class="font-headline text-5xl font-bold mb-8 leading-tight">Mastery is the intersection of tradition and radical insight.</h2>
+<p class="font-body text-on-surface-variant text-lg leading-relaxed mb-8">
+                        Founded in the heritage of classic consulting but driven by the pace of the digital avant-garde, The Architectural Atelier serves as the silent partner to the world's most ambitious leaders.
+                    </p>
+<p class="font-body text-on-surface-variant text-lg leading-relaxed mb-12">
+                        We avoid the generic. We despise the average. Every engagement is a bespoke creation designed to withstand the pressures of modern commerce.
+                    </p>
+<button class="group flex items-center gap-4 font-label font-bold tracking-widest text-primary">
+                        THE ATELIER STORY 
+                        <span class="h-[1px] w-12 bg-primary group-hover:w-20 transition-all duration-500"></span>
+</button>
+</div>
+</div>
+</section>
+<!-- Client Success / Testimonial -->
+<section class="py-32 bg-primary text-white">
+<div class="max-w-7xl mx-auto px-8">
+<div class="text-center mb-20">
+<span class="font-label text-tertiary-fixed-dim tracking-[0.3em] uppercase text-xs mb-6 block">Endorsements</span>
+<h2 class="font-headline text-4xl font-bold">Voices of Authority</h2>
+</div>
+<div class="max-w-4xl mx-auto text-center">
+<span class="material-symbols-outlined text-6xl text-tertiary-fixed-dim mb-12" data-icon="format_quote" style="font-variation-settings: 'FILL' 1;">format_quote</span>
+<p class="font-headline text-3xl md:text-4xl italic leading-snug mb-12">"Working with the Atelier transformed our quarterly panic into a decade-long strategic horizon. They didn't just give us a deck; they gave us a foundation."</p>
+<div class="flex flex-col items-center">
+<div class="w-20 h-20 rounded-full overflow-hidden mb-4 border-2 border-tertiary-fixed-dim">
+<img class="w-full h-full object-cover" data-alt="portrait of a confident woman executive with silver hair wearing a refined cream-colored blouse" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB6Jggl8Vl0S-j2IAr0pcOsPO-506m9r4S_SOu68HXhul74UHnzj7VI4su7s_-TNtxa4jUkuTb_Q0TOOM2BPOfLw87ZafrT7r5uc9Yc5uaiXkzaWA-YZTfOioxuF4Hi14urQkXfztobJ4ZVf-VtTH77OIUszyPVlx1wIBnP3cA2b8kB3EqbNGwBYEynaqN69hC8tZ3z79pJgoHUk_CqHjs10emIYyqfhhpsQuMNt21pMxNtRJaBzC3lDpfUhikRUCcfS_aNZaOvS8I"/>
+</div>
+<p class="font-bold tracking-widest text-sm mb-1 uppercase">Elena Rostova</p>
+<p class="text-white/60 text-xs font-label">CEO, GLOBAL LOGISTICS CORP</p>
+</div>
+</div>
+<div class="mt-24 grid grid-cols-2 md:grid-cols-5 gap-12 items-center opacity-40 grayscale transition-all hover:opacity-80">
+<div class="h-12 flex justify-center"><img class="h-full object-contain filter invert" data-alt="minimalist corporate logo for a tech giant" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAW66JCiQNLIMcsG-jSmEJ704SBKXsGJOLP9F1gYc5XiIiDVQZ9j4hYW6kQ2njpmtAmaKIsV71JFvIHoergptAK5_lfHK8nL2YPFYJ65GBtMigw6nzqoVNoI0OWYn9TJWnkrOJB4RS9Gt3rvJkjzR54KGzZSLexuMCVSl8Jj_QpgdYjWjxRfdGel0MzODy9jFKZP6BHSKdzU8pfr8kaV-Tk61As-jbERpgW7_XMtq4FJmYQq89bLUgWeKl8on3L2LGLeaO2_NON_wA"/></div>
+<div class="h-12 flex justify-center"><img class="h-full object-contain filter invert" data-alt="elegant wordmark logo for an investment bank" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzHAR1SPfGAuy7OetW1OUw7CBjMU1MLCXCyc2FvEMPT4NX7JDe3bA9B4lOPlD3Rd3eZsDJP-sEfoH-UAjxyHjkRdTeWm61YRum9ERIHqQQSBtkWYhsEdci-pmXwRpRh6Tj4_l4txDGNketO9zfDQRSvJTxNX4QJ65OX7-xJMTNExOL0oItxzk-Iv7EcQuV4WHUHJj03cvcWoL6aR6zI4LjEWHAu2GLri3DGEvCt7q0bhlO1NkV6JZTl2FuupGNRsX03O7xEJtocHI"/></div>
+<div class="h-12 flex justify-center"><img class="h-full object-contain filter invert" data-alt="modern geometric logo for an energy firm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCBxlcZq1pGYbgFM-TOMQOtcoIfe9qR3vv5_OJNSDFBbaQQTMRP29jCl9MXCVFsuGZkiBz4Lk90Hk-8bvzESxNPFHA6sTqg7g6Ow_TYc0mqLaz6gZCeKtpRiNfTNUsSCRoEfgVP8xygPiSyQKKCltVa0YUhmBXBmTLocdUULoEfZuBBYiVSW1Vrq5yWzZgIZMSirPYVzCBOFtOL0xrYugZ01KHsvnzU5m8pOl66jPHH9hw8TWHHtGV8kPDT0K91HV7ltnJlMsa_dvA"/></div>
+<div class="h-12 flex justify-center"><img class="h-full object-contain filter invert" data-alt="sleek sans-serif logo for a luxury brand" src="https://lh3.googleusercontent.com/aida-public/AB6AXuChy3LswuCojwnTqAIhC30PDpboOIsb6JSreEpp-Z_SHi8iJrfo7SCiqFl2pI4V5fvAUXyKRPm2y5PcvgMoVRfC8VfgT8RPzBy3q8BrhWHLYG75d5foImPscLub5k3_q5TyDW70hONYS05xGjLFN-HVgq0QEaDMo6gELUBIoaYnm2yjF7VwD5Q5dxGLAlT853t1i2UeYwSL8VSPFPp_dsgYhiCl4un-IqWcDf513fATtwavUaORG38GHE0NLxbZvbbstGmttJazC1A"/></div>
+<div class="h-12 flex justify-center"><img class="h-full object-contain filter invert" data-alt="classic serif logo for a law firm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCi63roinDxStEYBIwyx9O_vfOD8czSWvBihEzUtkpWzGhYgtEHs1AS7LLfQn5zfLwTQ2JcDwqT3gtXF4vd-k6WjF7TNfaoa8Jj38TfxoJyyuIKC9hC80jsn1KdKzvWJQ-kradrhACAqDd7NJVEGlvWx2m4dAxyJ_QBawhC5WphOrZGQ6luBTd0drnE2-p_WuN2d4gsY4ND2DiVK4KE6CcA73Zft7p4FhFkaqtKf3y3pMilK4EqFqvZxKCoh5XJ-DlfBcDv-3Nf6UQ"/></div>
+</div>
+</div>
+</section>
+<!-- Latest Insights -->
+<section class="py-32 bg-surface">
+<div class="max-w-7xl mx-auto px-8">
+<div class="flex justify-between items-end mb-20">
+<div>
+<span class="font-label text-primary tracking-[0.3em] uppercase text-xs mb-6 block">Intelligence</span>
+<h2 class="font-headline text-5xl font-bold tracking-tight">Latest Insights</h2>
+</div>
+<a class="hidden md:block font-label font-bold text-sm tracking-widest border-b-2 border-primary pb-2" href="#">VIEW ALL PUBLICATIONS</a>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+<!-- Article 1 -->
+<article class="group">
+<div class="overflow-hidden mb-8">
+<img class="w-full aspect-[16/10] object-cover group-hover:scale-110 transition-transform duration-700" data-alt="abstract image of light trails in a dark tunnel representing speed and data flow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDimj7V-Fcb3b10c9cFUCVz3lOCHy3ZkKAO-KtEhspJn30uf3EdkxCBKj_1p-lRR68U8fHz96EBUEI8xaAT_jCgZdtcER_wLLGBu7LfOSLRHN1-xcku_r5yc4an0tX3VEQP2XhFkBELYdOaEhWyBzQ6nfa2uwGe8wZgT9YI1IaS-Mig-KnefI0kQDEsDGSgtyQm4QlCYhLgAPeMszTMGZWGgkpUz9LyXO_RNtf_3F4aUto14K1jKvrlxaHPrZhuZMZXsZkLO3r6FKE"/>
+</div>
+<span class="font-label text-xs tracking-widest text-on-surface-variant block mb-4">CAPITAL MARKETS | 08 MIN READ</span>
+<h3 class="font-headline text-2xl font-bold mb-4 group-hover:text-tertiary-fixed-dim transition-colors">The Liquidity Paradox: Navigating the 2025 Credit Shift</h3>
+<p class="text-on-surface-variant mb-6 leading-relaxed">How top-tier firms are leveraging volatility to capture unprecedented market shares during fiscal contractions.</p>
+<a class="material-symbols-outlined text-primary group-hover:translate-x-4 transition-transform" data-icon="east" href="#">east</a>
+</article>
+<!-- Article 2 -->
+<article class="group">
+<div class="overflow-hidden mb-8">
+<img class="w-full aspect-[16/10] object-cover group-hover:scale-110 transition-transform duration-700" data-alt="minimalist architectural model of a white museum with clean lines and soft shadows" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCJG7Q21zWIBB0tshwVkTYS1T6yhke6FQXJuzHm7YCqyLrocCDVetHeiKagWv_o-qmYYI6yXyP2I1KyLWH0DDGRDd_TaiqkHClVVIibcmsCO93fCDsQd25T0Lx326rsXzVolIWbAVSgNYkD0qBMMoAtzrRmnhCk5jCbPQRghNhTwMuK2xgThOfQgvTnqJ4WxdctaA7Bvq8_b0otC29KFCfOodd4Cl8uevp4d8sd1LMtbZ0KUdaVkxAW7BJ-JOxhCNO4agFsya7lyfg"/>
+</div>
+<span class="font-label text-xs tracking-widest text-on-surface-variant block mb-4">OPERATIONS | 12 MIN READ</span>
+<h3 class="font-headline text-2xl font-bold mb-4 group-hover:text-tertiary-fixed-dim transition-colors">Architectural Integrity in Decentralized Systems</h3>
+<p class="text-on-surface-variant mb-6 leading-relaxed">The risk of structural collapse in remote-first legacy organizations and the new blueprint for control.</p>
+<a class="material-symbols-outlined text-primary group-hover:translate-x-4 transition-transform" data-icon="east" href="#">east</a>
+</article>
+<!-- Article 3 -->
+<article class="group">
+<div class="overflow-hidden mb-8">
+<img class="w-full aspect-[16/10] object-cover group-hover:scale-110 transition-transform duration-700" data-alt="close-up of a human hand playing a traditional wooden chess board in a dark library" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAmL5N-2iIjwacUoSYtoMYylLEZwtTAkdVfLny_EK2g-LpelB06eH-4q_tZ_39EQicWg3JXF4NFlvyR6-NZbXc__weP-sHaMeceKSko5zeIq_Es9bD7yGVxz7Tsk0TpV0D_N3gWSHq-PGPZGdqDAz6SipmoumqIpmzRRwvSz2TDVCKm5iqYqea6jTRFDfRe3xmIIQhljf8ObNxuQSDJnJs2GFpuG2fgOUJZU_ZoB6LOWXHdoREMRq54Vna4TqL3Q3EhGwW5ntttcU4"/>
+</div>
+<span class="font-label text-xs tracking-widest text-on-surface-variant block mb-4">STRATEGY | 10 MIN READ</span>
+<h3 class="font-headline text-2xl font-bold mb-4 group-hover:text-tertiary-fixed-dim transition-colors">The Art of Silent Negotiation</h3>
+<p class="text-on-surface-variant mb-6 leading-relaxed">Psychological leverage and geopolitical positioning in high-stakes cross-border acquisitions.</p>
+<a class="material-symbols-outlined text-primary group-hover:translate-x-4 transition-transform" data-icon="east" href="#">east</a>
+</article>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-black text-[#e9c176] font-['Manrope'] text-sm tracking-normal leading-relaxed w-full pt-24 pb-12">
+<div class="max-w-7xl mx-auto px-12 grid grid-cols-1 md:grid-cols-4 gap-16">
+<div class="md:col-span-1">
+<span class="font-['Noto_Serif'] text-white text-3xl mb-4 block">THE ARCHITECTURAL ATELIER.</span>
+<p class="text-white/50 mb-8">Crafting enduring structures for the world's most influential legacies.</p>
+<div class="flex gap-6">
+<span class="material-symbols-outlined text-white/50 hover:text-white transition-colors cursor-pointer" data-icon="public">public</span>
+<span class="material-symbols-outlined text-white/50 hover:text-white transition-colors cursor-pointer" data-icon="lan">lan</span>
+<span class="material-symbols-outlined text-white/50 hover:text-white transition-colors cursor-pointer" data-icon="terminal">terminal</span>
+</div>
+</div>
+<div>
+<p class="font-bold tracking-widest uppercase text-xs text-white mb-8">Consulting</p>
+<ul class="flex flex-col gap-4">
+<li><a class="text-white/50 hover:text-[#e9c176] underline-offset-8 hover:underline transition-all" href="#">Capital Architecture</a></li>
+<li><a class="text-white/50 hover:text-[#e9c176] underline-offset-8 hover:underline transition-all" href="#">Structural Scaling</a></li>
+<li><a class="text-white/50 hover:text-[#e9c176] underline-offset-8 hover:underline transition-all" href="#">Executive Search</a></li>
+<li><a class="text-white/50 hover:text-[#e9c176] underline-offset-8 hover:underline transition-all" href="#">Global Offices</a></li>
+</ul>
+</div>
+<div>
+<p class="font-bold tracking-widest uppercase text-xs text-white mb-8">Intelligence</p>
+<ul class="flex flex-col gap-4">
+<li><a class="text-white/50 hover:text-[#e9c176] underline-offset-8 hover:underline transition-all" href="#">The Annual Report</a></li>
+<li><a class="text-white/50 hover:text-[#e9c176] underline-offset-8 hover:underline transition-all" href="#">White Papers</a></li>
+<li><a class="text-white/50 hover:text-[#e9c176] underline-offset-8 hover:underline transition-all" href="#">Market Podcasts</a></li>
+<li><a class="text-white/50 hover:text-[#e9c176] underline-offset-8 hover:underline transition-all" href="#">Insights Archive</a></li>
+</ul>
+</div>
+<div>
+<p class="font-bold tracking-widest uppercase text-xs text-white mb-8">Legal</p>
+<ul class="flex flex-col gap-4">
+<li><a class="text-white/50 hover:text-[#e9c176] underline-offset-8 hover:underline transition-all" href="#">Privacy Policy</a></li>
+<li><a class="text-white/50 hover:text-[#e9c176] underline-offset-8 hover:underline transition-all" href="#">Terms of Service</a></li>
+<li><a class="text-white/50 hover:text-[#e9c176] underline-offset-8 hover:underline transition-all" href="#">Compliance</a></li>
+<li><a class="text-white/50 hover:text-[#e9c176] underline-offset-8 hover:underline transition-all" href="#">Cookie Policy</a></li>
+</ul>
+</div>
+</div>
+<div class="max-w-7xl mx-auto px-12 mt-24 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-8">
+<p class="text-white/30 text-xs tracking-widest">© 2024 THE ARCHITECTURAL ATELIER. ALL RIGHTS RESERVED.</p>
+<div class="flex gap-12">
+<p class="text-white/30 text-xs tracking-widest">PARIS</p>
+<p class="text-white/30 text-xs tracking-widest">ZURICH</p>
+<p class="text-white/30 text-xs tracking-widest">SINGAPORE</p>
+<p class="text-white/30 text-xs tracking-widest">NEW YORK</p>
+</div>
+</div>
+</footer>
+</body></html>

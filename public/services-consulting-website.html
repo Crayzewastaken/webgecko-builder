@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Services | The Editorial Authority</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&amp;family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline-variant": "#c4c6cc",
+                        "on-tertiary-container": "#a17f3b",
+                        "surface-bright": "#f8f9fa",
+                        "on-primary-fixed-variant": "#3a4859",
+                        "inverse-on-surface": "#f0f1f2",
+                        "primary": "#000000",
+                        "primary-container": "#0f1c2c",
+                        "on-primary-fixed": "#0f1c2c",
+                        "secondary-fixed": "#d1e4fb",
+                        "on-secondary-fixed": "#091d2e",
+                        "error": "#ba1a1a",
+                        "secondary-fixed-dim": "#b5c8df",
+                        "surface-variant": "#e1e3e4",
+                        "on-tertiary-fixed": "#261900",
+                        "surface-tint": "#525f71",
+                        "surface-container": "#edeeef",
+                        "inverse-surface": "#2e3132",
+                        "secondary-container": "#cfe2f9",
+                        "tertiary": "#000000",
+                        "on-secondary": "#ffffff",
+                        "on-background": "#191c1d",
+                        "surface-container-lowest": "#ffffff",
+                        "primary-fixed-dim": "#bac8dc",
+                        "on-tertiary-fixed-variant": "#5d4201",
+                        "surface-container-low": "#f3f4f5",
+                        "on-primary": "#ffffff",
+                        "tertiary-container": "#261900",
+                        "on-secondary-container": "#526478",
+                        "on-surface": "#191c1d",
+                        "on-secondary-fixed-variant": "#36485b",
+                        "surface": "#f8f9fa",
+                        "tertiary-fixed-dim": "#e9c176",
+                        "surface-dim": "#d9dadb",
+                        "on-surface-variant": "#44474c",
+                        "outline": "#74777d",
+                        "on-primary-container": "#778598",
+                        "surface-container-highest": "#e1e3e4",
+                        "error-container": "#ffdad6",
+                        "on-error": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed": "#ffdea5",
+                        "secondary": "#4e6073",
+                        "surface-container-high": "#e7e8e9",
+                        "inverse-primary": "#bac8dc",
+                        "background": "#f8f9fa",
+                        "primary-fixed": "#d6e4f9"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Newsreader"],
+                        "body": ["Manrope"],
+                        "label": ["Manrope"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Manrope', sans-serif; }
+        .serif-text { font-family: 'Newsreader', serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface selection:bg-primary-container selection:text-white">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-[#0D1B2A]/80 backdrop-blur-xl dark:bg-[#0D1B2A]/90 shadow-[0_20px_40px_rgba(25,28,29,0.05)]">
+<div class="flex justify-between items-center px-6 py-4 w-full">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-white hover:opacity-80 transition-opacity cursor-pointer" data-icon="menu">menu</span>
+<span class="text-xl font-['Newsreader'] font-bold text-white tracking-tighter">The Editorial Authority</span>
+</div>
+<nav class="hidden md:flex gap-8 items-center">
+<a class="font-['Manrope'] uppercase tracking-widest text-xs text-white/60 hover:text-white transition-colors" href="#">Insights</a>
+<a class="font-['Manrope'] uppercase tracking-widest text-xs text-white border-b border-white/20 pb-1" href="#">Expertise</a>
+<a class="font-['Manrope'] uppercase tracking-widest text-xs text-white/60 hover:text-white transition-colors" href="#">Case Studies</a>
+<a class="font-['Manrope'] uppercase tracking-widest text-xs text-white/60 hover:text-white transition-colors" href="#">About</a>
+</nav>
+<div class="flex items-center gap-4">
+<img alt="Consultant Profile" class="w-10 h-10 rounded-full object-cover border border-white/10" data-alt="Close up portrait of a professional consultant in a sharp charcoal suit against a minimal architectural background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9LY6sLhu-V7PDFKLPbvzRr1f7BU6zpQz2fOntANmZAZjQVA1MM2mnPXTyU_iNkp9ih4pZ6MPXRsPrXm2E6Be5kLso2TtufTSSEt7DBK-CTzFXDCkP7xLPby0iSfWlN9TBCmALb4pZzLgztWy41fvM6sLlsI69TeBHqkHJUgySjJsTb4okaPtRSD48quZlGLBTDz6hofQDPAhfyqDd8YMYUE2lZGQN-HJxs4gOyzMtQa4G6Y6YkvtgrsKn7JEOqRCtShbY8P5awRr7"/>
+</div>
+</div>
+</header>
+<main class="pt-24 lg:pt-32">
+<!-- Hero Section -->
+<section class="px-6 md:px-20 lg:px-40 py-20 bg-surface">
+<div class="max-w-7xl mx-auto flex flex-col md:flex-row items-end gap-12">
+<div class="w-full md:w-3/5">
+<p class="font-['Manrope'] uppercase tracking-[0.3em] text-[10px] text-on-surface-variant mb-6">Service Catalog 2024</p>
+<h1 class="text-6xl md:text-8xl lg:text-9xl serif-text italic font-medium tracking-tighter leading-[0.9] text-primary">
+                        Intellectual <br/>Infrastructure.
+                    </h1>
+</div>
+<div class="w-full md:w-2/5 pb-4">
+<p class="text-on-surface-variant leading-relaxed text-lg max-w-sm">
+                        Moving beyond operational templates to deliver bespoke strategic frameworks that transform modern organizations into industry authorities.
+                    </p>
+</div>
+</div>
+</section>
+<!-- Perspective Hero / Featured Service -->
+<section class="bg-surface-container-highest w-full overflow-hidden mb-32">
+<div class="flex flex-col md:flex-row h-[700px]">
+<div class="w-full md:w-1/2 p-12 md:p-24 flex flex-col justify-center">
+<p class="font-['Manrope'] uppercase tracking-widest text-xs mb-8 text-on-surface-variant">Core Pillar 01</p>
+<h2 class="text-5xl md:text-6xl serif-text mb-8 leading-tight">Strategic <br/>Planning</h2>
+<p class="text-on-surface-variant text-lg mb-12 max-w-md">
+                        Our approach to strategy is rooted in historical analysis and future-casting. We don't just build plans; we engineer resilient narratives for global growth.
+                    </p>
+<a class="group flex items-center gap-4 uppercase tracking-widest text-xs font-bold text-primary" href="#">
+                        Explore Methodology 
+                        <span class="w-12 h-[1px] bg-primary group-hover:w-16 transition-all"></span>
+</a>
+</div>
+<div class="w-full md:w-1/2 relative">
+<div class="absolute inset-0 bg-primary-container/10 z-10"></div>
+<img alt="Modern Office" class="w-full h-full object-cover" data-alt="Minimalist high-end corporate office interior with concrete textures, dark steel accents, and soft atmospheric natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAwpLYs3Icz0r8cGDN8rzCm8FD7OmTY021bPFrcQgh6yxbFvJjG4cU8DsFrPPD7cOShIabF5wU1jmvfUYkWX9_qBE5EYerJsz1FlhVyt25QXGDpbbueGipwHBXEfuXmOC3l0kI6HjcE6Xbq4VfeGh3fuAiAAhNUFvrwcyuXuOL3-JdbdF3HN4jY7UPQsFxxpi2QwTye0sZlrk6kY1HMgDFYh1dm1zzXlqQcHIFHnPVJmNHWB5hoSs71itGLJVq5bBAA9MLDjmACqWmh"/>
+</div>
+</div>
+</section>
+<!-- Services Grid (Bento Style) -->
+<section class="px-6 md:px-20 lg:px-40 mb-40">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+<!-- Service 02: Operational Excellence -->
+<div class="md:col-span-8 bg-surface-container-low p-12 flex flex-col justify-between group hover:bg-surface-container transition-colors duration-500">
+<div>
+<div class="flex justify-between items-start mb-20">
+<span class="material-symbols-outlined text-4xl text-primary" data-icon="military_tech">military_tech</span>
+<span class="serif-text italic text-4xl text-outline-variant">02</span>
+</div>
+<h3 class="text-4xl serif-text mb-6">Operational Excellence</h3>
+<p class="text-on-surface-variant max-w-xl text-lg leading-relaxed">
+                            Refining the pulse of your organization through meticulous process architecture and lean methodologies tailored for high-stakes environments.
+                        </p>
+</div>
+<div class="mt-12">
+<ul class="flex flex-wrap gap-x-12 gap-y-4 font-['Manrope'] uppercase tracking-tighter text-[11px] font-bold">
+<li class="flex items-center gap-2"><span class="w-1 h-1 bg-tertiary-fixed-dim rounded-full"></span> Lean Integration</li>
+<li class="flex items-center gap-2"><span class="w-1 h-1 bg-tertiary-fixed-dim rounded-full"></span> Talent Optimization</li>
+<li class="flex items-center gap-2"><span class="w-1 h-1 bg-tertiary-fixed-dim rounded-full"></span> Supply Chain Design</li>
+</ul>
+</div>
+</div>
+<!-- Service 03: Digital Transformation -->
+<div class="md:col-span-4 bg-primary-container p-12 text-white flex flex-col justify-between relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+<div class="relative z-10">
+<div class="flex justify-between items-start mb-20">
+<span class="material-symbols-outlined text-4xl text-white/80" data-icon="visibility">visibility</span>
+<span class="serif-text italic text-4xl text-white/20">03</span>
+</div>
+<h3 class="text-4xl serif-text mb-6">Digital Transformation</h3>
+<p class="text-white/60 text-lg leading-relaxed">
+                            Bridging the gap between legacy systems and the autonomous future.
+                        </p>
+</div>
+<button class="relative z-10 w-full mt-12 py-4 bg-white text-primary uppercase tracking-widest text-[10px] font-bold scale-100 hover:scale-[0.98] transition-transform">
+                        Initiate Audit
+                    </button>
+</div>
+<!-- Service 04: Brand Authority -->
+<div class="md:col-span-4 bg-surface-container-lowest border border-outline-variant/15 p-10 flex flex-col">
+<div class="mb-10">
+<span class="material-symbols-outlined text-3xl mb-6 block" data-icon="auto_stories">auto_stories</span>
+<h3 class="text-2xl serif-text mb-4">Brand Authority</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed">
+                            Positioning your leadership team as the definitive voices in your niche through curated content strategies.
+                        </p>
+</div>
+<div class="mt-auto pt-10">
+<img alt="Editorial Brand" class="w-full h-48 object-cover grayscale hover:grayscale-0 transition-all duration-700" data-alt="High-contrast close up of a luxury magazine spread with elegant typography and minimalist photography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0Hz3GQCQmxuwtF5_VgI2g3RsyjXTvxNoJjbG25UcOENsK_9hSLnTu-RpJqa6GsMRs_2ZYPKxczvalBTHhvvqGdqPVI9C-I6s0dvpgWMPbTOrKFtRwXDSJvJDvnezoGYA-PEg4tJLy1DqmvFaAXGs3NrXRQtqhDaR-l3ZN7-7bz9hlsDJ8Z5Mh2vU0UBrXqHPUEdowlrSPPYXIQuV-MTkLn8DExCsGSSCMx4IZM0TfJT6QKIzRGQOILuhDblcBsocXkdvSqKmYxefA"/>
+</div>
+</div>
+<!-- Service 05: Risk & Governance -->
+<div class="md:col-span-8 bg-surface-container-low p-12 flex flex-col md:flex-row gap-12">
+<div class="w-full md:w-1/2">
+<span class="material-symbols-outlined text-4xl mb-8 block" data-icon="history_edu">history_edu</span>
+<h3 class="text-4xl serif-text mb-6">Risk &amp; Governance</h3>
+<p class="text-on-surface-variant text-lg">
+                            Establishing frameworks that protect equity while fostering a culture of courageous, informed decision-making.
+                         </p>
+</div>
+<div class="w-full md:w-1/2 bg-white/40 backdrop-blur-sm p-8 flex flex-col justify-center">
+<div class="space-y-6">
+<div class="pb-4 border-b border-outline-variant/30">
+<p class="text-[10px] uppercase tracking-widest font-bold mb-1">Phase 01</p>
+<p class="serif-text italic text-xl">Vulnerability Mapping</p>
+</div>
+<div class="pb-4 border-b border-outline-variant/30">
+<p class="text-[10px] uppercase tracking-widest font-bold mb-1">Phase 02</p>
+<p class="serif-text italic text-xl">Compliance Synergy</p>
+</div>
+<div class="pb-0">
+<p class="text-[10px] uppercase tracking-widest font-bold mb-1">Phase 03</p>
+<p class="serif-text italic text-xl">Resilience Protocol</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- CTA Section -->
+<section class="bg-primary py-32 px-6 text-center">
+<h2 class="text-white text-5xl md:text-7xl serif-text mb-12 italic">Ready to curate your legacy?</h2>
+<div class="flex flex-col md:flex-row justify-center gap-6">
+<button class="bg-white text-primary px-10 py-5 uppercase tracking-widest text-xs font-bold hover:bg-surface-variant transition-colors">
+                    Book a Consultation
+                </button>
+<button class="border border-white/30 text-white px-10 py-5 uppercase tracking-widest text-xs font-bold hover:bg-white/10 transition-colors">
+                    Download Credentials
+                </button>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-[#0D1B2A] dark:bg-[#050a10] w-full pt-20 pb-10 flex flex-col items-center px-10 gap-6 text-center">
+<div class="text-lg font-['Newsreader'] text-white">The Editorial Authority</div>
+<nav class="flex flex-wrap justify-center gap-8">
+<a class="font-['Manrope'] text-[10px] uppercase tracking-widest text-gray-400 hover:text-white transition-all" href="#">Privacy Policy</a>
+<a class="font-['Manrope'] text-[10px] uppercase tracking-widest text-gray-400 hover:text-white transition-all" href="#">Terms of Service</a>
+<a class="font-['Manrope'] text-[10px] uppercase tracking-widest text-gray-400 hover:text-white transition-all" href="#">LinkedIn</a>
+<a class="font-['Manrope'] text-[10px] uppercase tracking-widest text-white underline underline-offset-4" href="#">Insights</a>
+</nav>
+<p class="font-['Manrope'] text-[10px] uppercase tracking-widest text-gray-300 dark:text-gray-500 mt-8">
+            © 2024 Editorial Authority. All rights reserved.
+        </p>
+</footer>
+<!-- FAB (Suppressed on this page per guidelines as it is a structured details/services page) -->
+</body></html>

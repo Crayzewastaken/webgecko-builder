@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;700;900&amp;family=Manrope:wght@300;400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-fixed": "#d6e3ff",
+                    "outline": "#74777f",
+                    "tertiary-fixed": "#ffdea5",
+                    "secondary": "#506169",
+                    "error": "#ba1a1a",
+                    "on-surface-variant": "#44474e",
+                    "on-tertiary-container": "#a17f3b",
+                    "on-secondary": "#ffffff",
+                    "surface-container-low": "#f3f3f3",
+                    "surface-container": "#eeeeee",
+                    "surface-container-highest": "#e2e2e2",
+                    "tertiary-fixed-dim": "#e9c176",
+                    "surface-dim": "#dadada",
+                    "secondary-container": "#d1e2ec",
+                    "on-secondary-container": "#55656d",
+                    "on-primary-fixed": "#001b3d",
+                    "tertiary": "#000000",
+                    "on-surface": "#1a1c1c",
+                    "surface-variant": "#e2e2e2",
+                    "on-background": "#1a1c1c",
+                    "primary-container": "#001b3d",
+                    "surface-tint": "#495f84",
+                    "secondary-fixed": "#d4e5ef",
+                    "on-primary": "#ffffff",
+                    "outline-variant": "#c4c6cf",
+                    "on-tertiary-fixed-variant": "#5d4201",
+                    "surface-container-lowest": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-primary-fixed-variant": "#31476b",
+                    "background": "#f9f9f9",
+                    "inverse-on-surface": "#f1f1f1",
+                    "on-secondary-fixed-variant": "#394951",
+                    "on-tertiary-fixed": "#261900",
+                    "surface": "#f9f9f9",
+                    "inverse-primary": "#b1c7f2",
+                    "on-tertiary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "primary-fixed-dim": "#b1c7f2",
+                    "error-container": "#ffdad6",
+                    "surface-bright": "#f9f9f9",
+                    "surface-container-high": "#e8e8e8",
+                    "inverse-surface": "#2f3131",
+                    "on-primary-container": "#6f84ac",
+                    "secondary-fixed-dim": "#b8c9d3",
+                    "on-secondary-fixed": "#0d1e25",
+                    "primary": "#000000",
+                    "tertiary-container": "#261900"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Noto Serif"],
+                    "body": ["Manrope"],
+                    "label": ["Manrope"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .editorial-shadow {
+            box-shadow: 0px 20px 40px rgba(0, 27, 61, 0.06);
+        }
+        .text-justify-custom {
+            text-align: justify;
+            text-justify: inter-word;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface font-body text-on-surface">
+<!-- TopAppBar Shell -->
+<header class="bg-[#f9f9f9]/80 dark:bg-black/80 backdrop-blur-xl fixed top-0 w-full z-50">
+<div class="max-w-7xl mx-auto px-8 flex justify-between items-center h-20">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-black dark:text-white">menu</span>
+<span class="font-['Noto_Serif'] font-bold text-2xl tracking-tighter text-black dark:text-white">THE ARCHITECTURAL ATELIER</span>
+</div>
+<nav class="hidden md:flex items-center gap-10 font-['Noto_Serif'] text-lg tracking-tight">
+<a class="text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white transition-colors" href="#">Home</a>
+<a class="text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white transition-colors" href="#">About</a>
+<a class="text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white transition-colors" href="#">Services</a>
+<a class="text-[#e9c176] border-b-2 border-[#e9c176] pb-1" href="#">Insights</a>
+<a class="text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white transition-colors" href="#">Contact</a>
+</nav>
+<button class="bg-primary text-on-primary px-6 py-2 rounded-sm font-label text-sm font-bold tracking-widest uppercase hover:opacity-80 transition-all duration-300">
+                CONSULT
+            </button>
+</div>
+</header>
+<main class="pt-32 pb-24">
+<!-- Hero Section -->
+<section class="max-w-7xl mx-auto px-8 mb-20">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-12 items-end">
+<div class="md:col-span-8">
+<span class="font-label text-xs font-bold tracking-[0.3em] uppercase text-tertiary-fixed-dim mb-4 block">Knowledge Repository</span>
+<h1 class="font-headline text-5xl md:text-7xl font-black tracking-tighter text-primary leading-tight">
+                        Insights &amp; <br/>Critical Analysis
+                    </h1>
+</div>
+<div class="md:col-span-4 pb-2">
+<p class="font-body text-lg text-on-surface-variant leading-relaxed mb-6">
+                        An curated collection of intellectual capital, exploring the intersection of global architectural trends and high-stakes market dynamics.
+                    </p>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-0 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full bg-transparent border-t-0 border-l-0 border-r-0 border-b border-outline focus:border-tertiary-fixed-dim focus:ring-0 pl-8 font-label text-xs tracking-widest uppercase pb-2" placeholder="SEARCH THE ARCHIVE" type="text"/>
+</div>
+</div>
+</div>
+</section>
+<!-- Category Filters -->
+<section class="max-w-7xl mx-auto px-8 mb-16">
+<div class="flex flex-wrap gap-8 border-b border-outline-variant/30 pb-4">
+<button class="font-label text-sm font-bold tracking-widest uppercase text-tertiary underline underline-offset-8">All Research</button>
+<button class="font-label text-sm font-medium tracking-widest uppercase text-on-surface-variant hover:text-tertiary transition-colors">White Papers</button>
+<button class="font-label text-sm font-medium tracking-widest uppercase text-on-surface-variant hover:text-tertiary transition-colors">Case Studies</button>
+<button class="font-label text-sm font-medium tracking-widest uppercase text-on-surface-variant hover:text-tertiary transition-colors">Expert Opinions</button>
+<button class="font-label text-sm font-medium tracking-widest uppercase text-on-surface-variant hover:text-tertiary transition-colors">Annual Reports</button>
+</div>
+</section>
+<!-- Featured Insight (Asymmetric Layout) -->
+<section class="max-w-7xl mx-auto px-8 mb-24">
+<div class="bg-surface-container-lowest editorial-shadow overflow-hidden group">
+<div class="grid grid-cols-1 md:grid-cols-2">
+<div class="h-[500px] overflow-hidden">
+<img class="w-full h-full object-cover grayscale group-hover:scale-105 transition-transform duration-700" data-alt="Monochromatic photograph of a sleek modernist skyscraper reaching into a misty morning sky with high contrast shadows" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDk1VMRsmx_J1cTbYeELos-l-F1sg90H0ggZnYoxnL7dqt72F1O6AT1TPiA4Zl61m-DijA_4VXI9DfUVIdCpvTlzM9oC0v0Czlondg3yjoVjw7gmQDK11KSk6i3rVKQjahL-z_yszh-Cx7OWg9u_pdWe_8DThG4VZ7PlaejGIJG8E2LDP6iVhKMBg7v15lJ5G8tx5zcfFWlhqanEqbzkGnbEwWoDG884PdZdqORdYiytbEaJftKt1_z9uKyNQ7UWfUhw2DgXjfe44U"/>
+</div>
+<div class="p-12 md:p-20 flex flex-col justify-center">
+<div class="flex items-center gap-4 mb-8">
+<span class="bg-tertiary text-on-primary px-3 py-1 font-label text-[10px] font-black tracking-widest uppercase">Featured Case Study</span>
+<span class="font-label text-[10px] tracking-widest uppercase text-outline">March 2024</span>
+</div>
+<h2 class="font-headline text-4xl font-bold text-primary mb-6 leading-tight">The Vertical Metropole: Redefining Density in Southeast Asia</h2>
+<p class="font-body text-on-surface-variant text-lg leading-relaxed mb-10">
+                            Our executive analysis of the shift towards hyper-integrated vertical urbanism and its long-term implications for commercial real estate valuation.
+                        </p>
+<a class="inline-flex items-center gap-4 group" href="#">
+<span class="font-label text-sm font-extrabold tracking-widest uppercase text-primary">Read Full Analysis</span>
+<span class="w-12 h-[1px] bg-tertiary-fixed-dim group-hover:w-20 transition-all duration-300"></span>
+</a>
+</div>
+</div>
+</div>
+</section>
+<!-- Insights Grid (Editorial Style) -->
+<section class="max-w-7xl mx-auto px-8">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-y-24 gap-x-12">
+<!-- Entry 1: White Paper -->
+<article class="flex flex-col">
+<div class="aspect-[4/5] bg-surface-container mb-8 overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 hover:scale-110" data-alt="Close-up of architectural blueprints on a dark wooden table with elegant spectacles and a fountain pen" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD7Y6epED5lSaDU1EweSItmOGbgMswVEk94pAsTitWk3EgS9KKSoUTZu5rcvc8HklimpVRJtQxsW4xsvsj7F7GSStl3eteAtSQw9yiNCKaWUvfUq36zNCmR_k9QUPYjwe2Zav_5popg2SwOBVT5OSXTJ34MhEGUdZy1nJCU6O3Wuy-CaeTpRD64VXoaa1xEvwF53pf20kVGT3dDYb8jW5GIdibyZ8RsNlOjGSJMCAVjluG0ApL1uLD7ILv6DyYguyAHhc6jloHlNKc"/>
+</div>
+<span class="font-label text-[10px] font-bold tracking-widest uppercase text-tertiary-fixed-dim mb-4">White Paper</span>
+<h3 class="font-headline text-2xl font-bold text-primary mb-4">Sustainable Infrastructure: The ESG Premium in Tier 1 Markets</h3>
+<p class="font-body text-sm text-on-surface-variant leading-relaxed mb-6">
+                        An exploration of how ecological governance is transforming the financial risk profiles of large-scale development projects globally.
+                    </p>
+<a class="font-label text-xs font-bold tracking-widest uppercase text-primary border-b border-tertiary-fixed-dim self-start pb-1" href="#">Download PDF</a>
+</article>
+<!-- Entry 2: Expert Opinion -->
+<article class="flex flex-col md:translate-y-12">
+<div class="aspect-[4/5] bg-surface-container mb-8 overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 hover:scale-110" data-alt="Side profile of a distinguished architect looking over a city skyline at dusk, golden lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD25FAfzpK8MtLKW14zUmlezRRRm3FS3Ox1o-wzKBNNKUBB5BE4UaeaOCXuc3vuHnas2oxB0XMUATVKfjNP5pB620Q39kQ_g7QqpTYTrxl-80ERJCx4kiluqG9ij3yEsl9xJOJpIO3vCRHCMLPY8fvgyHSk4UBEYZzYrZQfRzhl2h1AvKXex8fuEki88qBwg1rrrqBY0ILCQX6XaeGtQ0PYyWLgd1J3cmtZm4xnZ4lw31hKADqe0u8kKHpUalhVWJVu4swKpIQ8Q3w"/>
+</div>
+<span class="font-label text-[10px] font-bold tracking-widest uppercase text-tertiary-fixed-dim mb-4">Expert Opinion</span>
+<h3 class="font-headline text-2xl font-bold text-primary mb-4">The Death of the Traditional Office: A Post-Pandemic Autopsy</h3>
+<p class="font-body text-sm text-on-surface-variant leading-relaxed mb-6">
+                        Partner Marcus Vane discusses why adaptive reuse is the only viable path forward for stagnant city centers and vacant commercial towers.
+                    </p>
+<a class="font-label text-xs font-bold tracking-widest uppercase text-primary border-b border-tertiary-fixed-dim self-start pb-1" href="#">View Editorial</a>
+</article>
+<!-- Entry 3: Case Study -->
+<article class="flex flex-col">
+<div class="aspect-[4/5] bg-surface-container mb-8 overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 hover:scale-110" data-alt="Interior of a luxury hotel lobby with dramatic marble walls and floating staircases, minimalist lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCTnXjtmdypQleodlQYVgc-2FSxoYBmpfvfkN2pjW73W0kcDzrIO0RhkpX7q6D_QYk7U8fPalPmh1okRsfNiLOi3MGSnKSXXifjoy05pm0DCdc7HgUBkU8gHeqf-WVcHj8Rf7-Ddqw4LsGYKpxQgLLwJD3wMVF3WiO2-VKmD6pGSNyCpikBjenw5JxkH9avTzig3_uR2bhbYMAd5GYD-wN_-HgvcWh5Kw2GL5uKM9EAP2dQUJAFXLdfim6T5NzACE3nARa9Oh5fjFA"/>
+</div>
+<span class="font-label text-[10px] font-bold tracking-widest uppercase text-tertiary-fixed-dim mb-4">Case Study</span>
+<h3 class="font-headline text-2xl font-bold text-primary mb-4">Hospitality as Brand Heritage: The Ritz-Carlton Revitalization</h3>
+<p class="font-body text-sm text-on-surface-variant leading-relaxed mb-6">
+                        How structural intervention saved a historical landmark while integrating 21st-century technological standards and ultra-luxury amenities.
+                    </p>
+<a class="font-label text-xs font-bold tracking-widest uppercase text-primary border-b border-tertiary-fixed-dim self-start pb-1" href="#">Read Study</a>
+</article>
+<!-- Entry 4: White Paper -->
+<article class="flex flex-col">
+<div class="aspect-[4/5] bg-surface-container mb-8 overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 hover:scale-110" data-alt="Top down view of a complex city model made of white materials on a dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDkHGFHn8V8Rc23Tc-1U8dctI8bXVlTjppTzT0lKazfkfr1yHdcP5MjA6XRjaA38_rG0cjjOcPbM0stlXvSCtMQt7U2k-i7olroDdiYeM_D7QzUy3I-DdMDdqpNebhRnU5MRecxSKe-eN7q_vPg-wd-35J1KxjqlZ7-EGF13iOWmefjCgDRdSsxx5uYPGkTHDa1EzOptfOtWw98vbnOQmXOWTkhfSt1mKr375bsCkbt0uoyi_WqTMQ3jLUbyxKHej61MsrcQe_RSo4"/>
+</div>
+<span class="font-label text-[10px] font-bold tracking-widest uppercase text-tertiary-fixed-dim mb-4">White Paper</span>
+<h3 class="font-headline text-2xl font-bold text-primary mb-4">Modular Precision: Scaling Quality in Residential Development</h3>
+<p class="font-body text-sm text-on-surface-variant leading-relaxed mb-6">
+                        Technical insights into the supply chain innovations allowing for artisanal-grade modular construction at industrial scales.
+                    </p>
+<a class="font-label text-xs font-bold tracking-widest uppercase text-primary border-b border-tertiary-fixed-dim self-start pb-1" href="#">Download PDF</a>
+</article>
+<!-- Entry 5: Expert Opinion -->
+<article class="flex flex-col md:translate-y-12">
+<div class="aspect-[4/5] bg-surface-container mb-8 overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 hover:scale-110" data-alt="Dramatic high angle shot of an empty minimalist concrete gallery space with a single shaft of light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_XBr4eWFTY9Xmp1XWZj2j8UL0F6AalqGEMmZ2SiAGBB_WdpIcxxdQFXk9_5fb69lDGOz8tKHgV7JNbbm9Nka5uNJ4RUepqUttj5htlCEbM74IeNag3veDb15FXNcOzRlH5PyDUKgjSvt1vgQ-yQMZfs9IZZ1M60sabViAi3bVpSLEmBLpIq08UCrcZBMEQQqwqgCyVcUIpdpLVS9Skaf2Jm56zbveyu417yNu6-C4HYOdvtX0glZ2MMOZtb8Qb3emtaJ7zvUOClw"/>
+</div>
+<span class="font-label text-[10px] font-bold tracking-widest uppercase text-tertiary-fixed-dim mb-4">Expert Opinion</span>
+<h3 class="font-headline text-2xl font-bold text-primary mb-4">The Silence of Space: Why Minimalism is the New Wealth Signal</h3>
+<p class="font-body text-sm text-on-surface-variant leading-relaxed mb-6">
+                        A psychological study on how the reduction of visual stimuli has become the ultimate marker of high-end architectural exclusivity.
+                    </p>
+<a class="font-label text-xs font-bold tracking-widest uppercase text-primary border-b border-tertiary-fixed-dim self-start pb-1" href="#">View Editorial</a>
+</article>
+<!-- Entry 6: White Paper -->
+<article class="flex flex-col">
+<div class="aspect-[4/5] bg-surface-container mb-8 overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-500 hover:scale-110" data-alt="Abstract view of glass and steel skyscraper facade reflecting a sunset with deep orange and purple hues" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVMtFzYuYrDY09ZKr1VNHwRyKS1n70G5BuWimXi7qJdMmWGIfll93C_Q8AbyUoJGnED90V9tmJRmCE-dPlqFKD3AjfnxQh-4MPybxdvKN6BxvVHhZQkJHQMjOSzlFoNzLz5QL1tiy9CV2HSeUa3quX_imtOsVK4DZvHe07wAUcPVwCAMH2OcRW4sa8RoLPfthjIVDWWMQv8r_WqSbJ2pO_kfj7b4iLv8zGnBPeI1rMJhjBDwGeE3dVh-mP_Qt639F7Mi-Gu7hke_c"/>
+</div>
+<span class="font-label text-[10px] font-bold tracking-widest uppercase text-tertiary-fixed-dim mb-4">White Paper</span>
+<h3 class="font-headline text-2xl font-bold text-primary mb-4">Seismic Resilience: The Cost of Future-Proofing Global Cities</h3>
+<p class="font-body text-sm text-on-surface-variant leading-relaxed mb-6">
+                        A comprehensive audit of the engineering advancements necessary to protect urban capital in geographically unstable regions.
+                    </p>
+<a class="font-label text-xs font-bold tracking-widest uppercase text-primary border-b border-tertiary-fixed-dim self-start pb-1" href="#">Download PDF</a>
+</article>
+</div>
+</section>
+<!-- Newsletter Subscription (Glassmorphism) -->
+<section class="max-w-7xl mx-auto px-8 mt-32">
+<div class="bg-primary p-12 md:p-24 relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-br from-primary to-primary-container opacity-50"></div>
+<div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
+<div class="md:w-1/2">
+<h2 class="font-headline text-3xl md:text-5xl text-white font-bold leading-tight mb-4">Subscribe to the <br/>Atelier Gazette.</h2>
+<p class="font-body text-white/70 text-lg">Weekly executive briefs delivered with surgical precision.</p>
+</div>
+<div class="md:w-1/2 w-full">
+<div class="flex flex-col sm:flex-row gap-4">
+<input class="flex-1 bg-white/10 border-white/20 text-white placeholder-white/40 font-label text-xs tracking-widest uppercase p-4 focus:ring-0 focus:border-tertiary-fixed-dim" placeholder="EXECUTIVE EMAIL ADDRESS" type="email"/>
+<button class="bg-tertiary-fixed-dim text-primary px-8 py-4 font-label text-xs font-black tracking-widest uppercase hover:bg-white transition-colors">
+                                ENROLL
+                            </button>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer Shell -->
+<footer class="bg-black pt-24 pb-12">
+<div class="max-w-7xl mx-auto px-12 grid grid-cols-1 md:grid-cols-4 gap-16">
+<div class="md:col-span-1">
+<span class="font-['Noto_Serif'] text-white text-3xl mb-4 block">THE ARCHITECTURAL ATELIER</span>
+<p class="text-white/50 font-['Manrope'] text-sm leading-relaxed">Defining the skyline of the future through rigorous analysis and uncompromising design excellence.</p>
+</div>
+<div class="flex flex-col gap-4">
+<h4 class="text-white font-bold font-label text-sm tracking-widest mb-2 uppercase">Expertise</h4>
+<a class="text-white/50 hover:text-[#e9c176] transition-colors font-label text-sm" href="#">Strategic Consulting</a>
+<a class="text-white/50 hover:text-[#e9c176] transition-colors font-label text-sm" href="#">Urban Planning</a>
+<a class="text-white/50 hover:text-[#e9c176] transition-colors font-label text-sm" href="#">Portfolio Management</a>
+</div>
+<div class="flex flex-col gap-4">
+<h4 class="text-white font-bold font-label text-sm tracking-widest mb-2 uppercase">Archives</h4>
+<a class="text-white/50 hover:text-[#e9c176] transition-colors font-label text-sm" href="#">White Papers</a>
+<a class="text-white/50 hover:text-[#e9c176] transition-colors font-label text-sm" href="#">Case Studies</a>
+<a class="text-white/50 hover:text-[#e9c176] transition-colors font-label text-sm" href="#">Expert Insights</a>
+</div>
+<div class="flex flex-col gap-4">
+<h4 class="text-white font-bold font-label text-sm tracking-widest mb-2 uppercase">Connect</h4>
+<a class="text-white/50 hover:text-[#e9c176] transition-colors font-label text-sm" href="#">Global Offices</a>
+<a class="text-white/50 hover:text-[#e9c176] transition-colors font-label text-sm" href="#">Privacy Policy</a>
+<a class="text-white/50 hover:text-[#e9c176] transition-colors font-label text-sm" href="#">Terms of Service</a>
+</div>
+</div>
+<div class="max-w-7xl mx-auto px-12 mt-20 pt-8 border-t border-white/10 flex justify-between items-center">
+<p class="text-white/30 font-['Manrope'] text-xs tracking-normal">© 2024 THE ARCHITECTURAL ATELIER. ALL RIGHTS RESERVED.</p>
+<div class="flex gap-6">
+<span class="material-symbols-outlined text-white/30 hover:text-[#e9c176] cursor-pointer">public</span>
+<span class="material-symbols-outlined text-white/30 hover:text-[#e9c176] cursor-pointer">share</span>
+</div>
+</div>
+</footer>
+</body></html>

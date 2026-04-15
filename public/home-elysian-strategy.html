@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;700&amp;family=Manrope:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-fixed": "#ffdea5",
+                      "secondary-fixed-dim": "#c6c6c9",
+                      "inverse-surface": "#2f3131",
+                      "on-tertiary-fixed-variant": "#5d4201",
+                      "on-secondary-container": "#636467",
+                      "surface": "#f9f9f9",
+                      "secondary-fixed": "#e2e2e5",
+                      "primary-fixed-dim": "#b1c7f2",
+                      "on-tertiary": "#ffffff",
+                      "error-container": "#ffdad6",
+                      "surface-container-low": "#f3f3f3",
+                      "inverse-on-surface": "#f1f1f1",
+                      "on-primary-container": "#6f84ac",
+                      "inverse-primary": "#b1c7f2",
+                      "outline": "#74777f",
+                      "surface-tint": "#495f84",
+                      "surface-variant": "#e2e2e2",
+                      "on-primary": "#ffffff",
+                      "on-background": "#1a1c1c",
+                      "on-error-container": "#93000a",
+                      "primary-fixed": "#d6e3ff",
+                      "outline-variant": "#c4c6cf",
+                      "secondary": "#5d5e61",
+                      "on-surface-variant": "#44474e",
+                      "surface-container-highest": "#e2e2e2",
+                      "on-surface": "#1a1c1c",
+                      "on-secondary-fixed": "#1a1c1e",
+                      "on-error": "#ffffff",
+                      "surface-bright": "#f9f9f9",
+                      "on-secondary": "#ffffff",
+                      "on-tertiary-container": "#a17f3b",
+                      "tertiary-fixed-dim": "#e9c176",
+                      "primary-container": "#001b3d",
+                      "surface-container": "#eeeeee",
+                      "surface-container-high": "#e8e8e8",
+                      "on-primary-fixed": "#001b3d",
+                      "on-secondary-fixed-variant": "#454749",
+                      "on-tertiary-fixed": "#261900",
+                      "tertiary": "#000000",
+                      "primary": "#000000",
+                      "background": "#f9f9f9",
+                      "error": "#ba1a1a",
+                      "surface-dim": "#dadada",
+                      "tertiary-container": "#261900",
+                      "on-primary-fixed-variant": "#31476b",
+                      "secondary-container": "#e2e2e5",
+                      "surface-container-lowest": "#ffffff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "fontFamily": {
+                      "headline": ["Noto Serif"],
+                      "body": ["Manrope"],
+                      "label": ["Manrope"]
+              }
+            },
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .editorial-shadow {
+            box-shadow: 0 16px 32px -12px rgba(0,0,0,0.04);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body selection:bg-tertiary-fixed selection:text-on-tertiary-fixed">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-[#f9f9f9]/80 backdrop-blur-md">
+<nav class="flex justify-between items-center max-w-7xl mx-auto px-8 py-6">
+<div class="text-xl font-bold font-headline text-[#000000]">Sovereign Editorial</div>
+<!-- Desktop Navigation -->
+<div class="hidden md:flex items-center gap-10">
+<a class="text-[#000000] border-b-2 border-[#a17f3b] pb-1 font-body text-sm tracking-wide" href="#">Home</a>
+<a class="text-[#5d5e61] font-['Manrope'] text-sm tracking-wide hover:text-[#a17f3b] transition-colors duration-300" href="#">About</a>
+<a class="text-[#5d5e61] font-['Manrope'] text-sm tracking-wide hover:text-[#a17f3b] transition-colors duration-300" href="#">Services</a>
+<a class="text-[#5d5e61] font-['Manrope'] text-sm tracking-wide hover:text-[#a17f3b] transition-colors duration-300" href="#">Insights</a>
+<button class="bg-primary-container text-on-primary py-3 px-8 text-sm font-semibold tracking-wider hover:opacity-90 transition-all">Inquiry</button>
+</div>
+<!-- Mobile Menu Toggle -->
+<div class="md:hidden">
+<span class="material-symbols-outlined text-[#000000]" data-icon="menu">menu</span>
+</div>
+</nav>
+</header>
+<main class="pt-32">
+<!-- Hero Section: Intentional Asymmetry & Spatial Luxury -->
+<section class="max-w-7xl mx-auto px-8 mb-40">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-end">
+<div class="lg:col-span-8">
+<h1 class="font-headline text-primary text-[3.5rem] leading-[1.1] tracking-tight mb-8">
+                        The art of authority <br/>in executive counsel.
+                    </h1>
+<p class="font-body text-secondary text-xl max-w-xl leading-relaxed">
+                        We transform complex organizational structures into streamlined monographs of success. Quiet leadership for the global elite.
+                    </p>
+</div>
+<div class="lg:col-span-4 flex justify-end">
+<div class="relative group cursor-pointer overflow-hidden rounded-lg">
+<img class="w-full h-[450px] object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Close-up of high-quality fountain pen resting on cream-colored architectural blueprints with soft natural morning light and deep shadows" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCgzKojM-OW3sxXd4A_BkNValaHHquizfGan8Mxs3ZzlyHuGSibptlVfRUuYDYT9oTaEwxwYC4vIOaRwe5mr7kIr_TECxQDB_19NN6sn6i94J7pwwOoCr5qGfLYD8XaQij4e_JVGOYH2_OHlbPLLd68RTN_CmPI-MSsz-rOsa8TtJ0tqoWPXJUkanU5qoyde_c7Wu31SwVn6bGX7El_swd-kTUyogpQPrijr08y8wDWQrf-4bGkFzlED3GUdF7L7yfZye6MBghIPPuY"/>
+<div class="absolute inset-0 bg-primary/10 group-hover:bg-transparent transition-colors duration-500"></div>
+</div>
+</div>
+</div>
+<div class="mt-12 flex flex-col md:flex-row items-center gap-8 border-t border-outline-variant/15 pt-12">
+<span class="text-secondary text-xs font-semibold tracking-widest uppercase">Trusted By The Sovereigns</span>
+<div class="flex flex-wrap items-center gap-12 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
+<span class="font-headline text-lg font-bold">LUMINA</span>
+<span class="font-headline text-lg font-bold">FORGE &amp; CO</span>
+<span class="font-headline text-lg font-bold">AVANT-GARDE</span>
+<span class="font-headline text-lg font-bold">EQUITY ONE</span>
+</div>
+</div>
+</section>
+<!-- Expertise Section: Tonal Stacking & Grid -->
+<section class="bg-surface-container-low py-32">
+<div class="max-w-7xl mx-auto px-8">
+<div class="flex flex-col md:flex-row justify-between items-baseline mb-24">
+<h2 class="font-headline text-primary text-4xl mb-4 md:mb-0">Strategic Tenets</h2>
+<p class="font-body text-on-tertiary-container text-sm font-semibold tracking-[0.2em] uppercase flex items-center gap-2">
+<span class="w-8 h-[1px] bg-on-tertiary-container"></span> Our Methodology
+                    </p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-px bg-outline-variant/10">
+<!-- Tenet 1 -->
+<div class="bg-surface p-12 hover:bg-surface-container-lowest transition-colors duration-500">
+<span class="material-symbols-outlined text-on-tertiary-container mb-8" data-icon="architecture" style="font-size: 2.5rem;">architecture</span>
+<h3 class="font-headline text-xl text-primary mb-6">Structural Integrity</h3>
+<p class="font-body text-secondary leading-relaxed">Designing organizations that withstand the pressures of rapid expansion and market volatility with poise.</p>
+</div>
+<!-- Tenet 2 -->
+<div class="bg-surface p-12 hover:bg-surface-container-lowest transition-colors duration-500">
+<span class="material-symbols-outlined text-on-tertiary-container mb-8" data-icon="auto_awesome" style="font-size: 2.5rem;">auto_awesome</span>
+<h3 class="font-headline text-xl text-primary mb-6">Editorial Precision</h3>
+<p class="font-body text-secondary leading-relaxed">Refining corporate narratives to resonate with high-stake stakeholders and institutional investors.</p>
+</div>
+<!-- Tenet 3 -->
+<div class="bg-surface p-12 hover:bg-surface-container-lowest transition-colors duration-500">
+<span class="material-symbols-outlined text-on-tertiary-container mb-8" data-icon="policy" style="font-size: 2.5rem;">policy</span>
+<h3 class="font-headline text-xl text-primary mb-6">Discrete Counsel</h3>
+<p class="font-body text-secondary leading-relaxed">Private advisory services for CEOs navigating sensitive transitions and legacy-building initiatives.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Bento Showcase: Luxury Spatial Arrangement -->
+<section class="py-40 max-w-7xl mx-auto px-8">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-8 h-auto md:h-[700px]">
+<div class="md:col-span-7 bg-surface-container-lowest editorial-shadow p-12 flex flex-col justify-between">
+<div>
+<span class="text-on-tertiary-container text-xs font-bold tracking-widest mb-4 block">CASE STUDY 01</span>
+<h3 class="font-headline text-3xl text-primary mb-8 max-w-md">The Global Resurgence of Lumiere Maritime</h3>
+<p class="font-body text-secondary text-lg leading-relaxed max-w-lg">A multi-year transformation that redefined maritime logistics through the lens of aesthetic efficiency and operational sovereignty.</p>
+</div>
+<div class="mt-8">
+<a class="inline-flex items-center gap-4 text-primary font-semibold group" href="#">
+                            Read the Monograph
+                            <span class="material-symbols-outlined transition-transform group-hover:translate-x-2" data-icon="arrow_forward">arrow_forward</span>
+</a>
+</div>
+</div>
+<div class="md:col-span-5 grid grid-rows-2 gap-8">
+<div class="relative overflow-hidden rounded-lg">
+<img class="w-full h-full object-cover" data-alt="Minimalist architectural detail of a sweeping concrete curve against a deep blue dusk sky, highlighting shadow and light transitions" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDylE46IFYgOXgq6jX3qQEiF7qjkDUnS-0P1mi6zjxtOk8XXXXesIZVeFCgABGcr1VyRA7M-6R_eQRf4tLkk5cLVgGkZtX7xSFJC28TAZ0KrHuMSQrIqSHmC6unBhA107o7VRmxSdZOBw_GI4EP7AcDQeiLqumAX497AcIB8Qqt8m1D7znwRvLHTalWKWjF20CU6_96vB8VXXPC_LOLIibMyzHShq5lbzyHbAw9HV8dHUOud3-PwVwrUi1bCbyMQ2BlmYu8t7mFMXQs"/>
+<div class="absolute bottom-8 left-8 text-white">
+<span class="text-xs font-bold tracking-widest block mb-2">INSIGHTS</span>
+<h4 class="font-headline text-xl">The Future of Discretion</h4>
+</div>
+</div>
+<div class="bg-primary-container p-12 flex flex-col justify-center">
+<p class="text-on-primary/60 font-body text-sm mb-4">"Their approach is not just consulting; it's a profound understanding of legacy."</p>
+<p class="text-on-primary font-headline text-lg italic">— Marcus Vane, CEO of Forge &amp; Co</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Final CTA: Glassmorphism/Tone Shift -->
+<section class="max-w-7xl mx-auto px-8 pb-40">
+<div class="bg-primary-container p-20 text-center relative overflow-hidden">
+<!-- Decorative Gold Accent -->
+<div class="absolute top-0 right-0 w-64 h-64 bg-tertiary-fixed-dim/10 blur-[100px] rounded-full"></div>
+<h2 class="font-headline text-white text-4xl mb-8 relative z-10">Commence the Consultation.</h2>
+<p class="text-on-primary-container text-lg mb-12 max-w-2xl mx-auto relative z-10">
+                    We only accept four strategic partnerships per annum to ensure the sovereign attention your organization demands.
+                </p>
+<div class="flex flex-col sm:flex-row justify-center gap-6 relative z-10">
+<button class="bg-surface text-primary py-4 px-12 font-bold tracking-wider hover:bg-tertiary-fixed transition-colors">Request Introduction</button>
+<button class="border border-white/20 text-white py-4 px-12 font-bold tracking-wider hover:bg-white/5 transition-colors">Download Brochure</button>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-[#f3f3f3] py-12">
+<div class="max-w-7xl mx-auto px-8 flex flex-col md:flex-row justify-between items-center gap-6">
+<div class="font-headline font-bold text-[#000000] text-xl">Sovereign Editorial</div>
+<div class="flex flex-wrap justify-center gap-8">
+<a class="font-body text-sm text-[#5d5e61] hover:underline decoration-[#a17f3b] decoration-2 underline-offset-4 transition-all duration-200" href="#">Home</a>
+<a class="font-body text-sm text-[#5d5e61] hover:underline decoration-[#a17f3b] decoration-2 underline-offset-4 transition-all duration-200" href="#">About</a>
+<a class="font-body text-sm text-[#5d5e61] hover:underline decoration-[#a17f3b] decoration-2 underline-offset-4 transition-all duration-200" href="#">Services</a>
+<a class="font-body text-sm text-[#5d5e61] hover:underline decoration-[#a17f3b] decoration-2 underline-offset-4 transition-all duration-200" href="#">Contact</a>
+<a class="font-body text-sm text-[#5d5e61] hover:underline decoration-[#a17f3b] decoration-2 underline-offset-4 transition-all duration-200" href="#">Privacy</a>
+</div>
+<div class="font-body text-sm tracking-wide text-[#5d5e61]">
+                © 2024 Sovereign Editorial Consulting. All rights reserved.
+            </div>
+</div>
+</footer>
+</body></html>

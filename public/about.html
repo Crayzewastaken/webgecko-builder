@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@700;900&amp;family=Manrope:wght@300;400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary-fixed": "#241a00",
+                    "surface-tint": "#465f88",
+                    "on-background": "#1a1c1c",
+                    "on-tertiary": "#ffffff",
+                    "surface-container-highest": "#e2e2e2",
+                    "on-primary": "#ffffff",
+                    "on-primary-fixed-variant": "#2d476f",
+                    "surface": "#f9f9f9",
+                    "error": "#ba1a1a",
+                    "surface-container-low": "#f3f3f3",
+                    "secondary-fixed": "#ffe088",
+                    "surface-variant": "#e2e2e2",
+                    "on-secondary-fixed-variant": "#574500",
+                    "on-tertiary-container": "#4f3e00",
+                    "tertiary-fixed": "#ffe088",
+                    "inverse-primary": "#aec7f6",
+                    "background": "#f9f9f9",
+                    "error-container": "#ffdad6",
+                    "tertiary": "#735c00",
+                    "tertiary-container": "#cca830",
+                    "on-primary-container": "#708ab5",
+                    "on-tertiary-fixed-variant": "#574500",
+                    "surface-container-high": "#e8e8e8",
+                    "inverse-on-surface": "#f1f1f1",
+                    "on-surface-variant": "#44474e",
+                    "on-secondary": "#ffffff",
+                    "primary": "#000a1e",
+                    "on-error": "#ffffff",
+                    "on-secondary-container": "#745c00",
+                    "outline-variant": "#c4c6cf",
+                    "surface-bright": "#f9f9f9",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-container": "#002147",
+                    "outline": "#74777f",
+                    "primary-fixed": "#d6e3ff",
+                    "primary-fixed-dim": "#aec7f6",
+                    "on-primary-fixed": "#001b3d",
+                    "secondary-container": "#fed65b",
+                    "surface-container": "#eeeeee",
+                    "on-surface": "#1a1c1c",
+                    "tertiary-fixed-dim": "#e9c349",
+                    "on-error-container": "#93000a",
+                    "on-tertiary-fixed": "#241a00",
+                    "surface-dim": "#dadada",
+                    "secondary-fixed-dim": "#e9c349",
+                    "secondary": "#735c00",
+                    "inverse-surface": "#2f3131"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0px",
+                    "lg": "0px",
+                    "xl": "0px",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Noto Serif"],
+                    "body": ["Manrope"],
+                    "label": ["Manrope"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Manrope', sans-serif;
+            background-color: #f9f9f9;
+        }
+        .editorial-gradient {
+            background: linear-gradient(135deg, #000a1e 0%, #002147 100%);
+        }
+        .glass-header {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface antialiased">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 glass-header border-none">
+<div class="max-w-7xl mx-auto px-12 flex justify-between items-center py-8">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary" data-icon="menu">menu</span>
+<span class="text-2xl font-['Noto_Serif'] font-black tracking-[-0.02em] text-[#000a1e] dark:text-[#f9f9f9]">AUTHORITY</span>
+</div>
+<nav class="hidden md:flex gap-12 items-center">
+<a class="font-['Manrope'] text-[0.75rem] uppercase tracking-[0.1em] text-[#735c00] border-b-2 border-[#735c00] pb-1" href="#">Services</a>
+<a class="font-['Manrope'] text-[0.75rem] uppercase tracking-[0.1em] text-[#44474e] hover:text-[#735c00] transition-colors duration-300" href="#">Philosophy</a>
+<a class="font-['Manrope'] text-[0.75rem] uppercase tracking-[0.1em] text-[#44474e] hover:text-[#735c00] transition-colors duration-300" href="#">Insights</a>
+</nav>
+<button class="bg-primary text-on-primary px-8 py-4 font-['Manrope'] text-[0.75rem] font-bold tracking-[0.1em] uppercase hover:bg-primary-container transition-all duration-200 active:scale-95">
+                CONSULTATION
+            </button>
+</div>
+</header>
+<main class="pt-32">
+<!-- Hero Section -->
+<section class="px-12 py-24 md:py-40 grid grid-cols-1 md:grid-cols-12 gap-12 items-end">
+<div class="md:col-span-8">
+<p class="font-label text-[0.75rem] uppercase tracking-[0.2em] text-secondary mb-6">Expertise Redefined</p>
+<h1 class="font-headline text-5xl md:text-7xl lg:text-8xl text-primary leading-[1.1] tracking-tight">
+                    Architecting the <br/>Future of <span class="italic">Influence</span>
+</h1>
+</div>
+<div class="md:col-span-4 md:mb-4">
+<p class="text-on-surface-variant text-lg leading-relaxed border-l-2 border-secondary/20 pl-6">
+                    A boutique consultancy designed for those who require precision, discretion, and a legacy-driven approach to global market navigation.
+                </p>
+</div>
+</section>
+<!-- Main Services Canvas -->
+<section class="bg-surface-container-low py-32 px-12">
+<div class="max-w-7xl mx-auto">
+<div class="mb-24 flex flex-col md:flex-row justify-between items-baseline gap-8">
+<h2 class="font-headline text-4xl text-primary">Strategic Domains</h2>
+<div class="h-[1px] flex-grow bg-outline-variant/30 hidden md:block mx-12"></div>
+<p class="font-label text-sm uppercase tracking-widest text-on-surface-variant">Selected Practices</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-0">
+<!-- Strategic Advisory Card -->
+<div class="group relative bg-surface-container-lowest p-12 h-[600px] flex flex-col justify-between border-r border-outline-variant/10">
+<div class="space-y-8">
+<span class="material-symbols-outlined text-4xl text-secondary" data-icon="account_balance">account_balance</span>
+<h3 class="font-headline text-3xl text-primary">Strategic Advisory</h3>
+<p class="text-on-surface-variant leading-relaxed">
+                                Beyond traditional consulting. We facilitate high-stakes decision-making through rigorous modeling and geopolitical foresight. Our partners navigate complexity with absolute clarity.
+                            </p>
+<ul class="space-y-4 pt-4">
+<li class="flex items-center gap-3 text-sm font-medium text-primary">
+<span class="w-1.5 h-1.5 bg-secondary"></span> M&amp;A Integration
+                                </li>
+<li class="flex items-center gap-3 text-sm font-medium text-primary">
+<span class="w-1.5 h-1.5 bg-secondary"></span> Crisis Management
+                                </li>
+<li class="flex items-center gap-3 text-sm font-medium text-primary">
+<span class="w-1.5 h-1.5 bg-secondary"></span> Succession Planning
+                                </li>
+</ul>
+</div>
+<div class="flex justify-end">
+<a class="group-hover:translate-x-2 transition-transform duration-300 flex items-center gap-4 text-secondary font-bold uppercase text-[0.7rem] tracking-widest" href="#">
+                                Explore Mandate <span class="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Market Intelligence Card (Asymmetric Offset) -->
+<div class="group relative bg-primary editorial-gradient p-12 h-[600px] flex flex-col justify-between text-on-primary md:-mt-12 shadow-2xl">
+<div class="space-y-8">
+<span class="material-symbols-outlined text-4xl text-secondary" data-icon="insights" style="font-variation-settings: 'FILL' 1;">insights</span>
+<h3 class="font-headline text-3xl text-surface">Market Intelligence</h3>
+<p class="text-surface-variant/80 leading-relaxed">
+                                Granular data transformed into decisive action. We provide exclusive access to emerging market trends and proprietary analysis that conventional firms overlook.
+                            </p>
+<ul class="space-y-4 pt-4">
+<li class="flex items-center gap-3 text-sm font-medium text-surface">
+<span class="w-1.5 h-1.5 bg-secondary"></span> Predictive Analytics
+                                </li>
+<li class="flex items-center gap-3 text-sm font-medium text-surface">
+<span class="w-1.5 h-1.5 bg-secondary"></span> Competitive Benchmarking
+                                </li>
+<li class="flex items-center gap-3 text-sm font-medium text-surface">
+<span class="w-1.5 h-1.5 bg-secondary"></span> Global Risk Assessment
+                                </li>
+</ul>
+</div>
+<div class="flex justify-end">
+<a class="group-hover:translate-x-2 transition-transform duration-300 flex items-center gap-4 text-secondary font-bold uppercase text-[0.7rem] tracking-widest" href="#">
+                                View Intelligence <span class="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Wealth Management Card -->
+<div class="group relative bg-surface-container-lowest p-12 h-[600px] flex flex-col justify-between border-l border-outline-variant/10">
+<div class="space-y-8">
+<span class="material-symbols-outlined text-4xl text-secondary" data-icon="payments">payments</span>
+<h3 class="font-headline text-3xl text-primary">Wealth Management</h3>
+<p class="text-on-surface-variant leading-relaxed">
+                                Preservation as a form of innovation. We curate bespoke financial ecosystems for ultra-high-net-worth individuals, focusing on multi-generational growth and liquidity.
+                            </p>
+<ul class="space-y-4 pt-4">
+<li class="flex items-center gap-3 text-sm font-medium text-primary">
+<span class="w-1.5 h-1.5 bg-secondary"></span> Asset Diversification
+                                </li>
+<li class="flex items-center gap-3 text-sm font-medium text-primary">
+<span class="w-1.5 h-1.5 bg-secondary"></span> Tax Strategy Optimisation
+                                </li>
+<li class="flex items-center gap-3 text-sm font-medium text-primary">
+<span class="w-1.5 h-1.5 bg-secondary"></span> Philanthropic Structuring
+                                </li>
+</ul>
+</div>
+<div class="flex justify-end">
+<a class="group-hover:translate-x-2 transition-transform duration-300 flex items-center gap-4 text-secondary font-bold uppercase text-[0.7rem] tracking-widest" href="#">
+                                Secure Future <span class="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Full Bleed Image Section -->
+<section class="relative h-[707px] w-full overflow-hidden flex items-center px-12">
+<div class="absolute inset-0 bg-primary/40 z-10"></div>
+<img alt="Architectural structure" class="absolute inset-0 w-full h-full object-cover grayscale" data-alt="monochrome abstract architectural detail of a glass and steel skyscraper reaching into a moody sky with dramatic lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBCES5JMywKARB4e30agPXjzoj_HNYsaFLxWxFxBk2kIFy-wSaiJa9TU8gi0sqq3xMgEAV0ykNSrBfRvucUbkNEvkC5D6-h0Kq1ZgEFjb5H_VsDM4tXjHaAK_Qxz7XJdDBZd98PfyHSdnMlXXFdzfn_nuj_d7WF_h37XpiD5_YoO4HjudMDTcsS5K6HYgKnuRU9d_H_UIFRQFtuwDa3kIupbx5icpT3oFkmlKWQDVEl_ddE_8dVNChd2S3oDyKo8f9gaIrCgzwSx7Wl"/>
+<div class="relative z-20 max-w-2xl text-surface">
+<h2 class="font-headline text-5xl mb-8">The Architecture of Certainty</h2>
+<p class="text-xl font-light leading-relaxed mb-12">
+                    In an era of noise, we provide the silence required for profound insight. Our methodology is built on the intersection of data-driven intelligence and architectural precision.
+                </p>
+<div class="inline-block border border-surface/30 p-8">
+<p class="font-label text-xs uppercase tracking-widest opacity-60 mb-2">Portfolio Managed</p>
+<p class="font-headline text-4xl">$4.2B+</p>
+</div>
+</div>
+</section>
+<!-- Philosophy Section (Asymmetric) -->
+<section class="py-32 px-12 max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-16">
+<div class="md:col-span-5">
+<h2 class="font-headline text-4xl text-primary leading-tight">Quiet Authority. <br/>Measured Impact.</h2>
+<p class="mt-8 text-on-surface-variant italic font-serif">"Precision is the only luxury that matters in high-stakes environments."</p>
+</div>
+<div class="md:col-span-7 space-y-12">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+<div>
+<h4 class="font-bold text-primary uppercase text-xs tracking-widest mb-4">Integrity</h4>
+<p class="text-sm text-on-surface-variant leading-relaxed">Complete alignment with client interests, underpinned by total discretion and transparent fee structures.</p>
+</div>
+<div>
+<h4 class="font-bold text-primary uppercase text-xs tracking-widest mb-4">Discretion</h4>
+<p class="text-sm text-on-surface-variant leading-relaxed">Our most valuable asset. We operate as a silent partner, ensuring your moves remain your own.</p>
+</div>
+</div>
+<div class="pt-8 border-t border-outline-variant/20">
+<button class="flex items-center gap-6 group">
+<span class="text-primary font-bold uppercase text-xs tracking-[0.2em]">Our Foundation</span>
+<span class="w-24 h-[1px] bg-primary group-hover:w-32 transition-all duration-500"></span>
+</button>
+</div>
+</div>
+</section>
+<!-- Consultation CTA -->
+<section class="bg-primary-container text-surface py-32 px-12 text-center">
+<div class="max-w-3xl mx-auto">
+<span class="material-symbols-outlined text-secondary text-5xl mb-8" data-icon="lock_open">lock_open</span>
+<h2 class="font-headline text-4xl md:text-5xl mb-8">Access the Inner Circle</h2>
+<p class="text-surface-variant/70 text-lg mb-12">Engagements are strictly limited to maintain the quality of partnership and depth of analysis for each client.</p>
+<div class="flex flex-col md:flex-row gap-6 justify-center">
+<button class="bg-secondary text-on-secondary-fixed font-bold px-12 py-6 uppercase text-xs tracking-[0.2em] hover:bg-secondary-fixed transition-colors">
+                        Request Credentials
+                    </button>
+<button class="border border-surface/20 text-surface font-bold px-12 py-6 uppercase text-xs tracking-[0.2em] hover:bg-surface/5 transition-colors">
+                        Direct Inquiry
+                    </button>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-[#000a1e] text-[#f9f9f9] w-full px-12 py-24 flex flex-col md:flex-row justify-between items-start gap-12 border-none">
+<div class="flex flex-col gap-8">
+<span class="text-xl font-['Noto_Serif'] text-[#735c00]">AUTHORITY</span>
+<p class="max-w-xs font-['Manrope'] text-[0.75rem] uppercase tracking-[0.1em] text-[#c4c6cf] leading-loose">
+                © 2024 Editorial Authority. All rights reserved. Precision in Consultation.
+            </p>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-x-24 gap-y-8">
+<div class="flex flex-col gap-4">
+<span class="font-bold text-secondary text-[0.7rem] uppercase tracking-widest mb-2">Practice</span>
+<a class="font-['Manrope'] text-[0.75rem] uppercase tracking-[0.1em] text-[#c4c6cf] hover:text-white transition-opacity duration-300 opacity-80 hover:opacity-100" href="#">Services</a>
+<a class="font-['Manrope'] text-[0.75rem] uppercase tracking-[0.1em] text-[#c4c6cf] hover:text-white transition-opacity duration-300 opacity-80 hover:opacity-100" href="#">Philosophy</a>
+</div>
+<div class="flex flex-col gap-4">
+<span class="font-bold text-secondary text-[0.7rem] uppercase tracking-widest mb-2">Resources</span>
+<a class="font-['Manrope'] text-[0.75rem] uppercase tracking-[0.1em] text-[#c4c6cf] hover:text-white transition-opacity duration-300 opacity-80 hover:opacity-100" href="#">Insights</a>
+<a class="font-['Manrope'] text-[0.75rem] uppercase tracking-[0.1em] text-[#c4c6cf] hover:text-white transition-opacity duration-300 opacity-80 hover:opacity-100" href="#">Contact</a>
+</div>
+<div class="flex flex-col gap-4">
+<span class="font-bold text-secondary text-[0.7rem] uppercase tracking-widest mb-2">Legal</span>
+<a class="font-['Manrope'] text-[0.75rem] uppercase tracking-[0.1em] text-[#c4c6cf] hover:text-white transition-opacity duration-300 opacity-80 hover:opacity-100" href="#">Privacy</a>
+</div>
+</div>
+</footer>
+
+<script>
+const NAV_MAP = {"HOME":"home","ABOUT":"about","SERVICES":"services","CONTACT":"contact","LEARN MORE":"about","OUR EXPERTISE":"services","GET STARTED":"contact","DISCOVER MORE":"about","VIEW SERVICES":"services","SCHEDULE CONSULTATION":"contact","MEET OUR TEAM":"about","EXPLORE SOLUTIONS":"services","REACH OUT":"contact","OUR APPROACH":"about","BOOK A CALL":"contact"};
+
+function normalizeText(text) {
+  return text
+    .replace(/[^a-zA-Z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+document.addEventListener("click", function(e) {
+  const target = e.target.closest("a, button, [role='button']");
+  if (!target) return;
+
+  const rawText = target.innerText || target.textContent || "";
+  const text = normalizeText(rawText);
+
+  let matchedPage = null;
+
+  for (const [label, page] of Object.entries(NAV_MAP)) {
+    if (text.includes(label)) {
+      matchedPage = page;
+      break;
+    }
+  }
+
+  if (!matchedPage) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  window.parent.postMessage(
+    { type: "navigate", page: matchedPage },
+    "*"
+  );
+}, true);
+</script>
+</body></html>

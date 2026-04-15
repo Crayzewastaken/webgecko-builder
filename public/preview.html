@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>WebGecko Preview</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #fff;
+    }
+
+    .toolbar {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 9999;
+      display: flex;
+      gap: 8px;
+      background: rgba(255,255,255,0.95);
+      padding: 10px;
+      border-radius: 12px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.15);
+    }
+
+    button {
+      padding: 10px 14px;
+      border: 1px solid #ddd;
+      background: white;
+      cursor: pointer;
+      border-radius: 8px;
+      font-size: 12px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    iframe {
+      width: 100vw;
+      height: 100vh;
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button onclick="go('home.html')">Home</button>
+    <button onclick="go('about.html')">About</button>
+    <button onclick="go('services.html')">Services</button>
+    <button onclick="go('contact.html')">Contact</button>
+  </div>
+
+  <iframe
+    id="siteFrame"
+    src="home.html"
+    title="Generated Website"
+  ></iframe>
+
+  <script>
+    function go(page) {
+      document.getElementById("siteFrame").src = page;
+    }
+  </script>
+</body>
+</html>

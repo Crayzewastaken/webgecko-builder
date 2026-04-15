@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,700;0,900;1,400&amp;family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary-fixed": "#241a00",
+                    "surface-tint": "#465f88",
+                    "on-background": "#1a1c1c",
+                    "on-tertiary": "#ffffff",
+                    "surface-container-highest": "#e2e2e2",
+                    "on-primary": "#ffffff",
+                    "on-primary-fixed-variant": "#2d476f",
+                    "surface": "#f9f9f9",
+                    "error": "#ba1a1a",
+                    "surface-container-low": "#f3f3f3",
+                    "secondary-fixed": "#ffe088",
+                    "surface-variant": "#e2e2e2",
+                    "on-secondary-fixed-variant": "#574500",
+                    "on-tertiary-container": "#4f3e00",
+                    "tertiary-fixed": "#ffe088",
+                    "inverse-primary": "#aec7f6",
+                    "background": "#f9f9f9",
+                    "error-container": "#ffdad6",
+                    "tertiary": "#735c00",
+                    "tertiary-container": "#cca830",
+                    "on-primary-container": "#708ab5",
+                    "on-tertiary-fixed-variant": "#574500",
+                    "surface-container-high": "#e8e8e8",
+                    "inverse-on-surface": "#f1f1f1",
+                    "on-surface-variant": "#44474e",
+                    "on-secondary": "#ffffff",
+                    "primary": "#000a1e",
+                    "on-error": "#ffffff",
+                    "on-secondary-container": "#745c00",
+                    "outline-variant": "#c4c6cf",
+                    "surface-bright": "#f9f9f9",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-container": "#002147",
+                    "outline": "#74777f",
+                    "primary-fixed": "#d6e3ff",
+                    "primary-fixed-dim": "#aec7f6",
+                    "on-primary-fixed": "#001b3d",
+                    "secondary-container": "#fed65b",
+                    "surface-container": "#eeeeee",
+                    "on-surface": "#1a1c1c",
+                    "tertiary-fixed-dim": "#e9c349",
+                    "on-error-container": "#93000a",
+                    "on-tertiary-fixed": "#241a00",
+                    "surface-dim": "#dadada",
+                    "secondary-fixed-dim": "#e9c349",
+                    "secondary": "#735c00",
+                    "inverse-surface": "#2f3131"
+            },
+            "borderRadius": {
+                    "none": "0px",
+                    "DEFAULT": "0px",
+                    "lg": "0px",
+                    "xl": "0px",
+                    "full": "0px"
+            },
+            "fontFamily": {
+                    "headline": ["Noto Serif"],
+                    "body": ["Manrope"],
+                    "label": ["Manrope"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .editorial-shadow {
+            box-shadow: 0 20px 40px rgba(0, 10, 30, 0.04);
+        }
+        .hero-gradient {
+            background: linear-gradient(135deg, #000a1e 0%, #002147 100%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body selection:bg-tertiary selection:text-white">
+<!-- TopAppBar -->
+<header class="bg-[#f9f9f9] dark:bg-[#000a1e] docked full-width top-0 border-none sticky z-50">
+<nav class="max-w-7xl mx-auto px-12 flex justify-between items-center py-8">
+<div class="flex items-center gap-6">
+<span class="material-symbols-outlined text-[#000a1e] dark:text-[#f9f9f9]">menu</span>
+<span class="text-2xl font-['Noto_Serif'] font-black tracking-[-0.02em] text-[#000a1e] dark:text-[#f9f9f9]">AUTHORITY</span>
+</div>
+<div class="hidden md:flex items-center gap-10">
+<a class="font-label text-[0.75rem] uppercase tracking-[0.1em] text-[#735c00] border-b-2 border-[#735c00] pb-1" href="#">Home</a>
+<a class="font-label text-[0.75rem] uppercase tracking-[0.1em] text-[#44474e] dark:text-[#c4c6cf] hover:text-[#735c00] transition-colors duration-300" href="#">Services</a>
+<a class="font-label text-[0.75rem] uppercase tracking-[0.1em] text-[#44474e] dark:text-[#c4c6cf] hover:text-[#735c00] transition-colors duration-300" href="#">Philosophy</a>
+<a class="font-label text-[0.75rem] uppercase tracking-[0.1em] text-[#44474e] dark:text-[#c4c6cf] hover:text-[#735c00] transition-colors duration-300" href="#">Insights</a>
+</div>
+<button class="bg-primary text-on-primary px-8 py-3 font-label text-[0.75rem] uppercase tracking-[0.1em] transition-transform active:scale-95 duration-200">
+                CONSULTATION
+            </button>
+</nav>
+</header>
+<main>
+<!-- Hero Section -->
+<section class="relative min-h-[795px] flex items-center overflow-hidden">
+<div class="absolute inset-0 z-0">
+<img class="w-full h-full object-cover brightness-[0.4] grayscale" data-alt="Modern architectural glass building facade with sharp geometric lines reflecting a clear blue sky in high contrast black and white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAFJU7_fjr-ywOABAszlMQywD6YVbgKi_zXks1vqSFCuqpIYJcfu5rHP0l13YrL_jDE_RdT1eTs5x3ADgyEezwwBw6dXtBPSQCLLFdhdf-PyXvs8-_rOl_Yytd_7BCo8BZIMNZ21lGIaciTjYlJKGw46qi1Eyd3pdbMwLo3dv28aMvh_4-17J-czNoC2-tlxMEZe9XwNudTnVa-sXhNthN3PioRH1XR8O0U9TsKp5unVWabVkrVHOQTV9_37HpQWRWJBel6JH0Zh3u-"/>
+<div class="absolute inset-0 hero-gradient opacity-60"></div>
+</div>
+<div class="container mx-auto px-12 relative z-10 grid grid-cols-12 gap-8">
+<div class="col-span-12 md:col-span-8 lg:col-span-7">
+<p class="font-label text-tertiary text-[0.75rem] uppercase tracking-[0.2em] mb-6 block">ESTABLISHED EXCELLENCE</p>
+<h1 class="font-headline text-white text-6xl md:text-8xl font-black leading-[0.95] tracking-tighter mb-8">
+                        The Silent <br/>
+<span class="italic font-light">Architects</span> <br/>
+                        of Influence.
+                    </h1>
+<p class="text-on-primary-container max-w-lg text-lg font-light leading-relaxed mb-12">
+                        Navigating the complexities of global markets with precision, discretion, and an unyielding commitment to architectural integrity in business.
+                    </p>
+<div class="flex gap-4">
+<button class="bg-white text-primary px-10 py-5 font-label text-[0.85rem] uppercase tracking-[0.15em] transition-all hover:bg-surface-container-low active:scale-95">
+                            DISCOVER OUR LEGACY
+                        </button>
+</div>
+</div>
+</div>
+</section>
+<!-- About Section -->
+<section class="py-32 bg-surface">
+<div class="container mx-auto px-12">
+<div class="grid grid-cols-12 gap-16 items-start">
+<div class="col-span-12 lg:col-span-5 relative">
+<div class="aspect-[4/5] bg-surface-container-low overflow-hidden">
+<img class="w-full h-full object-cover grayscale brightness-90 hover:scale-105 transition-transform duration-700" data-alt="Close up of a professional in a bespoke navy suit adjusting a cufflink, dramatic lighting, luxury atmosphere, high contrast" src="https://lh3.googleusercontent.com/aida-public/AB6AXuACVMbz3KjPkbvH4ARjbGmhVJBvv-KMLpKMZj9A6KUR27NOGACveShN1K8yVqA4UvKdczeXI0C9E81f57gauPlLT6yJqFQGPJanQ64Y1PufTGwywIj7mUmuE69PxBY7E7paUKSXyn7bYSheqDYUz7cYGTweAV8TLMYlGsV_RSZl2CFeFq651F-XnoAvZYnODlQQRWkkRG-YRO1HWgca3BXGPX5VUniulqSHs-u9mttThaFHJrGb9asP5VkQTeMZ9xXEIQTP1fgFNDTV"/>
+</div>
+<div class="absolute -bottom-12 -right-12 w-48 h-48 bg-tertiary p-8 hidden lg:flex items-center justify-center">
+<span class="text-white font-headline text-4xl font-bold tracking-tighter">25+</span>
+</div>
+</div>
+<div class="col-span-12 lg:col-span-6 lg:ml-auto pt-12">
+<h2 class="font-headline text-primary text-5xl font-bold tracking-tight mb-10 leading-tight">
+                            The Philosophy of <br/>Restrained Authority.
+                        </h2>
+<div class="space-y-8 text-on-surface-variant text-lg leading-relaxed font-light">
+<p>
+                                Editorial Authority is not merely a consulting firm; it is a digital curation of expertise. We move away from the cluttered standard of global advisory toward a high-end editorial experience. 
+                            </p>
+<p>
+                                Our approach mimics the tactile feel of a heavy-stock, matte-finished annual report. We believe that true influence is quiet, measured, and impeccably presented. What is not on the page is as vital as what is.
+                            </p>
+<div class="pt-8 flex items-center gap-4 text-tertiary">
+<span class="h-px w-12 bg-tertiary opacity-30"></span>
+<span class="font-label text-[0.7rem] uppercase tracking-[0.2em] font-bold">Read our Monograph</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Core Expertise (Bento Grid Style) -->
+<section class="bg-surface-container-low py-32">
+<div class="container mx-auto px-12">
+<div class="flex justify-between items-end mb-20">
+<div class="max-w-2xl">
+<p class="font-label text-tertiary text-[0.75rem] uppercase tracking-[0.2em] mb-4">OUR DOMAIN</p>
+<h2 class="font-headline text-primary text-5xl font-bold tracking-tight">Precise Interventions.</h2>
+</div>
+<div class="hidden md:block">
+<span class="material-symbols-outlined text-4xl text-outline-variant font-light">grid_view</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-0">
+<!-- Expertise Card 1 -->
+<div class="bg-surface group p-12 aspect-square border-r border-b border-outline-variant/20 flex flex-col justify-between transition-colors hover:bg-primary duration-500">
+<div>
+<span class="material-symbols-outlined text-tertiary text-3xl mb-8 group-hover:text-secondary-fixed transition-colors">account_balance</span>
+<h3 class="font-headline text-2xl font-bold text-primary group-hover:text-white transition-colors mb-4">Capital Advisory</h3>
+<p class="text-on-surface-variant group-hover:text-surface-container-highest transition-colors font-light leading-relaxed">
+                                Strategic structuring for high-stakes liquidity and asset preservation across emerging markets.
+                            </p>
+</div>
+<div class="flex justify-end">
+<span class="text-tertiary font-label text-[0.7rem] uppercase tracking-[0.2em] font-bold group-hover:text-white cursor-pointer">Learn More</span>
+</div>
+</div>
+<!-- Expertise Card 2 -->
+<div class="bg-surface-container-lowest group p-12 aspect-square border-r border-b border-outline-variant/20 flex flex-col justify-between transition-colors hover:bg-primary duration-500">
+<div>
+<span class="material-symbols-outlined text-tertiary text-3xl mb-8 group-hover:text-secondary-fixed transition-colors">hub</span>
+<h3 class="font-headline text-2xl font-bold text-primary group-hover:text-white transition-colors mb-4">Global Strategy</h3>
+<p class="text-on-surface-variant group-hover:text-surface-container-highest transition-colors font-light leading-relaxed">
+                                Designing resilient frameworks for cross-border expansion and operational excellence.
+                            </p>
+</div>
+<div class="flex justify-end">
+<span class="text-tertiary font-label text-[0.7rem] uppercase tracking-[0.2em] font-bold group-hover:text-white cursor-pointer">Learn More</span>
+</div>
+</div>
+<!-- Expertise Card 3 -->
+<div class="bg-surface group p-12 aspect-square border-b border-outline-variant/20 flex flex-col justify-between transition-colors hover:bg-primary duration-500">
+<div>
+<span class="material-symbols-outlined text-tertiary text-3xl mb-8 group-hover:text-secondary-fixed transition-colors">shield</span>
+<h3 class="font-headline text-2xl font-bold text-primary group-hover:text-white transition-colors mb-4">Risk Architecture</h3>
+<p class="text-on-surface-variant group-hover:text-surface-container-highest transition-colors font-light leading-relaxed">
+                                Predictive modeling and structural fortification against geopolitical and economic shifts.
+                            </p>
+</div>
+<div class="flex justify-end">
+<span class="text-tertiary font-label text-[0.7rem] uppercase tracking-[0.2em] font-bold group-hover:text-white cursor-pointer">Learn More</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Signature Quote Section -->
+<section class="py-40 bg-primary overflow-hidden relative">
+<div class="absolute top-0 right-0 opacity-10 pointer-events-none">
+<span class="font-headline text-[30rem] leading-none select-none text-white font-black italic">"</span>
+</div>
+<div class="container mx-auto px-12 relative z-10">
+<div class="max-w-4xl mx-auto text-center">
+<p class="font-headline text-white text-4xl md:text-5xl italic font-light leading-snug">
+                        "Authority is not found in volume, but in the clarity of the silence that follows a decisive move."
+                    </p>
+<div class="mt-12 flex flex-col items-center">
+<div class="h-12 w-px bg-tertiary mb-6"></div>
+<span class="font-label text-tertiary text-[0.75rem] uppercase tracking-[0.3em]">The Principal Monograph</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-[#000a1e] dark:bg-[#000a1e] w-full px-12 py-24 flex flex-col md:flex-row justify-between items-start gap-12 border-none">
+<div class="flex flex-col gap-8">
+<span class="text-xl font-['Noto_Serif'] text-[#735c00]">AUTHORITY</span>
+<p class="text-[#c4c6cf] max-w-sm font-body text-[0.9rem] font-light leading-relaxed">
+                A bespoke consultation firm dedicated to the architectural precision of corporate and private influence.
+            </p>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-16">
+<div class="flex flex-col gap-6">
+<span class="font-label text-[0.75rem] uppercase tracking-[0.2em] text-[#735c00]">Navigation</span>
+<nav class="flex flex-col gap-4">
+<a class="font-['Manrope'] text-[0.75rem] uppercase tracking-[0.1em] text-[#c4c6cf] hover:text-white transition-opacity duration-300 opacity-80 hover:opacity-100" href="#">Services</a>
+<a class="font-['Manrope'] text-[0.75rem] uppercase tracking-[0.1em] text-[#c4c6cf] hover:text-white transition-opacity duration-300 opacity-80 hover:opacity-100" href="#">Philosophy</a>
+<a class="font-['Manrope'] text-[0.75rem] uppercase tracking-[0.1em] text-[#c4c6cf] hover:text-white transition-opacity duration-300 opacity-80 hover:opacity-100" href="#">Insights</a>
+</nav>
+</div>
+<div class="flex flex-col gap-6">
+<span class="font-label text-[0.75rem] uppercase tracking-[0.2em] text-[#735c00]">Legal</span>
+<nav class="flex flex-col gap-4">
+<a class="font-['Manrope'] text-[0.75rem] uppercase tracking-[0.1em] text-[#c4c6cf] hover:text-white transition-opacity duration-300 opacity-80 hover:opacity-100" href="#">Contact</a>
+<a class="font-['Manrope'] text-[0.75rem] uppercase tracking-[0.1em] text-[#c4c6cf] hover:text-white transition-opacity duration-300 opacity-80 hover:opacity-100" href="#">Privacy</a>
+</nav>
+</div>
+</div>
+<div class="w-full md:w-auto mt-12 md:mt-0 flex flex-col gap-6">
+<p class="font-['Manrope'] text-[0.75rem] uppercase tracking-[0.1em] text-[#f9f9f9]">© 2024 Editorial Authority. All rights reserved. Precision in Consultation.</p>
+</div>
+</footer>
+
+<script>
+const NAV_MAP = {"HOME":"home","ABOUT":"about","SERVICES":"services","CONTACT":"contact","LEARN MORE":"about","OUR EXPERTISE":"services","GET STARTED":"contact","DISCOVER MORE":"about","VIEW SERVICES":"services","SCHEDULE CONSULTATION":"contact","MEET OUR TEAM":"about","EXPLORE SOLUTIONS":"services","REACH OUT":"contact","OUR APPROACH":"about","BOOK A CALL":"contact"};
+
+function normalizeText(text) {
+  return text
+    .replace(/[^a-zA-Z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+document.addEventListener("click", function(e) {
+  const target = e.target.closest("a, button, [role='button']");
+  if (!target) return;
+
+  const rawText = target.innerText || target.textContent || "";
+  const text = normalizeText(rawText);
+
+  let matchedPage = null;
+
+  for (const [label, page] of Object.entries(NAV_MAP)) {
+    if (text.includes(label)) {
+      matchedPage = page;
+      break;
+    }
+  }
+
+  if (!matchedPage) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  window.parent.postMessage(
+    { type: "navigate", page: matchedPage },
+    "*"
+  );
+}, true);
+</script>
+</body></html>

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;700;900&amp;family=Manrope:wght@300;400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed": "#d6e3ff",
+                        "outline": "#74777f",
+                        "tertiary-fixed": "#ffdea5",
+                        "secondary": "#506169",
+                        "error": "#ba1a1a",
+                        "on-surface-variant": "#44474e",
+                        "on-tertiary-container": "#a17f3b",
+                        "on-secondary": "#ffffff",
+                        "surface-container-low": "#f3f3f3",
+                        "surface-container": "#eeeeee",
+                        "surface-container-highest": "#e2e2e2",
+                        "tertiary-fixed-dim": "#e9c176",
+                        "surface-dim": "#dadada",
+                        "secondary-container": "#d1e2ec",
+                        "on-secondary-container": "#55656d",
+                        "on-primary-fixed": "#001b3d",
+                        "tertiary": "#000000",
+                        "on-surface": "#1a1c1c",
+                        "surface-variant": "#e2e2e2",
+                        "on-background": "#1a1c1c",
+                        "primary-container": "#001b3d",
+                        "surface-tint": "#495f84",
+                        "secondary-fixed": "#d4e5ef",
+                        "on-primary": "#ffffff",
+                        "outline-variant": "#c4c6cf",
+                        "on-tertiary-fixed-variant": "#5d4201",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed-variant": "#31476b",
+                        "background": "#f9f9f9",
+                        "inverse-on-surface": "#f1f1f1",
+                        "on-secondary-fixed-variant": "#394951",
+                        "on-tertiary-fixed": "#261900",
+                        "surface": "#f9f9f9",
+                        "inverse-primary": "#b1c7f2",
+                        "on-tertiary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "primary-fixed-dim": "#b1c7f2",
+                        "error-container": "#ffdad6",
+                        "surface-bright": "#f9f9f9",
+                        "surface-container-high": "#e8e8e8",
+                        "inverse-surface": "#2f3131",
+                        "on-primary-container": "#6f84ac",
+                        "secondary-fixed-dim": "#b8c9d3",
+                        "on-secondary-fixed": "#0d1e25",
+                        "primary": "#000000",
+                        "tertiary-container": "#261900"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Noto Serif"],
+                        "body": ["Manrope"],
+                        "label": ["Manrope"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .text-editorial-outline {
+            -webkit-text-stroke: 1px rgba(0,0,0,0.1);
+            color: transparent;
+        }
+        body { font-family: 'Manrope', sans-serif; }
+        h1, h2, h3 { font-family: 'Noto Serif', serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface selection:bg-tertiary-fixed-dim">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-[#f9f9f9]/80 backdrop-blur-xl shadow-[0px_20px_40px_rgba(0,27,61,0.06)]">
+<div class="max-w-7xl mx-auto px-8 flex justify-between items-center h-20">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-black" data-icon="menu">menu</span>
+<span class="font-['Noto_Serif'] font-bold text-2xl tracking-tighter text-black">THE ARCHITECTURAL ATELIER</span>
+</div>
+<nav class="hidden md:flex gap-10 items-center">
+<a class="font-['Manrope'] text-sm tracking-widest uppercase text-black/70 hover:text-black transition-colors" href="#">Home</a>
+<a class="font-['Manrope'] text-sm tracking-widest uppercase text-black/70 hover:text-black transition-colors" href="#">About</a>
+<a class="font-['Manrope'] text-sm tracking-widest uppercase text-[#e9c176] border-b-2 border-[#e9c176] pb-1" href="#">Services</a>
+<a class="font-['Manrope'] text-sm tracking-widest uppercase text-black/70 hover:text-black transition-colors" href="#">Insights</a>
+<a class="font-['Manrope'] text-sm tracking-widest uppercase text-black/70 hover:text-black transition-colors" href="#">Contact</a>
+</nav>
+<button class="bg-black text-white px-6 py-2 text-xs font-bold tracking-widest uppercase hover:bg-primary-container transition-all duration-200">
+                CONSULT
+            </button>
+</div>
+</header>
+<main class="pt-20">
+<!-- Hero Section -->
+<section class="relative h-[618px] flex items-center overflow-hidden bg-primary-container">
+<div class="absolute inset-0 opacity-40">
+<img class="w-full h-full object-cover" data-alt="Interior of a modern, minimalist glass architectural office at dusk with deep shadows and soft ambient lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCIqyDey2t4BxtR27y8dKfKnqcAmfj8hVvzkMGIKN9yKqXAJBwquHNPR1JMTScSop5O_KMtmVId1qPuL_tNRrsvkZgqETwGVYIAxbuOp7luQ0hSsqByLkZkFxrxTY_BQYRjQvM1ToJGkIy3_QbrLegcJBeN7rPp_g-0VBs-5fWO27NTpdcQCbWh6gn9aw0NyR2uYzAOq-aiIF-MlTBVEMTgEj87mQurqCSaxIPc2Cl_PpzH0cRkfsTWVa4uDYc16X0fa6ZuKCOLvcU"/>
+</div>
+<div class="absolute inset-0 bg-gradient-to-r from-primary to-transparent opacity-60"></div>
+<div class="relative z-10 max-w-7xl mx-auto px-8 md:ml-[15%]">
+<span class="text-tertiary-fixed-dim font-label text-sm uppercase tracking-[0.3em] mb-4 block">Strategic Architecture</span>
+<h1 class="text-6xl md:text-8xl text-white font-black leading-none tracking-tighter max-w-4xl">
+                    Defining the <br/>
+<span class="italic font-light">Structure of Success.</span>
+</h1>
+<p class="mt-8 text-white/70 max-w-xl text-lg font-light leading-relaxed">
+                    Our atelier provides precise, high-impact consulting services designed to redesign organizational legacy and engineer future dominance.
+                </p>
+</div>
+</section>
+<!-- Services Section - Asymmetric Layout -->
+<section class="py-32 px-8 max-w-7xl mx-auto">
+<!-- Service 01: Strategic Planning -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-16 mb-40 items-start">
+<div class="md:col-span-7">
+<div class="relative">
+<span class="text- editorial-outline absolute -top-16 -left-12 text-9xl font-black opacity-10">01</span>
+<h2 class="text-5xl font-bold mb-8 relative">Strategic Planning</h2>
+</div>
+<div class="bg-surface-container-low p-12 mb-8">
+<p class="text-body-lg text-on-surface leading-relaxed mb-10 text-lg">
+                            We architect long-term blueprints that align vision with execution. Our strategic planning isn't just about the 'where'—it's the meticulous 'how' of market leadership.
+                        </p>
+<ul class="space-y-4 mb-12">
+<li class="flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary-fixed-dim" data-icon="check_circle">check_circle</span>
+<span class="font-medium">Market Positioning &amp; Dominance Mapping</span>
+</li>
+<li class="flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary-fixed-dim" data-icon="check_circle">check_circle</span>
+<span class="font-medium">Vision Alignment &amp; Corporate Governance</span>
+</li>
+<li class="flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary-fixed-dim" data-icon="check_circle">check_circle</span>
+<span class="font-medium">Competitive Intelligence &amp; Threat Defense</span>
+</li>
+<li class="flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary-fixed-dim" data-icon="check_circle">check_circle</span>
+<span class="font-medium">Agile Ecosystem Architecture</span>
+</li>
+</ul>
+<button class="group flex items-center gap-2 text-primary font-bold uppercase tracking-widest text-sm transition-all">
+                            REQUEST A CONSULTATION
+                            <span class="h-[1px] w-8 bg-tertiary-fixed-dim group-hover:w-16 transition-all"></span>
+</button>
+</div>
+</div>
+<div class="md:col-span-5 md:mt-24">
+<div class="aspect-[3/4] bg-surface-container-high relative">
+<img class="w-full h-full object-cover rounded-lg" data-alt="Monochrome architectural shot of a skyscraper reflecting clouds in a clean, sharp perspective" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3In7E0CU65ueFjsKTuo468OLWpXIKzxJVyDd_WfJPNvYR71Dl7J1JXd6bpmwUNMBrl_4ShAVM4Xrhuhe32yltqqZsJOBcee3juh9VYLkjWiJC2wi2gcpTYj7CDBgsHA3lR0Jxy8wDWbZ4bGtcUGVkPXpgEiSGY-EL-gZnopjx1PrwHq8Hg2Dj05L2lxBJ6b4gmxbca-0OG-ma7Zh-S47kmudQWJikJkIjy9Z9rvsgapynoJ8xmu4HprP-BYHeCPWDkMtbo6CAPZc"/>
+</div>
+</div>
+</div>
+<!-- Service 02: Financial Advisory - Reversed Layout -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-16 mb-40 items-start">
+<div class="md:col-span-5 order-2 md:order-1">
+<div class="aspect-[3/4] bg-surface-container-high relative">
+<img class="w-full h-full object-cover rounded-lg" data-alt="Extreme close up of luxury watch gears or architectural blueprints with golden lighting accents" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDG5BlaBl_i4euaiR8LXfWgRHqnoxLnxGwhDvToyW4GW4SB3Vxpl4w7lbdkLYWp9zR-nino7yx_t1KO_RrXlCZjiGc1jTY3CrY80wdvl15DnrP5mSGtL-dGE4My-Kti8NouoHawnIwKoSoPWTsB1sRNhWF6zUcVj6fzG_5aQ2KzOdFNzwMrZoxLd5zE-zTZZXi_yw2kL0ACJ-85jEk0HGdjMBmIW7KqB8d3o-ehhgmkk5hQDbM7o3aL9E_mLP0-6YqzRVXqOG5dEZA"/>
+</div>
+</div>
+<div class="md:col-span-7 order-1 md:order-2 md:pl-16">
+<div class="relative">
+<span class="text-editorial-outline absolute -top-16 -left-12 text-9xl font-black opacity-10">02</span>
+<h2 class="text-5xl font-bold mb-8 relative">Financial Advisory</h2>
+</div>
+<div class="bg-surface-container-lowest p-12 mb-8 shadow-[0px_20px_40px_rgba(0,27,61,0.06)]">
+<p class="text-body-lg text-on-surface leading-relaxed mb-10 text-lg">
+                            Financial precision is the bedrock of any masterpiece. We provide executive-level capital management and asset protection strategies that scale.
+                        </p>
+<ul class="space-y-4 mb-12">
+<li class="flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary-fixed-dim" data-icon="check_circle">check_circle</span>
+<span class="font-medium">Capital Structure Optimization</span>
+</li>
+<li class="flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary-fixed-dim" data-icon="check_circle">check_circle</span>
+<span class="font-medium">M&amp;A Strategy &amp; Execution Advisory</span>
+</li>
+<li class="flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary-fixed-dim" data-icon="check_circle">check_circle</span>
+<span class="font-medium">Risk Mitigation &amp; Wealth Preservation</span>
+</li>
+<li class="flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary-fixed-dim" data-icon="check_circle">check_circle</span>
+<span class="font-medium">Global Economic Forecast Integration</span>
+</li>
+</ul>
+<button class="group flex items-center gap-2 text-primary font-bold uppercase tracking-widest text-sm transition-all">
+                            REQUEST A CONSULTATION
+                            <span class="h-[1px] w-8 bg-tertiary-fixed-dim group-hover:w-16 transition-all"></span>
+</button>
+</div>
+</div>
+</div>
+<!-- Service 03: Operational Excellence -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-16 items-start">
+<div class="md:col-span-7">
+<div class="relative">
+<span class="text-editorial-outline absolute -top-16 -left-12 text-9xl font-black opacity-10">03</span>
+<h2 class="text-5xl font-bold mb-8 relative">Operational Excellence</h2>
+</div>
+<div class="bg-surface-container-low p-12 mb-8">
+<p class="text-body-lg text-on-surface leading-relaxed mb-10 text-lg">
+                            An elite design is only as good as its structural integrity. We refine the internal mechanisms of your organization to achieve peak performance.
+                        </p>
+<ul class="space-y-4 mb-12">
+<li class="flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary-fixed-dim" data-icon="check_circle">check_circle</span>
+<span class="font-medium">Lean Process Integration &amp; Automation</span>
+</li>
+<li class="flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary-fixed-dim" data-icon="check_circle">check_circle</span>
+<span class="font-medium">Supply Chain Resiliency &amp; Logistics</span>
+</li>
+<li class="flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary-fixed-dim" data-icon="check_circle">check_circle</span>
+<span class="font-medium">Digital Infrastructure Transformation</span>
+</li>
+<li class="flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary-fixed-dim" data-icon="check_circle">check_circle</span>
+<span class="font-medium">Culture Engineering &amp; Performance Coaching</span>
+</li>
+</ul>
+<button class="group flex items-center gap-2 text-primary font-bold uppercase tracking-widest text-sm transition-all">
+                            REQUEST A CONSULTATION
+                            <span class="h-[1px] w-8 bg-tertiary-fixed-dim group-hover:w-16 transition-all"></span>
+</button>
+</div>
+</div>
+<div class="md:col-span-5 md:mt-12">
+<div class="aspect-square bg-surface-container-high relative">
+<img class="w-full h-full object-cover rounded-lg" data-alt="Modern collaborative meeting room with dark wood table and high-end tech, low angle dramatic lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4g6cvOG5GMx0mKAPBm3VeFp2N5htqMYyhV28t9nS7iD_9Z5J65FhpySwIpgP8VL-R_WEuUeVJorMSBXqOqkbZ3Mnuw4dJR7alieq5hKkOmd6c3b59yKOtEleJfEntBpUMVuGIOfL6Yn6O7lh-L_YEqi0un7d0E6lvVDTBS1asRvR4vDAf77CQ_ZcPF01nMpnnJNWoY-pabN1IPaSKj7moGA6wa2_3pdE1njsMIYUhWGuSAFAKEgrLv4-YyJjPUSHZBibkIhN5AEs"/>
+</div>
+</div>
+</div>
+</section>
+<!-- CTA Section -->
+<section class="bg-black py-32 mt-20">
+<div class="max-w-4xl mx-auto text-center px-8">
+<h2 class="text-5xl text-white font-bold mb-8">Ready to Architect Your Legacy?</h2>
+<p class="text-white/60 mb-12 text-lg font-light italic">Consultations are handled with absolute discretion and executive focus.</p>
+<div class="flex flex-col md:flex-row gap-6 justify-center items-center">
+<button class="bg-tertiary-fixed-dim text-black px-10 py-5 text-sm font-black tracking-widest uppercase hover:opacity-90 transition-all">
+                        SCHEDULE A BRIEFING
+                    </button>
+<a class="text-white font-medium border-b border-white/30 pb-2 hover:border-tertiary-fixed-dim transition-all" href="#">Download Services Brochure</a>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-black dark:bg-[#001b3d] w-full pt-24 pb-12">
+<div class="max-w-7xl mx-auto px-12 grid grid-cols-1 md:grid-cols-4 gap-16">
+<div class="md:col-span-2">
+<span class="font-['Noto_Serif'] text-white text-3xl mb-4 block">THE ARCHITECTURAL ATELIER</span>
+<p class="text-white/50 font-['Manrope'] text-sm max-w-sm leading-relaxed">
+                    A global consulting collective dedicated to high-performance corporate architecture and strategic dominance.
+                </p>
+</div>
+<div>
+<h4 class="text-[#e9c176] font-bold text-xs tracking-widest uppercase mb-8">EXECUTIVE LINKS</h4>
+<ul class="space-y-4">
+<li><a class="text-white/50 hover:text-white transition-colors text-sm font-['Manrope']" href="#">Privacy Policy</a></li>
+<li><a class="text-white/50 hover:text-white transition-colors text-sm font-['Manrope']" href="#">Terms of Service</a></li>
+<li><a class="text-white/50 hover:text-white transition-colors text-sm font-['Manrope']" href="#">Executive Search</a></li>
+<li><a class="text-white/50 hover:text-white transition-colors text-sm font-['Manrope']" href="#">Global Offices</a></li>
+</ul>
+</div>
+<div>
+<h4 class="text-[#e9c176] font-bold text-xs tracking-widest uppercase mb-8">CONNECT</h4>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-white/50 hover:text-[#e9c176] cursor-pointer" data-icon="share">share</span>
+<span class="material-symbols-outlined text-white/50 hover:text-[#e9c176] cursor-pointer" data-icon="language">language</span>
+<span class="material-symbols-outlined text-white/50 hover:text-[#e9c176] cursor-pointer" data-icon="mail">mail</span>
+</div>
+</div>
+</div>
+<div class="max-w-7xl mx-auto px-12 mt-24 border-t border-white/10 pt-8">
+<p class="text-white/30 text-[10px] tracking-[0.2em] font-medium uppercase">
+                © 2024 THE ARCHITECTURAL ATELIER. ALL RIGHTS RESERVED.
+            </p>
+</div>
+</footer>
+</body></html>

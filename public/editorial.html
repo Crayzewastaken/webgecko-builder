@@ -1,0 +1,321 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,700;0,900;1,400&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-container": "#1c1b1b",
+                        "inverse-primary": "#c8c6c5",
+                        "primary-fixed": "#e5e2e1",
+                        "tertiary-fixed": "#ffdea4",
+                        "on-error-container": "#93000a",
+                        "on-error": "#ffffff",
+                        "tertiary": "#000000",
+                        "secondary-fixed": "#ffdea5",
+                        "on-primary": "#ffffff",
+                        "surface-container-highest": "#e5e2e1",
+                        "surface": "#fcf9f8",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-container": "#9c804a",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-container": "#785a1a",
+                        "background": "#fcf9f8",
+                        "outline": "#747878",
+                        "surface-container-high": "#eae7e7",
+                        "secondary-fixed-dim": "#e9c176",
+                        "surface-container-low": "#f6f3f2",
+                        "on-primary-fixed": "#1c1b1b",
+                        "secondary": "#775a19",
+                        "on-primary-fixed-variant": "#474746",
+                        "tertiary-fixed-dim": "#e3c285",
+                        "on-secondary-fixed": "#261900",
+                        "inverse-surface": "#313030",
+                        "on-tertiary-fixed-variant": "#5a4313",
+                        "on-secondary-fixed-variant": "#5d4201",
+                        "surface-bright": "#fcf9f8",
+                        "on-surface": "#1c1b1b",
+                        "on-tertiary-fixed": "#261900",
+                        "on-background": "#1c1b1b",
+                        "surface-variant": "#e5e2e1",
+                        "on-surface-variant": "#444748",
+                        "primary": "#000000",
+                        "outline-variant": "#c4c7c7",
+                        "on-secondary": "#ffffff",
+                        "on-primary-container": "#858383",
+                        "surface-tint": "#5f5e5e",
+                        "tertiary-container": "#261900",
+                        "error-container": "#ffdad6",
+                        "secondary-container": "#fed488",
+                        "inverse-on-surface": "#f3f0ef",
+                        "error": "#ba1a1a",
+                        "surface-dim": "#dcd9d9",
+                        "primary-fixed-dim": "#c8c6c5",
+                        "surface-container": "#f0eded"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Noto Serif"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .editorial-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body selection:bg-secondary-container selection:text-on-secondary-container">
+<!-- TopAppBar -->
+<header class="bg-[#fcf9f8]/80 dark:bg-neutral-900/80 backdrop-blur-md docked full-width top-0 z-50 fixed w-full border-none">
+<div class="flex justify-between items-center px-8 py-6 max-w-[1440px] mx-auto" data-hamburger="true">
+<div class="flex items-center gap-6">
+<a href="/menu.html" target="_top" class="material-symbols-outlined text-black dark:text-white p-2 hover:bg-neutral-100/50 dark:hover:bg-neutral-800/50 transition-colors">menu</a>
+<span class="text-2xl font-['Noto_Serif'] font-black tracking-tighter text-black dark:text-white">THE EXECUTIVE</span>
+</div>
+<nav class="hidden md:flex gap-10 font-['Noto_Serif'] font-bold tracking-tight">
+<a class="text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors" href="/editorial.html" target="_top">EDITORIAL</a>
+<a class="text-black dark:text-white border-b border-[#775a19] pb-1" href="#">SERVICES</a>
+<a class="text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors" href="/strategy.html" target="_top">STRATEGY</a>
+<a class="text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors" href="/archive.html" target="_top">ARCHIVE</a>
+</nav>
+<a href="/premium-access.html" target="_top" class="px-6 py-2 bg-primary text-on-primary text-xs font-semibold tracking-widest uppercase rounded-lg hover:opacity-70 transition-opacity">
+                PREMIUM ACCESS
+            </a>
+</div>
+</header>
+<main class="pt-32">
+<!-- Hero Section: Editorial Style -->
+<section class="max-w-[1440px] mx-auto px-8 mb-32">
+<div class="editorial-grid gap-8">
+<div class="col-span-12 md:col-span-7 lg:col-span-6">
+<span class="font-['Inter'] uppercase tracking-[0.2em] text-xs font-semibold text-secondary mb-6 block">Our Expertise</span>
+<h1 class="font-headline text-6xl md:text-8xl font-black tracking-tighter mb-8 leading-[0.9]">
+                        Tailored <br> <span class="italic font-light">Excellence</span>
+</h1>
+<p class="font-body text-xl text-on-surface-variant max-w-md leading-relaxed mb-12">
+                        We provide discreet, high-impact strategic advisory and operational management for the world's most discerning institutions.
+                    </p>
+</div>
+<div class="col-span-12 md:col-span-5 lg:col-span-6 flex items-end">
+<div class="w-full aspect-[4/5] bg-surface-container overflow-hidden">
+<img class="w-full h-full object-cover grayscale opacity-90 hover:scale-105 transition-transform duration-700" data-alt="Modern minimalist office interior with high ceilings, large windows, and sharp architectural shadows in monochrome tones" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD5Z90B3rDUpeqb0IvG39yGLjpIXeg1O2d4iB2wE5POUNXGZrcZIU4xWvI4pEVWLBx6-G69fzAWD17R3XVB7ciU5Efn7vcsC5RTC6h0t4QowomDCJsraXRhjkAaOBx5wP5QaQFB9N3NN3kvS71UD9ynq7X8L4m17yIhnYfuqBrI1v1lhoEF4FIyv4mvo9ultwSXSUyTbJlzTIITWUsiYLyUjtRGbXzOB7VKZJb0YayC6VW16Xsb-V_ZVaoI6JrMKIALnsRlDBx5uINh">
+</div>
+</div>
+</div>
+</section>
+<!-- Service Categories: Asymmetric Bento Grid -->
+<section class="max-w-[1440px] mx-auto px-8 mb-32">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+<!-- Strategy & Advisory -->
+<div class="md:col-span-8 bg-surface-container-low p-12 flex flex-col justify-between group">
+<div>
+<div class="flex justify-between items-start mb-16">
+<span class="material-symbols-outlined text-4xl text-secondary">auto_graph</span>
+<span class="font-headline text-5xl opacity-10 font-bold">01</span>
+</div>
+<h3 class="font-headline text-4xl font-bold mb-6">Strategic Advisory</h3>
+<p class="font-body text-lg text-on-surface-variant max-w-lg mb-8">
+                            Bespoke roadmaps for institutional growth. We specialize in complex market navigation and long-term value preservation for private entities.
+                        </p>
+<ul class="space-y-4 mb-12">
+<li class="flex items-center gap-4 text-sm font-medium tracking-wide">
+<span class="w-1.5 h-1.5 bg-secondary"></span> MARKET INTELLIGENCE
+                            </li>
+<li class="flex items-center gap-4 text-sm font-medium tracking-wide">
+<span class="w-1.5 h-1.5 bg-secondary"></span> RISK MITIGATION
+                            </li>
+<li class="flex items-center gap-4 text-sm font-medium tracking-wide">
+<span class="w-1.5 h-1.5 bg-secondary"></span> GLOBAL POSITIONING
+                            </li>
+</ul>
+</div>
+<a class="inline-flex items-center gap-2 font-label text-xs font-bold tracking-[0.2em] uppercase border-b border-secondary pb-1 self-start group-hover:gap-4 transition-all" href="#">
+                        EXPLORE SERVICES <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</a>
+</div>
+<!-- Digital Architecture -->
+<div class="md:col-span-4 bg-primary text-on-primary p-12 flex flex-col justify-between">
+<div>
+<div class="flex justify-between items-start mb-16">
+<span class="material-symbols-outlined text-4xl text-secondary-container">layers</span>
+<span class="font-headline text-5xl opacity-20 font-bold">02</span>
+</div>
+<h3 class="font-headline text-4xl font-bold mb-6">Digital <br>Ecosystems</h3>
+<p class="font-body text-sm text-on-primary-container leading-relaxed mb-8">
+                            Designing and implementing high-security, proprietary digital frameworks that manage complex operations with absolute discretion.
+                        </p>
+</div>
+<a class="inline-flex items-center gap-2 font-label text-xs font-bold tracking-[0.2em] uppercase text-secondary-container self-start" href="#">
+                        VIEW FRAMEWORKS <span class="material-symbols-outlined text-sm">north_east</span>
+</a>
+</div>
+<!-- Global Logistics -->
+<div class="md:col-span-4 bg-surface-container-high p-12 flex flex-col justify-between h-[500px]">
+<div>
+<span class="material-symbols-outlined text-4xl text-secondary mb-8">public</span>
+<h3 class="font-headline text-3xl font-bold mb-4">Global Operations</h3>
+<p class="font-body text-sm text-on-surface-variant leading-relaxed">
+                            Seamless execution across borders. We handle the logistical complexities that allow you to focus on the objective.
+                        </p>
+</div>
+<div class="mt-8 border-t border-outline-variant/30 pt-8">
+<div class="text-4xl font-headline italic font-light text-secondary">24/7</div>
+<div class="text-[10px] font-label uppercase tracking-widest mt-2">Active Surveillance &amp; Support</div>
+</div>
+</div>
+<!-- Operational Management -->
+<div class="md:col-span-8 relative overflow-hidden group h-[500px]">
+<img class="absolute inset-0 w-full h-full object-cover grayscale brightness-50 group-hover:scale-110 transition-transform duration-1000" data-alt="A sharp close-up of a businessman in a dark tailored suit adjusting a gold watch, representing luxury and precision" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC1uIdsHz8dPKhXa7y5J1c1usuq1eAmMKnJJNcna5A77CLGcyBT1mTqRC38pVP0U5sn17bLw2NJ3RG2TE8nGYwzr0CPk1G514kWuL_ZhgAVITkj4vYOmaHvS38wOKQKFC89DPM__PHVdHYvdWexNtAfnwKmWMcFb0boEljB06g06jWlhtEkIXyMq38IU83e92gXEVW541PoTcHv0_nAd9ceEtEVdhOB061LVcWJRNq9XHheIBmkzaK2fJ5Xu7Ae8Ga7pgR2aPFiksw5">
+<div class="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent p-12 flex flex-col justify-end">
+<span class="font-headline text-5xl opacity-20 font-bold text-white mb-4">03</span>
+<h3 class="font-headline text-4xl font-bold text-white mb-4">Managed Excellence</h3>
+<p class="text-white/80 max-w-md font-body mb-8">
+                            Direct management of critical assets and projects, ensuring the highest standards of silent authority are maintained at every touchpoint.
+                        </p>
+<button class="bg-secondary-container text-on-secondary-container font-label text-xs font-bold py-4 px-8 tracking-[0.2em] uppercase rounded-lg w-max hover:opacity-90 transition-opacity">
+                            REQUEST BRIEFING
+                        </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Detailed Service Tiers: Vertical Scroll Sections -->
+<section class="bg-surface-container-low py-32">
+<div class="max-w-[1440px] mx-auto px-8">
+<div class="flex flex-col md:flex-row justify-between items-baseline mb-20 gap-8">
+<h2 class="font-headline text-5xl font-bold tracking-tight">Institutional <br>Tier Access</h2>
+<p class="max-w-sm font-body text-on-surface-variant">
+                        Our services are structured to provide varying levels of engagement depending on the scale of your institutional requirements.
+                    </p>
+</div>
+<div class="space-y-px bg-outline-variant/20">
+<!-- Row 1 -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-8 py-16 bg-surface-container-low group hover:bg-surface-container-high transition-colors px-4">
+<div class="font-label text-xs font-bold tracking-[0.2em] text-secondary">CONSULTATIVE</div>
+<div class="md:col-span-2">
+<h4 class="font-headline text-2xl font-bold mb-4">Executive Visioning</h4>
+<p class="text-on-surface-variant text-sm leading-relaxed">
+                                Strategic workshops for boards and C-suite leadership focusing on 5-10 year trajectory planning and identity refinement in evolving markets.
+                            </p>
+</div>
+<div class="flex items-center md:justify-end">
+<span class="font-headline text-xl font-bold">Starts at $25k</span>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-8 py-16 bg-surface-container-low group hover:bg-surface-container-high transition-colors px-4">
+<div class="font-label text-xs font-bold tracking-[0.2em] text-secondary">ACTIVE</div>
+<div class="md:col-span-2">
+<h4 class="font-headline text-2xl font-bold mb-4">Operational Architecture</h4>
+<p class="text-on-surface-variant text-sm leading-relaxed">
+                                Hands-on implementation of internal systems, team restructuring, and technology integration designed for efficiency and absolute security.
+                            </p>
+</div>
+<div class="flex items-center md:justify-end">
+<span class="font-headline text-xl font-bold">Custom Quote</span>
+</div>
+</div>
+<!-- Row 3 -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-8 py-16 bg-surface-container-low group hover:bg-surface-container-high transition-colors px-4">
+<div class="font-label text-xs font-bold tracking-[0.2em] text-secondary">RETAINED</div>
+<div class="md:col-span-2">
+<h4 class="font-headline text-2xl font-bold mb-4">The Silent Partner</h4>
+<p class="text-on-surface-variant text-sm leading-relaxed">
+                                Continuous priority access to our entire suite of services, including dedicated specialists and immediate response for critical operational shifts.
+                            </p>
+</div>
+<div class="flex items-center md:justify-end">
+<span class="font-headline text-xl font-bold italic">Private Inquiry</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- CTA Section -->
+<section class="py-32 max-w-[1440px] mx-auto px-8 text-center">
+<div class="max-w-3xl mx-auto">
+<h2 class="font-headline text-5xl md:text-6xl font-black mb-8 leading-tight">Elevate your authority to a <span class="italic font-light">silent science.</span></h2>
+<p class="font-body text-xl text-on-surface-variant mb-12">
+                    Connect with our executive team for a confidential preliminary assessment of your requirements.
+                </p>
+<div class="flex flex-col md:flex-row gap-6 justify-center">
+<button class="bg-primary text-on-primary py-5 px-12 font-label text-xs font-bold tracking-[0.3em] uppercase rounded-sm hover:opacity-80 transition-opacity">
+                        INITIAL CONSULTATION
+                    </button>
+<button class="border border-outline-variant py-5 px-12 font-label text-xs font-bold tracking-[0.3em] uppercase rounded-sm hover:bg-surface-container-low transition-colors">
+                        VIEW PORTFOLIO
+                    </button>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-black dark:bg-neutral-950 mt-32 border-t border-neutral-900 dark:border-neutral-800">
+<div class="w-full py-20 px-8 flex flex-col md:flex-row justify-between items-center max-w-[1440px] mx-auto">
+<div class="mb-12 md:mb-0">
+<span class="text-lg font-['Noto_Serif'] text-white dark:text-neutral-200 block mb-2 tracking-tighter font-black">THE SILENT AUTHORITY.</span>
+<p class="text-[#fed488] font-['Inter'] text-[10px] tracking-[0.15em] font-medium uppercase">TAILORED EXCELLENCE.</p>
+</div>
+<div class="flex flex-col md:flex-row gap-12 text-center md:text-right">
+<div class="space-y-4">
+<p class="font-['Inter'] text-[10px] tracking-[0.15em] font-medium text-neutral-500 uppercase">Information</p>
+<nav class="flex flex-col gap-2">
+<a class="text-neutral-500 hover:text-white transition-colors duration-300 font-['Inter'] text-[10px] tracking-[0.15em] font-medium" href="#">PRIVACY</a>
+<a class="text-neutral-500 hover:text-white transition-colors duration-300 font-['Inter'] text-[10px] tracking-[0.15em] font-medium" href="#">LEGAL</a>
+</nav>
+</div>
+<div class="space-y-4">
+<p class="font-['Inter'] text-[10px] tracking-[0.15em] font-medium text-neutral-500 uppercase">Connect</p>
+<nav class="flex flex-col gap-2">
+<a class="text-neutral-500 hover:text-white transition-colors duration-300 font-['Inter'] text-[10px] tracking-[0.15em] font-medium" href="#">CONTACT</a>
+<a class="text-neutral-500 hover:text-white transition-colors duration-300 font-['Inter'] text-[10px] tracking-[0.15em] font-medium" href="#">INSTITUTIONAL</a>
+</nav>
+</div>
+</div>
+</div>
+<div class="max-w-[1440px] mx-auto px-8 pb-12">
+<p class="text-neutral-600 font-['Inter'] text-[10px] tracking-[0.15em] font-medium text-center md:text-left">
+                © 2024 THE SILENT AUTHORITY. ALL RIGHTS RESERVED.
+            </p>
+</div>
+</footer>
+<script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const btn = document.querySelector('[data-hamburger]');
+        const nav = document.querySelector('nav');
+        if (btn && nav) {
+          btn.addEventListener('click', () => {
+            nav.style.display =
+              nav.style.display === 'block' ? 'none' : 'block';
+          });
+        }
+      });
+    </script></body></html>

@@ -1,0 +1,282 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;700;900&amp;family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-lowest": "#ffffff",
+                    "inverse-primary": "#b1c7f2",
+                    "primary-fixed-dim": "#b1c7f2",
+                    "outline-variant": "#c4c6cf",
+                    "secondary-container": "#e4e2e1",
+                    "on-primary": "#ffffff",
+                    "on-primary-fixed": "#001b3d",
+                    "outline": "#74777f",
+                    "error-container": "#ffdad6",
+                    "inverse-on-surface": "#f0f0f3",
+                    "secondary-fixed": "#e4e2e1",
+                    "tertiary-fixed-dim": "#e9c176",
+                    "on-tertiary-container": "#a17f3b",
+                    "tertiary-container": "#261900",
+                    "surface-bright": "#f9f9fc",
+                    "primary": "#000000",
+                    "on-tertiary-fixed-variant": "#5d4201",
+                    "on-primary-fixed-variant": "#31476b",
+                    "surface-container-highest": "#e2e2e5",
+                    "on-primary-container": "#6f84ac",
+                    "primary-fixed": "#d6e3ff",
+                    "on-surface-variant": "#44474e",
+                    "surface-container": "#eeeef0",
+                    "secondary": "#5f5e5e",
+                    "tertiary-fixed": "#ffdea5",
+                    "background": "#f9f9fc",
+                    "secondary-fixed-dim": "#c8c6c6",
+                    "on-background": "#1a1c1e",
+                    "surface-dim": "#dadadc",
+                    "on-surface": "#1a1c1e",
+                    "on-secondary-fixed-variant": "#474747",
+                    "on-secondary-container": "#656464",
+                    "surface-variant": "#e2e2e5",
+                    "primary-container": "#001b3d",
+                    "surface-tint": "#495f84",
+                    "inverse-surface": "#2f3133",
+                    "surface-container-high": "#e8e8ea",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-tertiary-fixed": "#261900",
+                    "tertiary": "#000000",
+                    "error": "#ba1a1a",
+                    "surface-container-low": "#f3f3f6",
+                    "surface": "#f9f9fc",
+                    "on-secondary-fixed": "#1b1c1c",
+                    "on-error": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Noto Serif"],
+                    "body": ["Manrope"],
+                    "label": ["Manrope"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Manrope', sans-serif; }
+        h1, h2, h3 { font-family: 'Noto Serif', serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface selection:bg-tertiary-fixed selection:text-on-tertiary-fixed">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-xl shadow-sm dark:shadow-none">
+<div class="flex justify-between items-center px-8 py-4 max-w-7xl mx-auto w-full">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-slate-900 dark:text-slate-50 cursor-pointer">menu</span>
+<span class="text-2xl font-serif font-bold tracking-widest text-slate-900 dark:text-slate-50 uppercase">SOVEREIGN</span>
+</div>
+<nav class="hidden md:flex items-center space-x-8">
+<a class="text-slate-900 dark:text-slate-50 font-bold border-b-2 border-amber-500/50 hover:text-amber-600 dark:hover:text-amber-400 transition-colors duration-300" href="/index.html" target="_top">Home</a>
+<a class="text-slate-500 dark:text-slate-400 font-medium hover:text-amber-600 dark:hover:text-amber-400 transition-colors duration-300" href="/about.html" target="_top">About</a>
+<a class="text-slate-500 dark:text-slate-400 font-medium hover:text-amber-600 dark:hover:text-amber-400 transition-colors duration-300" href="/services.html" target="_top">Services</a>
+<a class="text-slate-500 dark:text-slate-400 font-medium hover:text-amber-600 dark:hover:text-amber-400 transition-colors duration-300" href="/testimonials.html" target="_top">Testimonials</a>
+<a class="text-slate-500 dark:text-slate-400 font-medium hover:text-amber-600 dark:hover:text-amber-400 transition-colors duration-300" href="/contact.html" target="_top">Contact</a>
+</nav>
+<a href="/contact.html" target="_top" class="bg-primary text-on-primary px-6 py-2 text-sm font-bold tracking-widest uppercase hover:opacity-90 active:scale-95 duration-200 transition-all">Enquire</a>
+</div>
+</header>
+<main>
+<!-- Hero Section -->
+<section class="relative min-h-screen flex items-center pt-20 overflow-hidden bg-primary-container">
+<div class="absolute inset-0 z-0">
+<img class="w-full h-full object-cover opacity-40 mix-blend-overlay" data-alt="Ultra-modern minimalist office interior with floor-to-ceiling windows, sleek black furniture, and dramatic architectural lighting at dusk" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBt9yFCSbTBPvWu0dFKKIXUPI-0Bxe9cGzw6Plns7ScEpLoRwl8WKsn2KFskaP5K6J1OjYY0FAPMie0BhMkJ1WkGkj-C-iV9F53sV30xAoE7Xv8Vw2dXD1-mr2llLRzvWeLFD0Ij69jlQXocjY1YlQt38DwLTJQHFPNWOOWz78lowAbqQ__LHO_AL1HTu0IbAyWSQLs0ZTBrP1gmOiUgcBU4USGCT-L1Faw35omGopZg_0IvbOFMx1V2D9GjuohhkqwxbAoXUtLQKk">
+<div class="absolute inset-0 bg-gradient-to-tr from-primary via-primary-container/80 to-transparent"></div>
+</div>
+<div class="relative z-10 max-w-7xl mx-auto px-8 w-full grid grid-cols-1 lg:grid-cols-12 gap-12">
+<div class="lg:col-span-8">
+<span class="inline-block px-4 py-1 mb-6 border border-tertiary-fixed-dim text-tertiary-fixed-dim text-xs font-bold tracking-[0.2em] uppercase">Defining Authority</span>
+<h1 class="text-6xl md:text-8xl font-black text-on-primary leading-[0.9] tracking-tighter mb-8">
+                        The Final Word <br> <span class="text-on-primary-container italic">In Strategy.</span>
+</h1>
+<p class="text-xl md:text-2xl text-on-primary-container max-w-2xl font-light leading-relaxed mb-10">
+                        Sovereign Editorial provides the intellectual weight and strategic precision required for modern legacy brands. We don't just communicate; we command attention.
+                    </p>
+<div class="flex flex-col sm:flex-row gap-4">
+<a href="/testimonials.html" target="_top" class="bg-tertiary-fixed text-on-tertiary-fixed px-10 py-4 font-bold tracking-widest uppercase flex items-center justify-center gap-2 hover:opacity-90 transition-all group">
+                            Our Portfolio
+                            <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+<a href="/about.html" target="_top" class="border border-outline-variant text-on-primary px-10 py-4 font-bold tracking-widest uppercase hover:bg-surface-container-lowest/10 transition-all">
+                            About The Firm
+                        </a>
+</div>
+</div>
+</div>
+<div class="absolute bottom-12 right-12 hidden lg:flex flex-col items-end gap-2 text-on-primary-container/40">
+<span class="text-xs font-bold tracking-[0.3em] uppercase rotate-90 origin-bottom-right mb-12">Est. MCMLXXXIV</span>
+<div class="w-px h-24 bg-tertiary-fixed-dim/30"></div>
+</div>
+</section>
+<!-- Expertise Section (Bento Grid) -->
+<section class="py-32 bg-surface">
+<div class="max-w-7xl mx-auto px-8">
+<div class="flex flex-col md:flex-row justify-between items-end mb-20 gap-8">
+<div class="max-w-2xl">
+<h2 class="text-5xl font-black text-primary leading-none tracking-tighter mb-6 uppercase">Our Expertise</h2>
+<div class="h-1 w-24 bg-tertiary-fixed-dim mb-6"></div>
+<p class="text-lg text-on-surface-variant font-medium leading-relaxed">
+                            A curated suite of editorial and strategic services designed for high-stakes environments where nuance is everything.
+                        </p>
+</div>
+<div class="text-right">
+<span class="text-8xl font-serif font-black text-surface-container-highest select-none">01—03</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Service 1 -->
+<div class="group bg-surface-container-low p-10 flex flex-col justify-between aspect-[4/5] hover:bg-primary transition-colors duration-500">
+<div>
+<span class="material-symbols-outlined text-4xl text-tertiary-fixed-dim mb-8 group-hover:text-on-primary transition-colors" data-icon="history_edu">history_edu</span>
+<h3 class="text-3xl font-bold mb-4 group-hover:text-on-primary transition-colors">Narrative Architecture</h3>
+<p class="text-on-surface-variant group-hover:text-on-primary-container transition-colors font-medium">
+                                Crafting deep-form narratives that establish intellectual dominance and heritage positioning.
+                            </p>
+</div>
+<a class="flex items-center gap-2 text-tertiary-fixed-dim font-bold tracking-widest uppercase text-xs group-hover:text-on-primary transition-colors" href="#">
+                            Explore Service
+                            <span class="material-symbols-outlined text-sm">trending_flat</span>
+</a>
+</div>
+<!-- Service 2 -->
+<div class="group bg-surface-container-high p-10 flex flex-col justify-between aspect-[4/5] hover:bg-primary transition-colors duration-500">
+<div>
+<span class="material-symbols-outlined text-4xl text-tertiary-fixed-dim mb-8 group-hover:text-on-primary transition-colors" data-icon="auto_awesome">auto_awesome</span>
+<h3 class="text-3xl font-bold mb-4 group-hover:text-on-primary transition-colors">Strategic Oversight</h3>
+<p class="text-on-surface-variant group-hover:text-on-primary-container transition-colors font-medium">
+                                High-level advisory for multi-channel communications, ensuring absolute brand cohesion.
+                            </p>
+</div>
+<a class="flex items-center gap-2 text-tertiary-fixed-dim font-bold tracking-widest uppercase text-xs group-hover:text-on-primary transition-colors" href="#">
+                            Explore Service
+                            <span class="material-symbols-outlined text-sm">trending_flat</span>
+</a>
+</div>
+<!-- Service 3 -->
+<div class="group bg-surface-container-low p-10 flex flex-col justify-between aspect-[4/5] hover:bg-primary transition-colors duration-500">
+<div>
+<span class="material-symbols-outlined text-4xl text-tertiary-fixed-dim mb-8 group-hover:text-on-primary transition-colors" data-icon="contract_edit">contract_edit</span>
+<h3 class="text-3xl font-bold mb-4 group-hover:text-on-primary transition-colors">Elite Content Audit</h3>
+<p class="text-on-surface-variant group-hover:text-on-primary-container transition-colors font-medium">
+                                A rigorous, 50-point surgical examination of your existing brand voice and literature.
+                            </p>
+</div>
+<a class="flex items-center gap-2 text-tertiary-fixed-dim font-bold tracking-widest uppercase text-xs group-hover:text-on-primary transition-colors" href="#">
+                            Explore Service
+                            <span class="material-symbols-outlined text-sm">trending_flat</span>
+</a>
+</div>
+</div>
+</div>
+</section>
+<!-- About Us Teaser (Asymmetric Layout) -->
+<section class="py-32 bg-surface-container-lowest overflow-hidden">
+<div class="max-w-7xl mx-auto px-8 grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
+<div class="relative">
+<div class="absolute -top-12 -left-12 w-64 h-64 bg-tertiary-fixed/20 rounded-full blur-3xl z-0"></div>
+<div class="relative z-10 border-[12px] border-surface-container-high translate-x-4 translate-y-4">
+<img class="w-full aspect-square object-cover -translate-x-8 -translate-y-8 shadow-2xl" data-alt="Black and white portrait of a confident business executive in a high-end office setting, soft dramatic window lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCQSzqqDYFPRPyCzqssjpFZZ3nozHsmd4bFGjpyBXfGlaIN8DcROhEApUimgtx8ZU0O8XWVf-ON-Pi4s26tcRKIhtj60OCouBmI-Xlt5x4vUXyN30Sj-eLUlWH0QSTHiHfS31lTMsWkfdxJF0p8TW0ETKiMfLdu2zqZlfDHP77racX3stBUBeKM9B_id9cn731lsey5GSnt2pEDTdGxbGZRRzzmBy9EjxlZej7FWM-KgUZqfzysncucwCYwj7nS9ZKOEcgJtZ_p4Kg">
+</div>
+<div class="absolute -bottom-8 -right-8 bg-primary p-8 text-on-primary hidden md:block">
+<p class="font-serif text-3xl italic tracking-tighter">"Weight is the new luxury."</p>
+</div>
+</div>
+<div class="flex flex-col gap-8">
+<span class="text-xs font-bold tracking-[0.4em] uppercase text-tertiary-fixed-dim">The Sovereign Ethos</span>
+<h2 class="text-5xl font-black tracking-tighter uppercase leading-none">Built on the bedrock of <span class="italic text-on-secondary-container">absolute precision.</span></h2>
+<p class="text-lg text-on-surface-variant leading-relaxed">
+                        Sovereign Editorial was founded on a simple principle: in an age of digital noise, the heaviest voice wins. We serve the institutions and individuals who recognize that their legacy is written in the details of their communication.
+                    </p>
+<p class="text-lg text-on-surface-variant leading-relaxed">
+                        Our team consists of veteran journalists, strategic advisors, and literary artisans who understand the architecture of influence.
+                    </p>
+<div>
+<a href="/about.html" target="_top" class="bg-primary text-on-primary px-12 py-5 font-bold tracking-widest uppercase hover:bg-slate-800 transition-colors shadow-lg">
+                            Our Story
+                        </a>
+</div>
+</div>
+</div>
+</section>
+<!-- CTA Section -->
+<section class="py-24 bg-primary text-on-primary text-center">
+<div class="max-w-3xl mx-auto px-8">
+<h2 class="text-4xl md:text-6xl font-black mb-8 tracking-tighter uppercase">Ready to command the room?</h2>
+<p class="text-xl text-on-primary-container mb-12 font-light">Join the ranks of leaders who refuse to be ignored.</p>
+<div class="inline-flex items-center gap-8 group cursor-pointer">
+<span class="text-2xl font-bold tracking-[0.2em] uppercase border-b-2 border-tertiary-fixed-dim pb-2 group-hover:text-tertiary-fixed-dim transition-colors">Start a Conversation</span>
+<span class="material-symbols-outlined text-4xl bg-tertiary-fixed-dim text-primary rounded-full p-2 group-hover:scale-110 transition-transform">arrow_outward</span>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-slate-100 dark:bg-slate-900 border-t border-slate-200/20">
+<div class="w-full px-8 py-12 grid grid-cols-1 md:grid-cols-4 gap-8 max-w-7xl mx-auto">
+<div class="md:col-span-1">
+<span class="font-serif font-black text-lg uppercase text-slate-900 dark:text-slate-50 tracking-widest">SOVEREIGN</span>
+<p class="mt-4 text-sm text-slate-500 leading-relaxed">Crafting the world's most authoritative brand narratives since 1984.</p>
+</div>
+<div>
+<h4 class="font-bold text-slate-900 dark:text-slate-50 mb-6 uppercase text-xs tracking-widest">Connect</h4>
+<ul class="space-y-3">
+<li><a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-sm transition-opacity duration-300" href="#">LinkedIn</a></li>
+<li><a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-sm transition-opacity duration-300" href="#">Twitter</a></li>
+<li><a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-sm transition-opacity duration-300" href="#">Instagram</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-bold text-slate-900 dark:text-slate-50 mb-6 uppercase text-xs tracking-widest">Resources</h4>
+<ul class="space-y-3">
+<li><a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-sm transition-opacity duration-300" href="#">Press Kit</a></li>
+<li><a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-sm transition-opacity duration-300" href="#">Careers</a></li>
+<li><a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-sm transition-opacity duration-300" href="#">Insights</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-bold text-slate-900 dark:text-slate-50 mb-6 uppercase text-xs tracking-widest">Legal</h4>
+<ul class="space-y-3">
+<li><a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-sm transition-opacity duration-300" href="#">Privacy Policy</a></li>
+<li><a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-sm transition-opacity duration-300" href="#">Terms of Service</a></li>
+</ul>
+</div>
+</div>
+<div class="max-w-7xl mx-auto px-8 py-6 border-t border-slate-200/10 flex justify-between items-center">
+<p class="text-xs text-slate-400 font-sans tracking-wide">© 2024 Sovereign Editorial. All rights reserved.</p>
+<div class="flex gap-4">
+<span class="w-2 h-2 rounded-full bg-amber-500"></span>
+<span class="w-2 h-2 rounded-full bg-slate-300"></span>
+</div>
+</div>
+</footer>
+</body></html>

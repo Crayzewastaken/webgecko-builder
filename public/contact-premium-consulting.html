@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Noto+Serif:ital,wght@0,400;0,700;0,900;1,400;1,600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-container": "#d0e1fb",
+                    "on-secondary-fixed": "#0b1c30",
+                    "primary-fixed": "#d3e3ff",
+                    "inverse-on-surface": "#eff1f3",
+                    "background": "#f7f9fb",
+                    "secondary": "#505f76",
+                    "primary": "#000c1e",
+                    "surface-bright": "#f7f9fb",
+                    "on-tertiary": "#ffffff",
+                    "on-background": "#191c1e",
+                    "surface-variant": "#e0e3e5",
+                    "on-tertiary-fixed": "#261900",
+                    "on-tertiary-fixed-variant": "#5d4201",
+                    "surface": "#f7f9fb",
+                    "on-primary-fixed": "#001c38",
+                    "on-error": "#ffffff",
+                    "on-surface-variant": "#43474e",
+                    "on-primary": "#ffffff",
+                    "primary-container": "#002344",
+                    "error": "#ba1a1a",
+                    "on-surface": "#191c1e",
+                    "surface-dim": "#d8dadc",
+                    "tertiary": "#130b00",
+                    "secondary-fixed": "#d3e4fe",
+                    "primary-fixed-dim": "#adc8f2",
+                    "surface-tint": "#456084",
+                    "on-primary-container": "#708bb2",
+                    "on-primary-fixed-variant": "#2c486b",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container-highest": "#e0e3e5",
+                    "inverse-surface": "#2d3133",
+                    "on-tertiary-container": "#a78541",
+                    "on-secondary-fixed-variant": "#38485d",
+                    "outline": "#74777f",
+                    "surface-container": "#eceef0",
+                    "tertiary-container": "#2f2000",
+                    "surface-container-high": "#e6e8ea",
+                    "inverse-primary": "#adc8f2",
+                    "surface-container-low": "#f2f4f6",
+                    "error-container": "#ffdad6",
+                    "tertiary-fixed": "#ffdea5",
+                    "tertiary-fixed-dim": "#e9c176",
+                    "on-secondary-container": "#54647a",
+                    "outline-variant": "#c3c6cf",
+                    "on-secondary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "secondary-fixed-dim": "#b7c8e1"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Noto Serif"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .editorial-shadow {
+            box-shadow: 0 12px 40px rgba(25, 28, 30, 0.06);
+        }
+        .glass-nav {
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background font-body text-on-surface selection:bg-tertiary-fixed selection:text-on-tertiary-fixed">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-2xl shadow-[0_12px_40px_rgba(25,28,30,0.06)] transition-colors">
+<nav class="flex items-center justify-between px-12 h-24 w-full max-w-screen-2xl mx-auto">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-slate-950 dark:text-slate-50 cursor-pointer transition-transform duration-400 active:scale-95" data-icon="menu">menu</span>
+<span class="font-['Noto_Serif'] text-2xl font-black tracking-tighter text-slate-950 dark:text-slate-50">Editorial Authority</span>
+</div>
+<div class="hidden md:flex items-center gap-10">
+<a class="text-slate-500 dark:text-slate-400 font-medium hover:text-slate-900 dark:hover:text-slate-100 transition-all duration-500 ease-in-out hover:opacity-80" href="/home-premium-consulting.html">Home</a>
+<a class="text-slate-500 dark:text-slate-400 font-medium hover:text-slate-900 dark:hover:text-slate-100 transition-all duration-500 ease-in-out hover:opacity-80" href="/home-premium-consulting.html">About</a>
+<a class="text-slate-500 dark:text-slate-400 font-medium hover:text-slate-900 dark:hover:text-slate-100 transition-all duration-500 ease-in-out hover:opacity-80" href="/home-premium-consulting.html">Services</a>
+<a class="text-slate-500 dark:text-slate-400 font-medium hover:text-slate-900 dark:hover:text-slate-100 transition-all duration-500 ease-in-out hover:opacity-80" href="/home-premium-consulting.html">Insights</a>
+<a class="text-slate-950 dark:text-slate-50 font-bold border-b-2 border-amber-300 dark:border-amber-500 pb-1 transition-all duration-500 ease-in-out hover:opacity-80" href="/home-premium-consulting.html">Contact</a>
+</div>
+<button class="bg-primary text-on-primary px-8 py-3 rounded-lg font-medium tracking-wide transition-transform duration-400 active:scale-95 hover:shadow-lg">Inquire</button>
+</nav>
+</header>
+<main class="pt-24">
+<!-- Hero Section -->
+<section class="relative bg-surface py-24 md:py-32 px-12">
+<div class="max-w-screen-2xl mx-auto flex flex-col md:flex-row gap-16 items-start">
+<div class="w-full md:w-5/12">
+<span class="font-['Inter'] text-label-md uppercase tracking-[0.2em] text-on-tertiary-container mb-6 block">Engagement</span>
+<h1 class="font-['Noto_Serif'] font-bold tracking-tight text-[3.5rem] leading-[1.1] text-primary mb-8">Begin the dialogue with Authority.</h1>
+<p class="font-['Inter'] text-body-lg leading-relaxed text-on-surface-variant max-w-lg">We partner with organizations seeking clarity and prestige. Reach out to schedule a confidential advisory session with our lead consultants.</p>
+</div>
+<div class="w-full md:w-7/12 aspect-[16/9] bg-surface-container-high rounded-xl overflow-hidden shadow-2xl relative">
+<img alt="Interior" class="w-full h-full object-cover opacity-90" data-alt="Modern high-end architectural office space with minimalist concrete walls, large windows, and designer furniture in soft natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDgHJzH_Ehj8QaHP95a0k1lktsSsvnZzWGdtJVJgQzsj1s6kerBewYQTxSlg-Ck4sNaJ_v4MNni3MVBxwYCdvs5Zy33pgWx--i0izh2QsAce9CfRq-3B5GMAfdfnFR8LhFIv9tZXVcqof4ZSBF8-N_yr3PtxxmccVRJrcgws72BbMaRdV2GTAWNZBk7x8FnyHeoNqcZjORzQewN4SqvvyrZ0lFc2cRnfd4rIto-ufPWlVRUqiaCeUicZzSnD5dfgBhEBAgR0JA7Bno"/>
+<div class="absolute inset-0 bg-gradient-to-tr from-primary/20 to-transparent"></div>
+</div>
+</div>
+</section>
+<!-- Contact & Locations Grid -->
+<section class="bg-surface-container-low py-32 px-12">
+<div class="max-w-screen-2xl mx-auto">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-16">
+<!-- Contact Form Card -->
+<div class="lg:col-span-7 bg-surface-container-lowest p-12 md:p-16 rounded-xl editorial-shadow">
+<h2 class="font-['Noto_Serif'] text-headline-md font-bold text-primary mb-12">Direct Inquiry</h2>
+<form class="space-y-8">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<div class="space-y-2">
+<label class="font-['Inter'] text-label-md uppercase tracking-wider text-on-surface-variant">Full Name</label>
+<input class="w-full bg-surface-container-high border-none rounded-lg px-6 py-4 focus:bg-surface-container-lowest focus:ring-1 focus:ring-tertiary-fixed transition-all duration-400 outline-none" placeholder="Alexander Sterling" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="font-['Inter'] text-label-md uppercase tracking-wider text-on-surface-variant">Corporate Email</label>
+<input class="w-full bg-surface-container-high border-none rounded-lg px-6 py-4 focus:bg-surface-container-lowest focus:ring-1 focus:ring-tertiary-fixed transition-all duration-400 outline-none" placeholder="a.sterling@firm.com" type="email"/>
+</div>
+</div>
+<div class="space-y-2">
+<label class="font-['Inter'] text-label-md uppercase tracking-wider text-on-surface-variant">Subject of Interest</label>
+<select class="w-auto bg-surface-container-high border-none rounded-lg px-6 py-4 focus:bg-surface-container-lowest focus:ring-1 focus:ring-tertiary-fixed transition-all duration-400 outline-none appearance-none pr-12">
+<option>Strategic Advisory</option>
+<option>Editorial Auditing</option>
+<option>Brand Authority Consulting</option>
+<option>Private Partnership</option>
+</select>
+</div>
+<div class="space-y-2">
+<label class="font-['Inter'] text-label-md uppercase tracking-wider text-on-surface-variant">Executive Brief</label>
+<textarea class="w-full bg-surface-container-high border-none rounded-lg px-6 py-4 focus:bg-surface-container-lowest focus:ring-1 focus:ring-tertiary-fixed transition-all duration-400 outline-none" placeholder="How may we assist your trajectory?" rows="5"></textarea>
+</div>
+<button class="bg-tertiary-fixed text-on-tertiary-fixed px-12 py-5 rounded-lg font-bold tracking-widest uppercase text-xs hover:shadow-[0_4px_20px_rgba(255,222,165,0.4)] transition-all duration-500 active:scale-95" type="submit">Send Communication</button>
+</form>
+</div>
+<!-- Side Info Panel -->
+<div class="lg:col-span-5 flex flex-col gap-12">
+<!-- Identity Points -->
+<div class="space-y-12">
+<div>
+<h3 class="font-['Noto_Serif'] text-xl font-bold text-primary mb-4 italic">Direct Channels</h3>
+<div class="space-y-6">
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="mail">mail</span>
+<div>
+<p class="text-on-surface-variant text-sm font-medium uppercase tracking-widest mb-1">Email</p>
+<p class="text-primary font-semibold text-lg">concierge@editorialauthority.com</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="phone">phone</span>
+<div>
+<p class="text-on-surface-variant text-sm font-medium uppercase tracking-widest mb-1">Confidential Line</p>
+<p class="text-primary font-semibold text-lg">+1 (212) 555-0198</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Locations -->
+<div>
+<h3 class="font-['Noto_Serif'] text-xl font-bold text-primary mb-6 italic">Global Ateliers</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-8">
+<div class="bg-surface p-8 rounded-xl border border-outline-variant/10 group hover:bg-surface-container-highest transition-colors duration-500">
+<div class="w-full h-32 bg-surface-container-high rounded-lg mb-6 overflow-hidden">
+<img alt="New York" class="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700" data-alt="Stylized aerial view of New York City skyline in black and white with high contrast editorial aesthetic" data-location="New York" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZDUiaFuOBSUEb0pX4vxXSUoiRRH2aOXx_Il_nxyn6k3DFooaqMKWmI2mwiLYkQjD0Pl49yq6948R6wN7cDaHTMvScHdXAq3XMtaxuq89Ng_Ebw9vePDYLf5NZit7NcvUXDTefP29ih3l336FH9eyO3CoTSxXHKBv_Chk-nX_F49yKHAecancSojDNgugSCNLRwMh9kZhpC-GlYa49aZu3mVSN3oBBc0SqLiCX33gFmFHWdEeVIB1itX1gSktWqWQg7gqsV1UFtNA"/>
+</div>
+<p class="font-bold text-primary mb-1">Manhattan Square</p>
+<p class="text-on-surface-variant text-sm leading-relaxed">750 Fifth Avenue, Suite 402<br/>New York, NY 10019</p>
+</div>
+<div class="bg-surface p-8 rounded-xl border border-outline-variant/10 group hover:bg-surface-container-highest transition-colors duration-500">
+<div class="w-full h-32 bg-surface-container-high rounded-lg mb-6 overflow-hidden">
+<img alt="London" class="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700" data-alt="Elegant London street with classic architecture and soft morning mist in a professional editorial photography style" data-location="London" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCNcK7jROkt98qYd_gxBpIQ7dJgTp3xyVZw4_JUZrz9qeX6xxChP-KCcxELnk5oZJx_PZOK03h3FO1bkGf0rnH0l9_dFP3Rn1-eBPu75eOEVkYVaP6IOtnTCU6ZSRKiF5ai0xrBCqsK0YrR-DumhJIROH7dUUmGiynj4_IIGG-7uTOhxRMH07F5D13YcvHKvjK9Gkv-LgbMP3LYmTUhFTj4vHJCTwNJgqs2h3izqFob3wrdK9-w4o_dg3VflTgT_RAOXh7vLX5AUeA"/>
+</div>
+<p class="font-bold text-primary mb-1">Mayfair Studio</p>
+<p class="text-on-surface-variant text-sm leading-relaxed">12 Berkeley Square<br/>London W1J 6BQ, UK</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Signature Quote Inset -->
+<section class="bg-primary py-24 px-12 overflow-hidden relative">
+<div class="max-w-screen-2xl mx-auto flex flex-col md:flex-row items-center gap-16">
+<div class="w-full md:w-1/2 text-on-primary">
+<p class="font-['Noto_Serif'] text-3xl md:text-4xl font-light italic leading-relaxed">"Authority is not claimed; it is demonstrated through the precision of one's voice."</p>
+<div class="mt-8 flex items-center gap-4">
+<div class="h-[1px] w-12 bg-tertiary-fixed"></div>
+<p class="font-['Inter'] text-label-md uppercase tracking-[0.3em] text-tertiary-fixed">The Founders Creed</p>
+</div>
+</div>
+<div class="w-full md:w-1/2 flex justify-end">
+<div class="relative w-80 h-80">
+<div class="absolute inset-0 bg-tertiary-fixed rounded-xl rotate-6 opacity-20"></div>
+<img alt="Luxury" class="absolute inset-0 w-full h-full object-cover rounded-xl shadow-2xl" data-alt="Close up of a premium fountain pen on textured cream paper with elegant typography in golden hour light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDfF5KpZxkviXc3nlgvPZWZ2SmdeGXbca7aRMR0I89Ugo1ShzdLZRjDbsSM_TtaAp5OeiVh7WbOKY-tAdk79m2f7_0d6z6Q3uUjb8NcewPmYm1eJHZSI4Mm2T316MNVYN9dJ4IkT4UR2zjFKeG6SJYZ0OqO5dGEYxiVHdhrEBYm-h93E8EoNRNJsKYVd9k_gVZocpvCJO-Q5GSXM3Del83atZF42Ajhd_m2YSWxIdss1ZyTm1V79To8vF9Zp3mCoejlW7Xvicz-r4Y"/>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-slate-100 dark:bg-slate-900 w-full py-20 px-12">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16 max-w-screen-2xl mx-auto">
+<div class="space-y-6">
+<span class="font-['Noto_Serif'] text-lg font-semibold italic text-slate-950 dark:text-slate-50">Editorial Authority</span>
+<p class="font-['Inter'] text-body-lg leading-relaxed text-slate-500 dark:text-slate-400">Defining the global standard for prestige consulting and intellectual leadership.</p>
+</div>
+<div>
+<h4 class="font-['Inter'] text-label-md uppercase tracking-widest text-primary mb-8">Ecosystem</h4>
+<ul class="space-y-4">
+<li><a class="text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-50 transition-colors duration-400" href="/home-premium-consulting.html">Philosophy</a></li>
+<li><a class="text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-50 transition-colors duration-400" href="/home-premium-consulting.html">Strategic Pillars</a></li>
+<li><a class="text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-50 transition-colors duration-400" href="/home-premium-consulting.html">Global Network</a></li>
+<li><a class="text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-50 transition-colors duration-400" href="/home-premium-consulting.html">The Archive</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-['Inter'] text-label-md uppercase tracking-widest text-primary mb-8">Intelligence</h4>
+<ul class="space-y-4">
+<li><a class="text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-50 transition-colors duration-400" href="/home-premium-consulting.html">Quarterly Report</a></li>
+<li><a class="text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-50 transition-colors duration-400" href="/home-premium-consulting.html">Market Briefings</a></li>
+<li><a class="text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-50 transition-colors duration-400" href="/home-premium-consulting.html">Client Portal</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-['Inter'] text-label-md uppercase tracking-widest text-primary mb-8">Legal</h4>
+<ul class="space-y-4">
+<li><a class="text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-50 transition-colors duration-400" href="/home-premium-consulting.html">Privacy Policy</a></li>
+<li><a class="text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-50 transition-colors duration-400" href="/home-premium-consulting.html">Terms of Service</a></li>
+<li><a class="text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-50 transition-colors duration-400" href="/home-premium-consulting.html">Cookie Policy</a></li>
+</ul>
+</div>
+</div>
+<div class="max-w-screen-2xl mx-auto mt-20 pt-12 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-8">
+<p class="text-slate-500 dark:text-slate-400 text-sm font-['Inter']">© 2024 Editorial Authority Consulting. All rights reserved.</p>
+<div class="flex gap-8">
+<span class="material-symbols-outlined text-slate-400 hover:text-primary cursor-pointer transition-colors" data-icon="share">share</span>
+<span class="material-symbols-outlined text-slate-400 hover:text-primary cursor-pointer transition-colors" data-icon="hub">hub</span>
+<span class="material-symbols-outlined text-slate-400 hover:text-primary cursor-pointer transition-colors" data-icon="public">public</span>
+</div>
+</div>
+</footer>
+</body></html>

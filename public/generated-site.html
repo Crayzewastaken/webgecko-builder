@@ -1,0 +1,362 @@
+```html
+<!DOCTYPE html>
+<html class="scroll-smooth" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>THE SOVEREIGN | Strategic Consulting</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+tailwind.config = {
+darkMode: "class",
+theme: {
+extend: {
+"colors": {
+"error": "#ba1a1a",
+"tertiary-container": "#cca830",
+"surface-container-lowest": "#ffffff",
+"inverse-on-surface": "#f0f1f2",
+"on-tertiary-fixed-variant": "#574500",
+"background": "#f8f9fa",
+"on-background": "#191c1d",
+"surface-container-high": "#e7e8e9",
+"secondary-fixed": "#ffe088",
+"on-tertiary": "#ffffff",
+"surface-bright": "#f8f9fa",
+"inverse-primary": "#b5c4ff",
+"outline": "#757681",
+"inverse-surface": "#2e3132",
+"on-primary": "#ffffff",
+"secondary-container": "#fed65b",
+"primary": "#00103e",
+"on-error": "#ffffff",
+"on-primary-fixed-variant": "#2e4382",
+"surface-container-low": "#f3f4f5",
+"surface-variant": "#e1e3e4",
+"tertiary-fixed-dim": "#e9c349",
+"tertiary-fixed": "#ffe088",
+"surface-tint": "#475b9c",
+"on-secondary": "#ffffff",
+"on-secondary-fixed-variant": "#574500",
+"tertiary": "#735c00",
+"on-primary-container": "#7a8ed2",
+"on-primary-fixed": "#00164d",
+"error-container": "#ffdad6",
+"primary-fixed-dim": "#b5c4ff",
+"secondary-fixed-dim": "#e9c349",
+"primary-fixed": "#dce1ff",
+"outline-variant": "#c5c6d2",
+"surface-container-highest": "#e1e3e4",
+"on-surface": "#191c1d",
+"primary-container": "#0a2463",
+"on-tertiary-fixed": "#241a00",
+"on-tertiary-container": "#4f3e00",
+"surface": "#f8f9fa",
+"surface-dim": "#d9dadb",
+"on-secondary-container": "#745c00",
+"surface-container": "#edeeef",
+"on-surface-variant": "#444650",
+"secondary": "#735c00",
+"on-secondary-fixed": "#241a00",
+"on-error-container": "#93000a"
+},
+"borderRadius": {
+"DEFAULT": "0.125rem",
+"lg": "0.25rem",
+"xl": "0.5rem",
+"full": "0.75rem"
+},
+"fontFamily": {
+"headline": ["Newsreader", "serif"],
+"body": ["Inter", "sans-serif"],
+"label": ["Inter", "sans-serif"]
+}
+},
+},
+}
+</script>
+<style>
+.material-symbols-outlined {
+font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+}
+.perspective-text {
+text-shadow: 0 4px 12px rgba(0, 16, 62, 0.1);
+}
+body {
+min-height: max(884px, 100dvh);
+}
+</style>
+</head>
+<body class="bg-background text-primary font-body antialiased">
+<header class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl shadow-[0_20px_40px_rgba(0,16,62,0.06)]">
+<nav class="flex justify-between items-center max-w-7xl mx-auto px-8 h-20">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-blue-950 dark:text-white text-3xl">architecture</span>
+<span class="text-xl font-bold tracking-widest text-blue-950 dark:text-white uppercase font-label">THE SOVEREIGN</span>
+</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="text-blue-900 dark:text-amber-400 font-semibold border-b-2 border-amber-400 pb-1 font-label text-sm tracking-widest" href="#strategy">Strategy</a>
+<a class="text-blue-800/70 dark:text-slate-400 hover:text-blue-950 dark:hover:text-white transition-colors font-label text-sm tracking-widest" href="#services">Services</a>
+<a class="text-blue-800/70 dark:text-slate-400 hover:text-blue-950 dark:hover:text-white transition-colors font-label text-sm tracking-widest" href="#cases">Insights</a>
+<a class="bg-secondary-container text-on-secondary-container px-6 py-3 font-bold text-xs uppercase tracking-[0.2em] hover:bg-secondary transition-all" href="#contact">Request Consultation</a>
+</div>
+<button class="md:hidden text-primary" aria-label="Menu">
+<span class="material-symbols-outlined">menu</span>
+</button>
+</nav>
+</header>
+<main>
+<section class="relative min-h-screen flex items-center pt-20 overflow-hidden bg-primary-container" id="strategy">
+<div class="absolute inset-0 opacity-40 mix-blend-overlay pointer-events-none">
+<div class="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,_#fed65b_0%,_transparent_40%)]"></div>
+<div class="absolute inset-0 bg-[conic-gradient(from_135deg_at_50%_50%,_#0a2463_0%,_#00103e_100%)]"></div>
+</div>
+<div class="max-w-7xl mx-auto px-8 w-full grid lg:grid-cols-2 gap-16 relative z-10">
+<div class="flex flex-col justify-center space-y-8">
+<div class="flex items-center gap-4">
+<span class="h-[1px] w-12 bg-secondary-container"></span>
+<span class="text-secondary-container font-label text-xs tracking-[0.3em] uppercase">Executive Advisory</span>
+</div>
+<h1 class="font-headline text-5xl md:text-7xl text-white leading-tight">Transform Your <br/><span class="italic text-secondary-container">Business Future</span></h1>
+<p class="text-on-primary-container text-lg md:text-xl max-w-lg leading-relaxed font-light">
+We blend architectural precision with radical innovation to navigate the complexities of global markets and digital shifts.
+</p>
+<div class="flex flex-wrap gap-4 pt-4">
+<a href="#contact" class="bg-secondary-container text-on-secondary-container px-10 py-5 font-bold text-sm uppercase tracking-widest hover:brightness-110 transition-all shadow-xl shadow-primary/20 inline-block">
+Start Partnership
+</a>
+<a href="#services" class="border border-white/20 text-white px-10 py-5 font-bold text-sm uppercase tracking-widest hover:bg-white/5 transition-all backdrop-blur-sm inline-block">
+Our Methodology
+</a>
+</div>
+</div>
+<div class="relative hidden lg:block">
+<div class="absolute -top-12 -right-12 w-64 h-64 border border-secondary-container/20"></div>
+<div class="relative aspect-[4/5] bg-slate-800 overflow-hidden shadow-2xl">
+<img alt="Modern architectural glass skyscraper reflecting sunset light with deep shadows and clean minimalist lines" class="w-full h-full object-cover grayscale opacity-80" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBB-5O-XgTyLhQAcQrEvDzmbOx8pOCvZuXrEcNkwxT08X-5FHxdrNkFPDeu47R1ldOvXpf4VH4UvHKmGkXKg-lljRDnnsfnuoSEyAUMz4kFBi5DAcujNhA6ocSqVXQDrvmO7B8WqjpmBEh_7Zabjjt_UEZYg2U1pEAhwWOV2j7TRwQ_-kjuKCKsy7eOBAxtqDmnGFRnhev36Y4wZWypJwmOCco_M4uMRpZuNI_xH5a1ihlWsaPMRaBA4aCwxStFCLFmPmP8PNmJmvvN"/>
+<div class="absolute bottom-0 left-0 p-8 bg-primary/90 backdrop-blur-md border-t border-secondary-container/30 w-full">
+<div class="text-white font-headline text-2xl">Refining Global Sovereignty</div>
+<div class="text-secondary-container font-label text-xs tracking-widest uppercase mt-2">Case Study 2024: Tier 1 Financial</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="bg-surface-container-low py-24 relative">
+<div class="max-w-7xl mx-auto px-8">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-12 text-center md:text-left">
+<div class="space-y-4 group">
+<div class="text-5xl md:text-6xl font-headline text-primary">500+</div>
+<div class="h-1 w-12 bg-secondary-container transition-all group-hover:w-24"></div>
+<p class="font-label text-xs tracking-[0.2em] uppercase text-outline">Global Clients Empowered</p>
+</div>
+<div class="space-y-4 group border-l border-outline-variant/30 pl-0 md:pl-12">
+<div class="text-5xl md:text-6xl font-headline text-primary">25</div>
+<div class="h-1 w-12 bg-secondary-container transition-all group-hover:w-24"></div>
+<p class="font-label text-xs tracking-[0.2em] uppercase text-outline">Years of Market Mastery</p>
+</div>
+<div class="space-y-4 group border-l border-outline-variant/30 pl-0 md:pl-12">
+<div class="text-5xl md:text-6xl font-headline text-primary">98%</div>
+<div class="h-1 w-12 bg-secondary-container transition-all group-hover:w-24"></div>
+<p class="font-label text-xs tracking-[0.2em] uppercase text-outline">Project Success Velocity</p>
+</div>
+</div>
+</div>
+</section>
+<section class="py-32 bg-white" id="services">
+<div class="max-w-7xl mx-auto px-8">
+<div class="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
+<div class="max-w-2xl">
+<span class="text-secondary font-label text-xs tracking-[0.3em] uppercase">Core Competencies</span>
+<h2 class="text-4xl md:text-5xl font-headline text-primary mt-4">Precision-engineered solutions for complex enterprises.</h2>
+</div>
+<a class="text-primary font-bold text-xs uppercase tracking-widest border-b-2 border-secondary-container pb-2 hover:border-primary transition-all" href="#contact">View Full Catalog</a>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-6 h-auto md:h-[800px]">
+<div class="md:col-span-2 md:row-span-1 bg-surface-container-low p-12 flex flex-col justify-between group hover:bg-primary-container transition-all duration-500 overflow-hidden relative">
+<span class="material-symbols-outlined text-secondary text-5xl group-hover:text-secondary-container transition-colors">hub</span>
+<div>
+<h3 class="font-headline text-3xl mb-4 group-hover:text-white transition-colors">Strategy Consulting</h3>
+<p class="text-outline group-hover:text-on-primary-container transition-colors max-w-sm">Designing high-stakes trajectories that secure long-term market dominance and resilience.</p>
+</div>
+<div class="absolute -bottom-12 -right-12 text-[120px] font-headline text-primary-container/10 group-hover:text-white/5 font-bold transition-all">01</div>
+</div>
+<div class="md:col-span-2 md:row-span-2 bg-surface-container-high p-12 flex flex-col justify-end relative overflow-hidden group">
+<img alt="Complex digital network nodes and glowing connection points on a dark deep navy background with soft light bokeh" class="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-20 grayscale group-hover:scale-105 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9uBOLMRtJZQhDMV9YXj0JX2HqZY4xhrGTXj9huk210ZZGfUAB4bP7YTPVX5WmPPeTILreAZBU7o36ndLHdAbhOlpKKC-ZBGsPsSLDPFkwmX_i4jEEVAzlB3IJDNW0fOalKYyHRjoZo-R1QB2xn2ZdlknlMD7nLosKJdOFNNgxOh4eLyiAEx_flNonpY_25OgYAQWyncmTwwXTz6e__cdxx_p0-aJ4S9d2lJC3zyBdZnyBUxCYYdBuorsq4RiOxUq8N8FqmpH7dpzN"/>
+<div class="relative z-10 space-y-6">
+<span class="material-symbols-outlined text-secondary text-5xl">memory</span>
+<h3 class="font-headline text-4xl text-primary">Digital Transformation</h3>
+<p class="text-on-surface-variant max-w-md text-lg">Beyond technology. We rebuild the operational DNA of your firm to thrive in a decentralized, automated future.</p>
+<a href="#contact" class="bg-primary text-white px-8 py-4 text-xs font-bold uppercase tracking-widest hover:bg-secondary transition-all inline-block">Learn More</a>
+</div>
+</div>
+<div class="md:col-span-1 md:row-span-1 bg-surface-container-low p-8 flex flex-col justify-between hover:bg-surface-container transition-all border-b-4 border-transparent hover:border-secondary">
+<span class="material-symbols-outlined text-secondary text-4xl">handshake</span>
+<div>
+<h4 class="font-headline text-xl mb-2">M&A Advisory</h4>
+<p class="text-outline text-sm">Strategic deal-making and integration.</p>
+</div>
+</div>
+<div class="md:col-span-1 md:row-span-1 bg-surface-container-low p-8 flex flex-col justify-between hover:bg-surface-container transition-all border-b-4 border-transparent hover:border-secondary">
+<span class="material-symbols-outlined text-secondary text-4xl">settings_suggest</span>
+<div>
+<h4 class="font-headline text-xl mb-2">Operations</h4>
+<p class="text-outline text-sm">Eliminating friction from the core.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="py-32 bg-primary text-white overflow-hidden" id="cases">
+<div class="max-w-7xl mx-auto px-8">
+<div class="grid lg:grid-cols-2 gap-24 items-center">
+<div>
+<span class="text-secondary-container font-label text-xs tracking-[0.3em] uppercase">Value Created</span>
+<h2 class="text-4xl md:text-6xl font-headline mt-6 leading-tight">Tangible results <br/>for intangible assets.</h2>
+<div class="mt-12 space-y-12">
+<div class="relative pl-8 border-l border-white/10">
+<div class="text-secondary-container font-headline text-2xl mb-2">+240% ROI</div>
+<p class="text-blue-100/70 font-light max-w-md">Internal operational velocity increased by restructuring the decision-making framework for a Global 500 logistics provider.</p>
+</div>
+<div class="relative pl-8 border-l border-white/10">
+<div class="text-secondary-container font-headline text-2xl mb-2">$1.2B Saved</div>
+<p class="text-blue-100/70 font-light max-w-md">Risk mitigation strategies implemented during a complex cross-border merger involving three European entities.</p>
+</div>
+</div>
+</div>
+<div class="relative">
+<div class="absolute -inset-10 bg-secondary/10 rounded-full blur-3xl"></div>
+<div class="relative aspect-square bg-slate-900 border border-white/10 p-1">
+<div class="h-full w-full bg-slate-950 flex flex-col items-center justify-center p-12 space-y-8">
+<div class="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+<div class="h-full w-1/4 bg-error"></div>
+</div>
+<div class="text-center font-label text-[10px] tracking-widest uppercase text-white/40">Market Positioning Pre-Sovereign</div>
+<div class="material-symbols-outlined text-6xl text-white/10 rotate-180">expand_more</div>
+<div class="w-full h-8 bg-secondary-container/20 border border-secondary-container flex items-center px-4">
+<div class="h-1 w-full bg-secondary-container animate-pulse"></div>
+</div>
+<div class="text-center font-label text-[10px] tracking-widest uppercase text-secondary-container">Optimized Strategy Deployment</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="py-32 bg-background">
+<div class="max-w-7xl mx-auto px-8 text-center mb-20">
+<span class="text-secondary font-label text-xs tracking-[0.3em] uppercase">Executive Voices</span>
+<h2 class="text-4xl md:text-5xl font-headline text-primary mt-4">Trusted by industry leaders.</h2>
+</div>
+<div class="max-w-7xl mx-auto px-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+<div class="bg-white p-12 shadow-[0_20px_40px_rgba(0,16,62,0.04)] relative">
+<span class="absolute top-8 right-12 text-6xl font-headline text-surface-container-highest">"</span>
+<div class="flex items-center gap-4 mb-8">
+<div class="flex text-secondary-container">
+<span class="material-symbols-outlined">star</span>
+<span class="material-symbols-outlined">star</span>
+<span class="material-symbols-outlined">star</span>
+<span class="material-symbols-outlined">star</span>
+<span class="material-symbols-outlined">star</span>
+</div>
+</div>
+<p class="text-xl font-headline italic text-primary leading-relaxed mb-8">"The Sovereign didn't just give us a deck; they embedded a new operating philosophy that changed our culture from the top down."</p>
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-slate-200 overflow-hidden">
+<img alt="Professional headshot of a confident male executive in a charcoal grey suit with soft studio lighting" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0CD1XSzYrV-ZFo-2pZL1wKUrydOEMjELKhHywN4wSqVk0hTRUA5i2rN3Wmm3MLuU5Ec3-HbDIPJTMD4SYUG9gU0jBvh8dUA_z-6Sq_U5YkHOi9EXDlUeJyhqCH4dAjTT19ckmDBVN4cvjs8jgSLfcLO-IBF4urgeKBOQqezZ15sCyCauxNa07cVCjXDMAlZ565H_Or_FG0fBG8J6PMkX0CAxi0ZT70G1vVqK2-YF-Zxi7cFB57XVgRpDyBn__cLKqlppAHKZBCJOs"/>
+</div>
+<div>
+<div class="font-bold text-primary text-sm">Marcus Sterling</div>
+<div class="text-outline text-xs uppercase tracking-widest font-label">CEO, Aetheric Dynamics</div>
+</div>
+</div>
+</div>
+<div class="bg-white p-12 shadow-[0_20px_40px_rgba(0,16,62,0.04)] relative">
+<span class="absolute top-8 right-12 text-6xl font-headline text-surface-container-highest">"</span>
+<div class="flex items-center gap-4 mb-8">
+<div class="flex text-secondary-container">
+<span class="material-symbols-outlined">star</span>
+<span class="material-symbols-outlined">star</span>
+<span class="material-symbols-outlined">star</span>
+<span class="material-symbols-outlined">star</span>
+<span class="material-symbols-outlined">star</span>
+</div>
+</div>
+<p class="text-xl font-headline italic text-primary leading-relaxed mb-8">"Their approach to digital transformation is the most architectural and structural I've encountered in 20 years of tech."</p>
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-slate-200 overflow-hidden">
+<img alt="Professional headshot of a female CTO with a warm, authoritative expression in a modern office background" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBW9hqWJF5gRUj_9XshoUYAXLuBZxvBwnd6oKWyNj6aLNmI5hGQFWKIWYUsZGndRbO4TsTyWX8212jqNDqcWXWSVPaoMtiK0w0jQwwWAnAUgVB_PENQl8IT3pwSZqe9no1BILhY4dKORtZW8s-oJS4_FHpZi6JmcoRQO4wbZ439BYOpUTQ9gWn8FNACIICC4x4ZzgJOJgHHbV8hHdEKp2zJNULOwVFgdNnLD8vNKVU1wSy6uC5cR1MXRR4947kJOrvLaRXyrTdh2VuN"/>
+</div>
+<div>
+<div class="font-bold text-primary text-sm">Elena Vance</div>
+<div class="text-outline text-xs uppercase tracking-widest font-label">CTO, Meridian Global</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="py-32 bg-surface-container-low" id="contact">
+<div class="max-w-7xl mx-auto px-8 grid lg:grid-cols-3 gap-16">
+<div class="lg:col-span-1">
+<h2 class="text-5xl font-headline text-primary mb-6">Begin your transformation.</h2>
+<p class="text-outline text-lg mb-8 leading-relaxed">Our elite consultants are available for confidential briefing sessions globally. Select your focus area to begin.</p>
+<div class="space-y-4">
+<div class="flex items-center gap-4 text-primary">
+<span class="material-symbols-outlined text-secondary">location_on</span>
+<span class="font-bold text-sm uppercase tracking-widest">London | New York | Singapore</span>
+</div>
+<div class="flex items-center gap-4 text-primary">
+<span class="material-symbols-outlined text-secondary">mail</span>
+<span class="font-bold text-sm tracking-widest">concierge@thesovereign.consulting</span>
+</div>
+</div>
+</div>
+<div class="lg:col-span-2 bg-white p-12 shadow-2xl">
+<form class="space-y-8" action="#" method="POST">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<div class="space-y-2">
+<label for="fullname" class="text-xs font-bold uppercase tracking-widest text-outline">Full Name</label>
+<input id="fullname" name="fullname" class="w-full bg-transparent border-0 border-b border-outline-variant focus:ring-0 focus:border-secondary py-3 px-0 transition-all" type="text" required/>
+</div>
+<div class="space-y-2">
+<label for="email" class="text-xs font-bold uppercase tracking-widest text-outline">Corporate Email</label>
+<input id="email" name="email" class="w-full bg-transparent border-0 border-b border-outline-variant focus:ring-0 focus:border-secondary py-3 px-0 transition-all" type="email" required/>
+</div>
+</div>
+<div class="space-y-4">
+<label class="text-xs font-bold uppercase tracking-widest text-outline">Primary Service Interest</label>
+<div class="flex flex-wrap gap-3">
+<button class="px-6 py-2 border border-outline-variant text-xs font-bold uppercase tracking-widest hover:border-secondary hover:text-secondary transition-all" type="button" onclick="this.classList.toggle('border-secondary');this.classList.toggle('text-secondary');">Strategy</button>
+<button class="px-6 py-2 border border-secondary text-secondary text-xs font-bold uppercase tracking-widest" type="button" onclick="this.classList.toggle('border-secondary');this.classList.toggle('text-secondary');this.classList.toggle('border-outline-variant');">Digital</button>
+<button class="px-6 py-2 border border-outline-variant text-xs font-bold uppercase tracking-widest hover:border-secondary hover:text-secondary transition-all" type="button" onclick="this.classList.toggle('border-secondary');this.classList.toggle('text-secondary');">M&A</button>
+<button class="px-6 py-2 border border-outline-variant text-xs font-bold uppercase tracking-widest hover:border-secondary hover:text-secondary transition-all" type="button" onclick="this.classList.toggle('border-secondary');this.classList.toggle('text-secondary');">Operations</button>
+</div>
+</div>
+<div class="space-y-2">
+<label for="message" class="text-xs font-bold uppercase tracking-widest text-outline">Project Brief</label>
+<textarea id="message" name="message" class="w-full bg-transparent border-0 border-b border-outline-variant focus:ring-0 focus:border-secondary py-3 px-0 transition-all resize-none" rows="4"></textarea>
+</div>
+<button type="submit" class="w-full md:w-auto bg-primary text-white px-12 py-5 font-bold text-sm uppercase tracking-widest hover:bg-secondary hover:text-on-secondary-container transition-all">
+Submit Inquiry
+</button>
+</form>
+</div>
+</div>
+</section>
+</main>
+<footer class="w-full pt-20 pb-10 bg-slate-100 dark:bg-slate-900">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-12 max-w-7xl mx-auto px-8">
+<div class="md:col-span-1 space-y-6">
+<span class="text-2xl font-bold text-blue-950 dark:text-white uppercase tracking-tighter font-headline">THE SOVEREIGN</span>
+<p class="text-blue-800/60 dark:text-slate-400 text-sm leading-relaxed">
+A global elite consulting collective specializing in architectural business transformations and high-stakes strategy.
+</p>
+</div>
+<div class="space-y-6">
+<h4 class="font-bold text-primary dark:text-white text-xs uppercase tracking-widest">Services</h4>
+<ul class="space-y-3 text-sm">
+<li><a class="text-blue-800/60 dark:text-slate-400 hover:text-blue-950 dark:hover:text-white underline underline-

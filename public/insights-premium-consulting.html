@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Noto+Serif:ital,wght@0,400;0,700;0,900;1,400;1,700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-container": "#d0e1fb",
+                    "on-secondary-fixed": "#0b1c30",
+                    "primary-fixed": "#d3e3ff",
+                    "inverse-on-surface": "#eff1f3",
+                    "background": "#f7f9fb",
+                    "secondary": "#505f76",
+                    "primary": "#000c1e",
+                    "surface-bright": "#f7f9fb",
+                    "on-tertiary": "#ffffff",
+                    "on-background": "#191c1e",
+                    "surface-variant": "#e0e3e5",
+                    "on-tertiary-fixed": "#261900",
+                    "on-tertiary-fixed-variant": "#5d4201",
+                    "surface": "#f7f9fb",
+                    "on-primary-fixed": "#001c38",
+                    "on-error": "#ffffff",
+                    "on-surface-variant": "#43474e",
+                    "on-primary": "#ffffff",
+                    "primary-container": "#002344",
+                    "error": "#ba1a1a",
+                    "on-surface": "#191c1e",
+                    "surface-dim": "#d8dadc",
+                    "tertiary": "#130b00",
+                    "secondary-fixed": "#d3e4fe",
+                    "primary-fixed-dim": "#adc8f2",
+                    "surface-tint": "#456084",
+                    "on-primary-container": "#708bb2",
+                    "on-primary-fixed-variant": "#2c486b",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container-highest": "#e0e3e5",
+                    "inverse-surface": "#2d3133",
+                    "on-tertiary-container": "#a78541",
+                    "on-secondary-fixed-variant": "#38485d",
+                    "outline": "#74777f",
+                    "surface-container": "#eceef0",
+                    "tertiary-container": "#2f2000",
+                    "surface-container-high": "#e6e8ea",
+                    "inverse-primary": "#adc8f2",
+                    "surface-container-low": "#f2f4f6",
+                    "error-container": "#ffdad6",
+                    "tertiary-fixed": "#ffdea5",
+                    "tertiary-fixed-dim": "#e9c176",
+                    "on-secondary-container": "#54647a",
+                    "outline-variant": "#c3c6cf",
+                    "on-secondary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "secondary-fixed-dim": "#b7c8e1"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Noto Serif"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .editorial-shadow {
+            box-shadow: 0 12px 40px rgba(25, 28, 30, 0.06);
+        }
+        .serif-masthead {
+            font-family: 'Noto Serif', serif;
+            letter-spacing: -0.02em;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="text-on-background">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-50/80 backdrop-blur-2xl transition-colors shadow-[0_12px_40px_rgba(25,28,30,0.06)]">
+<div class="flex items-center justify-between px-12 h-24 w-full max-w-screen-2xl mx-auto">
+<div class="flex items-center gap-8">
+<span class="material-symbols-outlined text-slate-950 scale-100 active:scale-95 transition-transform duration-400 cursor-pointer">menu</span>
+<a class="font-['Noto_Serif'] text-2xl font-black tracking-tighter text-slate-950" href="/home-premium-consulting.html">Editorial Authority</a>
+</div>
+<nav class="hidden md:flex items-center gap-10">
+<a class="text-slate-500 font-medium hover:text-slate-900 transition-all duration-500" href="/home-premium-consulting.html">Home</a>
+<a class="text-slate-500 font-medium hover:text-slate-900 transition-all duration-500" href="/home-premium-consulting.html">About</a>
+<a class="text-slate-500 font-medium hover:text-slate-900 transition-all duration-500" href="/home-premium-consulting.html">Services</a>
+<a class="text-slate-950 font-bold border-b-2 border-amber-300 pb-1" href="/home-premium-consulting.html">Insights</a>
+<a class="text-slate-500 font-medium hover:text-slate-900 transition-all duration-500" href="/home-premium-consulting.html">Contact</a>
+</nav>
+<div class="flex items-center gap-6">
+<button class="font-['Noto_Serif'] font-bold tracking-tight text-slate-950 scale-100 active:scale-95 transition-transform duration-400">Inquire</button>
+</div>
+</div>
+</header>
+<main class="pt-32 pb-24 px-6 md:px-12 max-w-screen-2xl mx-auto">
+<!-- Header Section -->
+<section class="mb-20">
+<span class="font-['Inter'] text-[0.75rem] uppercase tracking-[0.2em] text-on-tertiary-container mb-4 block font-bold">Thought Leadership</span>
+<h1 class="font-['Noto_Serif'] text-[3.5rem] font-black leading-[1.1] text-primary max-w-4xl tracking-tight">
+                Insights for the <br/><span class="italic text-on-tertiary-container">Modern Strategist</span>
+</h1>
+</section>
+<!-- Featured Article (Asymmetric Layout) -->
+<section class="grid grid-cols-1 lg:grid-cols-12 gap-0 mb-32 items-stretch overflow-hidden">
+<div class="lg:col-span-7 relative min-h-[500px]">
+<img class="absolute inset-0 w-full h-full object-cover rounded-tl-xl lg:rounded-tr-none lg:rounded-bl-none" data-alt="monochrome architectural photography of a modern skyscraper glass facade reflecting a cloudy sky in high contrast" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHfNMktu9Wyhq2vCe8-SwZ9PBoJU2c5Th1HPGJHvHFGrO2Y3A9-suEYkHsPhHtQiRgw7O6_8XiMc1eoSP91Sx2dJtwmduas7bJ1yWZl7kFJKOt2BVlHs4vVfGMMG10y82vKXyMQsAZVjhPKaMvl6let8TJ_8wLiLp8Yvc4P-GcvSFNfK7MPUZRcNNDnb4J1A4lkJngweH2RfcMU_LUs4XF6Tm7eIPiWUfBZhFGhButZSGufMLZoAFpqYDW6Upv-rEm1gj7TFm28d0"/>
+</div>
+<div class="lg:col-span-5 bg-surface-container-low p-12 lg:p-16 flex flex-col justify-center">
+<div class="space-y-6">
+<span class="text-on-tertiary-container font-['Inter'] text-[0.75rem] uppercase tracking-[0.2em] font-bold">White Paper — Q4 2024</span>
+<h2 class="font-['Noto_Serif'] text-[2.5rem] font-bold leading-tight text-primary">The Architecture of Sovereign Equity</h2>
+<p class="text-on-surface-variant font-['Inter'] text-lg leading-relaxed">An exhaustive analysis of global capital shifts and the emerging role of private institutional authority in developing markets.</p>
+<div class="pt-6">
+<a class="inline-flex items-center gap-3 text-primary font-bold uppercase text-sm tracking-widest group" href="/home-premium-consulting.html">
+                            Read the Thesis
+                            <span class="material-symbols-outlined group-hover:translate-x-2 transition-transform duration-400">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+</section>
+<!-- Insights Grid (Bento Style) -->
+<section class="space-y-12">
+<div class="flex items-end justify-between border-b border-outline-variant/15 pb-6">
+<h3 class="font-['Noto_Serif'] text-2xl font-bold italic">Curated Publications</h3>
+<div class="flex gap-4">
+<button class="p-2 border border-outline-variant/15 hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-sm">grid_view</span>
+</button>
+<button class="p-2 text-slate-400">
+<span class="material-symbols-outlined text-sm">list</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+<!-- Card 1 -->
+<article class="group cursor-pointer">
+<div class="aspect-[4/5] mb-8 overflow-hidden bg-surface-container rounded-br-xl">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Close-up of a businessman hands in a luxury navy blue suit adjusting a silver cufflink with warm interior lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCKVfVISAvo2DPLJvBhCebdDYfRLOOCvDg3JjCR-sWDeNa7ywW2biBsThd4uwTmflsxVedv9CTG6_mUSy4kRupv7dkNLNWkdJivMXgSnHx1_RuMK6Yl4J1BeuV0cuvfMEz2D8uKx1VrKlO8RTt0Ygt2T-yDj4GG3w3EhU2lmvJsAdreJRkFbvMuMbWBXVMKu70hYgFhuNwiGokLfIrGzWU-d8LUSgA8zBk-yITTRT_3kiwgLrmm1EDQDe1Knh9ajiDy5FtIkzY3TI8"/>
+</div>
+<span class="text-on-tertiary-container font-['Inter'] text-[0.7rem] uppercase tracking-widest font-bold mb-3 block">Market Report</span>
+<h4 class="font-['Noto_Serif'] text-xl font-bold mb-4 leading-snug group-hover:text-on-tertiary-container transition-colors">The Re-Urbanization of European Finance</h4>
+<p class="text-on-surface-variant text-sm leading-relaxed line-clamp-3">Evaluating the decentralization of banking hubs and the rise of boutique advisory centers in secondary metropolitan areas.</p>
+</article>
+<!-- Card 2 -->
+<article class="group cursor-pointer">
+<div class="aspect-[4/5] mb-8 overflow-hidden bg-surface-container rounded-tl-xl">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Digital representation of global data network with glowing blue nodes and thin connecting lines against deep space background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZz0bJLmRsYyChVvJoqL8SOIFKdbUYR1KXEEYzweTvFsp5X0zN1VsfB8828a_OMRr59Fr4PO5At4vHNS9SItD4xBItgNouYnAQ0V6k4YXGmUfnu85Yw4OLj-ID_EOaVlSCTVPq1KMdgb9Ey3DoJrs5cuvJrFtWgnC3lDkCGKpDQGM01buCFLBOUDbquRguqmJ72-zHHaPDggOXLyDjfB58pgy_FKj17QI_Bm2Ehle48OC389TXygvuMAK_Am-lQZD6LPk529CIMUY"/>
+</div>
+<span class="text-on-tertiary-container font-['Inter'] text-[0.7rem] uppercase tracking-widest font-bold mb-3 block">Expert Opinion</span>
+<h4 class="font-['Noto_Serif'] text-xl font-bold mb-4 leading-snug group-hover:text-on-tertiary-container transition-colors">AI and the Ethics of Predictive Governance</h4>
+<p class="text-on-surface-variant text-sm leading-relaxed line-clamp-3">How algorithmic decision-making is reshaping the fiduciary duties of board members in the technology sector.</p>
+</article>
+<!-- Card 3 (Editorial Highlight Card) -->
+<article class="group cursor-pointer bg-primary p-8 rounded-lg flex flex-col justify-between">
+<div>
+<span class="text-tertiary-fixed font-['Inter'] text-[0.7rem] uppercase tracking-widest font-bold mb-6 block">Special Edition</span>
+<h4 class="font-['Noto_Serif'] text-2xl font-bold text-white mb-6 leading-tight">The 2025 Wealth Transition Outlook</h4>
+<p class="text-primary-fixed-dim text-sm leading-relaxed mb-8">A comprehensive guide to intergenerational wealth transfer strategies for the next decade of fiscal evolution.</p>
+</div>
+<div class="border-t border-white/10 pt-6">
+<button class="bg-tertiary-fixed text-on-tertiary-fixed px-6 py-3 text-[0.7rem] font-bold uppercase tracking-widest hover:bg-tertiary-fixed-dim transition-colors">Request Copy</button>
+</div>
+</article>
+<!-- Card 4 -->
+<article class="group cursor-pointer">
+<div class="aspect-[4/5] mb-8 overflow-hidden bg-surface-container rounded-br-xl">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="geometric patterns of minimalist concrete staircase leading upwards with sharp shadows and stark natural lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBeflJcKBD9NYYGCKSGEmtH9dgh2K4-JYNZR0aflhKvJb1-pDOGp_9egdBO7xvDEjd6QJmTDnL3o4GsizKabNfknLl3URTQmmiXaVDoLjlc-dhR8dnQuTiLphVT9CQrUGd0hPBYEmtsZERx-tr41f7cBb9PgtfLwWt2yQknGQSy2UhyKlodrQ0bwPA_mwQ4_WZDXbDj5J59uUdQKX6VOOAO7lmhOr6gws6ykfQVpyJGFBo6qj_B48IPbuZS--swG3YViToB2mo4vyY"/>
+</div>
+<span class="text-on-tertiary-container font-['Inter'] text-[0.7rem] uppercase tracking-widest font-bold mb-3 block">Strategy Case Study</span>
+<h4 class="font-['Noto_Serif'] text-xl font-bold mb-4 leading-snug group-hover:text-on-tertiary-container transition-colors">Vertical Integration in the Green Sector</h4>
+<p class="text-on-surface-variant text-sm leading-relaxed line-clamp-3">Lessons from the recent consolidation of sustainable energy providers across the Nordic corridor.</p>
+</article>
+<!-- Card 5 -->
+<article class="group cursor-pointer">
+<div class="aspect-[4/5] mb-8 overflow-hidden bg-surface-container rounded-tl-xl">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Close-up of clean white business analytics graphs on a computer screen with soft focus office background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuABSbEZDLnEULYUG2ZWuNPHDYOD_7jbEXzk8y2kL1JS0ftrnkWBJujqc5jNgV02hHiChtENBqnsGCFxJ0HjieDMNvM47MqDNrykMOS5cE0pPLK09bkyW2sCVs-V7tHyDWUt-2fClHcOi5sdoBPyflI99i9kU2tRTgxC7UXEyffz_XFH0oVb03EaBUbdNjdRniuod83gKXugX7X_OBnaJ11xW3MBTWyVuldZc_7QLPmZgjdI25gbPXIF58UJCZKlAt2xs776ZaDyTvE"/>
+</div>
+<span class="text-on-tertiary-container font-['Inter'] text-[0.7rem] uppercase tracking-widest font-bold mb-3 block">Data Brief</span>
+<h4 class="font-['Noto_Serif'] text-xl font-bold mb-4 leading-snug group-hover:text-on-tertiary-container transition-colors">The Fragility of Just-In-Time Logisitics</h4>
+<p class="text-on-surface-variant text-sm leading-relaxed line-clamp-3">Quantifying the hidden costs of supply chain efficiency in a period of geopolitical volatility.</p>
+</article>
+<!-- Card 6 -->
+<article class="group cursor-pointer">
+<div class="aspect-[4/5] mb-8 overflow-hidden bg-surface-container rounded-br-xl">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="High angle view of business people walking in a fast-paced blurred motion through a bright modern corporate atrium" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDEzc_fRrGtUFOjLq8zBygTxwIRg1_N1l1rpODkToVQ4WaxNFzBVfiXHtV7Ux_-KPF6sB6rUoFTZgY3tuXoCBVOIRoEQ30Gso-zh9wXKjBBp3A1lFPx0zeF6S6cHyPJYDipQ0TjfelGBx8nUwW8bBW9S6Iq2CecKekIhJSXvoz1Un5_cBgVIoColW7opDYE5IJQr_h1TQy57tamOjUR9n6yNJp6cb6q9r1nooc8uuzfpesOnwFi0QKbbdn0BIYFQoV4VApUSBkm8Os"/>
+</div>
+<span class="text-on-tertiary-container font-['Inter'] text-[0.7rem] uppercase tracking-widest font-bold mb-3 block">Editorial Culture</span>
+<h4 class="font-['Noto_Serif'] text-xl font-bold mb-4 leading-snug group-hover:text-on-tertiary-container transition-colors">Leadership in a Borderless Workspace</h4>
+<p class="text-on-surface-variant text-sm leading-relaxed line-clamp-3">Re-defining corporate identity and cultural cohesion when the physical office is no longer the anchor.</p>
+</article>
+</div>
+</section>
+<!-- Newsletter / Subscription Inset -->
+<section class="mt-32 p-12 md:p-24 bg-surface-container-highest flex flex-col md:flex-row items-center justify-between gap-12 rounded-lg">
+<div class="max-w-xl">
+<h3 class="font-['Noto_Serif'] text-3xl font-bold mb-6">The Monday Briefing</h3>
+<p class="text-on-surface-variant font-['Inter'] text-lg">Join 40,000 global executives receiving our weekly curation of market signals, political shifts, and strategic foresight.</p>
+</div>
+<div class="w-full max-w-md flex flex-col gap-4">
+<input class="w-full bg-surface-container border-none p-4 font-['Inter'] focus:ring-0 focus:bg-white transition-colors" placeholder="Professional Email" type="email"/>
+<button class="w-full bg-primary text-white py-4 font-['Inter'] font-bold uppercase tracking-[0.2em] text-[0.75rem] hover:bg-primary-container transition-colors">Subscribe</button>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-slate-100 dark:bg-slate-900 py-20 px-12 mt-20">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16 max-w-screen-2xl mx-auto">
+<div class="space-y-6">
+<span class="font-['Noto_Serif'] text-lg font-semibold italic text-slate-950">Editorial Authority</span>
+<p class="text-slate-500 font-['Inter'] text-sm leading-relaxed">Providing institutional-grade advisory and strategic insights for global leaders and emerging enterprises.</p>
+</div>
+<div class="space-y-4">
+<h5 class="font-['Inter'] text-[0.75rem] uppercase tracking-widest font-bold text-slate-950">Navigation</h5>
+<ul class="space-y-2">
+<li><a class="text-slate-500 hover:text-slate-950 transition-colors text-sm" href="/home-premium-consulting.html">Case Studies</a></li>
+<li><a class="text-slate-500 hover:text-slate-950 transition-colors text-sm" href="/home-premium-consulting.html">White Papers</a></li>
+<li><a class="text-slate-500 hover:text-slate-950 transition-colors text-sm" href="/home-premium-consulting.html">Team Members</a></li>
+<li><a class="text-slate-500 hover:text-slate-950 transition-colors text-sm" href="/home-premium-consulting.html">Advisory Board</a></li>
+</ul>
+</div>
+<div class="space-y-4">
+<h5 class="font-['Inter'] text-[0.75rem] uppercase tracking-widest font-bold text-slate-950">Offices</h5>
+<ul class="space-y-2">
+<li class="text-slate-500 text-sm">London · Mayfair</li>
+<li class="text-slate-500 text-sm">New York · Hudson Yards</li>
+<li class="text-slate-500 text-sm">Singapore · Marina Bay</li>
+<li class="text-slate-500 text-sm">Dubai · DIFC</li>
+</ul>
+</div>
+<div class="space-y-4">
+<h5 class="font-['Inter'] text-[0.75rem] uppercase tracking-widest font-bold text-slate-950">Legal</h5>
+<ul class="space-y-2">
+<li><a class="text-amber-700 underline decoration-2 text-sm" href="/home-premium-consulting.html">Privacy Policy</a></li>
+<li><a class="text-slate-500 hover:text-slate-950 transition-colors text-sm" href="/home-premium-consulting.html">Terms of Service</a></li>
+<li><a class="text-slate-500 hover:text-slate-950 transition-colors text-sm" href="/home-premium-consulting.html">Cookie Policy</a></li>
+</ul>
+</div>
+</div>
+<div class="max-w-screen-2xl mx-auto mt-20 pt-8 border-t border-slate-200">
+<p class="text-slate-400 text-[0.7rem] font-['Inter'] uppercase tracking-widest text-center">© 2024 Editorial Authority Consulting. All rights reserved.</p>
+</div>
+</footer>
+</body></html>
