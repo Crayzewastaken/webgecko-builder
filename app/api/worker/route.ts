@@ -27,14 +27,10 @@ function extractJson(text: string): PromptSpec {
 
 function extractHtml(text: string) {
   const start = text.indexOf("<!DOCTYPE");
-  if (start !== -1) {
-    return text.slice(start);
-  }
+  if (start !== -1) return text.slice(start);
 
   const htmlStart = text.indexOf("<html");
-  if (htmlStart !== -1) {
-    return text.slice(htmlStart);
-  }
+  if (htmlStart !== -1) return text.slice(htmlStart);
 
   return text;
 }
@@ -43,7 +39,6 @@ export async function POST(req: Request) {
   try {
     const userInput = await req.json();
 
-    // STEP 1: Claude → premium Stitch prompt
     const promptResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 1500,
@@ -72,7 +67,6 @@ ${JSON.stringify(userInput)}
 
     const spec = extractJson(promptText);
 
-    // STEP 2: Stitch frontend
     const rawProject: any = await stitchClient.callTool("create_project", {
       title: spec.projectTitle,
     });
@@ -105,7 +99,6 @@ ${JSON.stringify(userInput)}
 
     const stitchHtml = await fetch(downloadUrl).then((r) => r.text());
 
-    // STEP 3: Claude backend cleanup → STRICT HTML ONLY
     const backendResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 8000,
@@ -115,20 +108,22 @@ ${JSON.stringify(userInput)}
           content: `
 You are a production HTML compiler.
 
-Take the following Stitch-generated HTML and return ONLY the final deployable HTML document.
+Take the following Stitch-generated HTML and return ONLY a final deployable HTML document.
 
-STRICT RULES:
+CRITICAL RULES:
 - output ONLY raw HTML
 - must start with <!DOCTYPE html>
-- no markdown
-- no explanation
-- no analysis
-- no commentary
 - preserve design exactly
-- fix navigation links
-- ensure buttons and forms work
-- normalize CSS and assets
-- output production-safe single-file HTML
+- fix all navigation and buttons
+- convert fake "live" features into REAL working fallbacks
+- if "live rates" exists → convert to pricing modal/table
+- if "live location" exists → convert to service coverage map/list
+- if impossible real-time features exist → replace with CTA + quote form
+- ensure every button opens something functional
+- no dead buttons allowed
+- forms must work
+- no markdown
+- no explanations
 
 INPUT HTML:
 ${stitchHtml}
