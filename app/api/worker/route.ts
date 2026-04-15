@@ -13,7 +13,7 @@ type PromptSpec = {
   stitchPrompt: string;
 };
 
-function extractJson(text: string) {
+function extractJson(text: string): PromptSpec {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
 
@@ -28,7 +28,6 @@ export async function POST(req: Request) {
   try {
     const userInput = await req.json();
 
-    // STEP 1: Claude upgrades user request into advanced Stitch prompt
     const promptResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 1500,
@@ -55,29 +54,30 @@ ${JSON.stringify(userInput)}
         ? promptResponse.content[0].text
         : "{}";
 
-    const spec = extractJson(promptText) as PromptSpec;
+    const spec: PromptSpec = extractJson(promptText);
 
-    // STEP 2: Stitch builds frontend
-    const project = (await stitchClient.callTool("create_project", {
+    // EXPLICIT TYPE FIX FOR VERCEL
+    const rawProject: any = await stitchClient.callTool("create_project", {
       title: spec.projectTitle,
-    })) as any;
+    });
 
-    const projectId = project?.name?.split("/")[1];
+    const projectName: string = rawProject?.name || "";
+    const projectId = projectName.split("/")[1];
 
     if (!projectId) {
       throw new Error("No projectId returned");
     }
 
-    const stitchResult = (await stitchClient.callTool(
+    const rawStitchResult: any = await stitchClient.callTool(
       "generate_screen_from_text",
       {
         projectId,
         prompt: spec.stitchPrompt,
       }
-    )) as any;
+    );
 
     const screens =
-      stitchResult?.outputComponents?.find((x: any) => x.design)
+      rawStitchResult?.outputComponents?.find((x: any) => x.design)
         ?.design?.screens || [];
 
     if (!screens.length) {
@@ -91,11 +91,8 @@ ${JSON.stringify(userInput)}
       throw new Error("No Stitch html downloadUrl returned");
     }
 
-    const stitchHtml = await fetch(downloadUrl).then((r) =>
-      r.text()
-    );
+    const stitchHtml = await fetch(downloadUrl).then((r) => r.text());
 
-    // STEP 3: Claude backend compiler stage
     const backendResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 8000,
@@ -112,7 +109,6 @@ Requirements:
 - fix forms
 - normalize assets
 - make deployable for hosting
-- no markdown
 - output ONLY full HTML
 
 ${stitchHtml}
