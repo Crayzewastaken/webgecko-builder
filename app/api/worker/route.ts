@@ -1,3 +1,5 @@
+export const maxDuration = 300;
+
 import { NextResponse } from "next/server";
 import { stitchClient } from "@/lib/stitch";
 import Anthropic from "@anthropic-ai/sdk";
