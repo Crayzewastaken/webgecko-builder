@@ -12,6 +12,9 @@ type FormData = {
   notes: string;
 };
 
+const API_URL =
+  "https://webgecko-builder.vercel.app/api/worker";
+
 export default function HomePage() {
   const [form, setForm] = useState<FormData>({
     businessName: "",
@@ -41,7 +44,7 @@ export default function HomePage() {
     setError("");
 
     try {
-      const res = await fetch("/api/worker", {
+      const res = await fetch(API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
