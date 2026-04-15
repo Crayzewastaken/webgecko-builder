@@ -1,65 +1,152 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+
+type FormData = {
+  businessName: string;
+  industry: string;
+  pages: string;
+  style: string;
+  audience: string;
+  cta: string;
+  notes: string;
+};
+
+export default function HomePage() {
+  const [form, setForm] = useState<FormData>({
+    businessName: "",
+    industry: "",
+    pages: "",
+    style: "",
+    audience: "",
+    cta: "",
+    notes: "",
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [resultUrl, setResultUrl] = useState("");
+
+  function updateField(key: keyof FormData, value: string) {
+    setForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setResultUrl("");
+
+    const res = await fetch("/api/worker", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(form),
+    });
+
+    const data = await res.json();
+
+    if (data.page) {
+      setResultUrl(data.page);
+    }
+
+    setLoading(false);
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="min-h-screen bg-[#f8f8f8] px-8 py-16">
+      <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl p-10">
+        <h1 className="text-4xl font-semibold mb-8">
+          Premium AI Website Builder
+        </h1>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <input
+            className="w-full border p-4 rounded-xl"
+            placeholder="Business Name"
+            value={form.businessName}
+            onChange={(e) =>
+              updateField("businessName", e.target.value)
+            }
+          />
+
+          <input
+            className="w-full border p-4 rounded-xl"
+            placeholder="Industry"
+            value={form.industry}
+            onChange={(e) =>
+              updateField("industry", e.target.value)
+            }
+          />
+
+          <input
+            className="w-full border p-4 rounded-xl"
+            placeholder="Pages Needed"
+            value={form.pages}
+            onChange={(e) =>
+              updateField("pages", e.target.value)
+            }
+          />
+
+          <input
+            className="w-full border p-4 rounded-xl"
+            placeholder="Style / Aesthetic"
+            value={form.style}
+            onChange={(e) =>
+              updateField("style", e.target.value)
+            }
+          />
+
+          <input
+            className="w-full border p-4 rounded-xl"
+            placeholder="Target Audience"
+            value={form.audience}
+            onChange={(e) =>
+              updateField("audience", e.target.value)
+            }
+          />
+
+          <input
+            className="w-full border p-4 rounded-xl"
+            placeholder="Primary CTA Goal"
+            value={form.cta}
+            onChange={(e) =>
+              updateField("cta", e.target.value)
+            }
+          />
+
+          <textarea
+            className="w-full border p-4 rounded-xl h-40"
+            placeholder="Extra notes..."
+            value={form.notes}
+            onChange={(e) =>
+              updateField("notes", e.target.value)
+            }
+          />
+
+          <button
+            type="submit"
+            className="px-6 py-4 rounded-xl bg-black text-white w-full"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+            {loading ? "Generating..." : "Generate Website"}
+          </button>
+        </form>
+
+        {resultUrl && (
+          <div className="mt-8 rounded-xl bg-gray-100 p-5">
+            <p className="font-medium mb-2">Finished website:</p>
+            <a
+              href={resultUrl}
+              target="_blank"
+              className="underline"
+            >
+              {resultUrl}
+            </a>
+          </div>
+        )}
+      </div>
+    </main>
   );
 }
