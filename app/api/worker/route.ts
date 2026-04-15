@@ -25,10 +25,25 @@ function extractJson(text: string): PromptSpec {
   return JSON.parse(text.slice(start, end + 1));
 }
 
+function extractHtml(text: string) {
+  const start = text.indexOf("<!DOCTYPE");
+  if (start !== -1) {
+    return text.slice(start);
+  }
+
+  const htmlStart = text.indexOf("<html");
+  if (htmlStart !== -1) {
+    return text.slice(htmlStart);
+  }
+
+  return text;
+}
+
 export async function POST(req: Request) {
   try {
     const userInput = await req.json();
 
+    // STEP 1: Claude → premium Stitch prompt
     const promptResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 1500,
@@ -57,6 +72,7 @@ ${JSON.stringify(userInput)}
 
     const spec = extractJson(promptText);
 
+    // STEP 2: Stitch frontend
     const rawProject: any = await stitchClient.callTool("create_project", {
       title: spec.projectTitle,
     });
@@ -76,32 +92,63 @@ ${JSON.stringify(userInput)}
       rawStitchResult?.outputComponents?.find((x: any) => x.design)
         ?.design?.screens || [];
 
+    if (!screens.length) {
+      throw new Error("No screens returned from Stitch");
+    }
+
     const firstScreen = screens[0];
     const downloadUrl = firstScreen?.htmlCode?.downloadUrl;
 
+    if (!downloadUrl) {
+      throw new Error("No Stitch html downloadUrl returned");
+    }
+
     const stitchHtml = await fetch(downloadUrl).then((r) => r.text());
 
+    // STEP 3: Claude backend cleanup → STRICT HTML ONLY
     const backendResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 8000,
       messages: [
         {
           role: "user",
-          content: stitchHtml,
+          content: `
+You are a production HTML compiler.
+
+Take the following Stitch-generated HTML and return ONLY the final deployable HTML document.
+
+STRICT RULES:
+- output ONLY raw HTML
+- must start with <!DOCTYPE html>
+- no markdown
+- no explanation
+- no analysis
+- no commentary
+- preserve design exactly
+- fix navigation links
+- ensure buttons and forms work
+- normalize CSS and assets
+- output production-safe single-file HTML
+
+INPUT HTML:
+${stitchHtml}
+          `,
         },
       ],
     });
 
-    const finalHtml =
+    const backendText =
       backendResponse.content[0]?.type === "text"
         ? backendResponse.content[0].text
         : stitchHtml;
+
+    const finalHtml = extractHtml(backendText);
 
     const emailResult = await resend.emails.send({
       from: "AI Builder <onboarding@resend.dev>",
       to: process.env.RESULT_TO_EMAIL!,
       subject: `Generated Website - ${spec.projectTitle}`,
-      html: `<p>Your generated website is attached.</p>`,
+      html: `<p>Your generated website HTML is attached.</p>`,
       attachments: [
         {
           filename: `site-${Date.now()}.html`,
