@@ -2,10 +2,21 @@
 
 import { useMemo, useState } from "react";
 
+const API_URL =
+  "https://webgecko-builder.vercel.app/api/worker";
+
 const productOptions = ["1", "2", "3", "4", "5", "6+"];
 
 export default function HomePage() {
   const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const [businessName, setBusinessName] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [audience, setAudience] = useState("");
+  const [styleNotes, setStyleNotes] = useState("");
+
   const [sellsProducts, setSellsProducts] = useState(false);
   const [productCount, setProductCount] = useState("1");
   const [products, setProducts] = useState([
@@ -42,6 +53,58 @@ export default function HomePage() {
     );
   }
 
+  async function generateWebsite() {
+    setLoading(true);
+    setMessage("");
+
+    const payload = {
+      businessName,
+      industry,
+      audience,
+      styleNotes,
+      sellsProducts,
+      products,
+    };
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const rawText = await res.text();
+      let data: any;
+
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        setMessage(`Backend error: ${rawText}`);
+        setLoading(false);
+        return;
+      }
+
+      setMessage(
+        data.message ||
+          "Website generated and sent to your email"
+      );
+    } catch (error: any) {
+      setMessage(error.message || "Request failed");
+    }
+
+    setLoading(false);
+  }
+
+  function handleNext() {
+    if (step < 4) {
+      setStep((s) => s + 1);
+    } else {
+      generateWebsite();
+    }
+  }
+
   return (
     <main className="min-h-screen bg-neutral-100 p-6 md:p-10">
       <div className="max-w-6xl mx-auto grid md:grid-cols-[1fr_320px] gap-6">
@@ -65,19 +128,31 @@ export default function HomePage() {
           {step === 1 && (
             <div className="space-y-4">
               <input
+                value={businessName}
+                onChange={(e) =>
+                  setBusinessName(e.target.value)
+                }
                 placeholder="Business name"
                 className="w-full h-14 rounded-2xl border px-4"
               />
               <input
+                value={industry}
+                onChange={(e) => setIndustry(e.target.value)}
                 placeholder="Industry"
                 className="w-full h-14 rounded-2xl border px-4"
               />
               <input
+                value={audience}
+                onChange={(e) => setAudience(e.target.value)}
                 placeholder="Target audience"
                 className="w-full h-14 rounded-2xl border px-4"
               />
               <textarea
-                placeholder="Describe the style, goals, and dream feel of the website"
+                value={styleNotes}
+                onChange={(e) =>
+                  setStyleNotes(e.target.value)
+                }
+                placeholder="Describe the style, goals, and dream feel"
                 className="w-full min-h-32 rounded-2xl border p-4"
               />
             </div>
@@ -90,9 +165,6 @@ export default function HomePage() {
                   <h3 className="font-medium">
                     Does this business sell products?
                   </h3>
-                  <p className="text-sm text-neutral-500">
-                    Enable dynamic catalog collection
-                  </p>
                 </div>
 
                 <button
@@ -124,7 +196,7 @@ export default function HomePage() {
                       (_, index) => (
                         <div
                           key={index}
-                          className="rounded-3xl border border-neutral-200 shadow-sm p-5 grid gap-3"
+                          className="rounded-3xl border p-5 grid gap-3"
                         >
                           <input
                             placeholder={`Product ${
@@ -152,61 +224,12 @@ export default function HomePage() {
                             }
                             className="w-full h-12 rounded-xl border px-4"
                           />
-                          <textarea
-                            placeholder="Description"
-                            value={
-                              products[index]?.description || ""
-                            }
-                            onChange={(e) =>
-                              updateProduct(
-                                index,
-                                "description",
-                                e.target.value
-                              )
-                            }
-                            className="w-full min-h-24 rounded-xl border p-4"
-                          />
-                          <input type="file" />
                         </div>
                       )
                     )}
                   </div>
                 </>
               )}
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="grid gap-4">
-              <input type="file" className="w-full" />
-              <input type="file" className="w-full" />
-              <textarea
-                placeholder="Brand colours, references, competitor websites"
-                className="w-full min-h-32 rounded-2xl border p-4"
-              />
-            </div>
-          )}
-
-          {step === 4 && (
-            <div className="grid md:grid-cols-2 gap-4">
-              {[
-                "Bookings",
-                "WooCommerce",
-                "Quote Form",
-                "Maps",
-                "Reviews",
-                "Newsletter",
-                "Live Chat",
-                "Memberships",
-              ].map((feature) => (
-                <label
-                  key={feature}
-                  className="rounded-2xl border p-4 flex items-center gap-3"
-                >
-                  <input type="checkbox" />
-                  <span>{feature}</span>
-                </label>
-              ))}
             </div>
           )}
 
@@ -222,22 +245,26 @@ export default function HomePage() {
             </button>
 
             <button
-              onClick={() =>
-                setStep((s) => Math.min(4, s + 1))
-              }
+              onClick={handleNext}
               className="px-6 py-3 rounded-xl bg-black text-white"
             >
-              {step === 4 ? "Generate Website" : "Next"}
+              {loading
+                ? "Generating..."
+                : step === 4
+                ? "Generate Website"
+                : "Next"}
             </button>
           </div>
+
+          {message && (
+            <div className="mt-6 rounded-2xl bg-green-100 text-green-800 p-4">
+              {message}
+            </div>
+          )}
         </div>
 
         <div className="rounded-[2rem] shadow-xl bg-black text-white h-fit sticky top-6 p-6">
-          <p className="text-sm uppercase tracking-[0.25em] text-neutral-400">
-            Live summary
-          </p>
-
-          <h2 className="text-2xl font-semibold mt-3">
+          <h2 className="text-2xl font-semibold">
             Premium build data
           </h2>
 
@@ -249,7 +276,6 @@ export default function HomePage() {
             <li>
               Product slots: {sellsProducts ? count : 0}
             </li>
-            <li>Ready for WordPress plugin fusion</li>
           </ul>
         </div>
       </div>
