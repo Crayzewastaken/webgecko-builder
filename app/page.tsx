@@ -1,174 +1,165 @@
-"use client";
+import React, { useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
-import { useState } from "react";
+const productOptions = ["1", "2", "3", "4", "5", "6+"];
 
-type FormData = {
-  businessName: string;
-  industry: string;
-  pages: string;
-  style: string;
-  audience: string;
-  cta: string;
-  notes: string;
-};
+export default function AIWebsiteBuilderIntake() {
+  const [step, setStep] = useState(1);
+  const [sellsProducts, setSellsProducts] = useState(false);
+  const [productCount, setProductCount] = useState("1");
+  const [products, setProducts] = useState([{ name: "", price: "", description: "" }]);
 
-const API_URL =
-  "https://webgecko-builder.vercel.app/api/worker";
+  const count = useMemo(() => (productCount === "6+" ? 6 : Number(productCount)), [productCount]);
 
-export default function HomePage() {
-  const [form, setForm] = useState<FormData>({
-    businessName: "",
-    industry: "",
-    pages: "",
-    style: "",
-    audience: "",
-    cta: "",
-    notes: "",
-  });
-
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState("");
-  const [error, setError] = useState("");
-
-  function updateField(key: keyof FormData, value: string) {
-    setForm((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+  function updateProductCount(value: string) {
+    setProductCount(value);
+    const nextCount = value === "6+" ? 6 : Number(value);
+    setProducts((prev) => {
+      const clone = [...prev];
+      while (clone.length < nextCount) clone.push({ name: "", price: "", description: "" });
+      return clone.slice(0, nextCount);
+    });
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setResult("");
-    setError("");
-
-    try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(form),
-      });
-
-      const rawText = await res.text();
-
-      let data: any;
-      try {
-        data = JSON.parse(rawText);
-      } catch {
-        setError(`Raw backend error: ${rawText}`);
-        setLoading(false);
-        return;
-      }
-
-      if (!data.success) {
-        setError(data.message || "Unknown backend error");
-      } else {
-        setResult(
-          data.message ||
-            "Website generated and emailed successfully"
-        );
-      }
-    } catch (err: any) {
-      setError(err.message || "Frontend request failed");
-    }
-
-    setLoading(false);
+  function updateProduct(index: number, field: string, value: string) {
+    setProducts((prev) =>
+      prev.map((p, i) => (i === index ? { ...p, [field]: value } : p))
+    );
   }
 
   return (
-    <main className="min-h-screen bg-[#f8f8f8] px-8 py-16">
-      <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl p-10">
-        <h1 className="text-4xl font-semibold mb-8">
-          Premium AI Website Builder
-        </h1>
+    <div className="min-h-screen bg-neutral-100 p-6 md:p-10">
+      <div className="max-w-6xl mx-auto grid md:grid-cols-[1fr_320px] gap-6">
+        <Card className="rounded-[2rem] shadow-xl border-0 bg-white">
+          <CardContent className="p-8 md:p-10">
+            <div className="mb-8">
+              <p className="text-sm uppercase tracking-[0.25em] text-neutral-500">AI Website Concierge</p>
+              <h1 className="text-4xl md:text-5xl font-semibold mt-3">Build your premium website brief</h1>
+              <div className="mt-6 h-2 bg-neutral-200 rounded-full overflow-hidden">
+                <div className="h-full bg-black rounded-full transition-all" style={{ width: `${(step / 4) * 100}%` }} />
+              </div>
+            </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <input
-            className="w-full border p-4 rounded-xl"
-            placeholder="Business Name"
-            value={form.businessName}
-            onChange={(e) =>
-              updateField("businessName", e.target.value)
-            }
-          />
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              {step === 1 && (
+                <div className="space-y-4">
+                  <Input placeholder="Business name" className="h-14 rounded-2xl" />
+                  <Input placeholder="Industry (e.g. bakery, law, plumbing)" className="h-14 rounded-2xl" />
+                  <Input placeholder="Target audience" className="h-14 rounded-2xl" />
+                  <Textarea placeholder="Describe the style, goals, and dream feel of the website" className="min-h-32 rounded-2xl" />
+                </div>
+              )}
 
-          <input
-            className="w-full border p-4 rounded-xl"
-            placeholder="Industry"
-            value={form.industry}
-            onChange={(e) =>
-              updateField("industry", e.target.value)
-            }
-          />
+              {step === 2 && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between rounded-2xl border p-4">
+                    <div>
+                      <h3 className="font-medium">Does this business sell products?</h3>
+                      <p className="text-sm text-neutral-500">Enable dynamic catalog collection</p>
+                    </div>
+                    <Button variant={sellsProducts ? "default" : "outline"} onClick={() => setSellsProducts(!sellsProducts)}>
+                      {sellsProducts ? "Yes" : "No"}
+                    </Button>
+                  </div>
 
-          <input
-            className="w-full border p-4 rounded-xl"
-            placeholder="Pages Needed"
-            value={form.pages}
-            onChange={(e) =>
-              updateField("pages", e.target.value)
-            }
-          />
+                  {sellsProducts && (
+                    <>
+                      <select
+                        value={productCount}
+                        onChange={(e) => updateProductCount(e.target.value)}
+                        className="w-full h-14 rounded-2xl border px-4"
+                      >
+                        {productOptions.map((option) => (
+                          <option key={option}>{option}</option>
+                        ))}
+                      </select>
 
-          <input
-            className="w-full border p-4 rounded-xl"
-            placeholder="Style / Aesthetic"
-            value={form.style}
-            onChange={(e) =>
-              updateField("style", e.target.value)
-            }
-          />
+                      <div className="grid gap-4">
+                        {Array.from({ length: count }).map((_, index) => (
+                          <Card key={index} className="rounded-3xl border border-neutral-200 shadow-sm">
+                            <CardContent className="p-5 grid gap-3">
+                              <Input
+                                placeholder={`Product ${index + 1} name`}
+                                value={products[index]?.name || ""}
+                                onChange={(e) => updateProduct(index, "name", e.target.value)}
+                              />
+                              <Input
+                                placeholder="Price"
+                                value={products[index]?.price || ""}
+                                onChange={(e) => updateProduct(index, "price", e.target.value)}
+                              />
+                              <Textarea
+                                placeholder="Description"
+                                value={products[index]?.description || ""}
+                                onChange={(e) => updateProduct(index, "description", e.target.value)}
+                              />
+                              <Input type="file" />
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
-          <input
-            className="w-full border p-4 rounded-xl"
-            placeholder="Target Audience"
-            value={form.audience}
-            onChange={(e) =>
-              updateField("audience", e.target.value)
-            }
-          />
+              {step === 3 && (
+                <div className="grid gap-4">
+                  <Input type="file" className="h-14 rounded-2xl" />
+                  <Input type="file" className="h-14 rounded-2xl" />
+                  <Textarea placeholder="Brand colours, references, competitor websites" className="min-h-32 rounded-2xl" />
+                </div>
+              )}
 
-          <input
-            className="w-full border p-4 rounded-xl"
-            placeholder="Primary CTA Goal"
-            value={form.cta}
-            onChange={(e) =>
-              updateField("cta", e.target.value)
-            }
-          />
+              {step === 4 && (
+                <div className="grid md:grid-cols-2 gap-4">
+                  {[
+                    "Bookings",
+                    "WooCommerce",
+                    "Quote Form",
+                    "Maps",
+                    "Reviews",
+                    "Newsletter",
+                    "Live Chat",
+                    "Memberships",
+                  ].map((feature) => (
+                    <label key={feature} className="rounded-2xl border p-4 flex items-center gap-3">
+                      <input type="checkbox" />
+                      <span>{feature}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </motion.div>
 
-          <textarea
-            className="w-full border p-4 rounded-xl h-40"
-            placeholder="Extra notes..."
-            value={form.notes}
-            onChange={(e) =>
-              updateField("notes", e.target.value)
-            }
-          />
+            <div className="flex justify-between mt-8">
+              <Button variant="outline" disabled={step === 1} onClick={() => setStep((s) => Math.max(1, s - 1))}>
+                Back
+              </Button>
+              <Button onClick={() => setStep((s) => Math.min(4, s + 1))}>
+                {step === 4 ? "Generate Website" : "Next"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
-          <button
-            type="submit"
-            className="px-6 py-4 rounded-xl bg-black text-white w-full"
-          >
-            {loading ? "Generating..." : "Generate Website"}
-          </button>
-        </form>
-
-        {result && (
-          <div className="mt-8 rounded-xl bg-green-100 text-green-800 p-5">
-            {result}
-          </div>
-        )}
-
-        {error && (
-          <div className="mt-8 rounded-xl bg-red-100 text-red-800 p-5 whitespace-pre-wrap">
-            {error}
-          </div>
-        )}
+        <Card className="rounded-[2rem] shadow-xl border-0 bg-black text-white h-fit sticky top-6">
+          <CardContent className="p-6">
+            <p className="text-sm uppercase tracking-[0.25em] text-neutral-400">Live summary</p>
+            <h2 className="text-2xl font-semibold mt-3">Premium build data</h2>
+            <ul className="mt-6 space-y-3 text-sm text-neutral-300">
+              <li>Step {step} of 4 complete</li>
+              <li>Products enabled: {sellsProducts ? "Yes" : "No"}</li>
+              <li>Product slots: {sellsProducts ? count : 0}</li>
+              <li>Ready for WordPress plugin fusion</li>
+            </ul>
+          </CardContent>
+        </Card>
       </div>
-    </main>
+    </div>
   );
 }
