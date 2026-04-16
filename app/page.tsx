@@ -35,7 +35,11 @@ export default function HomePage() {
     setProducts((prev) => {
       const clone = [...prev];
       while (clone.length < nextCount) {
-        clone.push({ name: "", price: "", description: "" });
+        clone.push({
+          name: "",
+          price: "",
+          description: "",
+        });
       }
       return clone.slice(0, nextCount);
     });
@@ -106,20 +110,21 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-neutral-100 p-6 md:p-10">
-      <div className="max-w-6xl mx-auto grid md:grid-cols-[1fr_320px] gap-6">
-        <div className="rounded-[2rem] shadow-xl bg-white p-8 md:p-10">
+    <main className="min-h-screen bg-[#0f172a] text-white p-4 md:p-8">
+      <div className="max-w-6xl mx-auto grid lg:grid-cols-[1fr_320px] gap-6">
+        <div className="rounded-[2rem] shadow-2xl bg-[#111827] border border-white/10 p-6 md:p-10">
           <div className="mb-8">
-            <p className="text-sm uppercase tracking-[0.25em] text-neutral-500">
+            <p className="text-sm uppercase tracking-[0.3em] text-slate-400">
               AI Website Concierge
             </p>
-            <h1 className="text-4xl md:text-5xl font-semibold mt-3">
+
+            <h1 className="text-3xl md:text-5xl font-semibold mt-4 leading-tight">
               Build your premium website brief
             </h1>
 
-            <div className="mt-6 h-2 bg-neutral-200 rounded-full overflow-hidden">
+            <div className="mt-6 h-2 bg-white/10 rounded-full overflow-hidden">
               <div
-                className="h-full bg-black rounded-full transition-all"
+                className="h-full bg-white rounded-full transition-all"
                 style={{ width: `${(step / 4) * 100}%` }}
               />
             </div>
@@ -133,19 +138,19 @@ export default function HomePage() {
                   setBusinessName(e.target.value)
                 }
                 placeholder="Business name"
-                className="w-full h-14 rounded-2xl border px-4"
+                className="w-full h-14 rounded-2xl bg-slate-900 border border-white/10 px-4"
               />
               <input
                 value={industry}
                 onChange={(e) => setIndustry(e.target.value)}
                 placeholder="Industry"
-                className="w-full h-14 rounded-2xl border px-4"
+                className="w-full h-14 rounded-2xl bg-slate-900 border border-white/10 px-4"
               />
               <input
                 value={audience}
                 onChange={(e) => setAudience(e.target.value)}
                 placeholder="Target audience"
-                className="w-full h-14 rounded-2xl border px-4"
+                className="w-full h-14 rounded-2xl bg-slate-900 border border-white/10 px-4"
               />
               <textarea
                 value={styleNotes}
@@ -153,25 +158,20 @@ export default function HomePage() {
                   setStyleNotes(e.target.value)
                 }
                 placeholder="Describe the style, goals, and dream feel"
-                className="w-full min-h-32 rounded-2xl border p-4"
+                className="w-full min-h-32 rounded-2xl bg-slate-900 border border-white/10 p-4"
               />
             </div>
           )}
 
           {step === 2 && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between rounded-2xl border p-4">
-                <div>
-                  <h3 className="font-medium">
-                    Does this business sell products?
-                  </h3>
-                </div>
-
+              <div className="rounded-2xl border border-white/10 bg-slate-900 p-4 flex items-center justify-between">
+                <span>Does this business sell products?</span>
                 <button
                   onClick={() =>
                     setSellsProducts(!sellsProducts)
                   }
-                  className="px-4 py-2 rounded-xl border"
+                  className="px-4 py-2 rounded-xl bg-white text-black"
                 >
                   {sellsProducts ? "Yes" : "No"}
                 </button>
@@ -184,7 +184,7 @@ export default function HomePage() {
                     onChange={(e) =>
                       updateProductCount(e.target.value)
                     }
-                    className="w-full h-14 rounded-2xl border px-4"
+                    className="w-full h-14 rounded-2xl bg-slate-900 border border-white/10 px-4"
                   >
                     {productOptions.map((option) => (
                       <option key={option}>{option}</option>
@@ -196,7 +196,7 @@ export default function HomePage() {
                       (_, index) => (
                         <div
                           key={index}
-                          className="rounded-3xl border p-5 grid gap-3"
+                          className="rounded-3xl border border-white/10 bg-slate-900 p-5 grid gap-3"
                         >
                           <input
                             placeholder={`Product ${
@@ -210,8 +210,9 @@ export default function HomePage() {
                                 e.target.value
                               )
                             }
-                            className="w-full h-12 rounded-xl border px-4"
+                            className="w-full h-12 rounded-xl bg-slate-800 border border-white/10 px-4"
                           />
+
                           <input
                             placeholder="Price"
                             value={products[index]?.price || ""}
@@ -222,8 +223,16 @@ export default function HomePage() {
                                 e.target.value
                               )
                             }
-                            className="w-full h-12 rounded-xl border px-4"
+                            className="w-full h-12 rounded-xl bg-slate-800 border border-white/10 px-4"
                           />
+
+                          <label className="border-2 border-dashed border-white/20 rounded-2xl p-6 text-center cursor-pointer hover:border-white/40 transition">
+                            📁 Upload product image
+                            <input
+                              type="file"
+                              className="hidden"
+                            />
+                          </label>
                         </div>
                       )
                     )}
@@ -233,20 +242,55 @@ export default function HomePage() {
             </div>
           )}
 
-          <div className="flex justify-between mt-8">
+          {step === 3 && (
+            <div className="space-y-4">
+              <label className="border-2 border-dashed border-white/20 rounded-3xl p-8 text-center block cursor-pointer hover:border-white/40 transition">
+                🖼️ Upload logo, hero, gallery, brand assets
+                <input type="file" multiple className="hidden" />
+              </label>
+
+              <textarea
+                placeholder="Brand colours, references, competitor websites"
+                className="w-full min-h-32 rounded-2xl bg-slate-900 border border-white/10 p-4"
+              />
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="grid sm:grid-cols-2 gap-4">
+              {[
+                "Bookings",
+                "WooCommerce",
+                "Quote Form",
+                "Maps",
+                "Reviews",
+                "Live Chat",
+              ].map((feature) => (
+                <label
+                  key={feature}
+                  className="rounded-2xl border border-white/10 bg-slate-900 p-4 flex gap-3"
+                >
+                  <input type="checkbox" />
+                  <span>{feature}</span>
+                </label>
+              ))}
+            </div>
+          )}
+
+          <div className="flex justify-between mt-8 gap-4">
             <button
               disabled={step === 1}
               onClick={() =>
                 setStep((s) => Math.max(1, s - 1))
               }
-              className="px-6 py-3 rounded-xl border"
+              className="flex-1 h-14 rounded-2xl border border-white/20"
             >
               Back
             </button>
 
             <button
               onClick={handleNext}
-              className="px-6 py-3 rounded-xl bg-black text-white"
+              className="flex-1 h-14 rounded-2xl bg-white text-black font-semibold"
             >
               {loading
                 ? "Generating..."
@@ -257,25 +301,24 @@ export default function HomePage() {
           </div>
 
           {message && (
-            <div className="mt-6 rounded-2xl bg-green-100 text-green-800 p-4">
+            <div className="mt-6 rounded-2xl bg-emerald-500/20 text-emerald-300 p-4">
               {message}
             </div>
           )}
         </div>
 
-        <div className="rounded-[2rem] shadow-xl bg-black text-white h-fit sticky top-6 p-6">
+        <div className="hidden lg:block rounded-[2rem] bg-black border border-white/10 p-6 h-fit sticky top-8">
           <h2 className="text-2xl font-semibold">
-            Premium build data
+            Live summary
           </h2>
 
-          <ul className="mt-6 space-y-3 text-sm text-neutral-300">
-            <li>Step {step} of 4 complete</li>
+          <ul className="mt-6 space-y-3 text-sm text-slate-400">
+            <li>Step {step} of 4</li>
             <li>
-              Products enabled: {sellsProducts ? "Yes" : "No"}
+              Products: {sellsProducts ? `${count}` : "None"}
             </li>
-            <li>
-              Product slots: {sellsProducts ? count : 0}
-            </li>
+            <li>Mobile friendly</li>
+            <li>WordPress ready</li>
           </ul>
         </div>
       </div>
