@@ -20,18 +20,55 @@ export async function POST(req: Request) {
     const userInput = await req.json();
     console.log("REQUEST RECEIVED");
 
+    const pageList = Array.isArray(userInput.pages) && userInput.pages.length > 0
+      ? userInput.pages.join(", ")
+      : "Home";
+
+    const isMultiPage = Array.isArray(userInput.pages) && userInput.pages.length > 1;
+
     console.log("STEP 1: Calling Claude...");
     const promptResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
-      max_tokens: 1500,
+      max_tokens: 2000,
       messages: [{
         role: "user",
-        content: `Return ONLY valid JSON with "projectTitle" and "stitchPrompt". Brief: ${JSON.stringify(userInput)}`
+        content: `Return ONLY valid JSON:
+{
+  "projectTitle": "string",
+  "stitchPrompt": "string"
+}
+
+You are generating a premium Stitch website prompt.
+
+CLIENT BRIEF:
+${JSON.stringify(userInput)}
+
+REQUIRED PAGES: ${pageList}
+ARCHITECTURE: ${isMultiPage ? "Multi-page website. Create a separate section or page for each: " + pageList : "Single page with anchor sections for: " + pageList}
+
+CRITICAL INTERACTION RULES:
+- every navbar link must navigate to its matching page section
+- hamburger icon must open/close mobile menu
+- all CTA buttons must link to a real section or page
+- contact/booking buttons must scroll to or open a contact form
+- no dead buttons
+- no placeholder links
+- every button must do something visible
+- all forms must have a visible submit action
+
+CRITICAL STRUCTURE RULES:
+- build exactly these pages/sections: ${pageList}
+- each nav item must match a real destination
+- goal of site is: ${userInput.goal || "generate leads"}
+- style: ${userInput.style || "modern premium"}
+- features needed: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}
+
+Generate the best premium Stitch prompt for this.`
       }]
     });
 
     const text = promptResponse.content[0]?.type === "text" ? promptResponse.content[0].text : "{}";
-    console.log("STEP 1 DONE:", text.slice(0, 100));
+    console.log("STEP 1 DONE:", text.slice(0, 150));
     const spec = extractJson(text);
 
     console.log("STEP 2: Creating Stitch project...");
