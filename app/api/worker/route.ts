@@ -15,12 +15,97 @@ function extractJson(text: string) {
   return JSON.parse(text.slice(start, end + 1));
 }
 
-function extractHtml(text: string) {
-  const start = text.indexOf("<!DOCTYPE");
-  if (start !== -1) return text.slice(start);
-  const h = text.indexOf("<html");
-  if (h !== -1) return text.slice(h);
-  return text;
+// Inject JS directly — no Claude needed
+function injectInteractions(html: string): string {
+  const script = `
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+  // HAMBURGER / MOBILE MENU
+  const toggles = document.querySelectorAll('[class*="hamburger"],[class*="menu-toggle"],[class*="nav-toggle"],[class*="burger"],[aria-label*="menu"],[aria-label*="Menu"]');
+  const navMenus = document.querySelectorAll('[class*="mobile-menu"],[class*="nav-menu"],[class*="mobile-nav"],[class*="sidebar"]');
+  toggles.forEach(btn => {
+    btn.addEventListener('click', function() {
+      navMenus.forEach(menu => {
+        menu.style.display = menu.style.display === 'none' || menu.style.display === '' ? 'block' : 'none';
+      });
+    });
+  });
+
+  // SMOOTH SCROLL for all anchor links
+  document.querySelectorAll('a[href^="#"]').forEach(link => {
+    link.addEventListener('click', function(e) {
+      const href = this.getAttribute('href');
+      if (href === '#') return;
+      const target = document.querySelector(href);
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // close mobile menu if open
+        navMenus.forEach(menu => { menu.style.display = 'none'; });
+      }
+    });
+  });
+
+  // NAV LINKS — if they point to missing pages, redirect to sections
+  document.querySelectorAll('nav a, header a').forEach(link => {
+    const href = link.getAttribute('href') || '';
+    if (href.endsWith('.html') || (href.startsWith('/') && !href.startsWith('/#'))) {
+      link.addEventListener('click', function(e) {
+        const pageName = href.replace('.html','').replace('/','').toLowerCase();
+        const section = document.getElementById(pageName) || document.querySelector('[class*="' + pageName + '"]');
+        if (section) {
+          e.preventDefault();
+          section.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+    }
+  });
+
+  // CTA BUTTONS — scroll to contact/booking section
+  document.querySelectorAll('button, [class*="btn"], [class*="cta"]').forEach(btn => {
+    const text = (btn.textContent || '').toLowerCase();
+    if (text.includes('contact') || text.includes('consult') || text.includes('book') || text.includes('get started') || text.includes('quote')) {
+      btn.addEventListener('click', function() {
+        const contact = document.querySelector('#contact, [class*="contact"], form, #booking, [class*="booking"]');
+        if (contact) contact.scrollIntoView({ behavior: 'smooth' });
+      });
+    }
+    if (text.includes('learn more') || text.includes('explore') || text.includes('view') || text.includes('see our')) {
+      btn.addEventListener('click', function() {
+        const next = document.querySelector('#services, #gallery, #shop, #portfolio, [class*="services"], [class*="gallery"]');
+        if (next) next.scrollIntoView({ behavior: 'smooth' });
+      });
+    }
+  });
+
+  // FORMS — show success message on submit
+  document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const msg = document.createElement('div');
+      msg.style.cssText = 'background:#22c55e;color:white;padding:16px;border-radius:8px;margin-top:12px;font-weight:bold;';
+      msg.textContent = 'Thank you! We will be in touch shortly.';
+      form.appendChild(msg);
+    });
+  });
+
+  // MODALS — find modal triggers and targets
+  document.querySelectorAll('[data-modal],[data-target],[data-toggle]').forEach(trigger => {
+    trigger.addEventListener('click', function() {
+      const target = document.querySelector(this.dataset.modal || this.dataset.target || this.dataset.toggle);
+      if (target) target.style.display = target.style.display === 'none' ? 'block' : 'none';
+    });
+  });
+
+});
+</script>`;
+
+  // Insert before closing body tag
+  if (html.includes('</body>')) {
+    return html.replace('</body>', script + '</body>');
+  }
+  return html + script;
 }
 
 export async function POST(req: Request) {
@@ -29,10 +114,8 @@ export async function POST(req: Request) {
     console.log("REQUEST RECEIVED");
 
     const pageList = Array.isArray(userInput.pages) && userInput.pages.length > 0
-      ? userInput.pages.join(", ")
-      : "Home";
+      ? userInput.pages.join(", ") : "Home";
 
-    // STEP 1: Claude writes Stitch prompt
     console.log("STEP 1: Calling Claude for spec...");
     const promptResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
@@ -48,7 +131,7 @@ export async function POST(req: Request) {
 Generate a premium Stitch website prompt for this brief:
 ${JSON.stringify(userInput)}
 
-Pages needed: ${pageList}
+Pages: ${pageList}
 Goal: ${userInput.goal || "generate leads"}
 Style: ${userInput.style || "modern premium"}
 Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}`
@@ -59,13 +142,11 @@ Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : 
     const spec = extractJson(text);
     console.log("STEP 1 DONE:", spec.projectTitle);
 
-    // STEP 2: Create Stitch project
     console.log("STEP 2: Creating Stitch project...");
     const project: any = await stitchClient.callTool("create_project", { title: spec.projectTitle });
     const projectId = project?.name?.split("/")[1];
     console.log("STEP 2 DONE:", projectId);
 
-    // STEP 3: Generate screen
     console.log("STEP 3: Generating screen...");
     const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", {
       projectId,
@@ -78,49 +159,14 @@ Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : 
     if (!downloadUrl) throw new Error("No downloadUrl");
     console.log("STEP 3 DONE");
 
-    // STEP 4: Fetch Stitch HTML
     console.log("STEP 4: Fetching HTML...");
     const stitchHtml = await fetch(downloadUrl).then((r) => r.text());
     console.log("STEP 4 DONE. Length:", stitchHtml.length);
 
-    // STEP 5: Claude ONLY injects interactions — never touches layout
-    console.log("STEP 5: Claude injecting interactions...");
-    const fixResponse = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 8000,
-      messages: [{
-        role: "user",
-        content: `You are a JavaScript interaction injector. Your ONLY job is to make buttons and navigation work.
-
-STRICT RULES:
-- DO NOT change any HTML structure
-- DO NOT change any CSS or classes
-- DO NOT rename any elements
-- DO NOT rewrite any sections
-- DO NOT change any text content
-- DO NOT change colors, fonts, spacing
-- ONLY add or fix JavaScript
-
-WHAT TO FIX:
-1. Find the mobile hamburger/menu button — make it toggle the mobile nav open/closed
-2. Find all nav links — make them smooth scroll to their matching section id
-3. Find all CTA buttons — make them scroll to the nearest relevant section (contact, booking, gallery, shop)
-4. Find any modal triggers — make them open/close their modal
-5. Find any forms — make them show a success message on submit
-6. Add section ids if they are missing so scroll targets work
-
-OUTPUT: Return the complete HTML with only JavaScript added or fixed. Start with <!DOCTYPE html>.
-
-HTML TO FIX:
-${stitchHtml}`
-      }]
-    });
-
-    const fixText = fixResponse.content[0]?.type === "text" ? fixResponse.content[0].text : stitchHtml;
-    const finalHtml = extractHtml(fixText);
+    // STEP 5: Inject interactions via code (instant, no Claude needed)
+    const finalHtml = injectInteractions(stitchHtml);
     console.log("STEP 5 DONE. Final length:", finalHtml.length);
 
-    // STEP 6: Send email
     console.log("STEP 6: Sending email...");
     const emailResult = await resend.emails.send({
       from: "onboarding@resend.dev",
