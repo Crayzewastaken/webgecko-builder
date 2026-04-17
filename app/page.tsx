@@ -1,235 +1,191 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 const API_URL = "/api/worker";
-
-const productOptions = ["1", "2", "3", "4", "5", "6+"];
-const pageOptions = ["1", "2", "3", "4", "5", "6+"];
 
 export default function HomePage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  // client details
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+
+  // project
   const [businessName, setBusinessName] = useState("");
   const [industry, setIndustry] = useState("");
   const [audience, setAudience] = useState("");
   const [styleNotes, setStyleNotes] = useState("");
 
-  const [pageCount, setPageCount] = useState("1");
-  const [pageNames, setPageNames] = useState(["Home"]);
-
-  const [sellsProducts, setSellsProducts] = useState(false);
-  const [productCount, setProductCount] = useState("1");
-  const [products, setProducts] = useState([
-    { name: "", price: "", description: "" },
-  ]);
-
-  const count = useMemo(
-    () => (productCount === "6+" ? 6 : Number(productCount)),
-    [productCount]
-  );
-
-  const totalPages = useMemo(
-    () => (pageCount === "6+" ? 6 : Number(pageCount)),
-    [pageCount]
-  );
-
-  function updatePageCount(value: string) {
-    setPageCount(value);
-    const nextCount = value === "6+" ? 6 : Number(value);
-
-    setPageNames((prev) => {
-      const clone = [...prev];
-      while (clone.length < nextCount) {
-        clone.push(`Page ${clone.length + 1}`);
-      }
-      return clone.slice(0, nextCount);
-    });
-  }
-
-  function updatePageName(index: number, value: string) {
-    setPageNames((prev) =>
-      prev.map((p, i) => (i === index ? value : p))
-    );
-  }
-
-  function updateProductCount(value: string) {
-    setProductCount(value);
-    const nextCount = value === "6+" ? 6 : Number(value);
-
-    setProducts((prev) => {
-      const clone = [...prev];
-      while (clone.length < nextCount) {
-        clone.push({
-          name: "",
-          price: "",
-          description: "",
-        });
-      }
-      return clone.slice(0, nextCount);
-    });
-  }
-
   async function generateWebsite() {
     setLoading(true);
-    setMessage("");
 
     const payload = {
+      name,
+      email,
+      phone,
       businessName,
       industry,
       audience,
       styleNotes,
-      pageCount: totalPages,
-      pageNames,
-      sellsProducts,
-      products,
     };
 
-    try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-      const data = await res.json();
-      setMessage(data.message);
-    } catch (error: any) {
-      setMessage(error.message || "Request failed");
-    }
-
+    const data = await res.json();
+    setMessage(data.message);
     setLoading(false);
   }
 
-  function handleNext() {
-    if (step < 4) {
-      setStep((s) => s + 1);
-    } else {
-      generateWebsite();
-    }
+  function next() {
+    if (step < 3) setStep(step + 1);
+    else generateWebsite();
+  }
+
+  function back() {
+    setStep(Math.max(1, step - 1));
   }
 
   return (
-    <main className="min-h-screen bg-[#0f172a] text-white p-4 md:p-8">
-      <div className="max-w-6xl mx-auto rounded-[2rem] bg-[#111827] border border-white/10 p-6 md:p-10">
-        <h1 className="text-4xl font-bold">WebGecko AI Builder</h1>
+    <main className="min-h-screen bg-[#0f172a] text-white p-6 md:p-10">
+      <div className="max-w-6xl mx-auto grid lg:grid-cols-[1fr_320px] gap-6">
 
-        {step === 1 && (
-          <div className="space-y-4 mt-8">
-            <input
-              value={businessName}
-              onChange={(e) => setBusinessName(e.target.value)}
-              placeholder="Business name"
-              className="w-full h-14 rounded-2xl bg-slate-900 px-4"
-            />
-            <input
-              value={industry}
-              onChange={(e) => setIndustry(e.target.value)}
-              placeholder="Industry"
-              className="w-full h-14 rounded-2xl bg-slate-900 px-4"
-            />
-            <input
-              value={audience}
-              onChange={(e) => setAudience(e.target.value)}
-              placeholder="Target audience"
-              className="w-full h-14 rounded-2xl bg-slate-900 px-4"
-            />
-            <textarea
-              value={styleNotes}
-              onChange={(e) => setStyleNotes(e.target.value)}
-              placeholder="Describe style and goals"
-              className="w-full min-h-32 rounded-2xl bg-slate-900 p-4"
-            />
+        {/* MAIN FORM */}
+        <div className="rounded-[2rem] bg-[#111827] border border-white/10 p-8 shadow-2xl">
+
+          {/* HEADER */}
+          <div className="mb-8">
+            <p className="text-sm uppercase tracking-widest text-slate-400">
+              Project Request
+            </p>
+
+            <h1 className="text-3xl md:text-5xl font-semibold mt-2">
+              Tell us about your website
+            </h1>
+
+            {/* progress bar */}
+            <div className="mt-6 h-2 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-white transition-all"
+                style={{ width: `${(step / 3) * 100}%` }}
+              />
+            </div>
           </div>
-        )}
 
-        {step === 2 && (
-          <div className="space-y-4 mt-8">
-            <select
-              value={pageCount}
-              onChange={(e) => updatePageCount(e.target.value)}
-              className="w-full h-14 rounded-2xl bg-slate-900 px-4"
-            >
-              {pageOptions.map((option) => (
-                <option key={option}>{option}</option>
-              ))}
-            </select>
-
-            {Array.from({ length: totalPages }).map((_, index) => (
+          {/* STEP 1 — PROJECT */}
+          {step === 1 && (
+            <div className="space-y-4">
               <input
-                key={index}
-                value={pageNames[index] || ""}
-                onChange={(e) =>
-                  updatePageName(index, e.target.value)
-                }
-                placeholder={`Page ${index + 1} name`}
+                placeholder="Business name"
+                value={businessName}
+                onChange={(e) => setBusinessName(e.target.value)}
                 className="w-full h-14 rounded-2xl bg-slate-900 px-4"
               />
-            ))}
-          </div>
-        )}
 
-        {step === 3 && (
-          <div className="space-y-6 mt-8">
+              <input
+                placeholder="Industry"
+                value={industry}
+                onChange={(e) => setIndustry(e.target.value)}
+                className="w-full h-14 rounded-2xl bg-slate-900 px-4"
+              />
+
+              <input
+                placeholder="Target audience"
+                value={audience}
+                onChange={(e) => setAudience(e.target.value)}
+                className="w-full h-14 rounded-2xl bg-slate-900 px-4"
+              />
+
+              <textarea
+                placeholder="Describe your vision, style, and goals"
+                value={styleNotes}
+                onChange={(e) => setStyleNotes(e.target.value)}
+                className="w-full min-h-32 rounded-2xl bg-slate-900 p-4"
+              />
+            </div>
+          )}
+
+          {/* STEP 2 — CONTACT */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <input
+                placeholder="Full Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full h-14 rounded-2xl bg-slate-900 px-4"
+              />
+
+              <input
+                placeholder="Email Address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full h-14 rounded-2xl bg-slate-900 px-4"
+              />
+
+              <input
+                placeholder="Phone Number"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full h-14 rounded-2xl bg-slate-900 px-4"
+              />
+            </div>
+          )}
+
+          {/* STEP 3 — CONFIRM */}
+          {step === 3 && (
+            <div className="text-slate-300">
+              Review your details and submit your request.
+            </div>
+          )}
+
+          {/* BUTTONS */}
+          <div className="flex gap-4 mt-8">
             <button
-              onClick={() => setSellsProducts(!sellsProducts)}
-              className="px-4 py-2 rounded-xl bg-white text-black"
+              onClick={back}
+              className="flex-1 h-14 rounded-2xl border border-white/20"
             >
-              Sells products: {sellsProducts ? "Yes" : "No"}
+              Back
             </button>
 
-            {sellsProducts && (
-              <select
-                value={productCount}
-                onChange={(e) =>
-                  updateProductCount(e.target.value)
-                }
-                className="w-full h-14 rounded-2xl bg-slate-900 px-4"
-              >
-                {productOptions.map((option) => (
-                  <option key={option}>{option}</option>
-                ))}
-              </select>
-            )}
+            <button
+              onClick={next}
+              className="flex-1 h-14 rounded-2xl bg-white text-black font-semibold"
+            >
+              {loading
+                ? "Submitting..."
+                : step === 3
+                ? "Submit Request"
+                : "Next"}
+            </button>
           </div>
-        )}
 
-        {step === 4 && (
-          <div className="mt-8 text-slate-300">
-            Review your request and generate.
-          </div>
-        )}
-
-        <div className="flex gap-4 mt-8">
-          <button
-            disabled={step === 1}
-            onClick={() => setStep((s) => Math.max(1, s - 1))}
-            className="flex-1 h-14 rounded-2xl border"
-          >
-            Back
-          </button>
-
-          <button
-            onClick={handleNext}
-            className="flex-1 h-14 rounded-2xl bg-white text-black"
-          >
-            {loading
-              ? "Generating..."
-              : step === 4
-              ? "Generate Website"
-              : "Next"}
-          </button>
+          {/* MESSAGE */}
+          {message && (
+            <div className="mt-6 p-4 bg-emerald-500/20 rounded-xl text-emerald-300">
+              {message}
+            </div>
+          )}
         </div>
 
-        {message && (
-          <div className="mt-6 rounded-2xl bg-emerald-500/20 p-4">
-            {message}
-          </div>
-        )}
+        {/* SIDE PANEL */}
+        <div className="hidden lg:block rounded-[2rem] bg-black border border-white/10 p-6 h-fit sticky top-10">
+          <h2 className="text-xl font-semibold">Summary</h2>
+
+          <ul className="mt-6 space-y-3 text-sm text-slate-400">
+            <li>Step {step} of 3</li>
+            <li>Business: {businessName || "-"}</li>
+            <li>Industry: {industry || "-"}</li>
+            <li>Contact: {name || "-"}</li>
+          </ul>
+        </div>
+
       </div>
     </main>
   );
