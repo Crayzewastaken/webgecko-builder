@@ -15,6 +15,14 @@ function extractJson(text: string) {
   return JSON.parse(text.slice(start, end + 1));
 }
 
+function extractHtml(text: string) {
+  const start = text.indexOf("<!DOCTYPE");
+  if (start !== -1) return text.slice(start);
+  const h = text.indexOf("<html");
+  if (h !== -1) return text.slice(h);
+  return text;
+}
+
 export async function POST(req: Request) {
   try {
     const userInput = await req.json();
@@ -24,9 +32,8 @@ export async function POST(req: Request) {
       ? userInput.pages.join(", ")
       : "Home";
 
-    const isMultiPage = Array.isArray(userInput.pages) && userInput.pages.length > 1;
-
-    console.log("STEP 1: Calling Claude...");
+    // STEP 1: Claude writes Stitch prompt
+    console.log("STEP 1: Calling Claude for spec...");
     const promptResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 2000,
@@ -38,44 +45,27 @@ export async function POST(req: Request) {
   "stitchPrompt": "string"
 }
 
-You are generating a premium Stitch website prompt.
-
-CLIENT BRIEF:
+Generate a premium Stitch website prompt for this brief:
 ${JSON.stringify(userInput)}
 
-REQUIRED PAGES: ${pageList}
-ARCHITECTURE: ${isMultiPage ? "Multi-page website. Create a separate section or page for each: " + pageList : "Single page with anchor sections for: " + pageList}
-
-CRITICAL INTERACTION RULES:
-- every navbar link must navigate to its matching page section
-- hamburger icon must open/close mobile menu
-- all CTA buttons must link to a real section or page
-- contact/booking buttons must scroll to or open a contact form
-- no dead buttons
-- no placeholder links
-- every button must do something visible
-- all forms must have a visible submit action
-
-CRITICAL STRUCTURE RULES:
-- build exactly these pages/sections: ${pageList}
-- each nav item must match a real destination
-- goal of site is: ${userInput.goal || "generate leads"}
-- style: ${userInput.style || "modern premium"}
-- features needed: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}
-
-Generate the best premium Stitch prompt for this.`
+Pages needed: ${pageList}
+Goal: ${userInput.goal || "generate leads"}
+Style: ${userInput.style || "modern premium"}
+Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}`
       }]
     });
 
     const text = promptResponse.content[0]?.type === "text" ? promptResponse.content[0].text : "{}";
-    console.log("STEP 1 DONE:", text.slice(0, 150));
     const spec = extractJson(text);
+    console.log("STEP 1 DONE:", spec.projectTitle);
 
+    // STEP 2: Create Stitch project
     console.log("STEP 2: Creating Stitch project...");
     const project: any = await stitchClient.callTool("create_project", { title: spec.projectTitle });
     const projectId = project?.name?.split("/")[1];
     console.log("STEP 2 DONE:", projectId);
 
+    // STEP 3: Generate screen
     console.log("STEP 3: Generating screen...");
     const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", {
       projectId,
@@ -83,26 +73,63 @@ Generate the best premium Stitch prompt for this.`
     });
 
     const screens = stitchResult?.outputComponents?.find((x: any) => x.design)?.design?.screens || [];
-    console.log("STEP 3 screen count:", screens.length);
     if (!screens.length) throw new Error("No screens returned");
-
     const downloadUrl = screens[0]?.htmlCode?.downloadUrl;
     if (!downloadUrl) throw new Error("No downloadUrl");
     console.log("STEP 3 DONE");
 
+    // STEP 4: Fetch Stitch HTML
     console.log("STEP 4: Fetching HTML...");
-    const html = await fetch(downloadUrl).then((r) => r.text());
-    console.log("STEP 4 DONE. Length:", html.length);
+    const stitchHtml = await fetch(downloadUrl).then((r) => r.text());
+    console.log("STEP 4 DONE. Length:", stitchHtml.length);
 
-    console.log("STEP 5: Sending email...");
+    // STEP 5: Claude ONLY injects interactions — never touches layout
+    console.log("STEP 5: Claude injecting interactions...");
+    const fixResponse = await anthropic.messages.create({
+      model: "claude-sonnet-4-5",
+      max_tokens: 8000,
+      messages: [{
+        role: "user",
+        content: `You are a JavaScript interaction injector. Your ONLY job is to make buttons and navigation work.
+
+STRICT RULES:
+- DO NOT change any HTML structure
+- DO NOT change any CSS or classes
+- DO NOT rename any elements
+- DO NOT rewrite any sections
+- DO NOT change any text content
+- DO NOT change colors, fonts, spacing
+- ONLY add or fix JavaScript
+
+WHAT TO FIX:
+1. Find the mobile hamburger/menu button — make it toggle the mobile nav open/closed
+2. Find all nav links — make them smooth scroll to their matching section id
+3. Find all CTA buttons — make them scroll to the nearest relevant section (contact, booking, gallery, shop)
+4. Find any modal triggers — make them open/close their modal
+5. Find any forms — make them show a success message on submit
+6. Add section ids if they are missing so scroll targets work
+
+OUTPUT: Return the complete HTML with only JavaScript added or fixed. Start with <!DOCTYPE html>.
+
+HTML TO FIX:
+${stitchHtml}`
+      }]
+    });
+
+    const fixText = fixResponse.content[0]?.type === "text" ? fixResponse.content[0].text : stitchHtml;
+    const finalHtml = extractHtml(fixText);
+    console.log("STEP 5 DONE. Final length:", finalHtml.length);
+
+    // STEP 6: Send email
+    console.log("STEP 6: Sending email...");
     const emailResult = await resend.emails.send({
       from: "onboarding@resend.dev",
       to: process.env.RESULT_TO_EMAIL!,
       subject: `Website - ${spec.projectTitle}`,
       html: "<p>Your website is attached.</p>",
-      attachments: [{ filename: "site.html", content: Buffer.from(html).toString("base64") }],
+      attachments: [{ filename: "site.html", content: Buffer.from(finalHtml).toString("base64") }],
     });
-    console.log("STEP 5 DONE:", JSON.stringify(emailResult));
+    console.log("STEP 6 DONE:", JSON.stringify(emailResult));
 
     return NextResponse.json({ success: true, message: "Website sent to your email!" });
 
