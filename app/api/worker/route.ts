@@ -39,6 +39,9 @@ export async function POST(req: Request) {
     const pageList = Array.isArray(userInput.pages) && userInput.pages.length > 0
       ? userInput.pages.join(", ") : "Home";
 
+    const isMultiPage = userInput.siteType === "multi";
+
+    // STEP 1: Claude spec
     console.log("STEP 1: Claude spec...");
     const promptResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
@@ -46,8 +49,10 @@ export async function POST(req: Request) {
       messages: [{
         role: "user",
         content: `Return ONLY valid JSON with "projectTitle" and "stitchPrompt".
+
 Brief: ${JSON.stringify(userInput)}
 Pages: ${pageList}
+Site type: ${isMultiPage ? "Multi-page website with separate pages for: " + pageList : "Single page website with scrollable sections for: " + pageList}
 Goal: ${userInput.goal || "generate leads"}
 Style: ${userInput.style || "modern premium"}
 Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}`
@@ -58,11 +63,13 @@ Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : 
     const spec = extractJson(text);
     console.log("STEP 1 DONE:", spec.projectTitle);
 
-    console.log("STEP 2: Creating Stitch project...");
+    // STEP 2: Stitch project
+    console.log("STEP 2: Creating project...");
     const project: any = await stitchClient.callTool("create_project", { title: spec.projectTitle });
     const projectId = project?.name?.split("/")[1];
     console.log("STEP 2 DONE:", projectId);
 
+    // STEP 3: Generate screen
     console.log("STEP 3: Generating screen...");
     const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", {
       projectId,
@@ -75,13 +82,14 @@ Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : 
     if (!downloadUrl) throw new Error("No downloadUrl");
     console.log("STEP 3 DONE");
 
+    // STEP 4: Fetch HTML
     console.log("STEP 4: Fetching HTML...");
     const stitchHtml = await fetch(downloadUrl).then((r) => r.text());
     console.log("STEP 4 DONE. Length:", stitchHtml.length);
 
     const compressed = compressHtml(stitchHtml);
-    console.log("Compressed length:", compressed.length);
 
+    // STEP 5: Claude fixes interactions
     console.log("STEP 5: Claude fixing interactions...");
     const fixResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
@@ -95,7 +103,7 @@ RULES:
 - Do NOT change design, layout, CSS, colors or text
 - ONLY add JavaScript for:
   1. Hamburger toggles mobile nav
-  2. Nav links smooth scroll to section ids
+  2. Nav links smooth scroll to sections or switch pages
   3. CTA buttons scroll to contact/relevant section
   4. Forms show success message on submit
   5. Add missing section ids where needed
@@ -111,17 +119,35 @@ ${compressed}`
     const finalHtml = extractHtml(fixText);
     console.log("STEP 5 DONE. Final length:", finalHtml.length);
 
-    console.log("STEP 6: Sending email...");
+    // STEP 6: Send to you first
+    console.log("STEP 6: Sending to owner...");
     await resend.emails.send({
       from: "onboarding@resend.dev",
       to: process.env.RESULT_TO_EMAIL!,
-      subject: `Website - ${spec.projectTitle}`,
-      html: "<p>Your website is attached.</p>",
+      subject: `New Website Request - ${spec.projectTitle}`,
+      html: `
+        <h2>New Website Request</h2>
+        <p><strong>Business:</strong> ${userInput.businessName}</p>
+        <p><strong>Client:</strong> ${userInput.name}</p>
+        <p><strong>Email:</strong> ${userInput.email}</p>
+        <p><strong>Phone:</strong> ${userInput.phone}</p>
+        <p><strong>Goal:</strong> ${userInput.goal}</p>
+        <p><strong>Site Type:</strong> ${userInput.siteType}</p>
+        <p><strong>Pages:</strong> ${pageList}</p>
+        <p><strong>Features:</strong> ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "-"}</p>
+        <p><strong>Style:</strong> ${userInput.style}</p>
+        <p><strong>References:</strong> ${userInput.references}</p>
+        <br/>
+        <p>The generated website HTML is attached. Once reviewed, manually send the receipt to the client at ${userInput.email}.</p>
+      `,
       attachments: [{ filename: "site.html", content: Buffer.from(finalHtml).toString("base64") }],
     });
     console.log("STEP 6 DONE");
 
-    return NextResponse.json({ success: true, message: "Website sent to your email!" });
+    return NextResponse.json({ 
+      success: true, 
+      message: "Thank you! We have received your request and will be in touch shortly." 
+    });
 
   } catch (error: any) {
     console.error("FAILED:", error.message);

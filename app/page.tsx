@@ -11,6 +11,7 @@ export default function HomePage() {
   const [industry, setIndustry] = useState("");
   const [usp, setUsp] = useState("");
   const [goal, setGoal] = useState("");
+  const [siteType, setSiteType] = useState("");
   const [pages, setPages] = useState<string[]>([]);
   const [features, setFeatures] = useState<string[]>([]);
   const [style, setStyle] = useState("");
@@ -28,11 +29,11 @@ export default function HomePage() {
 
   async function submit() {
     setLoading(true);
-    setMessage("Building your website...");
+    setMessage("Submitting your request...");
 
     const payload = {
-      businessName, industry, usp, goal, pages,
-      features, style, references, name, email, phone,
+      businessName, industry, usp, goal, siteType,
+      pages, features, style, references, name, email, phone,
     };
 
     try {
@@ -82,20 +83,38 @@ export default function HomePage() {
 
           {step === 2 && (
             <div className="space-y-4 mt-8">
+              <p className="text-slate-400 text-sm mb-2">What is the main goal of your website?</p>
               <select value={goal} onChange={(e) => setGoal(e.target.value)} className="input">
-                <option value="">Main goal of your website</option>
+                <option value="">Select a goal</option>
                 <option>Generate leads</option>
                 <option>Sell products</option>
                 <option>Bookings</option>
                 <option>Portfolio showcase</option>
+                <option>Provide information</option>
               </select>
+
+              <p className="text-slate-400 text-sm mt-6 mb-2">What type of website do you want?</p>
+              <div className="grid gap-3">
+                {[
+                  { value: "single", label: "Single Page", desc: "Everything on one scrollable page. Clean and fast." },
+                  { value: "multi", label: "Multi Page", desc: "Separate pages like Home, About, Services, Contact." },
+                ].map((opt) => (
+                  <label key={opt.value} className={`card cursor-pointer border-2 transition-all ${siteType === opt.value ? "border-white" : "border-transparent"}`}>
+                    <input type="radio" name="siteType" value={opt.value} checked={siteType === opt.value} onChange={() => setSiteType(opt.value)} className="hidden" />
+                    <div>
+                      <p className="font-semibold">{opt.label}</p>
+                      <p className="text-slate-400 text-sm">{opt.desc}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
             </div>
           )}
 
           {step === 3 && (
             <div className="grid gap-3 mt-8">
               <p className="text-slate-400 text-sm">Select the pages you want</p>
-              {["Home", "About", "Services", "Contact", "Shop", "Gallery", "Blog", "Booking"].map(p => (
+              {["Home", "About", "Services", "Contact", "Shop", "Gallery", "Blog", "Booking", "FAQ", "Testimonials"].map(p => (
                 <label key={p} className="card cursor-pointer">
                   <input type="checkbox" checked={pages.includes(p)} onChange={() => toggleItem(pages, p, setPages)} />
                   <span>{p}</span>
@@ -107,7 +126,7 @@ export default function HomePage() {
           {step === 4 && (
             <div className="grid gap-3 mt-8">
               <p className="text-slate-400 text-sm">Select features you need</p>
-              {["Contact Form", "Booking System", "Payments", "Blog", "Reviews", "Live Chat", "Photo Gallery", "FAQ"].map(f => (
+              {["Contact Form", "Booking System", "Payments / Shop", "Blog", "Reviews & Testimonials", "Live Chat", "Photo Gallery", "FAQ Section", "Newsletter Signup", "Social Media Links"].map(f => (
                 <label key={f} className="card cursor-pointer">
                   <input type="checkbox" checked={features.includes(f)} onChange={() => toggleItem(features, f, setFeatures)} />
                   <span>{f}</span>
@@ -119,12 +138,13 @@ export default function HomePage() {
           {step === 5 && (
             <div className="space-y-4 mt-8">
               <input placeholder="Style (e.g. Luxury dark, Clean minimal, Bold modern)" value={style} onChange={(e) => setStyle(e.target.value)} className="input" />
-              <textarea placeholder="Websites you like for reference" value={references} onChange={(e) => setReferences(e.target.value)} className="textarea" />
+              <textarea placeholder="Websites you like for reference (links or descriptions)" value={references} onChange={(e) => setReferences(e.target.value)} className="textarea" />
             </div>
           )}
 
           {step === 6 && (
             <div className="space-y-4 mt-8">
+              <p className="text-slate-400 text-sm">We will send a confirmation to your email once we receive your request.</p>
               <input placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} className="input" />
               <input placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} className="input" />
               <input placeholder="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} className="input" />
@@ -149,6 +169,7 @@ export default function HomePage() {
           <div className="mt-6 space-y-2 text-sm text-slate-500">
             <p>Business: {businessName || "-"}</p>
             <p>Goal: {goal || "-"}</p>
+            <p>Type: {siteType || "-"}</p>
             <p>Pages: {pages.length > 0 ? pages.join(", ") : "-"}</p>
             <p>Contact: {name || "-"}</p>
           </div>
