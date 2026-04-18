@@ -15,22 +15,6 @@ function extractJson(text: string) {
   return JSON.parse(text.slice(start, end + 1));
 }
 
-function extractHtml(text: string) {
-  const start = text.indexOf("<!DOCTYPE");
-  if (start !== -1) return text.slice(start);
-  const h = text.indexOf("<html");
-  if (h !== -1) return text.slice(h);
-  return text;
-}
-
-function compressHtml(html: string): string {
-  return html
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/\s{2,}/g, ' ')
-    .replace(/>\s+</g, '><')
-    .trim();
-}
-
 export async function POST(req: Request) {
   try {
     const userInput = await req.json();
@@ -41,7 +25,6 @@ export async function POST(req: Request) {
 
     const isMultiPage = userInput.siteType === "multi";
 
-    // STEP 1: Claude spec
     console.log("STEP 1: Claude spec...");
     const promptResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
@@ -50,12 +33,22 @@ export async function POST(req: Request) {
         role: "user",
         content: `Return ONLY valid JSON with "projectTitle" and "stitchPrompt".
 
+You are generating a premium Stitch website prompt.
+
 Brief: ${JSON.stringify(userInput)}
-Pages: ${pageList}
-Site type: ${isMultiPage ? "Multi-page website with separate pages for: " + pageList : "Single page website with scrollable sections for: " + pageList}
+Pages needed: ${pageList}
+Site architecture: ${isMultiPage ? "Multi-page — create separate navigable pages for: " + pageList : "Single page — scrollable sections for: " + pageList}
 Goal: ${userInput.goal || "generate leads"}
 Style: ${userInput.style || "modern premium"}
-Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}`
+Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}
+
+CRITICAL RULES for the stitchPrompt:
+- every nav link must work and go somewhere real
+- hamburger must open mobile menu
+- all CTA buttons must link to a real section or action
+- forms must have visible submit behaviour
+- no dead buttons
+- no placeholder links`
       }]
     });
 
@@ -63,13 +56,11 @@ Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : 
     const spec = extractJson(text);
     console.log("STEP 1 DONE:", spec.projectTitle);
 
-    // STEP 2: Stitch project
     console.log("STEP 2: Creating project...");
     const project: any = await stitchClient.callTool("create_project", { title: spec.projectTitle });
     const projectId = project?.name?.split("/")[1];
     console.log("STEP 2 DONE:", projectId);
 
-    // STEP 3: Generate screen
     console.log("STEP 3: Generating screen...");
     const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", {
       projectId,
@@ -82,45 +73,11 @@ Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : 
     if (!downloadUrl) throw new Error("No downloadUrl");
     console.log("STEP 3 DONE");
 
-    // STEP 4: Fetch HTML
     console.log("STEP 4: Fetching HTML...");
-    const stitchHtml = await fetch(downloadUrl).then((r) => r.text());
-    console.log("STEP 4 DONE. Length:", stitchHtml.length);
+    const finalHtml = await fetch(downloadUrl).then((r) => r.text());
+    console.log("STEP 4 DONE. Length:", finalHtml.length);
 
-    const compressed = compressHtml(stitchHtml);
-
-    // STEP 5: Claude fixes interactions
-    console.log("STEP 5: Claude fixing interactions...");
-    const fixResponse = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 16000,
-      messages: [{
-        role: "user",
-        content: `Fix button interactions in this HTML.
-
-RULES:
-- Return COMPLETE HTML, do not truncate
-- Do NOT change design, layout, CSS, colors or text
-- ONLY add JavaScript for:
-  1. Hamburger toggles mobile nav
-  2. Nav links smooth scroll to sections or switch pages
-  3. CTA buttons scroll to contact/relevant section
-  4. Forms show success message on submit
-  5. Add missing section ids where needed
-
-Return complete HTML starting with <!DOCTYPE html>
-
-HTML:
-${compressed}`
-      }]
-    });
-
-    const fixText = fixResponse.content[0]?.type === "text" ? fixResponse.content[0].text : stitchHtml;
-    const finalHtml = extractHtml(fixText);
-    console.log("STEP 5 DONE. Final length:", finalHtml.length);
-
-    // STEP 6: Send to you first
-    console.log("STEP 6: Sending to owner...");
+    console.log("STEP 5: Sending email...");
     await resend.emails.send({
       from: "onboarding@resend.dev",
       to: process.env.RESULT_TO_EMAIL!,
@@ -136,17 +93,15 @@ ${compressed}`
         <p><strong>Pages:</strong> ${pageList}</p>
         <p><strong>Features:</strong> ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "-"}</p>
         <p><strong>Style:</strong> ${userInput.style}</p>
-        <p><strong>References:</strong> ${userInput.references}</p>
-        <br/>
-        <p>The generated website HTML is attached. Once reviewed, manually send the receipt to the client at ${userInput.email}.</p>
+        <p><strong>References:</strong> ${userInput.references || "-"}</p>
       `,
       attachments: [{ filename: "site.html", content: Buffer.from(finalHtml).toString("base64") }],
     });
-    console.log("STEP 6 DONE");
+    console.log("STEP 5 DONE");
 
-    return NextResponse.json({ 
-      success: true, 
-      message: "Thank you! We have received your request and will be in touch shortly." 
+    return NextResponse.json({
+      success: true,
+      message: "Thank you! We have received your request and will be in touch shortly."
     });
 
   } catch (error: any) {
