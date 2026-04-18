@@ -23,7 +23,6 @@ function extractHtml(text: string) {
   return text;
 }
 
-// Strip comments and excessive whitespace to reduce token count
 function compressHtml(html: string): string {
   return html
     .replace(/<!--[\s\S]*?-->/g, '')
@@ -40,7 +39,6 @@ export async function POST(req: Request) {
     const pageList = Array.isArray(userInput.pages) && userInput.pages.length > 0
       ? userInput.pages.join(", ") : "Home";
 
-    // STEP 1: Claude spec
     console.log("STEP 1: Claude spec...");
     const promptResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
@@ -51,7 +49,8 @@ export async function POST(req: Request) {
 Brief: ${JSON.stringify(userInput)}
 Pages: ${pageList}
 Goal: ${userInput.goal || "generate leads"}
-Style: ${userInput.style || "modern premium"}`
+Style: ${userInput.style || "modern premium"}
+Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}`
       }]
     });
 
@@ -59,13 +58,11 @@ Style: ${userInput.style || "modern premium"}`
     const spec = extractJson(text);
     console.log("STEP 1 DONE:", spec.projectTitle);
 
-    // STEP 2: Stitch project
-    console.log("STEP 2: Creating project...");
+    console.log("STEP 2: Creating Stitch project...");
     const project: any = await stitchClient.callTool("create_project", { title: spec.projectTitle });
     const projectId = project?.name?.split("/")[1];
     console.log("STEP 2 DONE:", projectId);
 
-    // STEP 3: Generate screen
     console.log("STEP 3: Generating screen...");
     const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", {
       projectId,
@@ -78,33 +75,30 @@ Style: ${userInput.style || "modern premium"}`
     if (!downloadUrl) throw new Error("No downloadUrl");
     console.log("STEP 3 DONE");
 
-    // STEP 4: Fetch HTML
     console.log("STEP 4: Fetching HTML...");
     const stitchHtml = await fetch(downloadUrl).then((r) => r.text());
-    console.log("STEP 4 DONE. Raw length:", stitchHtml.length);
+    console.log("STEP 4 DONE. Length:", stitchHtml.length);
 
-    // Compress before sending to Claude
     const compressed = compressHtml(stitchHtml);
     console.log("Compressed length:", compressed.length);
 
-    // STEP 5: Claude fixes interactions only
     console.log("STEP 5: Claude fixing interactions...");
     const fixResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 16000,
       messages: [{
         role: "user",
-        content: `You are fixing button interactions in HTML. 
+        content: `Fix button interactions in this HTML.
 
 RULES:
-- Return the COMPLETE HTML, do not truncate
-- Do NOT change any design, layout, CSS, colors or text
-- ONLY add JavaScript to make these work:
-  1. Hamburger/menu button toggles mobile nav
-  2. Nav links smooth scroll to matching section ids
-  3. CTA buttons scroll to contact or relevant section
-  4. Forms show a success message on submit
-  5. Add missing section ids where needed for scroll targets
+- Return COMPLETE HTML, do not truncate
+- Do NOT change design, layout, CSS, colors or text
+- ONLY add JavaScript for:
+  1. Hamburger toggles mobile nav
+  2. Nav links smooth scroll to section ids
+  3. CTA buttons scroll to contact/relevant section
+  4. Forms show success message on submit
+  5. Add missing section ids where needed
 
 Return complete HTML starting with <!DOCTYPE html>
 
@@ -117,7 +111,6 @@ ${compressed}`
     const finalHtml = extractHtml(fixText);
     console.log("STEP 5 DONE. Final length:", finalHtml.length);
 
-    // STEP 6: Email
     console.log("STEP 6: Sending email...");
     await resend.emails.send({
       from: "onboarding@resend.dev",
