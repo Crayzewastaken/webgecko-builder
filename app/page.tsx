@@ -144,7 +144,7 @@ export default function HomePage() {
 
           {step === 6 && (
             <div className="space-y-4 mt-8">
-              <p className="text-slate-400 text-sm">We will send a confirmation to your email once we receive your request.</p>
+              <p className="text-slate-400 text-sm">We will be in touch once we have reviewed your request.</p>
               <input placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} className="input" />
               <input placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} className="input" />
               <input placeholder="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} className="input" />
