@@ -36,25 +36,13 @@ export default function HomePage() {
     };
 
     try {
-      const genRes = await fetch("/api/generate", {
+      const res = await fetch("/api/worker", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const genData = await genRes.json();
-      if (!genData.success) throw new Error(genData.message);
-
-      setMessage("Polishing interactions...");
-
-      const fixRes = await fetch("/api/fix", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html: genData.html, title: genData.title, email }),
-      });
-      const fixData = await fixRes.json();
-      if (!fixData.success) throw new Error(fixData.message);
-
-      setMessage("✅ Website sent to your email!");
+      const data = await res.json();
+      setMessage(data.message);
     } catch (error: any) {
       setMessage("Error: " + error.message);
     }
@@ -131,7 +119,7 @@ export default function HomePage() {
           {step === 5 && (
             <div className="space-y-4 mt-8">
               <input placeholder="Style (e.g. Luxury dark, Clean minimal, Bold modern)" value={style} onChange={(e) => setStyle(e.target.value)} className="input" />
-              <textarea placeholder="Websites you like for reference (links or descriptions)" value={references} onChange={(e) => setReferences(e.target.value)} className="textarea" />
+              <textarea placeholder="Websites you like for reference" value={references} onChange={(e) => setReferences(e.target.value)} className="textarea" />
             </div>
           )}
 
