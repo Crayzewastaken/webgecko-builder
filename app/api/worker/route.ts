@@ -23,33 +23,72 @@ function extractJson(text: string) {
 function injectEssentials(html: string): string {
   const script = `
 <script>
-// ── CART ─────────────────────────────────────────────────
-let cart = [];
-function addToCart(name, price) {
-  const existing = cart.find(i => i.name === name);
-  if (existing) existing.qty++;
-  else cart.push({ name, price, qty: 1 });
-  updateCartUI();
-  showToast(name + ' added to cart');
-}
-function updateCartUI() {
-  const badge = document.getElementById('cart-count');
-  if (badge) badge.textContent = cart.reduce((a,b) => a + b.qty, 0);
-  const cartList = document.getElementById('cart-items');
-  if (cartList) {
-    cartList.innerHTML = cart.map(i =>
-      '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #333">' +
-      '<span>' + i.name + ' x' + i.qty + '</span>' +
-      '<span>$' + (i.price * i.qty) + '</span></div>'
-    ).join('') || '<p style="color:#888">Your cart is empty</p>';
+(function() {
+
+// ── PAGE NAVIGATION ──────────────────────────────────────
+function navigateTo(pageId) {
+  document.querySelectorAll('.page, .page-section, [data-page]').forEach(p => {
+    p.style.display = 'none';
+    p.classList.remove('active');
+  });
+  const target = document.getElementById(pageId) || document.getElementById('page-' + pageId) || document.querySelector('[data-page="' + pageId + '"]');
+  if (target) {
+    target.style.display = 'block';
+    target.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+  document.querySelectorAll('[data-nav],[onclick*="navigateTo"]').forEach(link => {
+    const nav = link.dataset.nav || (link.getAttribute('onclick') || '').match(/navigateTo\(['"](.+)['"]\)/)?.[1];
+    if (nav === pageId) {
+      link.classList.add('active-nav');
+    } else {
+      link.classList.remove('active-nav');
+    }
+  });
 }
+window.navigateTo = navigateTo;
+
+// ── SMOOTH SCROLL ────────────────────────────────────────
+document.querySelectorAll('a[href^="#"]').forEach(link => {
+  link.addEventListener('click', function(e) {
+    const href = this.getAttribute('href');
+    if (href === '#') return;
+    const target = document.querySelector(href);
+    if (target) {
+      e.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth' });
+    }
+  });
+});
+
+// ── MOBILE HAMBURGER ─────────────────────────────────────
+const hamburger = document.getElementById('hamburger') ||
+  document.getElementById('hamburger-btn') ||
+  document.querySelector('[class*="hamburger"],[aria-label*="menu"],[id*="hamburger"],[onclick*="menu"]');
+const mobileNav = document.getElementById('mobile-nav') ||
+  document.getElementById('mobile-menu') ||
+  document.querySelector('[class*="mobile-nav"],[class*="mobile-menu"]');
+if (hamburger && mobileNav) {
+  hamburger.addEventListener('click', function() {
+    const isHidden = mobileNav.classList.contains('hidden') || mobileNav.style.display === 'none' || getComputedStyle(mobileNav).display === 'none';
+    if (isHidden) {
+      mobileNav.classList.remove('hidden');
+      mobileNav.style.display = 'flex';
+    } else {
+      mobileNav.classList.add('hidden');
+      mobileNav.style.display = 'none';
+    }
+  });
+}
+
+// ── ADD TO CART ──────────────────────────────────────────
+let cart = [];
 function showToast(msg) {
-  let toast = document.getElementById('cart-toast');
+  let toast = document.getElementById('wg-toast');
   if (!toast) {
     toast = document.createElement('div');
-    toast.id = 'cart-toast';
-    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:9999;transition:opacity 0.3s';
+    toast.id = 'wg-toast';
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:99999;transition:opacity 0.3s;pointer-events:none;';
     document.body.appendChild(toast);
   }
   toast.textContent = msg;
@@ -57,50 +96,57 @@ function showToast(msg) {
   setTimeout(() => { toast.style.opacity = '0'; }, 2500);
 }
 
-// ── ADD TO CART BUTTONS ──────────────────────────────────
 document.querySelectorAll('button').forEach(btn => {
-  if (btn.textContent.toLowerCase().includes('add to cart')) {
+  const txt = (btn.textContent || '').toLowerCase();
+  if (txt.includes('add to cart') || txt.includes('buy now') || txt.includes('add to bag')) {
     btn.addEventListener('click', function(e) {
       e.preventDefault();
-      const card = this.closest('[data-name]') || this.closest('article') || this.closest('.product-card') || this.parentElement;
-      const name = card?.querySelector('h3,h2,h4')?.textContent?.trim() || 'Item';
-      const priceEl = card?.querySelector('[class*="price"]');
+      e.stopPropagation();
+      const card = this.closest('article') || this.closest('[class*="product"]') || this.closest('[class*="card"]') || this.parentElement;
+      const name = card?.querySelector('h1,h2,h3,h4')?.textContent?.trim() || 'Item';
+      const priceEl = card?.querySelector('[class*="price"],[class*="cost"],[class*="amount"]');
       const price = parseFloat(priceEl?.textContent?.replace(/[^0-9.]/g,'') || '0');
-      addToCart(name, price);
+      const existing = cart.find(i => i.name === name);
+      if (existing) existing.qty++;
+      else cart.push({ name, price, qty: 1 });
+      showToast(name + ' added to cart ✓');
+      const badge = document.getElementById('cart-count') || document.getElementById('cart-badge') || document.querySelector('[class*="cart-count"],[class*="cart-badge"]');
+      if (badge) badge.textContent = cart.reduce((a,b) => a + b.qty, 0);
     });
   }
 });
 
-// ── CONTACT FORMS ────────────────────────────────────────
+// ── FORMS ────────────────────────────────────────────────
 document.querySelectorAll('form').forEach(form => {
   form.addEventListener('submit', function(e) {
     e.preventDefault();
+    const existing = form.querySelector('.wg-success');
+    if (existing) return;
     const success = document.createElement('div');
-    success.style.cssText = 'background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;';
-    success.textContent = 'Thank you! We will be in touch within 24 hours.';
+    success.className = 'wg-success';
+    success.style.cssText = 'background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;font-size:16px;';
+    success.textContent = '✓ Thank you! We will be in touch within 24 hours.';
     form.appendChild(success);
-    form.querySelectorAll('input,textarea,select,button').forEach(el => el.setAttribute('disabled','true'));
+    form.querySelectorAll('input,textarea,select,button[type="submit"]').forEach(el => el.setAttribute('disabled','true'));
   });
 });
 
-// ── MOBILE HAMBURGER ─────────────────────────────────────
-const hamburger = document.getElementById('hamburger') ||
-  document.querySelector('[class*="hamburger"],[aria-label*="menu"],[id*="hamburger"]');
-const mobileNav = document.getElementById('mobile-nav') ||
-  document.getElementById('mobile-menu') ||
-  document.querySelector('[class*="mobile-nav"],[class*="mobile-menu"]');
-if (hamburger && mobileNav) {
-  hamburger.addEventListener('click', function() {
-    const isHidden = mobileNav.classList.contains('hidden') || mobileNav.style.display === 'none';
-    if (isHidden) {
-      mobileNav.classList.remove('hidden');
-      mobileNav.style.display = 'block';
+// ── INIT: show first page if multi-page ──────────────────
+const pages = document.querySelectorAll('.page, .page-section');
+if (pages.length > 1) {
+  pages.forEach((p, i) => {
+    if (i === 0) {
+      p.style.display = 'block';
+      p.classList.add('active');
     } else {
-      mobileNav.classList.add('hidden');
-      mobileNav.style.display = 'none';
+      if (!p.classList.contains('active')) {
+        p.style.display = 'none';
+      }
     }
   });
 }
+
+})();
 </script>`;
 
   if (html.includes('</body>')) return html.replace('</body>', script + '</body>');
@@ -116,7 +162,6 @@ export async function POST(req: Request) {
       ? userInput.pages.join(", ") : "Home";
     const isMultiPage = userInput.siteType === "multi";
 
-    // STEP 1: Claude spec
     console.log("STEP 1: Claude spec...");
     const promptResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
@@ -133,19 +178,26 @@ Style: ${userInput.style || "modern premium"}
 Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}
 
 ${isMultiPage ? `
-MULTI-PAGE SITE REQUIRED.
-Pages: ${pageList}
-Build a multi-page website where each page (${pageList}) is a separate full section.
-Navigation uses data-page attributes and JavaScript navigateTo() to switch between pages.
-Each page hidden by default except Home which is active.
-Every nav link must correspond to a real page.
+MULTI-PAGE SITE REQUIRED. Pages: ${pageList}
+The exported HTML MUST include:
+- A div for each page with class "page-section" and a unique id matching the page name in lowercase
+- Only the first page visible by default, all others hidden with display:none
+- Nav links using onclick="navigateTo('pageid')" to switch pages
+- A navigateTo() JavaScript function that shows/hides pages
+- Mobile hamburger button with id="hamburger" that toggles id="mobile-menu"
+- Every nav link must have a working onclick handler
 ` : `
-SINGLE PAGE SITE REQUIRED.
-Sections: ${pageList}
-Build a single scrollable page with each section having its own id.
-Navigation smooth scrolls to each section.
-Hamburger menu on mobile.
-`}`
+SINGLE PAGE SITE REQUIRED. Sections: ${pageList}
+The exported HTML MUST include:
+- Each section with a unique id in lowercase
+- Nav links using href="#sectionid" for smooth scroll
+- Mobile hamburger button with id="hamburger" that toggles id="mobile-menu"
+- Smooth scroll behavior
+`}
+
+The site is for: ${userInput.businessName} — ${userInput.industry}
+Style: ${userInput.style || "modern premium"}
+Make it premium, conversion-focused, and visually stunning.`
       }]
     });
 
@@ -153,13 +205,11 @@ Hamburger menu on mobile.
     const spec = extractJson(text);
     console.log("STEP 1 DONE:", spec.projectTitle);
 
-    // STEP 2: Create project
     console.log("STEP 2: Creating project...");
     const project: any = await stitchClient.callTool("create_project", { title: spec.projectTitle });
     const projectId = project?.name?.split("/")[1];
     console.log("STEP 2 DONE:", projectId);
 
-    // STEP 3: Generate screen
     console.log("STEP 3: Generating screen...");
     const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", {
       projectId,
@@ -172,16 +222,14 @@ Hamburger menu on mobile.
     if (!downloadUrl) throw new Error("No downloadUrl");
     console.log("STEP 3 DONE");
 
-    // STEP 4: Fetch HTML
     console.log("STEP 4: Fetching HTML...");
     const stitchHtml = await fetch(downloadUrl).then((r) => r.text());
     console.log("STEP 4 DONE. Length:", stitchHtml.length);
 
-    // STEP 5: Inject cart + form essentials
+    // Always inject our reliable JS on top of whatever Stitch generates
     const finalHtml = injectEssentials(stitchHtml);
-    console.log("STEP 5 DONE");
+    console.log("STEP 5: JS injected");
 
-    // STEP 6: Save to Redis for fix button
     const jobId = `job_${Date.now()}`;
     await redis.set(jobId, {
       html: finalHtml,
@@ -191,8 +239,7 @@ Hamburger menu on mobile.
 
     const processUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/process?id=${jobId}&secret=${process.env.PROCESS_SECRET}`;
 
-    // STEP 7: Email YOU with full details + fix button
-    console.log("STEP 7: Emailing owner...");
+    console.log("STEP 6: Emailing owner...");
     await resend.emails.send({
       from: "WebGecko <hello@webgecko.au>",
       to: process.env.RESULT_TO_EMAIL!,
@@ -210,7 +257,7 @@ Hamburger menu on mobile.
         <p><strong>Style:</strong> ${userInput.style}</p>
         <p><strong>References:</strong> ${userInput.references || "-"}</p>
         <br/>
-        <p>Raw site with cart + form interactions is attached. Click below to run the full Claude fix pass:</p>
+        <p>Site attached. Click below if you want Claude to do a deeper fix pass:</p>
         <br/>
         <a href="${processUrl}" style="background:#22c55e;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">
           ✅ Fix This Site
@@ -223,11 +270,10 @@ Hamburger menu on mobile.
         content: Buffer.from(finalHtml).toString("base64"),
       }],
     });
-    console.log("STEP 7 DONE");
+    console.log("STEP 6 DONE");
 
-    // STEP 8: Send receipt to CLIENT
     if (userInput.email) {
-      console.log("STEP 8: Emailing client receipt...");
+      console.log("STEP 7: Emailing client...");
       await resend.emails.send({
         from: "WebGecko <hello@webgecko.au>",
         to: userInput.email,
@@ -235,8 +281,7 @@ Hamburger menu on mobile.
         html: `
           <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;">
             <h1 style="font-size:28px;margin-bottom:8px;">Thank you, ${userInput.name}!</h1>
-            <p style="color:#666;margin-bottom:32px;">We have received your website request and our team is reviewing it now. Here is a summary of what you submitted:</p>
-            
+            <p style="color:#666;margin-bottom:32px;">We have received your website request and our team is reviewing it now.</p>
             <div style="background:#f9f9f9;border-radius:12px;padding:24px;margin-bottom:32px;">
               <h2 style="font-size:16px;margin-bottom:16px;color:#333;">Your Request Summary</h2>
               <table style="width:100%;border-collapse:collapse;">
@@ -249,9 +294,7 @@ Hamburger menu on mobile.
                 <tr><td style="padding:8px 0;color:#666;">Style</td><td style="padding:8px 0;font-weight:600;">${userInput.style || "-"}</td></tr>
               </table>
             </div>
-
             <p style="color:#666;">Our team will be in touch within <strong>24 hours</strong> with your website preview.</p>
-            <p style="color:#666;">If you have any questions reply to this email.</p>
             <br/>
             <div style="border-top:1px solid #eee;padding-top:20px;margin-top:20px;">
               <p style="color:#999;font-size:12px;">WebGecko — Professional Web Design</p>
@@ -260,7 +303,7 @@ Hamburger menu on mobile.
           </div>
         `,
       });
-      console.log("STEP 8 DONE");
+      console.log("STEP 7 DONE");
     }
 
     return NextResponse.json({
