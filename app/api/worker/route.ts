@@ -20,8 +20,7 @@ function extractJson(text: string) {
   return JSON.parse(text.slice(start, end + 1));
 }
 
-// Inject cart + form + interactions directly into HTML
-function injectEssentials(html: string, clientEmail: string): string {
+function injectEssentials(html: string): string {
   const script = `
 <script>
 // ── CART ─────────────────────────────────────────────────
@@ -58,17 +57,7 @@ function showToast(msg) {
   setTimeout(() => { toast.style.opacity = '0'; }, 2500);
 }
 
-// ── BIND ADD TO CART BUTTONS ─────────────────────────────
-document.querySelectorAll('[class*="add-to-cart"],[data-product],[onclick*="cart"]').forEach(btn => {
-  btn.addEventListener('click', function(e) {
-    e.preventDefault();
-    const name = this.dataset.name || this.closest('[data-name]')?.dataset.name || 'Item';
-    const price = parseFloat(this.dataset.price || this.closest('[data-price]')?.dataset.price || '0');
-    addToCart(name, price);
-  });
-});
-
-// Also bind any button with "Add to Cart" text
+// ── ADD TO CART BUTTONS ──────────────────────────────────
 document.querySelectorAll('button').forEach(btn => {
   if (btn.textContent.toLowerCase().includes('add to cart')) {
     btn.addEventListener('click', function(e) {
@@ -82,15 +71,10 @@ document.querySelectorAll('button').forEach(btn => {
   }
 });
 
-// ── CONTACT FORM ─────────────────────────────────────────
+// ── CONTACT FORMS ────────────────────────────────────────
 document.querySelectorAll('form').forEach(form => {
   form.addEventListener('submit', function(e) {
     e.preventDefault();
-    const emailInput = form.querySelector('input[type="email"]');
-    const nameInput = form.querySelector('input[type="text"]');
-    const messageInput = form.querySelector('textarea');
-    
-    // Show success message
     const success = document.createElement('div');
     success.style.cssText = 'background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;';
     success.textContent = 'Thank you! We will be in touch within 24 hours.';
@@ -100,12 +84,11 @@ document.querySelectorAll('form').forEach(form => {
 });
 
 // ── MOBILE HAMBURGER ─────────────────────────────────────
-const hamburger = document.getElementById('hamburger') || 
-  document.querySelector('[onclick*="menu"],[class*="hamburger"],[aria-label*="menu"]');
-const mobileNav = document.getElementById('mobile-nav') || 
+const hamburger = document.getElementById('hamburger') ||
+  document.querySelector('[class*="hamburger"],[aria-label*="menu"],[id*="hamburger"]');
+const mobileNav = document.getElementById('mobile-nav') ||
   document.getElementById('mobile-menu') ||
   document.querySelector('[class*="mobile-nav"],[class*="mobile-menu"]');
-
 if (hamburger && mobileNav) {
   hamburger.addEventListener('click', function() {
     const isHidden = mobileNav.classList.contains('hidden') || mobileNav.style.display === 'none';
@@ -195,7 +178,7 @@ Hamburger menu on mobile.
     console.log("STEP 4 DONE. Length:", stitchHtml.length);
 
     // STEP 5: Inject cart + form essentials
-    const finalHtml = injectEssentials(stitchHtml, userInput.email);
+    const finalHtml = injectEssentials(stitchHtml);
     console.log("STEP 5 DONE");
 
     // STEP 6: Save to Redis for fix button
@@ -211,7 +194,7 @@ Hamburger menu on mobile.
     // STEP 7: Email YOU with full details + fix button
     console.log("STEP 7: Emailing owner...");
     await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: "WebGecko <hello@webgecko.au>",
       to: process.env.RESULT_TO_EMAIL!,
       subject: `New Request - ${spec.projectTitle}`,
       html: `
@@ -246,13 +229,13 @@ Hamburger menu on mobile.
     if (userInput.email) {
       console.log("STEP 8: Emailing client receipt...");
       await resend.emails.send({
-        from: "onboarding@resend.dev",
+        from: "WebGecko <hello@webgecko.au>",
         to: userInput.email,
         subject: `We've received your website request!`,
         html: `
           <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;">
             <h1 style="font-size:28px;margin-bottom:8px;">Thank you, ${userInput.name}!</h1>
-            <p style="color:#666;margin-bottom:32px;">We've received your website request and our team is reviewing it now. Here's a summary of what you submitted:</p>
+            <p style="color:#666;margin-bottom:32px;">We have received your website request and our team is reviewing it now. Here is a summary of what you submitted:</p>
             
             <div style="background:#f9f9f9;border-radius:12px;padding:24px;margin-bottom:32px;">
               <h2 style="font-size:16px;margin-bottom:16px;color:#333;">Your Request Summary</h2>
@@ -268,9 +251,12 @@ Hamburger menu on mobile.
             </div>
 
             <p style="color:#666;">Our team will be in touch within <strong>24 hours</strong> with your website preview.</p>
-            <p style="color:#666;">If you have any questions in the meantime, reply to this email.</p>
+            <p style="color:#666;">If you have any questions reply to this email.</p>
             <br/>
-            <p style="color:#999;font-size:12px;">This is an automated confirmation. Please do not reply to this email.</p>
+            <div style="border-top:1px solid #eee;padding-top:20px;margin-top:20px;">
+              <p style="color:#999;font-size:12px;">WebGecko — Professional Web Design</p>
+              <p style="color:#999;font-size:12px;">webgecko.au</p>
+            </div>
           </div>
         `,
       });
