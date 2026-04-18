@@ -65,7 +65,6 @@ export default function HomePage() {
       <div className="max-w-6xl mx-auto grid lg:grid-cols-[1fr_320px] gap-6">
 
         <div className="rounded-[2rem] bg-[#111827] border border-white/10 p-8 shadow-2xl">
-
           <p className="text-sm uppercase tracking-widest text-slate-400">Project Brief</p>
           <h1 className="text-3xl md:text-5xl font-semibold mt-2">Website Project Questionnaire</h1>
 
@@ -92,7 +91,6 @@ export default function HomePage() {
                 <option>Portfolio showcase</option>
                 <option>Provide information</option>
               </select>
-
               <p className="text-slate-400 text-sm mt-6 mb-2">What type of website do you want?</p>
               <div className="grid gap-3">
                 {[
@@ -138,7 +136,7 @@ export default function HomePage() {
           {step === 5 && (
             <div className="space-y-4 mt-8">
               <input placeholder="Style (e.g. Luxury dark, Clean minimal, Bold modern)" value={style} onChange={(e) => setStyle(e.target.value)} className="input" />
-              <textarea placeholder="Websites you like for reference (links or descriptions)" value={references} onChange={(e) => setReferences(e.target.value)} className="textarea" />
+              <textarea placeholder="Websites you like for reference" value={references} onChange={(e) => setReferences(e.target.value)} className="textarea" />
             </div>
           )}
 
