@@ -20,66 +20,137 @@ function extractJson(text: string) {
   return JSON.parse(text.slice(start, end + 1));
 }
 
+function safeFileName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50);
+}
+
 function injectEssentials(html: string): string {
   const script = `
 <script>
 (function() {
 
 // ── PAGE NAVIGATION ──────────────────────────────────────
-function navigateTo(pageId) {
-  document.querySelectorAll('.page, .page-section, [data-page]').forEach(p => {
+window.navigateTo = function(pageId) {
+  // Hide all possible page containers
+  document.querySelectorAll(
+    '.page, .page-section, [class*="page-section"], [data-page-id]'
+  ).forEach(function(p) {
     p.style.display = 'none';
     p.classList.remove('active');
   });
-  const target = document.getElementById(pageId) || document.getElementById('page-' + pageId) || document.querySelector('[data-page="' + pageId + '"]');
+
+  // Try multiple ways to find the target page
+  const target =
+    document.getElementById(pageId) ||
+    document.getElementById('page-' + pageId) ||
+    document.getElementById('section-' + pageId) ||
+    document.querySelector('[data-page="' + pageId + '"]') ||
+    document.querySelector('[data-page-id="' + pageId + '"]') ||
+    document.querySelector('.' + pageId) ||
+    document.querySelector('#' + pageId);
+
   if (target) {
     target.style.display = 'block';
     target.classList.add('active');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
-  document.querySelectorAll('[data-nav],[onclick*="navigateTo"]').forEach(link => {
-    const nav = link.dataset.nav || (link.getAttribute('onclick') || '').match(/navigateTo\(['"](.+)['"]\)/)?.[1];
-    if (nav === pageId) {
-      link.classList.add('active-nav');
-    } else {
-      link.classList.remove('active-nav');
-    }
-  });
-}
-window.navigateTo = navigateTo;
 
-// ── SMOOTH SCROLL ────────────────────────────────────────
-document.querySelectorAll('a[href^="#"]').forEach(link => {
-  link.addEventListener('click', function(e) {
-    const href = this.getAttribute('href');
-    if (href === '#') return;
-    const target = document.querySelector(href);
-    if (target) {
-      e.preventDefault();
-      target.scrollIntoView({ behavior: 'smooth' });
+  // Update nav active states
+  document.querySelectorAll('[data-nav],[onclick]').forEach(function(link) {
+    const nav = link.getAttribute('data-nav') ||
+      (link.getAttribute('onclick') || '').match(/navigateTo\(['"](.*?)['"]\)/)?.[1];
+    if (nav) {
+      if (nav === pageId) {
+        link.classList.add('wg-active-nav');
+      } else {
+        link.classList.remove('wg-active-nav');
+      }
     }
   });
+
+  // Close mobile menu if open
+  const mobileMenu = document.getElementById('mobile-menu') ||
+    document.getElementById('mobile-nav') ||
+    document.querySelector('[class*="mobile-menu"],[class*="mobile-nav"]');
+  if (mobileMenu) {
+    mobileMenu.classList.add('hidden');
+    mobileMenu.style.display = 'none';
+  }
+};
+
+// ── BIND ALL NAV LINKS ───────────────────────────────────
+document.querySelectorAll('a, button').forEach(function(el) {
+  const onclick = el.getAttribute('onclick') || '';
+  const href = el.getAttribute('href') || '';
+  const datanav = el.getAttribute('data-nav') || '';
+  const datapage = el.getAttribute('data-page') || '';
+
+  // Already has navigateTo onclick — skip, it works
+  if (onclick.includes('navigateTo')) return;
+
+  // Has data-nav or data-page attribute
+  if (datanav) {
+    el.addEventListener('click', function(e) {
+      e.preventDefault();
+      window.navigateTo(datanav);
+    });
+    return;
+  }
+  if (datapage) {
+    el.addEventListener('click', function(e) {
+      e.preventDefault();
+      window.navigateTo(datapage);
+    });
+    return;
+  }
+
+  // Anchor links — smooth scroll
+  if (href.startsWith('#') && href.length > 1) {
+    el.addEventListener('click', function(e) {
+      const target = document.querySelector(href);
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  }
 });
 
 // ── MOBILE HAMBURGER ─────────────────────────────────────
-const hamburger = document.getElementById('hamburger') ||
-  document.getElementById('hamburger-btn') ||
-  document.querySelector('[class*="hamburger"],[aria-label*="menu"],[id*="hamburger"],[onclick*="menu"]');
-const mobileNav = document.getElementById('mobile-nav') ||
-  document.getElementById('mobile-menu') ||
-  document.querySelector('[class*="mobile-nav"],[class*="mobile-menu"]');
-if (hamburger && mobileNav) {
-  hamburger.addEventListener('click', function() {
-    const isHidden = mobileNav.classList.contains('hidden') || mobileNav.style.display === 'none' || getComputedStyle(mobileNav).display === 'none';
-    if (isHidden) {
-      mobileNav.classList.remove('hidden');
-      mobileNav.style.display = 'flex';
-    } else {
-      mobileNav.classList.add('hidden');
-      mobileNav.style.display = 'none';
-    }
+const hamburgers = document.querySelectorAll(
+  '#hamburger, #hamburger-btn, #menu-btn, #nav-toggle, ' +
+  '[class*="hamburger"], [class*="menu-toggle"], [class*="nav-toggle"], ' +
+  '[aria-label="Open menu"], [aria-label="Menu"], [aria-label="Toggle menu"]'
+);
+const mobileMenus = document.querySelectorAll(
+  '#mobile-menu, #mobile-nav, #nav-menu, ' +
+  '[class*="mobile-menu"], [class*="mobile-nav"]'
+);
+
+hamburgers.forEach(function(btn) {
+  // Skip if already has onclick
+  if (btn.getAttribute('onclick')) return;
+  btn.addEventListener('click', function() {
+    mobileMenus.forEach(function(menu) {
+      const isHidden =
+        menu.classList.contains('hidden') ||
+        menu.style.display === 'none' ||
+        getComputedStyle(menu).display === 'none';
+      if (isHidden) {
+        menu.classList.remove('hidden');
+        menu.style.display = 'flex';
+        menu.style.flexDirection = 'column';
+      } else {
+        menu.classList.add('hidden');
+        menu.style.display = 'none';
+      }
+    });
   });
-}
+});
 
 // ── ADD TO CART ──────────────────────────────────────────
 let cart = [];
@@ -88,62 +159,90 @@ function showToast(msg) {
   if (!toast) {
     toast = document.createElement('div');
     toast.id = 'wg-toast';
-    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:99999;transition:opacity 0.3s;pointer-events:none;';
+    toast.style.cssText = [
+      'position:fixed', 'bottom:24px', 'left:50%',
+      'transform:translateX(-50%)', 'background:#22c55e',
+      'color:white', 'padding:12px 24px', 'border-radius:8px',
+      'font-weight:bold', 'z-index:99999', 'transition:opacity 0.3s',
+      'pointer-events:none', 'font-family:sans-serif'
+    ].join(';');
     document.body.appendChild(toast);
   }
   toast.textContent = msg;
   toast.style.opacity = '1';
-  setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+  setTimeout(function() { toast.style.opacity = '0'; }, 2500);
 }
 
-document.querySelectorAll('button').forEach(btn => {
-  const txt = (btn.textContent || '').toLowerCase();
-  if (txt.includes('add to cart') || txt.includes('buy now') || txt.includes('add to bag')) {
+document.querySelectorAll('button, a').forEach(function(btn) {
+  const txt = (btn.textContent || '').toLowerCase().trim();
+  if (
+    txt.includes('add to cart') ||
+    txt.includes('buy now') ||
+    txt.includes('add to bag') ||
+    txt.includes('purchase')
+  ) {
     btn.addEventListener('click', function(e) {
       e.preventDefault();
       e.stopPropagation();
-      const card = this.closest('article') || this.closest('[class*="product"]') || this.closest('[class*="card"]') || this.parentElement;
-      const name = card?.querySelector('h1,h2,h3,h4')?.textContent?.trim() || 'Item';
-      const priceEl = card?.querySelector('[class*="price"],[class*="cost"],[class*="amount"]');
-      const price = parseFloat(priceEl?.textContent?.replace(/[^0-9.]/g,'') || '0');
-      const existing = cart.find(i => i.name === name);
+      const card =
+        this.closest('article') ||
+        this.closest('[class*="product"]') ||
+        this.closest('[class*="card"]') ||
+        this.closest('li') ||
+        this.parentElement;
+      const nameEl = card && card.querySelector('h1,h2,h3,h4,h5,[class*="title"],[class*="name"]');
+      const name = nameEl ? nameEl.textContent.trim() : 'Item';
+      const priceEl = card && card.querySelector('[class*="price"],[class*="cost"],[class*="amount"]');
+      const price = priceEl ? parseFloat(priceEl.textContent.replace(/[^0-9.]/g,'')) : 0;
+      const existing = cart.find(function(i) { return i.name === name; });
       if (existing) existing.qty++;
-      else cart.push({ name, price, qty: 1 });
+      else cart.push({ name: name, price: price, qty: 1 });
       showToast(name + ' added to cart ✓');
-      const badge = document.getElementById('cart-count') || document.getElementById('cart-badge') || document.querySelector('[class*="cart-count"],[class*="cart-badge"]');
-      if (badge) badge.textContent = cart.reduce((a,b) => a + b.qty, 0);
+      const total = cart.reduce(function(a,b) { return a + b.qty; }, 0);
+      document.querySelectorAll(
+        '#cart-count, #cart-badge, [class*="cart-count"], [class*="cart-badge"]'
+      ).forEach(function(badge) { badge.textContent = total; });
     });
   }
 });
 
 // ── FORMS ────────────────────────────────────────────────
-document.querySelectorAll('form').forEach(form => {
+document.querySelectorAll('form').forEach(function(form) {
   form.addEventListener('submit', function(e) {
     e.preventDefault();
-    const existing = form.querySelector('.wg-success');
-    if (existing) return;
+    if (form.querySelector('.wg-success')) return;
     const success = document.createElement('div');
     success.className = 'wg-success';
-    success.style.cssText = 'background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;font-size:16px;';
+    success.style.cssText = [
+      'background:#22c55e', 'color:white', 'padding:20px',
+      'border-radius:8px', 'margin-top:16px', 'font-weight:bold',
+      'text-align:center', 'font-size:16px', 'font-family:sans-serif'
+    ].join(';');
     success.textContent = '✓ Thank you! We will be in touch within 24 hours.';
     form.appendChild(success);
-    form.querySelectorAll('input,textarea,select,button[type="submit"]').forEach(el => el.setAttribute('disabled','true'));
+    form.querySelectorAll('input,textarea,select,button[type="submit"],button:not([type])').forEach(function(el) {
+      el.setAttribute('disabled', 'true');
+    });
   });
 });
 
-// ── INIT: show first page if multi-page ──────────────────
-const pages = document.querySelectorAll('.page, .page-section');
-if (pages.length > 1) {
-  pages.forEach((p, i) => {
-    if (i === 0) {
-      p.style.display = 'block';
-      p.classList.add('active');
-    } else {
-      if (!p.classList.contains('active')) {
+// ── INIT MULTI-PAGE ──────────────────────────────────────
+const allPages = document.querySelectorAll('.page, .page-section');
+if (allPages.length > 1) {
+  let hasActive = false;
+  allPages.forEach(function(p) {
+    if (p.classList.contains('active')) hasActive = true;
+  });
+  if (!hasActive) {
+    allPages.forEach(function(p, i) {
+      if (i === 0) {
+        p.style.display = 'block';
+        p.classList.add('active');
+      } else {
         p.style.display = 'none';
       }
-    }
-  });
+    });
+  }
 }
 
 })();
@@ -161,6 +260,7 @@ export async function POST(req: Request) {
     const pageList = Array.isArray(userInput.pages) && userInput.pages.length > 0
       ? userInput.pages.join(", ") : "Home";
     const isMultiPage = userInput.siteType === "multi";
+    const fileName = safeFileName(userInput.businessName || "website");
 
     console.log("STEP 1: Claude spec...");
     const promptResponse = await anthropic.messages.create({
@@ -180,24 +280,19 @@ Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : 
 ${isMultiPage ? `
 MULTI-PAGE SITE REQUIRED. Pages: ${pageList}
 The exported HTML MUST include:
-- A div for each page with class "page-section" and a unique id matching the page name in lowercase
-- Only the first page visible by default, all others hidden with display:none
+- A div for each page with class "page-section" and a unique id matching page name in lowercase
+- Only the first page visible by default, all others hidden with style="display:none"
 - Nav links using onclick="navigateTo('pageid')" to switch pages
-- A navigateTo() JavaScript function that shows/hides pages
-- Mobile hamburger button with id="hamburger" that toggles id="mobile-menu"
-- Every nav link must have a working onclick handler
+- Mobile hamburger button with id="hamburger" toggling id="mobile-menu"
 ` : `
 SINGLE PAGE SITE REQUIRED. Sections: ${pageList}
 The exported HTML MUST include:
 - Each section with a unique id in lowercase
 - Nav links using href="#sectionid" for smooth scroll
-- Mobile hamburger button with id="hamburger" that toggles id="mobile-menu"
-- Smooth scroll behavior
+- Mobile hamburger button with id="hamburger" toggling id="mobile-menu"
 `}
 
-The site is for: ${userInput.businessName} — ${userInput.industry}
-Style: ${userInput.style || "modern premium"}
-Make it premium, conversion-focused, and visually stunning.`
+Make it premium, conversion-focused and visually stunning for: ${userInput.businessName} — ${userInput.industry}`
       }]
     });
 
@@ -226,7 +321,6 @@ Make it premium, conversion-focused, and visually stunning.`
     const stitchHtml = await fetch(downloadUrl).then((r) => r.text());
     console.log("STEP 4 DONE. Length:", stitchHtml.length);
 
-    // Always inject our reliable JS on top of whatever Stitch generates
     const finalHtml = injectEssentials(stitchHtml);
     console.log("STEP 5: JS injected");
 
@@ -257,7 +351,7 @@ Make it premium, conversion-focused, and visually stunning.`
         <p><strong>Style:</strong> ${userInput.style}</p>
         <p><strong>References:</strong> ${userInput.references || "-"}</p>
         <br/>
-        <p>Site attached. Click below if you want Claude to do a deeper fix pass:</p>
+        <p>Site attached. Click below for a deeper Claude fix pass if needed:</p>
         <br/>
         <a href="${processUrl}" style="background:#22c55e;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">
           ✅ Fix This Site
@@ -266,7 +360,7 @@ Make it premium, conversion-focused, and visually stunning.`
         <p style="color:#94a3b8;font-size:12px;">Link expires in 24 hours.</p>
       `,
       attachments: [{
-        filename: "site.html",
+        filename: `${fileName}.html`,
         content: Buffer.from(finalHtml).toString("base64"),
       }],
     });
