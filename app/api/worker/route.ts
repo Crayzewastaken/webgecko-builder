@@ -15,6 +15,24 @@ function extractJson(text: string) {
   return JSON.parse(text.slice(start, end + 1));
 }
 
+function extractHtml(text: string) {
+  const start = text.indexOf("<!DOCTYPE");
+  if (start !== -1) return text.slice(start);
+  const h = text.indexOf("<html");
+  if (h !== -1) return text.slice(h);
+  return text;
+}
+
+function stripHtml(html: string): string {
+  // Remove style blocks to reduce token count massively
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, '<style>/* preserved */</style>')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/>\s+</g, '><')
+    .trim();
+}
+
 export async function POST(req: Request) {
   try {
     const userInput = await req.json();
@@ -22,9 +40,9 @@ export async function POST(req: Request) {
 
     const pageList = Array.isArray(userInput.pages) && userInput.pages.length > 0
       ? userInput.pages.join(", ") : "Home";
-
     const isMultiPage = userInput.siteType === "multi";
 
+    // STEP 1: Claude spec
     console.log("STEP 1: Claude spec...");
     const promptResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
@@ -33,22 +51,14 @@ export async function POST(req: Request) {
         role: "user",
         content: `Return ONLY valid JSON with "projectTitle" and "stitchPrompt".
 
-You are generating a premium Stitch website prompt.
-
 Brief: ${JSON.stringify(userInput)}
-Pages needed: ${pageList}
-Site architecture: ${isMultiPage ? "Multi-page — create separate navigable pages for: " + pageList : "Single page — scrollable sections for: " + pageList}
+Pages: ${pageList}
+Architecture: ${isMultiPage ? "Multi-page — separate navigable pages for: " + pageList : "Single page — scrollable sections for: " + pageList}
 Goal: ${userInput.goal || "generate leads"}
 Style: ${userInput.style || "modern premium"}
 Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}
 
-CRITICAL RULES for the stitchPrompt:
-- every nav link must work and go somewhere real
-- hamburger must open mobile menu
-- all CTA buttons must link to a real section or action
-- forms must have visible submit behaviour
-- no dead buttons
-- no placeholder links`
+CRITICAL: stitchPrompt must specify that ALL buttons and nav links must have working JavaScript interactions included in the exported HTML.`
       }]
     });
 
@@ -56,11 +66,13 @@ CRITICAL RULES for the stitchPrompt:
     const spec = extractJson(text);
     console.log("STEP 1 DONE:", spec.projectTitle);
 
+    // STEP 2: Create project
     console.log("STEP 2: Creating project...");
     const project: any = await stitchClient.callTool("create_project", { title: spec.projectTitle });
     const projectId = project?.name?.split("/")[1];
     console.log("STEP 2 DONE:", projectId);
 
+    // STEP 3: Generate screen
     console.log("STEP 3: Generating screen...");
     const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", {
       projectId,
@@ -73,11 +85,54 @@ CRITICAL RULES for the stitchPrompt:
     if (!downloadUrl) throw new Error("No downloadUrl");
     console.log("STEP 3 DONE");
 
+    // STEP 4: Fetch HTML
     console.log("STEP 4: Fetching HTML...");
-    const finalHtml = await fetch(downloadUrl).then((r) => r.text());
-    console.log("STEP 4 DONE. Length:", finalHtml.length);
+    const stitchHtml = await fetch(downloadUrl).then((r) => r.text());
+    console.log("STEP 4 DONE. Length:", stitchHtml.length);
 
-    console.log("STEP 5: Sending email...");
+    // Check if JS already exists
+    const hasJS = stitchHtml.includes("addEventListener") || stitchHtml.includes("navigateTo");
+    console.log("Has JS:", hasJS);
+
+    let finalHtml = stitchHtml;
+
+    if (!hasJS) {
+      // STEP 5: Claude adds JS only if Stitch didn't include it
+      console.log("STEP 5: Adding interactions...");
+      const stripped = stripHtml(stitchHtml);
+      console.log("Stripped length:", stripped.length);
+
+      const fixResponse = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 16000,
+        messages: [{
+          role: "user",
+          content: `Add JavaScript interactions to this HTML.
+
+RULES:
+- Return COMPLETE HTML starting with <!DOCTYPE html>
+- Do NOT change any design, CSS, colors, layout or text
+- ONLY add a <script> block before </body> that handles:
+  1. Hamburger button toggles mobile nav open/close
+  2. Nav links smooth scroll to matching section ids
+  3. CTA buttons scroll to contact or relevant section
+  4. Forms show a success message on submit
+  5. Add id attributes to sections where missing
+
+HTML:
+${stripped}`
+        }]
+      });
+
+      const fixText = fixResponse.content[0]?.type === "text" ? fixResponse.content[0].text : stitchHtml;
+      finalHtml = extractHtml(fixText);
+      console.log("STEP 5 DONE. Length:", finalHtml.length);
+    } else {
+      console.log("STEP 5: Skipped — Stitch already included JS");
+    }
+
+    // STEP 6: Send email
+    console.log("STEP 6: Sending email...");
     await resend.emails.send({
       from: "onboarding@resend.dev",
       to: process.env.RESULT_TO_EMAIL!,
@@ -97,7 +152,7 @@ CRITICAL RULES for the stitchPrompt:
       `,
       attachments: [{ filename: "site.html", content: Buffer.from(finalHtml).toString("base64") }],
     });
-    console.log("STEP 5 DONE");
+    console.log("STEP 6 DONE");
 
     return NextResponse.json({
       success: true,
