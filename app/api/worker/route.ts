@@ -94,33 +94,38 @@ async function uploadToCloudinary(buffer: Buffer, folder: string, filename: stri
   });
 }
 
-function injectImages(html: string, logoUrl: string | null, heroUrl: string | null, photoUrls: string[], productPhotoUrls: string[]): string {
+function injectImages(html: string, logoUrl: string | null, heroUrl: string | null, photoUrls: string[], products: { name: string; price: string; photoUrl?: string }[]): string {
   let processed = html;
 
   if (heroUrl) {
     processed = processed.replace(/(background-image:\s*url\()[^)]+(\))/, `$1${heroUrl}$2`);
-    processed = processed.replace(/(<img[^>]*class="[^"]*(?:hero|banner|cover)[^"]*"[^>]*src=")[^"]+(")/i, `$1${heroUrl}$2`);
   }
 
-  // Inject product photos into pricing/menu/shop sections
-  if (productPhotoUrls.length > 0) {
+  // Inject product photos matched to their items
+  const productsWithPhotos = products.filter(p => p.photoUrl);
+  if (productsWithPhotos.length > 0) {
     const productScript = `
 <script>
 (function() {
-  var productPhotos = ${JSON.stringify(productPhotoUrls)};
-  var productImgs = document.querySelectorAll(
-    '[class*="menu"] img, [class*="product"] img, [class*="pricing"] img, [class*="shop"] img, [id*="menu"] img, [id*="shop"] img, [id*="pricing"] img'
-  );
-  productImgs.forEach(function(img, i) {
-    if (productPhotos[i]) {
-      img.src = productPhotos[i];
-      img.style.objectFit = 'cover';
-    }
+  var productData = ${JSON.stringify(productsWithPhotos)};
+  // Replace product images by matching product names
+  productData.forEach(function(product) {
+    var els = document.querySelectorAll('[class*="menu"] *, [class*="product"] *, [class*="pricing"] *, [class*="shop"] *, [id*="menu"] *, [id*="shop"] *');
+    els.forEach(function(el) {
+      if (el.textContent && el.textContent.toLowerCase().includes(product.name.toLowerCase())) {
+        var img = el.closest('[class*="card"], article, li, div')?.querySelector('img');
+        if (img && product.photoUrl) {
+          img.src = product.photoUrl;
+          img.style.objectFit = 'cover';
+        }
+      }
+    });
   });
-  // Also replace gallery images
-  var galleryImgs = document.querySelectorAll('[class*="gallery"] img, [id*="gallery"] img');
-  galleryImgs.forEach(function(img, i) {
-    if (productPhotos[i]) img.src = productPhotos[i];
+  // Fallback: replace product images in order
+  var productImgs = document.querySelectorAll('[class*="menu"] img, [class*="product"] img, [class*="pricing"] img, [class*="shop"] img, [id*="menu"] img');
+  var photoUrls = ${JSON.stringify(productsWithPhotos.map(p => p.photoUrl))};
+  productImgs.forEach(function(img, i) {
+    if (photoUrls[i]) { img.src = photoUrls[i]; img.style.objectFit = 'cover'; }
   });
 })();
 </script>`;
@@ -132,14 +137,8 @@ function injectImages(html: string, logoUrl: string | null, heroUrl: string | nu
 <script>
 (function() {
   var clientPhotos = ${JSON.stringify(photoUrls)};
-  var allImgs = document.querySelectorAll('img:not([src*="cloudinary"])');
-  var replaced = 0;
-  allImgs.forEach(function(img) {
-    if (replaced < clientPhotos.length && !img.src.includes('cloudinary')) {
-      img.src = clientPhotos[replaced];
-      replaced++;
-    }
-  });
+  var galleryImgs = document.querySelectorAll('[class*="gallery"] img, [id*="gallery"] img');
+  galleryImgs.forEach(function(img, i) { if (clientPhotos[i]) img.src = clientPhotos[i]; });
 })();
 </script>`;
     processed = processed.replace('</body>', photoScript + '</body>');
@@ -230,6 +229,7 @@ export async function POST(req: Request) {
       hasPricing: getString("hasPricing"),
       pricingType: getString("pricingType"),
       pricingDetails: getString("pricingDetails"),
+      products: getJson("products"),
       style: getString("style"),
       colorPrefs: getString("colorPrefs"),
       references: getString("references"),
@@ -253,18 +253,21 @@ export async function POST(req: Request) {
     let logoUrl: string | null = null;
     let heroUrl: string | null = null;
     const photoUrls: string[] = [];
-    const productPhotoUrls: string[] = [];
+
+    // Upload product photos and match to product data
+    const productsWithPhotos: { name: string; price: string; photoUrl?: string }[] = Array.isArray(userInput.products)
+      ? [...userInput.products] : [];
 
     const logoFile = formData.get("logo") as File | null;
     const heroFile = formData.get("hero") as File | null;
 
     if (logoFile && logoFile.size > 0) {
-      console.log("Uploading logo...");
       logoUrl = await uploadToCloudinary(Buffer.from(await logoFile.arrayBuffer()), folder, "logo");
+      console.log("Logo uploaded:", logoUrl);
     }
     if (heroFile && heroFile.size > 0) {
-      console.log("Uploading hero...");
       heroUrl = await uploadToCloudinary(Buffer.from(await heroFile.arrayBuffer()), folder, "hero");
+      console.log("Hero uploaded:", heroUrl);
     }
     for (let i = 0; i < 5; i++) {
       const f = formData.get(`photo_${i}`) as File | null;
@@ -273,31 +276,37 @@ export async function POST(req: Request) {
         photoUrls.push(url);
       }
     }
-    for (let i = 0; i < 8; i++) {
+    // Upload product photos and attach to product data
+    for (let i = 0; i < 20; i++) {
       const f = formData.get(`product_photo_${i}`) as File | null;
       if (f && f.size > 0) {
         const url = await uploadToCloudinary(Buffer.from(await f.arrayBuffer()), `${folder}/products`, `product_${i}`);
-        productPhotoUrls.push(url);
+        if (productsWithPhotos[i]) productsWithPhotos[i].photoUrl = url;
+        console.log(`Product ${i} photo uploaded:`, url);
       }
     }
 
-    console.log(`Uploaded: logo=${!!logoUrl}, hero=${!!heroUrl}, photos=${photoUrls.length}, productPhotos=${productPhotoUrls.length}`);
+    // Build pricing section for prompt
+    let pricingSection = "No pricing section needed";
+    if (userInput.hasPricing === "Yes") {
+      if (userInput.pricingType === "products" && productsWithPhotos.length > 0) {
+        pricingSection = `PRICING SECTION REQUIRED — Individual Products:
+${productsWithPhotos.map((p, i) => `- ${p.name}: ${p.price}${p.photoUrl ? ` (photo: ${p.photoUrl})` : ''}`).join('\n')}
+Display each product with its name, price, and photo in a grid or card layout.
+Use the exact product photos provided — do not use stock images for these items.`;
+      } else {
+        pricingSection = `PRICING SECTION REQUIRED:
+Type: ${userInput.pricingType}
+Details: ${userInput.pricingDetails}`;
+      }
+    }
 
-    const pricingSection = userInput.hasPricing === "Yes" && userInput.pricingDetails
-      ? `PRICING SECTION REQUIRED:
-- Type: ${userInput.pricingType}
-- Details: ${userInput.pricingDetails}
-- Display these exact prices prominently
-${productPhotoUrls.length > 0 ? `- Use these product photo URLs for the pricing items in order: ${productPhotoUrls.join(', ')}` : ''}`
-      : "No pricing section needed";
-
-    const imageSection = logoUrl || heroUrl || photoUrls.length > 0 || productPhotoUrls.length > 0
-      ? `CLIENT IMAGES PROVIDED — use these exact URLs:
+    const imageSection = logoUrl || heroUrl || photoUrls.length > 0
+      ? `CLIENT IMAGES:
 ${logoUrl ? `- Logo: ${logoUrl} — use in navbar` : ""}
-${heroUrl ? `- Hero image: ${heroUrl} — use as main hero background` : ""}
-${productPhotoUrls.length > 0 ? `- Product photos (use in menu/pricing/shop sections in this order):\n${productPhotoUrls.map((url, i) => `  ${i+1}. ${url}`).join('\n')}` : ""}
-${photoUrls.length > 0 ? `- General photos:\n${photoUrls.map((url, i) => `  ${i+1}. ${url}`).join('\n')}` : ""}`
-      : "No client images — use high quality stock images";
+${heroUrl ? `- Hero: ${heroUrl} — use as main hero background` : ""}
+${photoUrls.length > 0 ? `- General photos: ${photoUrls.join(', ')}` : ""}`
+      : "No branding images — use stock images";
 
     console.log("STEP 1: Claude spec...");
     const promptResponse = await anthropic.messages.create({
@@ -367,13 +376,18 @@ Make it premium and stunning for: ${userInput.businessName}`
     console.log("STEP 4 DONE. Length:", stitchHtml.length);
 
     let finalHtml = injectEssentials(stitchHtml, clientEmail, clientPhone);
-    finalHtml = injectImages(finalHtml, logoUrl, heroUrl, photoUrls, productPhotoUrls);
+    finalHtml = injectImages(finalHtml, logoUrl, heroUrl, photoUrls, productsWithPhotos);
     const cssContent = extractCSS(stitchHtml);
     console.log("STEP 5 DONE");
 
     const jobId = `job_${Date.now()}`;
     await redis.set(jobId, { html: finalHtml, title: spec.projectTitle, fileName, userInput }, { ex: 86400 });
     const processUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/process?id=${jobId}&secret=${process.env.PROCESS_SECRET}`;
+
+    // Build product summary for email
+    const productSummary = productsWithPhotos.length > 0
+      ? productsWithPhotos.map(p => `${p.name} — ${p.price}${p.photoUrl ? ' ✓ photo' : ''}`).join('<br/>')
+      : userInput.pricingDetails || "-";
 
     console.log("STEP 6: Emailing owner...");
     await resend.emails.send({
@@ -392,17 +406,16 @@ Make it premium and stunning for: ${userInput.businessName}`
         <p><strong>Type:</strong> ${userInput.siteType}</p>
         <p><strong>Pages:</strong> ${pageList}</p>
         <p><strong>Features:</strong> ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "-"}</p>
-        <p><strong>Pricing:</strong> ${userInput.hasPricing === "Yes" ? `${userInput.pricingType} — ${userInput.pricingDetails}` : "None"}</p>
+        <p><strong>Pricing:</strong> ${userInput.hasPricing === "Yes" ? userInput.pricingType : "None"}</p>
+        ${userInput.hasPricing === "Yes" ? `<p><strong>Products:</strong><br/>${productSummary}</p>` : ""}
         <p><strong>Style:</strong> ${userInput.style} / ${userInput.colorPrefs || "-"}</p>
         <p><strong>References:</strong> ${userInput.references || "-"}</p>
         <p><strong>Notes:</strong> ${userInput.additionalNotes || "-"}</p>
         ${logoUrl ? `<p><strong>Logo:</strong> <a href="${logoUrl}">View</a></p>` : ""}
         ${heroUrl ? `<p><strong>Hero:</strong> <a href="${heroUrl}">View</a></p>` : ""}
-        ${productPhotoUrls.length > 0 ? `<p><strong>Product Photos (${productPhotoUrls.length}):</strong> ${productPhotoUrls.map((u,i)=>`<a href="${u}">Photo ${i+1}</a>`).join(' ')}</p>` : ""}
-        ${photoUrls.length > 0 ? `<p><strong>General Photos (${photoUrls.length}):</strong> ${photoUrls.map((u,i)=>`<a href="${u}">Photo ${i+1}</a>`).join(' ')}</p>` : ""}
         <br/>
         <h3>💰 Quote: ${quote.package} — $${quote.price.toLocaleString()} + $${quote.monthlyPrice}/month</h3>
-        <ul>${quote.breakdown.map(b=>`<li>${b}</li>`).join('')}</ul>
+        <ul>${quote.breakdown.map(b => `<li>${b}</li>`).join('')}</ul>
         <br/>
         <a href="${processUrl}" style="background:#22c55e;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;">✅ Fix This Site</a>
         <p style="color:#94a3b8;font-size:12px;">Expires 24hrs</p>
