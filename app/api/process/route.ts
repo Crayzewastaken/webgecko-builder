@@ -1,7 +1,6 @@
 export const maxDuration = 300;
 export const runtime = "nodejs";
 
-import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
 import { Redis } from "@upstash/redis";
@@ -42,7 +41,8 @@ export async function GET(req: Request) {
       return new Response("Job not found or expired", { status: 404 });
     }
 
-    const { html, title, userInput } = stored;
+    const { html, title, fileName, userInput } = stored;
+    const fixedFileName = `${fileName || 'website'}-fixed`;
     console.log("PROCESS: Got HTML, length:", html.length);
 
     console.log("PROCESS: Claude fixing interactions...");
@@ -58,10 +58,11 @@ RULES:
 - Do NOT change any design, CSS, colors, layout or text
 - ONLY add a <script> block before </body> that handles:
   1. Hamburger button toggles mobile nav open/close
-  2. Nav links smooth scroll to matching section ids or switch pages using data-page system
+  2. Nav links smooth scroll to sections or switch pages using navigateTo()
   3. CTA buttons scroll to contact or relevant section
-  4. Forms show a success message on submit
-  5. Add id attributes to sections where missing
+  4. Forms show success message on submit
+  5. FAQ accordion using details/summary or div-based pattern
+  6. Add id attributes to sections where missing
 
 HTML:
 ${html}`
@@ -76,7 +77,7 @@ ${html}`
       ? userInput.pages.join(", ") : "Home";
 
     await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: "WebGecko <hello@webgecko.au>",
       to: process.env.RESULT_TO_EMAIL!,
       subject: `FIXED - ${title}`,
       html: `
@@ -85,15 +86,14 @@ ${html}`
         <p><strong>Email:</strong> ${userInput?.email}</p>
         <p><strong>Phone:</strong> ${userInput?.phone}</p>
         <p><strong>Pages:</strong> ${pageList}</p>
-        <p>This version has working buttons and interactions.</p>
+        <p>This version has working buttons, FAQ dropdowns and interactions.</p>
       `,
       attachments: [{
-        filename: "site-fixed.html",
+        filename: `${fixedFileName}.html`,
         content: Buffer.from(finalHtml).toString("base64"),
       }],
     });
 
-    // Delete from Redis after processing
     await redis.del(id);
     console.log("PROCESS: Done. Email sent.");
 
@@ -101,7 +101,7 @@ ${html}`
       <html>
         <body style="font-family:sans-serif;padding:40px;background:#0f172a;color:white;text-align:center;">
           <h1 style="color:#22c55e">✅ Done!</h1>
-          <p>Fixed site has been sent to your email.</p>
+          <p>Fixed site <strong>${fixedFileName}.html</strong> has been sent to your email.</p>
           <p style="color:#94a3b8">You can close this tab.</p>
         </body>
       </html>

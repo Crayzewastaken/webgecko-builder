@@ -37,8 +37,6 @@ function extractCSS(html: string): string {
       styleBlocks.push(match[1].trim());
     }
   }
-
-  // Extract Tailwind config colors and fonts
   const tailwindMatch = html.match(/tailwind\.config\s*=\s*({[\s\S]*?})\s*<\/script>/);
   let colorVars = '';
   if (tailwindMatch) {
@@ -58,25 +56,13 @@ function extractCSS(html: string): string {
       colorVars = '/* Could not extract theme colors */\n';
     }
   }
-
-  return `/* ════════════════════════════════════════
-   WebGecko Generated Styles
-   Use this in WordPress → Appearance → Additional CSS
-   to match your main site design in WooCommerce/Amelia
-════════════════════════════════════════ */
-
-${colorVars}
-
-/* ── CUSTOM STYLES ── */
-${styleBlocks.join('\n\n')}
-`;
+  return `/* WebGecko Generated Styles — paste into WordPress Appearance > Additional CSS */\n\n${colorVars}\n/* ── CUSTOM STYLES ── */\n${styleBlocks.join('\n\n')}`;
 }
 
 function calculateQuote(userInput: any): { package: string; price: number; monthlyPrice: number; savings: number; breakdown: string[] } {
   const pageCount = Array.isArray(userInput.pages) ? userInput.pages.length : 1;
   const features = Array.isArray(userInput.features) ? userInput.features : [];
   const isMultiPage = userInput.siteType === 'multi';
-
   const hasEcommerce = features.includes('Payments / Shop');
   const hasBooking = features.includes('Booking System');
   const hasBlog = features.includes('Blog');
@@ -86,7 +72,6 @@ function calculateQuote(userInput: any): { package: string; price: number; month
   let competitorPrice = 3500;
   const breakdown: string[] = [];
 
-  // Determine package
   if (pageCount >= 8 || hasEcommerce || hasBooking) {
     packageName = 'Premium';
     basePrice = 5500;
@@ -99,62 +84,29 @@ function calculateQuote(userInput: any): { package: string; price: number; month
 
   breakdown.push(`${packageName} package (${pageCount} pages): $${basePrice.toLocaleString()}`);
 
-  // Add-ons
   let addons = 0;
-  if (hasEcommerce && packageName !== 'Premium') {
-    addons += 300;
-    breakdown.push('Payments / Shop setup: +$300');
-  }
-  if (hasBooking && packageName !== 'Premium') {
-    addons += 200;
-    breakdown.push('Booking system setup: +$200');
-  }
-  if (hasBlog) {
-    addons += 150;
-    breakdown.push('Blog setup: +$150');
-  }
-  if (features.includes('Photo Gallery')) {
-    addons += 100;
-    breakdown.push('Photo gallery: +$100');
-  }
-  if (features.includes('Reviews & Testimonials')) {
-    addons += 100;
-    breakdown.push('Reviews & testimonials: +$100');
-  }
-  if (features.includes('Live Chat')) {
-    addons += 150;
-    breakdown.push('Live chat setup: +$150');
-  }
-  if (features.includes('Newsletter Signup')) {
-    addons += 100;
-    breakdown.push('Newsletter setup: +$100');
-  }
+  if (hasEcommerce && packageName !== 'Premium') { addons += 300; breakdown.push('Payments / Shop: +$300'); }
+  if (hasBooking && packageName !== 'Premium') { addons += 200; breakdown.push('Booking system: +$200'); }
+  if (hasBlog) { addons += 150; breakdown.push('Blog setup: +$150'); }
+  if (features.includes('Photo Gallery')) { addons += 100; breakdown.push('Photo gallery: +$100'); }
+  if (features.includes('Reviews & Testimonials')) { addons += 100; breakdown.push('Reviews & testimonials: +$100'); }
+  if (features.includes('Live Chat')) { addons += 150; breakdown.push('Live chat: +$150'); }
+  if (features.includes('Newsletter Signup')) { addons += 100; breakdown.push('Newsletter: +$100'); }
 
   const totalPrice = basePrice + addons;
   const monthlyPrice = packageName === 'Premium' ? 149 : packageName === 'Business' ? 99 : 79;
   const savings = competitorPrice - totalPrice;
-
   breakdown.push(`Monthly hosting & maintenance: $${monthlyPrice}/month`);
 
-  return {
-    package: packageName,
-    price: totalPrice,
-    monthlyPrice,
-    savings,
-    breakdown,
-  };
+  return { package: packageName, price: totalPrice, monthlyPrice, savings, breakdown };
 }
 
 function injectEssentials(html: string, email: string, phone: string): string {
   let processed = html;
-
-  // Replace placeholder emails
   processed = processed.replace(/hello@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
   processed = processed.replace(/info@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
   processed = processed.replace(/contact@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
   processed = processed.replace(/support@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
-
-  // Replace placeholder phones
   processed = processed.replace(/\+1 \(555\)[^\s<"']*/g, phone);
   processed = processed.replace(/\(555\)[^\s<"']*/g, phone);
   processed = processed.replace(/555-[0-9-]+/g, phone);
@@ -164,6 +116,7 @@ function injectEssentials(html: string, email: string, phone: string): string {
 <script>
 (function() {
 
+// ── PAGE NAVIGATION ──────────────────────────────────────
 window.navigateTo = function(pageId) {
   document.querySelectorAll('.page, .page-section, [class*="page-section"]').forEach(function(p) {
     p.style.display = 'none';
@@ -182,6 +135,7 @@ window.navigateTo = function(pageId) {
   if (mobileMenu) { mobileMenu.classList.add('hidden'); mobileMenu.style.display = 'none'; }
 };
 
+// ── BIND NAV LINKS ───────────────────────────────────────
 document.querySelectorAll('a, button').forEach(function(el) {
   const onclick = el.getAttribute('onclick') || '';
   const href = el.getAttribute('href') || '';
@@ -198,8 +152,13 @@ document.querySelectorAll('a, button').forEach(function(el) {
   }
 });
 
-const hamburgers = document.querySelectorAll('#hamburger,#hamburger-btn,#menu-btn,[class*="hamburger"],[aria-label="Open menu"],[aria-label="Menu"]');
-const mobileMenus = document.querySelectorAll('#mobile-menu,#mobile-nav,[class*="mobile-menu"],[class*="mobile-nav"]');
+// ── MOBILE HAMBURGER ─────────────────────────────────────
+const hamburgers = document.querySelectorAll(
+  '#hamburger,#hamburger-btn,#menu-btn,[class*="hamburger"],[aria-label="Open menu"],[aria-label="Menu"],[aria-label="Toggle menu"]'
+);
+const mobileMenus = document.querySelectorAll(
+  '#mobile-menu,#mobile-nav,[class*="mobile-menu"],[class*="mobile-nav"]'
+);
 hamburgers.forEach(function(btn) {
   if (btn.getAttribute('onclick')) return;
   btn.addEventListener('click', function() {
@@ -211,6 +170,77 @@ hamburgers.forEach(function(btn) {
   });
 });
 
+// ── FAQ ACCORDION ────────────────────────────────────────
+function initFAQ() {
+  // Method 1: details/summary elements (native HTML accordion)
+  document.querySelectorAll('details').forEach(function(details) {
+    const summary = details.querySelector('summary');
+    if (summary) {
+      summary.style.cursor = 'pointer';
+      summary.addEventListener('click', function(e) {
+        e.preventDefault();
+        const isOpen = details.hasAttribute('open');
+        // Close all others
+        document.querySelectorAll('details').forEach(function(d) { d.removeAttribute('open'); });
+        if (!isOpen) details.setAttribute('open', '');
+      });
+    }
+  });
+
+  // Method 2: div-based FAQ with question/answer pattern
+  const faqContainers = document.querySelectorAll(
+    '[class*="faq"],[class*="accordion"],[class*="FAQ"],[id*="faq"],[id*="FAQ"]'
+  );
+  faqContainers.forEach(function(container) {
+    const items = container.querySelectorAll(
+      '[class*="item"],[class*="question"],[class*="entry"],[class*="row"]'
+    );
+    items.forEach(function(item) {
+      const question = item.querySelector(
+        '[class*="question"],[class*="trigger"],[class*="header"],[class*="title"],h3,h4,button'
+      );
+      const answer = item.querySelector(
+        '[class*="answer"],[class*="content"],[class*="body"],[class*="panel"],p'
+      );
+      if (question && answer) {
+        answer.style.display = 'none';
+        question.style.cursor = 'pointer';
+        question.addEventListener('click', function() {
+          const isOpen = answer.style.display !== 'none';
+          // Close all
+          items.forEach(function(i) {
+            const a = i.querySelector('[class*="answer"],[class*="content"],[class*="body"],[class*="panel"],p');
+            if (a) a.style.display = 'none';
+          });
+          if (!isOpen) answer.style.display = 'block';
+        });
+      }
+    });
+  });
+
+  // Method 3: group-open Tailwind pattern
+  document.querySelectorAll('[class*="group"]').forEach(function(group) {
+    const trigger = group.querySelector('button, [class*="question"], summary, h3, h4');
+    const content = group.querySelector('[class*="answer"], [class*="content"], [class*="panel"]');
+    if (trigger && content) {
+      if (!content.classList.contains('wg-faq-init')) {
+        content.classList.add('wg-faq-init');
+        content.style.display = 'none';
+        trigger.style.cursor = 'pointer';
+        trigger.addEventListener('click', function() {
+          const isOpen = content.style.display !== 'none';
+          content.style.display = isOpen ? 'none' : 'block';
+          // Toggle icon rotation if exists
+          const icon = trigger.querySelector('[class*="rotate"],[class*="arrow"],[class*="chevron"],span');
+          if (icon) icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+        });
+      }
+    }
+  });
+}
+initFAQ();
+
+// ── ADD TO CART ──────────────────────────────────────────
 let cart = [];
 function showToast(msg) {
   let toast = document.getElementById('wg-toast');
@@ -224,7 +254,6 @@ function showToast(msg) {
   toast.style.opacity = '1';
   setTimeout(function() { toast.style.opacity = '0'; }, 2500);
 }
-
 document.querySelectorAll('button, a').forEach(function(btn) {
   const txt = (btn.textContent || '').toLowerCase().trim();
   if (txt.includes('add to cart') || txt.includes('buy now') || txt.includes('add to bag') || txt.includes('purchase')) {
@@ -238,13 +267,14 @@ document.querySelectorAll('button, a').forEach(function(btn) {
       const existing = cart.find(function(i) { return i.name === name; });
       if (existing) existing.qty++;
       else cart.push({ name: name, price: price, qty: 1 });
-      showToast(name + ' added to cart ✓');
+      showToast(name + ' added to cart \u2713');
       const total = cart.reduce(function(a,b) { return a + b.qty; }, 0);
       document.querySelectorAll('#cart-count,#cart-badge,[class*="cart-count"]').forEach(function(badge) { badge.textContent = total; });
     });
   }
 });
 
+// ── FORMS ────────────────────────────────────────────────
 document.querySelectorAll('form').forEach(function(form) {
   form.addEventListener('submit', function(e) {
     e.preventDefault();
@@ -252,12 +282,13 @@ document.querySelectorAll('form').forEach(function(form) {
     const success = document.createElement('div');
     success.className = 'wg-success';
     success.style.cssText = 'background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;font-size:16px;font-family:sans-serif;';
-    success.textContent = '✓ Thank you! We will be in touch within 24 hours.';
+    success.textContent = '\u2713 Thank you! We will be in touch within 24 hours.';
     form.appendChild(success);
     form.querySelectorAll('input,textarea,select,button[type="submit"]').forEach(function(el) { el.setAttribute('disabled','true'); });
   });
 });
 
+// ── INIT MULTI-PAGE ──────────────────────────────────────
 const allPages = document.querySelectorAll('.page, .page-section');
 if (allPages.length > 1) {
   let hasActive = false;
@@ -314,12 +345,14 @@ MULTI-PAGE SITE REQUIRED. Pages: ${pageList}
 - Nav links using onclick="navigateTo('pageid')"
 - Mobile hamburger with id="hamburger" toggling id="mobile-menu"
 - On the contact page use REAL email: ${clientEmail} and REAL phone: ${clientPhone}
+- FAQ section must use native HTML details/summary elements for accordion dropdowns
 ` : `
 SINGLE PAGE SITE REQUIRED. Sections: ${pageList}
 - Each section with unique id in lowercase
 - Nav links using href="#sectionid"
 - Mobile hamburger with id="hamburger" toggling id="mobile-menu"
 - In contact section use REAL email: ${clientEmail} and REAL phone: ${clientPhone}
+- FAQ section must use native HTML details/summary elements for accordion dropdowns
 `}
 
 Make it premium and visually stunning for: ${userInput.businessName} — ${userInput.industry}`
@@ -359,6 +392,7 @@ Make it premium and visually stunning for: ${userInput.businessName} — ${userI
     await redis.set(jobId, {
       html: finalHtml,
       title: spec.projectTitle,
+      fileName,
       userInput,
     }, { ex: 86400 });
 
@@ -386,24 +420,15 @@ Make it premium and visually stunning for: ${userInput.businessName} — ${userI
         <p><strong>Package:</strong> ${quote.package}</p>
         <p><strong>Total:</strong> $${quote.price.toLocaleString()}</p>
         <p><strong>Monthly:</strong> $${quote.monthlyPrice}/month</p>
-        <p><strong>Breakdown:</strong></p>
         <ul>${quote.breakdown.map(b => `<li>${b}</li>`).join('')}</ul>
         <br/>
-        <p>HTML + CSS files attached. Click below for Claude deep fix if needed:</p>
-        <a href="${processUrl}" style="background:#22c55e;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">
-          ✅ Fix This Site
-        </a>
+        <p>HTML + CSS attached. Click below for Claude deep fix if needed:</p>
+        <a href="${processUrl}" style="background:#22c55e;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">✅ Fix This Site</a>
         <p style="color:#94a3b8;font-size:12px;">Link expires in 24 hours.</p>
       `,
       attachments: [
-        {
-          filename: `${fileName}.html`,
-          content: Buffer.from(finalHtml).toString("base64"),
-        },
-        {
-          filename: `${fileName}-styles.css`,
-          content: Buffer.from(cssContent).toString("base64"),
-        },
+        { filename: `${fileName}.html`, content: Buffer.from(finalHtml).toString("base64") },
+        { filename: `${fileName}-styles.css`, content: Buffer.from(cssContent).toString("base64") },
       ],
     });
     console.log("STEP 6 DONE");
@@ -418,7 +443,6 @@ Make it premium and visually stunning for: ${userInput.businessName} — ${userI
           <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;">
             <h1 style="font-size:28px;margin-bottom:8px;">Thank you, ${userInput.name}!</h1>
             <p style="color:#666;margin-bottom:32px;">We have received your website request and our team is reviewing it now.</p>
-
             <div style="background:#f9f9f9;border-radius:12px;padding:24px;margin-bottom:24px;">
               <h2 style="font-size:16px;margin-bottom:16px;color:#333;">Your Request Summary</h2>
               <table style="width:100%;border-collapse:collapse;">
@@ -431,7 +455,6 @@ Make it premium and visually stunning for: ${userInput.businessName} — ${userI
                 <tr><td style="padding:8px 0;color:#666;">Style</td><td style="padding:8px 0;font-weight:600;">${userInput.style || "-"}</td></tr>
               </table>
             </div>
-
             <div style="background:#0f172a;border-radius:12px;padding:24px;margin-bottom:24px;color:white;">
               <h2 style="font-size:16px;margin-bottom:16px;color:#f2ca50;">💰 Your Quote — ${quote.package} Package</h2>
               <p style="font-size:32px;font-weight:800;margin:0;color:white;">$${quote.price.toLocaleString()}</p>
@@ -443,7 +466,6 @@ Make it premium and visually stunning for: ${userInput.businessName} — ${userI
                 <p style="color:#22c55e;font-weight:bold;margin:0;font-size:18px;">🎉 You are saving $${quote.savings.toLocaleString()} compared to the industry average!</p>
               </div>
             </div>
-
             <p style="color:#666;">Our team will be in touch within <strong>24 hours</strong> with your website preview.</p>
             <p style="color:#666;">Reply to this email if you have any questions.</p>
             <br/>
