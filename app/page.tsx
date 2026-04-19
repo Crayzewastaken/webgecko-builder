@@ -32,7 +32,6 @@ function calculateQuote(pages: string[], features: string[], siteType: string) {
   return { packageName, totalPrice, monthlyPrice, savings, competitorPrice };
 }
 
-// Compress image to under 800KB before upload
 async function compressImage(file: File, maxWidthPx = 1200, qualityVal = 0.75): Promise<File> {
   return new Promise((resolve) => {
     const img = new Image();
@@ -50,11 +49,8 @@ async function compressImage(file: File, maxWidthPx = 1200, qualityVal = 0.75): 
       ctx.drawImage(img, 0, 0, width, height);
       canvas.toBlob((blob) => {
         URL.revokeObjectURL(url);
-        if (blob) {
-          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
-        } else {
-          resolve(file);
-        }
+        if (blob) resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+        else resolve(file);
       }, 'image/jpeg', qualityVal);
     };
     img.src = url;
@@ -91,11 +87,13 @@ export default function HomePage() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [heroFile, setHeroFile] = useState<File | null>(null);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [productPhotoFiles, setProductPhotoFiles] = useState<File[]>([]);
   const [compressing, setCompressing] = useState(false);
 
   const logoRef = useRef<HTMLInputElement>(null);
   const heroRef = useRef<HTMLInputElement>(null);
   const photosRef = useRef<HTMLInputElement>(null);
+  const productPhotosRef = useRef<HTMLInputElement>(null);
 
   const totalSteps = 9;
 
@@ -113,8 +111,7 @@ export default function HomePage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setCompressing(true);
-    const compressed = await compressImage(file, 400, 0.85);
-    setLogoFile(compressed);
+    setLogoFile(await compressImage(file, 400, 0.85));
     setCompressing(false);
   }
 
@@ -122,8 +119,7 @@ export default function HomePage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setCompressing(true);
-    const compressed = await compressImage(file, 1400, 0.75);
-    setHeroFile(compressed);
+    setHeroFile(await compressImage(file, 1400, 0.75));
     setCompressing(false);
   }
 
@@ -132,6 +128,14 @@ export default function HomePage() {
     setCompressing(true);
     const compressed = await Promise.all(files.slice(0, 5).map(f => compressImage(f, 1000, 0.7)));
     setPhotoFiles(prev => [...prev, ...compressed].slice(0, 5));
+    setCompressing(false);
+  }
+
+  async function handleProductPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    setCompressing(true);
+    const compressed = await Promise.all(files.slice(0, 8).map(f => compressImage(f, 800, 0.75)));
+    setProductPhotoFiles(prev => [...prev, ...compressed].slice(0, 8));
     setCompressing(false);
   }
 
@@ -154,6 +158,7 @@ export default function HomePage() {
     if (logoFile) formData.append("logo", logoFile);
     if (heroFile) formData.append("hero", heroFile);
     photoFiles.forEach((file, i) => formData.append(`photo_${i}`, file));
+    productPhotoFiles.forEach((file, i) => formData.append(`product_photo_${i}`, file));
 
     try {
       const res = await fetch("/api/worker", {
@@ -178,18 +183,18 @@ export default function HomePage() {
     setStep(Math.max(1, step - 1));
   }
 
-  const FileUploadBox = ({ label, file, onChange, inputRef, accept, hint, multiple }: any) => (
+  const FileUploadBox = ({ label, file, onChange, inputRef, accept, hint }: any) => (
     <div
       onClick={() => inputRef.current?.click()}
       className="border-2 border-dashed border-white/20 rounded-2xl p-6 cursor-pointer hover:border-white/40 transition-all text-center"
     >
-      <input ref={inputRef} type="file" accept={accept} multiple={multiple} className="hidden" onChange={onChange} />
+      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={onChange} />
       {compressing ? (
-        <p className="text-yellow-400 text-sm">Compressing image...</p>
+        <p className="text-yellow-400 text-sm">Compressing...</p>
       ) : file ? (
         <div>
           <p className="text-emerald-400 font-semibold">✓ {file.name}</p>
-          <p className="text-slate-500 text-xs mt-1">{(file.size / 1024).toFixed(0)}KB (compressed)</p>
+          <p className="text-slate-500 text-xs mt-1">{(file.size / 1024).toFixed(0)}KB</p>
         </div>
       ) : (
         <div>
@@ -318,85 +323,139 @@ export default function HomePage() {
             </div>
           )}
 
+          {/* STEP 6 — PRODUCT PHOTOS (shown right after pricing) */}
           {step === 6 && (
             <div className="space-y-4 mt-8">
-              <p className="text-white font-semibold text-lg">Design preferences</p>
-              <input placeholder="Style (e.g. Luxury dark, Clean minimal, Bold modern, Warm rustic)" value={style} onChange={(e) => setStyle(e.target.value)} className="input" />
-              <input placeholder="Colour preferences (e.g. Navy and gold, Black and white, Cream and terracotta)" value={colorPrefs} onChange={(e) => setColorPrefs(e.target.value)} className="input" />
-              <textarea placeholder="Websites you like for reference (paste links or describe)" value={references} onChange={(e) => setReferences(e.target.value)} className="textarea" />
-              <p className="text-slate-400 text-sm mt-2">Do you have a logo?</p>
-              <div className="grid gap-3">
-                {["Yes — I will provide it", "No — I need one designed", "No — please use text only"].map(opt => (
-                  <label key={opt} className={`card cursor-pointer border-2 transition-all ${hasLogo === opt ? "border-white" : "border-transparent"}`}>
-                    <input type="radio" name="hasLogo" checked={hasLogo === opt} onChange={() => setHasLogo(opt)} className="hidden" />
-                    <span className="text-sm">{opt}</span>
-                  </label>
-                ))}
-              </div>
+              {hasPricing === "Yes" ? (
+                <>
+                  <p className="text-white font-semibold text-lg">Upload photos of your products or services</p>
+                  <p className="text-slate-400 text-sm">These will be matched to your pricing items to create a consistent product showcase. Upload up to 8 photos.</p>
+                  <div
+                    onClick={() => productPhotosRef.current?.click()}
+                    className="border-2 border-dashed border-white/20 rounded-2xl p-8 cursor-pointer hover:border-white/40 transition-all text-center"
+                  >
+                    <input ref={productPhotosRef} type="file" accept="image/*" multiple className="hidden" onChange={handleProductPhotoChange} />
+                    <p className="text-2xl mb-2">📸</p>
+                    <p className="text-slate-300 font-semibold">Upload Product / Service Photos</p>
+                    <p className="text-slate-500 text-sm mt-1">Up to 8 photos — any size, we compress automatically</p>
+                    {productPhotoFiles.length > 0 && (
+                      <div className="mt-4 space-y-1">
+                        {productPhotoFiles.map((f, i) => (
+                          <p key={i} className="text-emerald-400 text-sm">✓ {f.name} ({(f.size / 1024).toFixed(0)}KB)</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-slate-500 text-xs text-center">Don't have product photos yet? Skip — we'll use matching stock images.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-white font-semibold text-lg">Design preferences</p>
+                  <input placeholder="Style (e.g. Luxury dark, Clean minimal, Bold modern)" value={style} onChange={(e) => setStyle(e.target.value)} className="input" />
+                  <input placeholder="Colour preferences (e.g. Navy and gold, Cream and terracotta)" value={colorPrefs} onChange={(e) => setColorPrefs(e.target.value)} className="input" />
+                  <textarea placeholder="Websites you like for reference" value={references} onChange={(e) => setReferences(e.target.value)} className="textarea" />
+                  <p className="text-slate-400 text-sm mt-2">Do you have a logo?</p>
+                  <div className="grid gap-3">
+                    {["Yes — I will provide it", "No — I need one designed", "No — please use text only"].map(opt => (
+                      <label key={opt} className={`card cursor-pointer border-2 transition-all ${hasLogo === opt ? "border-white" : "border-transparent"}`}>
+                        <input type="radio" name="hasLogo" checked={hasLogo === opt} onChange={() => setHasLogo(opt)} className="hidden" />
+                        <span className="text-sm">{opt}</span>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
           {step === 7 && (
             <div className="space-y-4 mt-8">
-              <p className="text-white font-semibold text-lg">Upload your assets</p>
-              <p className="text-slate-400 text-sm">Images are automatically compressed before uploading. Skip any you don't have yet.</p>
+              <p className="text-white font-semibold text-lg">
+                {hasPricing === "Yes" ? "Design preferences" : "Upload your assets"}
+              </p>
 
-              <FileUploadBox
-                label="📎 Upload Your Logo"
-                hint="PNG, SVG or JPG — any size, we'll compress it"
-                file={logoFile}
-                onChange={handleLogoChange}
-                inputRef={logoRef}
-                accept="image/*"
-              />
-
-              <FileUploadBox
-                label="🖼 Upload Hero / Banner Image"
-                hint="Main background image — any size, we'll compress it"
-                file={heroFile}
-                onChange={handleHeroChange}
-                inputRef={heroRef}
-                accept="image/*"
-              />
-
-              <div
-                onClick={() => photosRef.current?.click()}
-                className="border-2 border-dashed border-white/20 rounded-2xl p-6 cursor-pointer hover:border-white/40 transition-all text-center"
-              >
-                <input ref={photosRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoChange} />
-                <p className="text-slate-300 font-semibold">📷 Upload Additional Photos</p>
-                <p className="text-slate-500 text-sm mt-1">Up to 5 photos — any size, we compress automatically</p>
-                {photoFiles.length > 0 && (
-                  <div className="mt-3 space-y-1">
-                    {photoFiles.map((f, i) => (
-                      <p key={i} className="text-emerald-400 text-sm">✓ {f.name} ({(f.size / 1024).toFixed(0)}KB)</p>
+              {hasPricing === "Yes" ? (
+                <>
+                  <input placeholder="Style (e.g. Luxury dark, Clean minimal, Warm rustic)" value={style} onChange={(e) => setStyle(e.target.value)} className="input" />
+                  <input placeholder="Colour preferences (e.g. Cream and terracotta, Navy and gold)" value={colorPrefs} onChange={(e) => setColorPrefs(e.target.value)} className="input" />
+                  <textarea placeholder="Websites you like for reference" value={references} onChange={(e) => setReferences(e.target.value)} className="textarea" />
+                  <p className="text-slate-400 text-sm mt-2">Do you have a logo?</p>
+                  <div className="grid gap-3">
+                    {["Yes — I will provide it", "No — I need one designed", "No — please use text only"].map(opt => (
+                      <label key={opt} className={`card cursor-pointer border-2 transition-all ${hasLogo === opt ? "border-white" : "border-transparent"}`}>
+                        <input type="radio" name="hasLogo" checked={hasLogo === opt} onChange={() => setHasLogo(opt)} className="hidden" />
+                        <span className="text-sm">{opt}</span>
+                      </label>
                     ))}
                   </div>
-                )}
-              </div>
-
-              <p className="text-slate-500 text-xs text-center">Don't have images yet? Skip this step — we'll use professional stock images.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-slate-400 text-sm">Images are automatically compressed. Skip any you don't have.</p>
+                  <FileUploadBox label="📎 Upload Your Logo" hint="Any size — we compress it" file={logoFile} onChange={handleLogoChange} inputRef={logoRef} accept="image/*" />
+                  <FileUploadBox label="🖼 Upload Hero / Banner Image" hint="Main background image — any size" file={heroFile} onChange={handleHeroChange} inputRef={heroRef} accept="image/*" />
+                  <div onClick={() => photosRef.current?.click()} className="border-2 border-dashed border-white/20 rounded-2xl p-6 cursor-pointer hover:border-white/40 transition-all text-center">
+                    <input ref={photosRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoChange} />
+                    <p className="text-slate-300 font-semibold">📷 Additional Photos</p>
+                    <p className="text-slate-500 text-sm mt-1">Up to 5 photos</p>
+                    {photoFiles.length > 0 && photoFiles.map((f, i) => <p key={i} className="text-emerald-400 text-sm mt-1">✓ {f.name}</p>)}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
           {step === 8 && (
             <div className="space-y-4 mt-8">
-              <p className="text-white font-semibold text-lg">Content & anything else</p>
-              <p className="text-slate-400 text-sm">Do you have website copy/text ready?</p>
-              <div className="grid gap-3">
-                {["Yes — I will provide all text", "Partially — I have some text", "No — please write it for me"].map(opt => (
-                  <label key={opt} className={`card cursor-pointer border-2 transition-all ${hasContent === opt ? "border-white" : "border-transparent"}`}>
-                    <input type="radio" name="hasContent" checked={hasContent === opt} onChange={() => setHasContent(opt)} className="hidden" />
-                    <span className="text-sm">{opt}</span>
-                  </label>
-                ))}
-              </div>
-              <textarea placeholder="Anything else we should know? Deadline, special requirements, competitors to beat, anything goes" value={additionalNotes} onChange={(e) => setAdditionalNotes(e.target.value)} className="textarea mt-4" />
+              {hasPricing === "Yes" ? (
+                <>
+                  <p className="text-white font-semibold text-lg">Upload your branding assets</p>
+                  <p className="text-slate-400 text-sm">Images are automatically compressed. Skip any you don't have.</p>
+                  <FileUploadBox label="📎 Upload Your Logo" hint="Any size — we compress it" file={logoFile} onChange={handleLogoChange} inputRef={logoRef} accept="image/*" />
+                  <FileUploadBox label="🖼 Upload Hero / Banner Image" hint="Main background image — any size" file={heroFile} onChange={handleHeroChange} inputRef={heroRef} accept="image/*" />
+                  <div onClick={() => photosRef.current?.click()} className="border-2 border-dashed border-white/20 rounded-2xl p-6 cursor-pointer hover:border-white/40 transition-all text-center">
+                    <input ref={photosRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoChange} />
+                    <p className="text-slate-300 font-semibold">📷 Additional Photos</p>
+                    <p className="text-slate-500 text-sm mt-1">Up to 5 photos</p>
+                    {photoFiles.length > 0 && photoFiles.map((f, i) => <p key={i} className="text-emerald-400 text-sm mt-1">✓ {f.name}</p>)}
+                  </div>
+                  <p className="text-slate-500 text-xs text-center">Skip any you don't have — we'll use stock images.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-white font-semibold text-lg">Content & anything else</p>
+                  <p className="text-slate-400 text-sm">Do you have website copy/text ready?</p>
+                  <div className="grid gap-3">
+                    {["Yes — I will provide all text", "Partially — I have some text", "No — please write it for me"].map(opt => (
+                      <label key={opt} className={`card cursor-pointer border-2 transition-all ${hasContent === opt ? "border-white" : "border-transparent"}`}>
+                        <input type="radio" name="hasContent" checked={hasContent === opt} onChange={() => setHasContent(opt)} className="hidden" />
+                        <span className="text-sm">{opt}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <textarea placeholder="Anything else we should know?" value={additionalNotes} onChange={(e) => setAdditionalNotes(e.target.value)} className="textarea mt-4" />
+                </>
+              )}
             </div>
           )}
 
           {step === 9 && (
             <div className="space-y-4 mt-8">
+              {hasPricing === "Yes" && step === 9 && (
+                <div className="space-y-4 mb-6 pb-6 border-b border-white/10">
+                  <p className="text-white font-semibold text-lg">Content & anything else</p>
+                  <div className="grid gap-3">
+                    {["Yes — I will provide all text", "Partially — I have some text", "No — please write it for me"].map(opt => (
+                      <label key={opt} className={`card cursor-pointer border-2 transition-all ${hasContent === opt ? "border-white" : "border-transparent"}`}>
+                        <input type="radio" name="hasContent" checked={hasContent === opt} onChange={() => setHasContent(opt)} className="hidden" />
+                        <span className="text-sm">{opt}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <textarea placeholder="Anything else we should know?" value={additionalNotes} onChange={(e) => setAdditionalNotes(e.target.value)} className="textarea" />
+                </div>
+              )}
+
               <p className="text-white font-semibold text-lg">Your contact details</p>
               <p className="text-slate-400 text-sm">We will send a confirmation to your email and be in touch within 24 hours.</p>
               <input placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} className="input" />
@@ -423,7 +482,7 @@ export default function HomePage() {
           <div className="flex gap-4 mt-8">
             <button onClick={back} className="btn-outline">Back</button>
             <button onClick={next} disabled={loading || compressing} className="btn-primary">
-              {compressing ? "Compressing images..." : loading ? message || "Processing..." : step === totalSteps ? "Submit Request" : "Next"}
+              {compressing ? "Compressing..." : loading ? message || "Processing..." : step === totalSteps ? "Submit Request" : "Next"}
             </button>
           </div>
 
@@ -443,6 +502,7 @@ export default function HomePage() {
               <p>Type: {siteType || "-"}</p>
               <p>Pages: {pages.length > 0 ? pages.join(", ") : "-"}</p>
               <p>Features: {features.length > 0 ? features.join(", ") : "-"}</p>
+              <p>Pricing: {hasPricing || "-"}</p>
               <p>Contact: {name || "-"}</p>
             </div>
             {quote && (

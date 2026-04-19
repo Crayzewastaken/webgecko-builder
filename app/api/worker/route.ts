@@ -36,9 +36,7 @@ function extractCSS(html: string): string {
   const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
   let match;
   while ((match = styleRegex.exec(html)) !== null) {
-    if (!match[1].includes('tailwind') && match[1].trim().length > 10) {
-      styleBlocks.push(match[1].trim());
-    }
+    if (!match[1].includes('tailwind') && match[1].trim().length > 10) styleBlocks.push(match[1].trim());
   }
   const tailwindMatch = html.match(/tailwind\.config\s*=\s*({[\s\S]*?})\s*<\/script>/);
   let colorVars = '';
@@ -51,7 +49,7 @@ function extractCSS(html: string): string {
       colorVars += '}\n';
     } catch (e) {}
   }
-  return `/* WebGecko Generated Styles — paste into WordPress Appearance > Additional CSS */\n\n${colorVars}\n${styleBlocks.join('\n\n')}`;
+  return `/* WebGecko Generated Styles */\n\n${colorVars}\n${styleBlocks.join('\n\n')}`;
 }
 
 function calculateQuote(userInput: any) {
@@ -62,21 +60,18 @@ function calculateQuote(userInput: any) {
   const hasBooking = features.includes('Booking System');
   const hasBlog = features.includes('Blog');
 
-  let packageName = 'Starter';
-  let basePrice = 1800;
-  let competitorPrice = 3500;
+  let packageName = 'Starter'; let basePrice = 1800; let competitorPrice = 3500;
   const breakdown: string[] = [];
 
   if (pageCount >= 8 || hasEcommerce || hasBooking) { packageName = 'Premium'; basePrice = 5500; competitorPrice = 15000; }
   else if (pageCount >= 4 || isMultiPage) { packageName = 'Business'; basePrice = 3200; competitorPrice = 7500; }
 
   breakdown.push(`${packageName} package (${pageCount} pages): $${basePrice.toLocaleString()}`);
-
   let addons = 0;
   if (hasEcommerce && packageName !== 'Premium') { addons += 300; breakdown.push('Payments / Shop: +$300'); }
-  if (hasBooking && packageName !== 'Premium') { addons += 200; breakdown.push('Booking system: +$200'); }
-  if (hasBlog) { addons += 150; breakdown.push('Blog setup: +$150'); }
-  if (features.includes('Photo Gallery')) { addons += 100; breakdown.push('Photo gallery: +$100'); }
+  if (hasBooking && packageName !== 'Premium') { addons += 200; breakdown.push('Booking: +$200'); }
+  if (hasBlog) { addons += 150; breakdown.push('Blog: +$150'); }
+  if (features.includes('Photo Gallery')) { addons += 100; breakdown.push('Gallery: +$100'); }
   if (features.includes('Reviews & Testimonials')) { addons += 100; breakdown.push('Reviews: +$100'); }
   if (features.includes('Live Chat')) { addons += 150; breakdown.push('Live chat: +$150'); }
   if (features.includes('Newsletter Signup')) { addons += 100; breakdown.push('Newsletter: +$100'); }
@@ -93,56 +88,61 @@ async function uploadToCloudinary(buffer: Buffer, folder: string, filename: stri
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       { folder, public_id: filename, overwrite: true },
-      (error, result) => {
-        if (error) reject(error);
-        else resolve(result!.secure_url);
-      }
+      (error, result) => { if (error) reject(error); else resolve(result!.secure_url); }
     );
     stream.end(buffer);
   });
 }
 
-function injectImages(html: string, logoUrl: string | null, heroUrl: string | null, photoUrls: string[]): string {
+function injectImages(html: string, logoUrl: string | null, heroUrl: string | null, photoUrls: string[], productPhotoUrls: string[]): string {
   let processed = html;
 
-  // Replace logo placeholder
-  if (logoUrl) {
-    processed = processed.replace(
-      /<img[^>]*(?:logo|brand|icon)[^>]*>/gi,
-      `<img src="${logoUrl}" alt="Logo" style="height:40px;object-fit:contain;" />`
-    );
-  }
-
-  // Replace hero/banner image
   if (heroUrl) {
-    processed = processed.replace(
-      /(<(?:img|div)[^>]*(?:hero|banner|background|bg)[^>]*(?:src=")[^"]*")/gi,
-      `$1`
-    );
-    // More reliable: replace first large background image
-    processed = processed.replace(
-      /(background-image:\s*url\()[^)]+(\))/,
-      `$1${heroUrl}$2`
-    );
-    processed = processed.replace(
-      /(<img[^>]*class="[^"]*(?:hero|banner|cover|background)[^"]*"[^>]*src=")[^"]+(")/i,
-      `$1${heroUrl}$2`
-    );
+    processed = processed.replace(/(background-image:\s*url\()[^)]+(\))/, `$1${heroUrl}$2`);
+    processed = processed.replace(/(<img[^>]*class="[^"]*(?:hero|banner|cover)[^"]*"[^>]*src=")[^"]+(")/i, `$1${heroUrl}$2`);
   }
 
-  // Inject photo URLs as data attribute for gallery use
-  if (photoUrls.length > 0) {
-    const galleryScript = `
+  // Inject product photos into pricing/menu/shop sections
+  if (productPhotoUrls.length > 0) {
+    const productScript = `
 <script>
-// Client uploaded photos available at:
-${photoUrls.map((url, i) => `// Photo ${i + 1}: ${url}`).join('\n')}
-// Replace gallery placeholder images with these URLs
-var clientPhotos = ${JSON.stringify(photoUrls)};
-document.querySelectorAll('[class*="gallery"] img, [class*="photo"] img, [id*="gallery"] img').forEach(function(img, i) {
-  if (clientPhotos[i]) img.src = clientPhotos[i];
-});
+(function() {
+  var productPhotos = ${JSON.stringify(productPhotoUrls)};
+  var productImgs = document.querySelectorAll(
+    '[class*="menu"] img, [class*="product"] img, [class*="pricing"] img, [class*="shop"] img, [id*="menu"] img, [id*="shop"] img, [id*="pricing"] img'
+  );
+  productImgs.forEach(function(img, i) {
+    if (productPhotos[i]) {
+      img.src = productPhotos[i];
+      img.style.objectFit = 'cover';
+    }
+  });
+  // Also replace gallery images
+  var galleryImgs = document.querySelectorAll('[class*="gallery"] img, [id*="gallery"] img');
+  galleryImgs.forEach(function(img, i) {
+    if (productPhotos[i]) img.src = productPhotos[i];
+  });
+})();
 </script>`;
-    processed = processed.replace('</body>', galleryScript + '</body>');
+    processed = processed.replace('</body>', productScript + '</body>');
+  }
+
+  if (photoUrls.length > 0) {
+    const photoScript = `
+<script>
+(function() {
+  var clientPhotos = ${JSON.stringify(photoUrls)};
+  var allImgs = document.querySelectorAll('img:not([src*="cloudinary"])');
+  var replaced = 0;
+  allImgs.forEach(function(img) {
+    if (replaced < clientPhotos.length && !img.src.includes('cloudinary')) {
+      img.src = clientPhotos[replaced];
+      replaced++;
+    }
+  });
+})();
+</script>`;
+    processed = processed.replace('</body>', photoScript + '</body>');
   }
 
   return processed;
@@ -212,14 +212,10 @@ if(pages.length>1){var ha=false;pages.forEach(function(p){if(p.classList.contain
 export async function POST(req: Request) {
   try {
     console.log("REQUEST RECEIVED");
-
-    // Parse FormData
     const formData = await req.formData();
 
     const getString = (key: string) => formData.get(key)?.toString() || "";
-    const getJson = (key: string) => {
-      try { return JSON.parse(getString(key)); } catch { return []; }
-    };
+    const getJson = (key: string) => { try { return JSON.parse(getString(key)); } catch { return []; } };
 
     const userInput = {
       businessName: getString("businessName"),
@@ -239,7 +235,6 @@ export async function POST(req: Request) {
       references: getString("references"),
       hasLogo: getString("hasLogo"),
       hasContent: getString("hasContent"),
-      hasImages: getString("hasImages"),
       additionalNotes: getString("additionalNotes"),
       name: getString("name"),
       email: getString("email"),
@@ -252,54 +247,57 @@ export async function POST(req: Request) {
     const clientEmail = userInput.email || "";
     const clientPhone = userInput.phone || "";
     const quote = calculateQuote(userInput);
-
-    // Upload images to Cloudinary
     const folder = `webgecko/${fileName}`;
+
+    // Upload images
     let logoUrl: string | null = null;
     let heroUrl: string | null = null;
     const photoUrls: string[] = [];
+    const productPhotoUrls: string[] = [];
 
     const logoFile = formData.get("logo") as File | null;
     const heroFile = formData.get("hero") as File | null;
 
     if (logoFile && logoFile.size > 0) {
-      console.log("Uploading logo to Cloudinary...");
-      const buffer = Buffer.from(await logoFile.arrayBuffer());
-      logoUrl = await uploadToCloudinary(buffer, folder, "logo");
-      console.log("Logo uploaded:", logoUrl);
+      console.log("Uploading logo...");
+      logoUrl = await uploadToCloudinary(Buffer.from(await logoFile.arrayBuffer()), folder, "logo");
     }
-
     if (heroFile && heroFile.size > 0) {
-      console.log("Uploading hero to Cloudinary...");
-      const buffer = Buffer.from(await heroFile.arrayBuffer());
-      heroUrl = await uploadToCloudinary(buffer, folder, "hero");
-      console.log("Hero uploaded:", heroUrl);
+      console.log("Uploading hero...");
+      heroUrl = await uploadToCloudinary(Buffer.from(await heroFile.arrayBuffer()), folder, "hero");
     }
-
     for (let i = 0; i < 5; i++) {
-      const photoFile = formData.get(`photo_${i}`) as File | null;
-      if (photoFile && photoFile.size > 0) {
-        const buffer = Buffer.from(await photoFile.arrayBuffer());
-        const url = await uploadToCloudinary(buffer, folder, `photo_${i}`);
+      const f = formData.get(`photo_${i}`) as File | null;
+      if (f && f.size > 0) {
+        const url = await uploadToCloudinary(Buffer.from(await f.arrayBuffer()), folder, `photo_${i}`);
         photoUrls.push(url);
-        console.log(`Photo ${i} uploaded:`, url);
       }
     }
+    for (let i = 0; i < 8; i++) {
+      const f = formData.get(`product_photo_${i}`) as File | null;
+      if (f && f.size > 0) {
+        const url = await uploadToCloudinary(Buffer.from(await f.arrayBuffer()), `${folder}/products`, `product_${i}`);
+        productPhotoUrls.push(url);
+      }
+    }
+
+    console.log(`Uploaded: logo=${!!logoUrl}, hero=${!!heroUrl}, photos=${photoUrls.length}, productPhotos=${productPhotoUrls.length}`);
 
     const pricingSection = userInput.hasPricing === "Yes" && userInput.pricingDetails
       ? `PRICING SECTION REQUIRED:
 - Type: ${userInput.pricingType}
 - Details: ${userInput.pricingDetails}
-- Display these exact prices prominently`
+- Display these exact prices prominently
+${productPhotoUrls.length > 0 ? `- Use these product photo URLs for the pricing items in order: ${productPhotoUrls.join(', ')}` : ''}`
       : "No pricing section needed";
 
-    const imageSection = logoUrl || heroUrl || photoUrls.length > 0
-      ? `CLIENT IMAGES PROVIDED:
-${logoUrl ? `- Logo: ${logoUrl}` : ""}
-${heroUrl ? `- Hero image: ${heroUrl}` : ""}
-${photoUrls.map((url, i) => `- Photo ${i + 1}: ${url}`).join('\n')}
-Use these exact image URLs in the website. Logo goes in the navbar. Hero image goes in the hero section. Photos go in gallery/portfolio sections.`
-      : "No client images provided — use high quality stock images from the Stitch library";
+    const imageSection = logoUrl || heroUrl || photoUrls.length > 0 || productPhotoUrls.length > 0
+      ? `CLIENT IMAGES PROVIDED — use these exact URLs:
+${logoUrl ? `- Logo: ${logoUrl} — use in navbar` : ""}
+${heroUrl ? `- Hero image: ${heroUrl} — use as main hero background` : ""}
+${productPhotoUrls.length > 0 ? `- Product photos (use in menu/pricing/shop sections in this order):\n${productPhotoUrls.map((url, i) => `  ${i+1}. ${url}`).join('\n')}` : ""}
+${photoUrls.length > 0 ? `- General photos:\n${photoUrls.map((url, i) => `  ${i+1}. ${url}`).join('\n')}` : ""}`
+      : "No client images — use high quality stock images";
 
     console.log("STEP 1: Claude spec...");
     const promptResponse = await anthropic.messages.create({
@@ -330,17 +328,17 @@ ${isMultiPage ? `
 MULTI-PAGE SITE. Pages: ${pageList}
 - Each page as div with class "page-section" and unique lowercase id
 - Only first page visible, others display:none
-- Nav links using onclick="navigateTo('pageid')"
+- Nav using onclick="navigateTo('pageid')"
 - Mobile hamburger id="hamburger" toggling id="mobile-menu"
-- Contact: use REAL email ${clientEmail} and phone ${clientPhone}
-- FAQ: use native details/summary elements
+- Contact: REAL email ${clientEmail} and phone ${clientPhone}
+- FAQ: native details/summary elements
 ` : `
 SINGLE PAGE SITE. Sections: ${pageList}
-- Each section with unique lowercase id
+- Each section unique lowercase id
 - Nav using href="#sectionid"
 - Mobile hamburger id="hamburger" toggling id="mobile-menu"
-- Contact: use REAL email ${clientEmail} and phone ${clientPhone}
-- FAQ: use native details/summary elements
+- Contact: REAL email ${clientEmail} and phone ${clientPhone}
+- FAQ: native details/summary elements
 `}
 
 Make it premium and stunning for: ${userInput.businessName}`
@@ -369,9 +367,9 @@ Make it premium and stunning for: ${userInput.businessName}`
     console.log("STEP 4 DONE. Length:", stitchHtml.length);
 
     let finalHtml = injectEssentials(stitchHtml, clientEmail, clientPhone);
-    finalHtml = injectImages(finalHtml, logoUrl, heroUrl, photoUrls);
+    finalHtml = injectImages(finalHtml, logoUrl, heroUrl, photoUrls, productPhotoUrls);
     const cssContent = extractCSS(stitchHtml);
-    console.log("STEP 5 DONE: JS + images injected");
+    console.log("STEP 5 DONE");
 
     const jobId = `job_${Date.now()}`;
     await redis.set(jobId, { html: finalHtml, title: spec.projectTitle, fileName, userInput }, { ex: 86400 });
@@ -389,28 +387,25 @@ Make it premium and stunning for: ${userInput.businessName}`
         <p><strong>Email:</strong> ${clientEmail}</p>
         <p><strong>Phone:</strong> ${clientPhone}</p>
         <p><strong>Industry:</strong> ${userInput.industry}</p>
-        <p><strong>Target Audience:</strong> ${userInput.targetAudience || "-"}</p>
+        <p><strong>Audience:</strong> ${userInput.targetAudience || "-"}</p>
         <p><strong>Goal:</strong> ${userInput.goal}</p>
-        <p><strong>Site Type:</strong> ${userInput.siteType}</p>
+        <p><strong>Type:</strong> ${userInput.siteType}</p>
         <p><strong>Pages:</strong> ${pageList}</p>
         <p><strong>Features:</strong> ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "-"}</p>
-        <p><strong>Pricing:</strong> ${userInput.hasPricing === "Yes" ? `${userInput.pricingType} — ${userInput.pricingDetails}` : "No pricing section"}</p>
-        <p><strong>Style:</strong> ${userInput.style}</p>
-        <p><strong>Colours:</strong> ${userInput.colorPrefs || "-"}</p>
+        <p><strong>Pricing:</strong> ${userInput.hasPricing === "Yes" ? `${userInput.pricingType} — ${userInput.pricingDetails}` : "None"}</p>
+        <p><strong>Style:</strong> ${userInput.style} / ${userInput.colorPrefs || "-"}</p>
         <p><strong>References:</strong> ${userInput.references || "-"}</p>
-        <p><strong>Has Logo:</strong> ${userInput.hasLogo || "-"}</p>
-        <p><strong>Has Content:</strong> ${userInput.hasContent || "-"}</p>
         <p><strong>Notes:</strong> ${userInput.additionalNotes || "-"}</p>
-        ${logoUrl ? `<p><strong>Logo:</strong> <a href="${logoUrl}">${logoUrl}</a></p>` : ""}
-        ${heroUrl ? `<p><strong>Hero:</strong> <a href="${heroUrl}">${heroUrl}</a></p>` : ""}
-        ${photoUrls.length > 0 ? `<p><strong>Photos:</strong> ${photoUrls.map((u, i) => `<a href="${u}">Photo ${i+1}</a>`).join(', ')}</p>` : ""}
+        ${logoUrl ? `<p><strong>Logo:</strong> <a href="${logoUrl}">View</a></p>` : ""}
+        ${heroUrl ? `<p><strong>Hero:</strong> <a href="${heroUrl}">View</a></p>` : ""}
+        ${productPhotoUrls.length > 0 ? `<p><strong>Product Photos (${productPhotoUrls.length}):</strong> ${productPhotoUrls.map((u,i)=>`<a href="${u}">Photo ${i+1}</a>`).join(' ')}</p>` : ""}
+        ${photoUrls.length > 0 ? `<p><strong>General Photos (${photoUrls.length}):</strong> ${photoUrls.map((u,i)=>`<a href="${u}">Photo ${i+1}</a>`).join(' ')}</p>` : ""}
         <br/>
-        <h3>💰 Quote</h3>
-        <p><strong>Package:</strong> ${quote.package} — $${quote.price.toLocaleString()} + $${quote.monthlyPrice}/month</p>
-        <ul>${quote.breakdown.map(b => `<li>${b}</li>`).join('')}</ul>
+        <h3>💰 Quote: ${quote.package} — $${quote.price.toLocaleString()} + $${quote.monthlyPrice}/month</h3>
+        <ul>${quote.breakdown.map(b=>`<li>${b}</li>`).join('')}</ul>
         <br/>
-        <a href="${processUrl}" style="background:#22c55e;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">✅ Fix This Site</a>
-        <p style="color:#94a3b8;font-size:12px;">Expires in 24 hours.</p>
+        <a href="${processUrl}" style="background:#22c55e;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;">✅ Fix This Site</a>
+        <p style="color:#94a3b8;font-size:12px;">Expires 24hrs</p>
       `,
       attachments: [
         { filename: `${fileName}.html`, content: Buffer.from(finalHtml).toString("base64") },
@@ -428,7 +423,7 @@ Make it premium and stunning for: ${userInput.businessName}`
         html: `
           <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;">
             <h1 style="font-size:28px;margin-bottom:8px;">Thank you, ${userInput.name}!</h1>
-            <p style="color:#666;margin-bottom:32px;">We have received your request and our team is reviewing it now. We will be in touch within 24 hours.</p>
+            <p style="color:#666;margin-bottom:32px;">We have received your request and will be in touch within 24 hours.</p>
             <div style="background:#f9f9f9;border-radius:12px;padding:24px;margin-bottom:24px;">
               <h2 style="font-size:16px;margin-bottom:16px;color:#333;">Your Request Summary</h2>
               <table style="width:100%;border-collapse:collapse;">
@@ -443,12 +438,12 @@ Make it premium and stunning for: ${userInput.businessName}`
             <div style="background:#0f172a;border-radius:12px;padding:24px;margin-bottom:24px;color:white;">
               <h2 style="font-size:16px;margin-bottom:16px;color:#f2ca50;">💰 Your Quote — ${quote.package} Package</h2>
               <p style="font-size:32px;font-weight:800;margin:0;">\$${quote.price.toLocaleString()}</p>
-              <p style="color:#94a3b8;margin-bottom:16px;">+ \$${quote.monthlyPrice}/month hosting & maintenance</p>
+              <p style="color:#94a3b8;margin-bottom:16px;">+ \$${quote.monthlyPrice}/month hosting</p>
               <div style="background:#22c55e20;border:1px solid #22c55e40;border-radius:8px;padding:16px;margin-top:16px;">
-                <p style="color:#22c55e;font-weight:bold;margin:0;">🎉 You are saving \$${quote.savings.toLocaleString()} compared to the industry average of \$${quote.competitorPrice.toLocaleString()}!</p>
+                <p style="color:#22c55e;font-weight:bold;margin:0;">🎉 Saving \$${quote.savings.toLocaleString()} vs industry average of \$${quote.competitorPrice.toLocaleString()}!</p>
               </div>
             </div>
-            <p style="color:#666;">Reply to this email if you have any questions.</p>
+            <p style="color:#666;">Reply to this email with any questions.</p>
             <div style="border-top:1px solid #eee;padding-top:20px;margin-top:20px;">
               <p style="color:#999;font-size:12px;">WebGecko — Professional Web Design | webgecko.au</p>
             </div>
@@ -458,10 +453,7 @@ Make it premium and stunning for: ${userInput.businessName}`
       console.log("STEP 7 DONE");
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "Thank you! We have received your request and will be in touch shortly.",
-    });
+    return NextResponse.json({ success: true, message: "Thank you! We have received your request and will be in touch shortly." });
 
   } catch (error: any) {
     console.error("FAILED:", error.message);
