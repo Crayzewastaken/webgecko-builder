@@ -12,6 +12,7 @@
     "@anthropic-ai/sdk": "^0.89.0",
     "@google/stitch-sdk": "^0.1.0",
     "@upstash/redis": "^1.37.0",
+    "cloudinary": "^2.9.0",
     "jsdom": "^29.0.2",
     "next": "16.2.3",
     "pocketbase": "^0.26.8",

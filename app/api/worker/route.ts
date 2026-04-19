@@ -6,12 +6,19 @@ import { stitchClient } from "@/lib/stitch";
 import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
 import { Redis } from "@upstash/redis";
+import { v2 as cloudinary } from "cloudinary";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 const resend = new Resend(process.env.RESEND_API_KEY!);
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
+  api_key: process.env.CLOUDINARY_API_KEY!,
+  api_secret: process.env.CLOUDINARY_API_SECRET!,
 });
 
 function extractJson(text: string) {
@@ -70,16 +77,75 @@ function calculateQuote(userInput: any) {
   if (hasBooking && packageName !== 'Premium') { addons += 200; breakdown.push('Booking system: +$200'); }
   if (hasBlog) { addons += 150; breakdown.push('Blog setup: +$150'); }
   if (features.includes('Photo Gallery')) { addons += 100; breakdown.push('Photo gallery: +$100'); }
-  if (features.includes('Reviews & Testimonials')) { addons += 100; breakdown.push('Reviews & testimonials: +$100'); }
+  if (features.includes('Reviews & Testimonials')) { addons += 100; breakdown.push('Reviews: +$100'); }
   if (features.includes('Live Chat')) { addons += 150; breakdown.push('Live chat: +$150'); }
   if (features.includes('Newsletter Signup')) { addons += 100; breakdown.push('Newsletter: +$100'); }
 
   const totalPrice = basePrice + addons;
   const monthlyPrice = packageName === 'Premium' ? 149 : packageName === 'Business' ? 99 : 79;
   const savings = competitorPrice - totalPrice;
-  breakdown.push(`Monthly hosting & maintenance: $${monthlyPrice}/month`);
+  breakdown.push(`Monthly hosting: $${monthlyPrice}/month`);
 
   return { package: packageName, price: totalPrice, monthlyPrice, savings, competitorPrice, breakdown };
+}
+
+async function uploadToCloudinary(buffer: Buffer, folder: string, filename: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder, public_id: filename, overwrite: true },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result!.secure_url);
+      }
+    );
+    stream.end(buffer);
+  });
+}
+
+function injectImages(html: string, logoUrl: string | null, heroUrl: string | null, photoUrls: string[]): string {
+  let processed = html;
+
+  // Replace logo placeholder
+  if (logoUrl) {
+    processed = processed.replace(
+      /<img[^>]*(?:logo|brand|icon)[^>]*>/gi,
+      `<img src="${logoUrl}" alt="Logo" style="height:40px;object-fit:contain;" />`
+    );
+  }
+
+  // Replace hero/banner image
+  if (heroUrl) {
+    processed = processed.replace(
+      /(<(?:img|div)[^>]*(?:hero|banner|background|bg)[^>]*(?:src=")[^"]*")/gi,
+      `$1`
+    );
+    // More reliable: replace first large background image
+    processed = processed.replace(
+      /(background-image:\s*url\()[^)]+(\))/,
+      `$1${heroUrl}$2`
+    );
+    processed = processed.replace(
+      /(<img[^>]*class="[^"]*(?:hero|banner|cover|background)[^"]*"[^>]*src=")[^"]+(")/i,
+      `$1${heroUrl}$2`
+    );
+  }
+
+  // Inject photo URLs as data attribute for gallery use
+  if (photoUrls.length > 0) {
+    const galleryScript = `
+<script>
+// Client uploaded photos available at:
+${photoUrls.map((url, i) => `// Photo ${i + 1}: ${url}`).join('\n')}
+// Replace gallery placeholder images with these URLs
+var clientPhotos = ${JSON.stringify(photoUrls)};
+document.querySelectorAll('[class*="gallery"] img, [class*="photo"] img, [id*="gallery"] img').forEach(function(img, i) {
+  if (clientPhotos[i]) img.src = clientPhotos[i];
+});
+</script>`;
+    processed = processed.replace('</body>', galleryScript + '</body>');
+  }
+
+  return processed;
 }
 
 function injectEssentials(html: string, email: string, phone: string): string {
@@ -96,48 +162,44 @@ function injectEssentials(html: string, email: string, phone: string): string {
 <script>
 (function() {
 window.navigateTo = function(pageId) {
-  document.querySelectorAll('.page, .page-section').forEach(function(p) { p.style.display='none'; p.classList.remove('active'); });
-  var target = document.getElementById(pageId) || document.getElementById('page-'+pageId) || document.querySelector('[data-page="'+pageId+'"]');
-  if (target) { target.style.display='block'; target.classList.add('active'); window.scrollTo({top:0,behavior:'smooth'}); }
-  var mm = document.getElementById('mobile-menu') || document.getElementById('mobile-nav');
-  if (mm) { mm.classList.add('hidden'); mm.style.display='none'; }
+  document.querySelectorAll('.page,.page-section').forEach(function(p){p.style.display='none';p.classList.remove('active');});
+  var t=document.getElementById(pageId)||document.getElementById('page-'+pageId)||document.querySelector('[data-page="'+pageId+'"]');
+  if(t){t.style.display='block';t.classList.add('active');window.scrollTo({top:0,behavior:'smooth'});}
+  var mm=document.getElementById('mobile-menu')||document.getElementById('mobile-nav');
+  if(mm){mm.classList.add('hidden');mm.style.display='none';}
 };
-document.querySelectorAll('a,button').forEach(function(el) {
-  var oc=el.getAttribute('onclick')||'', hr=el.getAttribute('href')||'', dn=el.getAttribute('data-nav')||'', dp=el.getAttribute('data-page')||'';
-  if (oc.includes('navigateTo')) return;
-  if (dn) { el.addEventListener('click',function(e){e.preventDefault();window.navigateTo(dn);}); return; }
-  if (dp) { el.addEventListener('click',function(e){e.preventDefault();window.navigateTo(dp);}); return; }
-  if (hr.startsWith('#')&&hr.length>1) { el.addEventListener('click',function(e){var t=document.querySelector(hr);if(t){e.preventDefault();t.scrollIntoView({behavior:'smooth'});}}); }
+document.querySelectorAll('a,button').forEach(function(el){
+  var oc=el.getAttribute('onclick')||'',hr=el.getAttribute('href')||'',dn=el.getAttribute('data-nav')||'',dp=el.getAttribute('data-page')||'';
+  if(oc.includes('navigateTo'))return;
+  if(dn){el.addEventListener('click',function(e){e.preventDefault();window.navigateTo(dn);});return;}
+  if(dp){el.addEventListener('click',function(e){e.preventDefault();window.navigateTo(dp);});return;}
+  if(hr.startsWith('#')&&hr.length>1){el.addEventListener('click',function(e){var t=document.querySelector(hr);if(t){e.preventDefault();t.scrollIntoView({behavior:'smooth'});}});}
 });
-document.querySelectorAll('#hamburger,#hamburger-btn,[class*="hamburger"],[aria-label="Open menu"],[aria-label="Menu"]').forEach(function(btn) {
-  if (btn.getAttribute('onclick')) return;
-  btn.addEventListener('click',function() {
-    document.querySelectorAll('#mobile-menu,#mobile-nav,[class*="mobile-menu"],[class*="mobile-nav"]').forEach(function(menu) {
+document.querySelectorAll('#hamburger,#hamburger-btn,[class*="hamburger"],[aria-label="Open menu"],[aria-label="Menu"]').forEach(function(btn){
+  if(btn.getAttribute('onclick'))return;
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('#mobile-menu,#mobile-nav,[class*="mobile-menu"],[class*="mobile-nav"]').forEach(function(menu){
       var h=menu.classList.contains('hidden')||menu.style.display==='none'||getComputedStyle(menu).display==='none';
       if(h){menu.classList.remove('hidden');menu.style.display='flex';menu.style.flexDirection='column';}
       else{menu.classList.add('hidden');menu.style.display='none';}
     });
   });
 });
-// FAQ
-document.querySelectorAll('details').forEach(function(d) {
+document.querySelectorAll('details').forEach(function(d){
   var s=d.querySelector('summary');
   if(s){s.style.cursor='pointer';s.addEventListener('click',function(e){e.preventDefault();var o=d.hasAttribute('open');document.querySelectorAll('details').forEach(function(x){x.removeAttribute('open');});if(!o)d.setAttribute('open','');});}
 });
-document.querySelectorAll('[class*="faq"],[class*="accordion"],[id*="faq"]').forEach(function(c) {
-  c.querySelectorAll('[class*="item"],[class*="question"],[class*="entry"]').forEach(function(item) {
-    var q=item.querySelector('[class*="question"],[class*="trigger"],[class*="header"],h3,h4,button');
-    var a=item.querySelector('[class*="answer"],[class*="content"],[class*="body"],p');
-    if(q&&a){a.style.display='none';q.style.cursor='pointer';q.addEventListener('click',function(){var o=a.style.display!=='none';c.querySelectorAll('[class*="answer"],[class*="content"],[class*="body"],p').forEach(function(x){x.style.display='none';});if(!o)a.style.display='block';});}
+document.querySelectorAll('[class*="faq"],[class*="accordion"],[id*="faq"]').forEach(function(c){
+  c.querySelectorAll('[class*="item"],[class*="question"],[class*="entry"]').forEach(function(item){
+    var q=item.querySelector('[class*="question"],[class*="trigger"],h3,h4,button');
+    var a=item.querySelector('[class*="answer"],[class*="content"],p');
+    if(q&&a){a.style.display='none';q.style.cursor='pointer';q.addEventListener('click',function(){var o=a.style.display!=='none';c.querySelectorAll('[class*="answer"],[class*="content"],p').forEach(function(x){x.style.display='none';});if(!o)a.style.display='block';});}
   });
 });
-// Cart
 var cart=[];
 function showToast(msg){var t=document.getElementById('wg-toast');if(!t){t=document.createElement('div');t.id='wg-toast';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:99999;transition:opacity 0.3s;pointer-events:none;';document.body.appendChild(t);}t.textContent=msg;t.style.opacity='1';setTimeout(function(){t.style.opacity='0';},2500);}
 document.querySelectorAll('button,a').forEach(function(btn){var txt=(btn.textContent||'').toLowerCase().trim();if(txt.includes('add to cart')||txt.includes('buy now')||txt.includes('add to bag')){btn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();var card=this.closest('article')||this.closest('[class*="product"]')||this.parentElement;var name=card&&card.querySelector('h1,h2,h3,h4');var n=name?name.textContent.trim():'Item';var ex=cart.find(function(i){return i.name===n;});if(ex)ex.qty++;else cart.push({name:n,qty:1});showToast(n+' added \u2713');var total=cart.reduce(function(a,b){return a+b.qty;},0);document.querySelectorAll('#cart-count,#cart-badge,[class*="cart-count"]').forEach(function(b){b.textContent=total;});});}});
-// Forms
 document.querySelectorAll('form').forEach(function(form){form.addEventListener('submit',function(e){e.preventDefault();if(form.querySelector('.wg-success'))return;var s=document.createElement('div');s.className='wg-success';s.style.cssText='background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;font-family:sans-serif;';s.textContent='\u2713 Thank you! We will be in touch within 24 hours.';form.appendChild(s);form.querySelectorAll('input,textarea,select,button[type="submit"]').forEach(function(el){el.setAttribute('disabled','true');});});});
-// Multi-page init
 var pages=document.querySelectorAll('.page,.page-section');
 if(pages.length>1){var ha=false;pages.forEach(function(p){if(p.classList.contains('active'))ha=true;});if(!ha){pages.forEach(function(p,i){if(i===0){p.style.display='block';p.classList.add('active');}else{p.style.display='none';}});}}
 })();
@@ -149,8 +211,40 @@ if(pages.length>1){var ha=false;pages.forEach(function(p){if(p.classList.contain
 
 export async function POST(req: Request) {
   try {
-    const userInput = await req.json();
     console.log("REQUEST RECEIVED");
+
+    // Parse FormData
+    const formData = await req.formData();
+
+    const getString = (key: string) => formData.get(key)?.toString() || "";
+    const getJson = (key: string) => {
+      try { return JSON.parse(getString(key)); } catch { return []; }
+    };
+
+    const userInput = {
+      businessName: getString("businessName"),
+      industry: getString("industry"),
+      usp: getString("usp"),
+      existingWebsite: getString("existingWebsite"),
+      targetAudience: getString("targetAudience"),
+      goal: getString("goal"),
+      siteType: getString("siteType"),
+      pages: getJson("pages"),
+      features: getJson("features"),
+      hasPricing: getString("hasPricing"),
+      pricingType: getString("pricingType"),
+      pricingDetails: getString("pricingDetails"),
+      style: getString("style"),
+      colorPrefs: getString("colorPrefs"),
+      references: getString("references"),
+      hasLogo: getString("hasLogo"),
+      hasContent: getString("hasContent"),
+      hasImages: getString("hasImages"),
+      additionalNotes: getString("additionalNotes"),
+      name: getString("name"),
+      email: getString("email"),
+      phone: getString("phone"),
+    };
 
     const pageList = Array.isArray(userInput.pages) && userInput.pages.length > 0 ? userInput.pages.join(", ") : "Home";
     const isMultiPage = userInput.siteType === "multi";
@@ -159,12 +253,53 @@ export async function POST(req: Request) {
     const clientPhone = userInput.phone || "";
     const quote = calculateQuote(userInput);
 
+    // Upload images to Cloudinary
+    const folder = `webgecko/${fileName}`;
+    let logoUrl: string | null = null;
+    let heroUrl: string | null = null;
+    const photoUrls: string[] = [];
+
+    const logoFile = formData.get("logo") as File | null;
+    const heroFile = formData.get("hero") as File | null;
+
+    if (logoFile && logoFile.size > 0) {
+      console.log("Uploading logo to Cloudinary...");
+      const buffer = Buffer.from(await logoFile.arrayBuffer());
+      logoUrl = await uploadToCloudinary(buffer, folder, "logo");
+      console.log("Logo uploaded:", logoUrl);
+    }
+
+    if (heroFile && heroFile.size > 0) {
+      console.log("Uploading hero to Cloudinary...");
+      const buffer = Buffer.from(await heroFile.arrayBuffer());
+      heroUrl = await uploadToCloudinary(buffer, folder, "hero");
+      console.log("Hero uploaded:", heroUrl);
+    }
+
+    for (let i = 0; i < 5; i++) {
+      const photoFile = formData.get(`photo_${i}`) as File | null;
+      if (photoFile && photoFile.size > 0) {
+        const buffer = Buffer.from(await photoFile.arrayBuffer());
+        const url = await uploadToCloudinary(buffer, folder, `photo_${i}`);
+        photoUrls.push(url);
+        console.log(`Photo ${i} uploaded:`, url);
+      }
+    }
+
     const pricingSection = userInput.hasPricing === "Yes" && userInput.pricingDetails
       ? `PRICING SECTION REQUIRED:
-- Pricing type: ${userInput.pricingType}
-- Pricing details: ${userInput.pricingDetails}
-- Display these exact prices prominently on the pricing page/section`
-      : `No pricing section needed`;
+- Type: ${userInput.pricingType}
+- Details: ${userInput.pricingDetails}
+- Display these exact prices prominently`
+      : "No pricing section needed";
+
+    const imageSection = logoUrl || heroUrl || photoUrls.length > 0
+      ? `CLIENT IMAGES PROVIDED:
+${logoUrl ? `- Logo: ${logoUrl}` : ""}
+${heroUrl ? `- Hero image: ${heroUrl}` : ""}
+${photoUrls.map((url, i) => `- Photo ${i + 1}: ${url}`).join('\n')}
+Use these exact image URLs in the website. Logo goes in the navbar. Hero image goes in the hero section. Photos go in gallery/portfolio sections.`
+      : "No client images provided — use high quality stock images from the Stitch library";
 
     console.log("STEP 1: Claude spec...");
     const promptResponse = await anthropic.messages.create({
@@ -176,41 +311,39 @@ export async function POST(req: Request) {
 
 Business: ${userInput.businessName}
 Industry: ${userInput.industry}
-Target Audience: ${userInput.targetAudience || "General"}
+Target Audience: ${userInput.targetAudience}
 USP: ${userInput.usp}
-Existing Website: ${userInput.existingWebsite || "None"}
 Goal: ${userInput.goal}
 Style: ${userInput.style || "modern premium"}
 Colours: ${userInput.colorPrefs || "professional palette"}
 References: ${userInput.references || "none"}
-Has Logo: ${userInput.hasLogo || "unknown"}
-Has Content: ${userInput.hasContent || "unknown"}
-Has Images: ${userInput.hasImages || "unknown"}
 Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}
-Additional Notes: ${userInput.additionalNotes || "none"}
+Notes: ${userInput.additionalNotes || "none"}
 Contact Email: ${clientEmail}
 Contact Phone: ${clientPhone}
 
 ${pricingSection}
 
+${imageSection}
+
 ${isMultiPage ? `
-MULTI-PAGE SITE REQUIRED. Pages: ${pageList}
+MULTI-PAGE SITE. Pages: ${pageList}
 - Each page as div with class "page-section" and unique lowercase id
-- Only first page visible, others hidden with style="display:none"
+- Only first page visible, others display:none
 - Nav links using onclick="navigateTo('pageid')"
-- Mobile hamburger with id="hamburger" toggling id="mobile-menu"
-- Contact page: use REAL email ${clientEmail} and REAL phone ${clientPhone}
-- FAQ: use native HTML details/summary elements
+- Mobile hamburger id="hamburger" toggling id="mobile-menu"
+- Contact: use REAL email ${clientEmail} and phone ${clientPhone}
+- FAQ: use native details/summary elements
 ` : `
 SINGLE PAGE SITE. Sections: ${pageList}
 - Each section with unique lowercase id
-- Nav links using href="#sectionid"
-- Mobile hamburger with id="hamburger" toggling id="mobile-menu"
-- Contact section: use REAL email ${clientEmail} and REAL phone ${clientPhone}
-- FAQ: use native HTML details/summary elements
+- Nav using href="#sectionid"
+- Mobile hamburger id="hamburger" toggling id="mobile-menu"
+- Contact: use REAL email ${clientEmail} and phone ${clientPhone}
+- FAQ: use native details/summary elements
 `}
 
-Make it premium, conversion-focused and stunning for: ${userInput.businessName}`
+Make it premium and stunning for: ${userInput.businessName}`
       }]
     });
 
@@ -235,9 +368,10 @@ Make it premium, conversion-focused and stunning for: ${userInput.businessName}`
     const stitchHtml = await fetch(downloadUrl).then((r) => r.text());
     console.log("STEP 4 DONE. Length:", stitchHtml.length);
 
-    const finalHtml = injectEssentials(stitchHtml, clientEmail, clientPhone);
+    let finalHtml = injectEssentials(stitchHtml, clientEmail, clientPhone);
+    finalHtml = injectImages(finalHtml, logoUrl, heroUrl, photoUrls);
     const cssContent = extractCSS(stitchHtml);
-    console.log("STEP 5 DONE");
+    console.log("STEP 5 DONE: JS + images injected");
 
     const jobId = `job_${Date.now()}`;
     await redis.set(jobId, { html: finalHtml, title: spec.projectTitle, fileName, userInput }, { ex: 86400 });
@@ -266,8 +400,10 @@ Make it premium, conversion-focused and stunning for: ${userInput.businessName}`
         <p><strong>References:</strong> ${userInput.references || "-"}</p>
         <p><strong>Has Logo:</strong> ${userInput.hasLogo || "-"}</p>
         <p><strong>Has Content:</strong> ${userInput.hasContent || "-"}</p>
-        <p><strong>Has Images:</strong> ${userInput.hasImages || "-"}</p>
         <p><strong>Notes:</strong> ${userInput.additionalNotes || "-"}</p>
+        ${logoUrl ? `<p><strong>Logo:</strong> <a href="${logoUrl}">${logoUrl}</a></p>` : ""}
+        ${heroUrl ? `<p><strong>Hero:</strong> <a href="${heroUrl}">${heroUrl}</a></p>` : ""}
+        ${photoUrls.length > 0 ? `<p><strong>Photos:</strong> ${photoUrls.map((u, i) => `<a href="${u}">Photo ${i+1}</a>`).join(', ')}</p>` : ""}
         <br/>
         <h3>💰 Quote</h3>
         <p><strong>Package:</strong> ${quote.package} — $${quote.price.toLocaleString()} + $${quote.monthlyPrice}/month</p>

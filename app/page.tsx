@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 
 function calculateQuote(pages: string[], features: string[], siteType: string) {
   const pageCount = pages.length || 1;
@@ -13,15 +13,8 @@ function calculateQuote(pages: string[], features: string[], siteType: string) {
   let basePrice = 1800;
   let competitorPrice = 3500;
 
-  if (pageCount >= 8 || hasEcommerce || hasBooking) {
-    packageName = 'Premium';
-    basePrice = 5500;
-    competitorPrice = 15000;
-  } else if (pageCount >= 4 || isMultiPage) {
-    packageName = 'Business';
-    basePrice = 3200;
-    competitorPrice = 7500;
-  }
+  if (pageCount >= 8 || hasEcommerce || hasBooking) { packageName = 'Premium'; basePrice = 5500; competitorPrice = 15000; }
+  else if (pageCount >= 4 || isMultiPage) { packageName = 'Business'; basePrice = 3200; competitorPrice = 7500; }
 
   let addons = 0;
   if (hasEcommerce && packageName !== 'Premium') addons += 300;
@@ -44,45 +37,38 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  // Step 1 — Business
   const [businessName, setBusinessName] = useState("");
   const [industry, setIndustry] = useState("");
   const [usp, setUsp] = useState("");
   const [existingWebsite, setExistingWebsite] = useState("");
   const [targetAudience, setTargetAudience] = useState("");
-
-  // Step 2 — Goal & Type
   const [goal, setGoal] = useState("");
   const [siteType, setSiteType] = useState("");
-
-  // Step 3 — Pages
   const [pages, setPages] = useState<string[]>([]);
-
-  // Step 4 — Features
   const [features, setFeatures] = useState<string[]>([]);
-
-  // Step 5 — Pricing
   const [hasPricing, setHasPricing] = useState("");
   const [pricingType, setPricingType] = useState("");
   const [pricingDetails, setPricingDetails] = useState("");
-
-  // Step 6 — Design
   const [style, setStyle] = useState("");
   const [colorPrefs, setColorPrefs] = useState("");
   const [references, setReferences] = useState("");
   const [hasLogo, setHasLogo] = useState("");
-
-  // Step 7 — Content
   const [hasContent, setHasContent] = useState("");
   const [hasImages, setHasImages] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
-
-  // Step 8 — Contact
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
-  const totalSteps = 8;
+  // Image uploads
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [heroFile, setHeroFile] = useState<File | null>(null);
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const logoRef = useRef<HTMLInputElement>(null);
+  const heroRef = useRef<HTMLInputElement>(null);
+  const photosRef = useRef<HTMLInputElement>(null);
+
+  const totalSteps = 9;
 
   const quote = useMemo(() => {
     if (pages.length === 0 && features.length === 0 && !siteType) return null;
@@ -94,24 +80,37 @@ export default function HomePage() {
     else setFn([...arr, value]);
   }
 
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    setPhotoFiles(prev => [...prev, ...files].slice(0, 5));
+  }
+
   async function submit() {
     setLoading(true);
-    setMessage("Submitting your request...");
+    setMessage("Uploading your assets...");
 
-    const payload = {
+    const formData = new FormData();
+
+    // Text fields
+    const fields: Record<string, string> = {
       businessName, industry, usp, existingWebsite, targetAudience,
-      goal, siteType, pages, features,
-      hasPricing, pricingType, pricingDetails,
-      style, colorPrefs, references, hasLogo,
-      hasContent, hasImages, additionalNotes,
-      name, email, phone,
+      goal, siteType, hasPricing, pricingType, pricingDetails,
+      style, colorPrefs, references, hasLogo, hasContent, hasImages,
+      additionalNotes, name, email, phone,
     };
+    Object.entries(fields).forEach(([key, val]) => formData.append(key, val));
+    formData.append("pages", JSON.stringify(pages));
+    formData.append("features", JSON.stringify(features));
+
+    // Image files
+    if (logoFile) formData.append("logo", logoFile);
+    if (heroFile) formData.append("hero", heroFile);
+    photoFiles.forEach((file, i) => formData.append(`photo_${i}`, file));
 
     try {
       const res = await fetch("/api/worker", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: formData,
       });
       const data = await res.json();
       setMessage(data.message);
@@ -131,6 +130,29 @@ export default function HomePage() {
     setStep(Math.max(1, step - 1));
   }
 
+  const FileUploadBox = ({ label, file, onFile, inputRef, accept, hint }: any) => (
+    <div
+      onClick={() => inputRef.current?.click()}
+      className="border-2 border-dashed border-white/20 rounded-2xl p-6 cursor-pointer hover:border-white/40 transition-all text-center"
+    >
+      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={(e) => {
+        const f = e.target.files?.[0];
+        if (f) onFile(f);
+      }} />
+      {file ? (
+        <div>
+          <p className="text-emerald-400 font-semibold">✓ {file.name}</p>
+          <p className="text-slate-500 text-xs mt-1">{(file.size / 1024).toFixed(0)}KB</p>
+        </div>
+      ) : (
+        <div>
+          <p className="text-slate-300 font-semibold">{label}</p>
+          <p className="text-slate-500 text-sm mt-1">{hint}</p>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <main className="min-h-screen bg-[#0f172a] text-white p-6 md:p-10">
       <div className="max-w-6xl mx-auto grid lg:grid-cols-[1fr_340px] gap-6">
@@ -144,19 +166,17 @@ export default function HomePage() {
           </div>
           <p className="text-slate-500 text-xs mt-2">Step {step} of {totalSteps}</p>
 
-          {/* STEP 1 — BUSINESS */}
           {step === 1 && (
             <div className="space-y-4 mt-8">
               <p className="text-white font-semibold text-lg">Tell us about your business</p>
               <input placeholder="Business Name" value={businessName} onChange={(e) => setBusinessName(e.target.value)} className="input" />
               <input placeholder="Industry (e.g. Real Estate, Fitness, Retail)" value={industry} onChange={(e) => setIndustry(e.target.value)} className="input" />
               <input placeholder="Target Audience (e.g. Young professionals in Brisbane)" value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} className="input" />
-              <textarea placeholder="What makes your business unique? What do you offer that competitors don't?" value={usp} onChange={(e) => setUsp(e.target.value)} className="textarea" />
-              <input placeholder="Existing website URL (if you have one, or leave blank)" value={existingWebsite} onChange={(e) => setExistingWebsite(e.target.value)} className="input" />
+              <textarea placeholder="What makes your business unique?" value={usp} onChange={(e) => setUsp(e.target.value)} className="textarea" />
+              <input placeholder="Existing website URL (if any)" value={existingWebsite} onChange={(e) => setExistingWebsite(e.target.value)} className="input" />
             </div>
           )}
 
-          {/* STEP 2 — GOAL & TYPE */}
           {step === 2 && (
             <div className="space-y-4 mt-8">
               <p className="text-white font-semibold text-lg">What do you need the website to do?</p>
@@ -169,30 +189,24 @@ export default function HomePage() {
                 <option>Provide information</option>
                 <option>Build brand awareness</option>
               </select>
-
-              <p className="text-slate-400 text-sm mt-4 mb-2">What type of website do you want?</p>
+              <p className="text-slate-400 text-sm mt-4 mb-2">What type of website?</p>
               <div className="grid gap-3">
                 {[
-                  { value: "single", label: "Single Page", desc: "Everything on one scrollable page. Clean, fast and modern." },
+                  { value: "single", label: "Single Page", desc: "Everything on one scrollable page." },
                   { value: "multi", label: "Multi Page", desc: "Separate pages like Home, About, Services, Contact." },
                 ].map((opt) => (
                   <label key={opt.value} className={`card cursor-pointer border-2 transition-all ${siteType === opt.value ? "border-white" : "border-transparent"}`}>
                     <input type="radio" name="siteType" value={opt.value} checked={siteType === opt.value} onChange={() => setSiteType(opt.value)} className="hidden" />
-                    <div>
-                      <p className="font-semibold">{opt.label}</p>
-                      <p className="text-slate-400 text-sm">{opt.desc}</p>
-                    </div>
+                    <div><p className="font-semibold">{opt.label}</p><p className="text-slate-400 text-sm">{opt.desc}</p></div>
                   </label>
                 ))}
               </div>
             </div>
           )}
 
-          {/* STEP 3 — PAGES */}
           {step === 3 && (
             <div className="grid gap-3 mt-8">
               <p className="text-white font-semibold text-lg">Select the pages you want</p>
-              <p className="text-slate-400 text-sm">Only select pages you actually need</p>
               {["Home", "About", "Services", "Contact", "Shop", "Gallery", "Blog", "Booking", "FAQ", "Testimonials", "Pricing", "Portfolio", "Team"].map(p => (
                 <label key={p} className="card cursor-pointer">
                   <input type="checkbox" checked={pages.includes(p)} onChange={() => toggleItem(pages, p, setPages)} />
@@ -202,11 +216,9 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* STEP 4 — FEATURES */}
           {step === 4 && (
             <div className="grid gap-3 mt-8">
               <p className="text-white font-semibold text-lg">Select features you need</p>
-              <p className="text-slate-400 text-sm">Only select what you genuinely need</p>
               {["Contact Form", "Booking System", "Payments / Shop", "Blog", "Reviews & Testimonials", "Live Chat", "Photo Gallery", "FAQ Section", "Newsletter Signup", "Social Media Links", "Google Maps", "Video Background", "Countdown Timer", "Pop-up Form"].map(f => (
                 <label key={f} className="card cursor-pointer">
                   <input type="checkbox" checked={features.includes(f)} onChange={() => toggleItem(features, f, setFeatures)} />
@@ -216,10 +228,9 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* STEP 5 — PRICING */}
           {step === 5 && (
             <div className="space-y-4 mt-8">
-              <p className="text-white font-semibold text-lg">Do you need a pricing section on your website?</p>
+              <p className="text-white font-semibold text-lg">Do you need a pricing section?</p>
               <div className="grid gap-3">
                 {["Yes", "No"].map(opt => (
                   <label key={opt} className={`card cursor-pointer border-2 transition-all ${hasPricing === opt ? "border-white" : "border-transparent"}`}>
@@ -228,36 +239,28 @@ export default function HomePage() {
                   </label>
                 ))}
               </div>
-
               {hasPricing === "Yes" && (
                 <>
-                  <p className="text-slate-400 text-sm mt-4">What type of pricing do you have?</p>
+                  <p className="text-slate-400 text-sm mt-4">What type of pricing?</p>
                   <div className="grid gap-3">
                     {[
-                      { value: "tiers", label: "Pricing Tiers", desc: "Starter / Business / Premium style packages" },
-                      { value: "products", label: "Individual Products", desc: "Each product or service has its own price" },
-                      { value: "quote", label: "Quote Based", desc: "Prices vary — customers request a quote" },
+                      { value: "tiers", label: "Pricing Tiers", desc: "Starter / Business / Premium packages" },
+                      { value: "products", label: "Individual Products", desc: "Each product/service has its own price" },
+                      { value: "quote", label: "Quote Based", desc: "Customers request a custom quote" },
                       { value: "hourly", label: "Hourly / Day Rate", desc: "You charge by the hour or day" },
                     ].map(opt => (
                       <label key={opt.value} className={`card cursor-pointer border-2 transition-all ${pricingType === opt.value ? "border-white" : "border-transparent"}`}>
                         <input type="radio" name="pricingType" checked={pricingType === opt.value} onChange={() => setPricingType(opt.value)} className="hidden" />
-                        <div>
-                          <p className="font-semibold">{opt.label}</p>
-                          <p className="text-slate-400 text-sm">{opt.desc}</p>
-                        </div>
+                        <div><p className="font-semibold">{opt.label}</p><p className="text-slate-400 text-sm">{opt.desc}</p></div>
                       </label>
                     ))}
                   </div>
-
                   <textarea
                     placeholder={
-                      pricingType === "tiers"
-                        ? "List your tiers e.g. Starter $99/month - includes X, Y, Z. Business $199/month - includes A, B, C"
-                        : pricingType === "products"
-                        ? "List your products/services and prices e.g. Haircut $45, Colour $120, Treatment $80"
-                        : pricingType === "hourly"
-                        ? "e.g. $85/hour, minimum 2 hours. Day rate $600"
-                        : "Describe how your quoting works e.g. Free consultation then custom quote based on requirements"
+                      pricingType === "tiers" ? "e.g. Starter $99/month - X, Y, Z. Business $199/month - A, B, C"
+                      : pricingType === "products" ? "e.g. Haircut $45, Colour $120, Treatment $80"
+                      : pricingType === "hourly" ? "e.g. $85/hour, minimum 2 hours. Day rate $600"
+                      : "Describe how your quoting works"
                     }
                     value={pricingDetails}
                     onChange={(e) => setPricingDetails(e.target.value)}
@@ -268,15 +271,14 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* STEP 6 — DESIGN */}
           {step === 6 && (
             <div className="space-y-4 mt-8">
               <p className="text-white font-semibold text-lg">Design preferences</p>
-              <input placeholder="Style (e.g. Luxury dark, Clean minimal, Bold modern, Friendly and colourful)" value={style} onChange={(e) => setStyle(e.target.value)} className="input" />
-              <input placeholder="Colour preferences (e.g. Navy blue and gold, Black and white, Green and cream)" value={colorPrefs} onChange={(e) => setColorPrefs(e.target.value)} className="input" />
-              <textarea placeholder="Websites you like for reference (paste links or describe what you like about them)" value={references} onChange={(e) => setReferences(e.target.value)} className="textarea" />
+              <input placeholder="Style (e.g. Luxury dark, Clean minimal, Bold modern)" value={style} onChange={(e) => setStyle(e.target.value)} className="input" />
+              <input placeholder="Colour preferences (e.g. Navy blue and gold, Black and white)" value={colorPrefs} onChange={(e) => setColorPrefs(e.target.value)} className="input" />
+              <textarea placeholder="Websites you like for reference (paste links or describe)" value={references} onChange={(e) => setReferences(e.target.value)} className="textarea" />
+              <p className="text-slate-400 text-sm mt-2">Do you have a logo?</p>
               <div className="grid gap-3">
-                <p className="text-slate-400 text-sm">Do you have a logo?</p>
                 {["Yes — I will provide it", "No — I need one designed", "No — please use text only"].map(opt => (
                   <label key={opt} className={`card cursor-pointer border-2 transition-all ${hasLogo === opt ? "border-white" : "border-transparent"}`}>
                     <input type="radio" name="hasLogo" checked={hasLogo === opt} onChange={() => setHasLogo(opt)} className="hidden" />
@@ -287,12 +289,54 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* STEP 7 — CONTENT */}
           {step === 7 && (
             <div className="space-y-4 mt-8">
-              <p className="text-white font-semibold text-lg">Content & assets</p>
+              <p className="text-white font-semibold text-lg">Upload your assets</p>
+              <p className="text-slate-400 text-sm">Upload your logo, hero image and any photos. These will be used directly in your website.</p>
+
+              <FileUploadBox
+                label="Upload Your Logo"
+                hint="PNG, SVG or JPG — max 2MB"
+                file={logoFile}
+                onFile={setLogoFile}
+                inputRef={logoRef}
+                accept="image/*"
+              />
+
+              <FileUploadBox
+                label="Upload Hero / Banner Image"
+                hint="Main background image — JPG or PNG, max 3MB"
+                file={heroFile}
+                onFile={setHeroFile}
+                inputRef={heroRef}
+                accept="image/*"
+              />
+
+              <div
+                onClick={() => photosRef.current?.click()}
+                className="border-2 border-dashed border-white/20 rounded-2xl p-6 cursor-pointer hover:border-white/40 transition-all text-center"
+              >
+                <input ref={photosRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoChange} />
+                <p className="text-slate-300 font-semibold">Upload Additional Photos</p>
+                <p className="text-slate-500 text-sm mt-1">Up to 5 photos — JPG or PNG, max 1MB each</p>
+                {photoFiles.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {photoFiles.map((f, i) => (
+                      <p key={i} className="text-emerald-400 text-sm">✓ {f.name}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <p className="text-slate-500 text-xs">Don't have images yet? Skip this step — we'll use professional stock images.</p>
+            </div>
+          )}
+
+          {step === 8 && (
+            <div className="space-y-4 mt-8">
+              <p className="text-white font-semibold text-lg">Content & anything else</p>
+              <p className="text-slate-400 text-sm">Do you have website copy/text ready?</p>
               <div className="grid gap-3">
-                <p className="text-slate-400 text-sm">Do you have website copy/text ready?</p>
                 {["Yes — I will provide all text", "Partially — I have some text", "No — please write it for me"].map(opt => (
                   <label key={opt} className={`card cursor-pointer border-2 transition-all ${hasContent === opt ? "border-white" : "border-transparent"}`}>
                     <input type="radio" name="hasContent" checked={hasContent === opt} onChange={() => setHasContent(opt)} className="hidden" />
@@ -300,21 +344,11 @@ export default function HomePage() {
                   </label>
                 ))}
               </div>
-              <div className="grid gap-3 mt-4">
-                <p className="text-slate-400 text-sm">Do you have photos or images?</p>
-                {["Yes — I will provide photos", "Partially — I have some photos", "No — please use stock images"].map(opt => (
-                  <label key={opt} className={`card cursor-pointer border-2 transition-all ${hasImages === opt ? "border-white" : "border-transparent"}`}>
-                    <input type="radio" name="hasImages" checked={hasImages === opt} onChange={() => setHasImages(opt)} className="hidden" />
-                    <span className="text-sm">{opt}</span>
-                  </label>
-                ))}
-              </div>
-              <textarea placeholder="Anything else we should know? Special requirements, deadline, competitors to beat, anything goes" value={additionalNotes} onChange={(e) => setAdditionalNotes(e.target.value)} className="textarea mt-4" />
+              <textarea placeholder="Anything else we should know? Deadline, special requirements, competitors, anything" value={additionalNotes} onChange={(e) => setAdditionalNotes(e.target.value)} className="textarea mt-4" />
             </div>
           )}
 
-          {/* STEP 8 — CONTACT */}
-          {step === 8 && (
+          {step === 9 && (
             <div className="space-y-4 mt-8">
               <p className="text-white font-semibold text-lg">Your contact details</p>
               <p className="text-slate-400 text-sm">We will send a confirmation to your email and be in touch within 24 hours.</p>
@@ -351,8 +385,7 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* SIDE PANEL */}
-        <div className="hidden lg:block space-y-4">
+        <div className="hidden lg:block">
           <div className="rounded-[2rem] bg-black border border-white/10 p-6 sticky top-10">
             <h2 className="text-xl font-semibold">Progress</h2>
             <p className="text-slate-400 mt-2 text-sm">Step {step} of {totalSteps}</p>
@@ -365,7 +398,6 @@ export default function HomePage() {
               <p>Features: {features.length > 0 ? features.join(", ") : "-"}</p>
               <p>Contact: {name || "-"}</p>
             </div>
-
             {quote && (
               <div className="mt-6 border-t border-white/10 pt-6">
                 <p className="text-xs uppercase tracking-widest text-slate-400 mb-3">Live Quote</p>
