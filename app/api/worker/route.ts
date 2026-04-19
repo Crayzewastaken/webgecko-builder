@@ -28,14 +28,44 @@ function safeFileName(name: string): string {
     .slice(0, 50);
 }
 
-function injectEssentials(html: string): string {
+function injectEssentials(html: string, email: string, phone: string, businessName: string): string {
+  // Replace any placeholder emails and phones with real ones
+  let processed = html;
+
+  // Replace common placeholder emails
+  processed = processed.replace(
+    /hello@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?=(?:[^"]*"[^"]*")*[^"]*$)/g,
+    email
+  );
+  processed = processed.replace(
+    /info@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?=(?:[^"]*"[^"]*")*[^"]*$)/g,
+    email
+  );
+  processed = processed.replace(
+    /contact@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?=(?:[^"]*"[^"]*")*[^"]*$)/g,
+    email
+  );
+  processed = processed.replace(
+    /support@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?=(?:[^"]*"[^"]*")*[^"]*$)/g,
+    email
+  );
+  processed = processed.replace(
+    /team@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?=(?:[^"]*"[^"]*")*[^"]*$)/g,
+    email
+  );
+
+  // Replace placeholder phone numbers
+  processed = processed.replace(/\+1 \(555\)[^\s<"']*/g, phone);
+  processed = processed.replace(/\(555\)[^\s<"']*/g, phone);
+  processed = processed.replace(/555-[0-9-]+/g, phone);
+  processed = processed.replace(/1-800-[^\s<"']*/g, phone);
+
   const script = `
 <script>
 (function() {
 
 // ── PAGE NAVIGATION ──────────────────────────────────────
 window.navigateTo = function(pageId) {
-  // Hide all possible page containers
   document.querySelectorAll(
     '.page, .page-section, [class*="page-section"], [data-page-id]'
   ).forEach(function(p) {
@@ -43,7 +73,6 @@ window.navigateTo = function(pageId) {
     p.classList.remove('active');
   });
 
-  // Try multiple ways to find the target page
   const target =
     document.getElementById(pageId) ||
     document.getElementById('page-' + pageId) ||
@@ -59,20 +88,15 @@ window.navigateTo = function(pageId) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  // Update nav active states
   document.querySelectorAll('[data-nav],[onclick]').forEach(function(link) {
     const nav = link.getAttribute('data-nav') ||
       (link.getAttribute('onclick') || '').match(/navigateTo\(['"](.*?)['"]\)/)?.[1];
     if (nav) {
-      if (nav === pageId) {
-        link.classList.add('wg-active-nav');
-      } else {
-        link.classList.remove('wg-active-nav');
-      }
+      if (nav === pageId) link.classList.add('wg-active-nav');
+      else link.classList.remove('wg-active-nav');
     }
   });
 
-  // Close mobile menu if open
   const mobileMenu = document.getElementById('mobile-menu') ||
     document.getElementById('mobile-nav') ||
     document.querySelector('[class*="mobile-menu"],[class*="mobile-nav"]');
@@ -89,10 +113,8 @@ document.querySelectorAll('a, button').forEach(function(el) {
   const datanav = el.getAttribute('data-nav') || '';
   const datapage = el.getAttribute('data-page') || '';
 
-  // Already has navigateTo onclick — skip, it works
   if (onclick.includes('navigateTo')) return;
 
-  // Has data-nav or data-page attribute
   if (datanav) {
     el.addEventListener('click', function(e) {
       e.preventDefault();
@@ -107,8 +129,6 @@ document.querySelectorAll('a, button').forEach(function(el) {
     });
     return;
   }
-
-  // Anchor links — smooth scroll
   if (href.startsWith('#') && href.length > 1) {
     el.addEventListener('click', function(e) {
       const target = document.querySelector(href);
@@ -132,7 +152,6 @@ const mobileMenus = document.querySelectorAll(
 );
 
 hamburgers.forEach(function(btn) {
-  // Skip if already has onclick
   if (btn.getAttribute('onclick')) return;
   btn.addEventListener('click', function() {
     mobileMenus.forEach(function(menu) {
@@ -160,11 +179,11 @@ function showToast(msg) {
     toast = document.createElement('div');
     toast.id = 'wg-toast';
     toast.style.cssText = [
-      'position:fixed', 'bottom:24px', 'left:50%',
-      'transform:translateX(-50%)', 'background:#22c55e',
-      'color:white', 'padding:12px 24px', 'border-radius:8px',
-      'font-weight:bold', 'z-index:99999', 'transition:opacity 0.3s',
-      'pointer-events:none', 'font-family:sans-serif'
+      'position:fixed','bottom:24px','left:50%',
+      'transform:translateX(-50%)','background:#22c55e',
+      'color:white','padding:12px 24px','border-radius:8px',
+      'font-weight:bold','z-index:99999','transition:opacity 0.3s',
+      'pointer-events:none','font-family:sans-serif'
     ].join(';');
     document.body.appendChild(toast);
   }
@@ -200,7 +219,7 @@ document.querySelectorAll('button, a').forEach(function(btn) {
       showToast(name + ' added to cart ✓');
       const total = cart.reduce(function(a,b) { return a + b.qty; }, 0);
       document.querySelectorAll(
-        '#cart-count, #cart-badge, [class*="cart-count"], [class*="cart-badge"]'
+        '#cart-count,#cart-badge,[class*="cart-count"],[class*="cart-badge"]'
       ).forEach(function(badge) { badge.textContent = total; });
     });
   }
@@ -214,14 +233,14 @@ document.querySelectorAll('form').forEach(function(form) {
     const success = document.createElement('div');
     success.className = 'wg-success';
     success.style.cssText = [
-      'background:#22c55e', 'color:white', 'padding:20px',
-      'border-radius:8px', 'margin-top:16px', 'font-weight:bold',
-      'text-align:center', 'font-size:16px', 'font-family:sans-serif'
+      'background:#22c55e','color:white','padding:20px',
+      'border-radius:8px','margin-top:16px','font-weight:bold',
+      'text-align:center','font-size:16px','font-family:sans-serif'
     ].join(';');
     success.textContent = '✓ Thank you! We will be in touch within 24 hours.';
     form.appendChild(success);
     form.querySelectorAll('input,textarea,select,button[type="submit"],button:not([type])').forEach(function(el) {
-      el.setAttribute('disabled', 'true');
+      el.setAttribute('disabled','true');
     });
   });
 });
@@ -248,8 +267,8 @@ if (allPages.length > 1) {
 })();
 </script>`;
 
-  if (html.includes('</body>')) return html.replace('</body>', script + '</body>');
-  return html + script;
+  if (processed.includes('</body>')) return processed.replace('</body>', script + '</body>');
+  return processed + script;
 }
 
 export async function POST(req: Request) {
@@ -261,6 +280,9 @@ export async function POST(req: Request) {
       ? userInput.pages.join(", ") : "Home";
     const isMultiPage = userInput.siteType === "multi";
     const fileName = safeFileName(userInput.businessName || "website");
+    const clientEmail = userInput.email || "";
+    const clientPhone = userInput.phone || "";
+    const businessName = userInput.businessName || "";
 
     console.log("STEP 1: Claude spec...");
     const promptResponse = await anthropic.messages.create({
@@ -270,29 +292,31 @@ export async function POST(req: Request) {
         role: "user",
         content: `Return ONLY valid JSON with "projectTitle" and "stitchPrompt".
 
-Business: ${userInput.businessName}
+Business: ${businessName}
 Industry: ${userInput.industry}
 USP: ${userInput.usp}
 Goal: ${userInput.goal}
 Style: ${userInput.style || "modern premium"}
 Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}
+Contact Email: ${clientEmail}
+Contact Phone: ${clientPhone}
 
 ${isMultiPage ? `
 MULTI-PAGE SITE REQUIRED. Pages: ${pageList}
-The exported HTML MUST include:
-- A div for each page with class "page-section" and a unique id matching page name in lowercase
-- Only the first page visible by default, all others hidden with style="display:none"
-- Nav links using onclick="navigateTo('pageid')" to switch pages
-- Mobile hamburger button with id="hamburger" toggling id="mobile-menu"
+- A div for each page with class "page-section" and unique id in lowercase
+- Only first page visible, others hidden with style="display:none"
+- Nav links using onclick="navigateTo('pageid')"
+- Mobile hamburger with id="hamburger" toggling id="mobile-menu"
+- On the contact page, use the REAL email: ${clientEmail} and REAL phone: ${clientPhone}
 ` : `
 SINGLE PAGE SITE REQUIRED. Sections: ${pageList}
-The exported HTML MUST include:
-- Each section with a unique id in lowercase
-- Nav links using href="#sectionid" for smooth scroll
-- Mobile hamburger button with id="hamburger" toggling id="mobile-menu"
+- Each section with unique id in lowercase
+- Nav links using href="#sectionid"
+- Mobile hamburger with id="hamburger" toggling id="mobile-menu"
+- In the contact section, use the REAL email: ${clientEmail} and REAL phone: ${clientPhone}
 `}
 
-Make it premium, conversion-focused and visually stunning for: ${userInput.businessName} — ${userInput.industry}`
+Make it premium and visually stunning for: ${businessName} — ${userInput.industry}`
       }]
     });
 
@@ -321,8 +345,8 @@ Make it premium, conversion-focused and visually stunning for: ${userInput.busin
     const stitchHtml = await fetch(downloadUrl).then((r) => r.text());
     console.log("STEP 4 DONE. Length:", stitchHtml.length);
 
-    const finalHtml = injectEssentials(stitchHtml);
-    console.log("STEP 5: JS injected");
+    const finalHtml = injectEssentials(stitchHtml, clientEmail, clientPhone, businessName);
+    console.log("STEP 5: JS injected + contact details replaced");
 
     const jobId = `job_${Date.now()}`;
     await redis.set(jobId, {
@@ -340,10 +364,10 @@ Make it premium, conversion-focused and visually stunning for: ${userInput.busin
       subject: `New Request - ${spec.projectTitle}`,
       html: `
         <h2>New Website Request</h2>
-        <p><strong>Business:</strong> ${userInput.businessName}</p>
+        <p><strong>Business:</strong> ${businessName}</p>
         <p><strong>Client:</strong> ${userInput.name}</p>
-        <p><strong>Email:</strong> ${userInput.email}</p>
-        <p><strong>Phone:</strong> ${userInput.phone}</p>
+        <p><strong>Email:</strong> ${clientEmail}</p>
+        <p><strong>Phone:</strong> ${clientPhone}</p>
         <p><strong>Goal:</strong> ${userInput.goal}</p>
         <p><strong>Site Type:</strong> ${userInput.siteType}</p>
         <p><strong>Pages:</strong> ${pageList}</p>
@@ -351,7 +375,7 @@ Make it premium, conversion-focused and visually stunning for: ${userInput.busin
         <p><strong>Style:</strong> ${userInput.style}</p>
         <p><strong>References:</strong> ${userInput.references || "-"}</p>
         <br/>
-        <p>Site attached. Click below for a deeper Claude fix pass if needed:</p>
+        <p>Site attached with client contact details injected. Click below for Claude deep fix if needed:</p>
         <br/>
         <a href="${processUrl}" style="background:#22c55e;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">
           ✅ Fix This Site
@@ -366,11 +390,11 @@ Make it premium, conversion-focused and visually stunning for: ${userInput.busin
     });
     console.log("STEP 6 DONE");
 
-    if (userInput.email) {
+    if (clientEmail) {
       console.log("STEP 7: Emailing client...");
       await resend.emails.send({
         from: "WebGecko <hello@webgecko.au>",
-        to: userInput.email,
+        to: clientEmail,
         subject: `We've received your website request!`,
         html: `
           <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;">
@@ -379,7 +403,7 @@ Make it premium, conversion-focused and visually stunning for: ${userInput.busin
             <div style="background:#f9f9f9;border-radius:12px;padding:24px;margin-bottom:32px;">
               <h2 style="font-size:16px;margin-bottom:16px;color:#333;">Your Request Summary</h2>
               <table style="width:100%;border-collapse:collapse;">
-                <tr><td style="padding:8px 0;color:#666;width:140px;">Business</td><td style="padding:8px 0;font-weight:600;">${userInput.businessName}</td></tr>
+                <tr><td style="padding:8px 0;color:#666;width:140px;">Business</td><td style="padding:8px 0;font-weight:600;">${businessName}</td></tr>
                 <tr><td style="padding:8px 0;color:#666;">Industry</td><td style="padding:8px 0;font-weight:600;">${userInput.industry}</td></tr>
                 <tr><td style="padding:8px 0;color:#666;">Goal</td><td style="padding:8px 0;font-weight:600;">${userInput.goal}</td></tr>
                 <tr><td style="padding:8px 0;color:#666;">Site Type</td><td style="padding:8px 0;font-weight:600;">${userInput.siteType === "multi" ? "Multi Page" : "Single Page"}</td></tr>
