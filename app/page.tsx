@@ -32,6 +32,35 @@ function calculateQuote(pages: string[], features: string[], siteType: string) {
   return { packageName, totalPrice, monthlyPrice, savings, competitorPrice };
 }
 
+// Compress image to under 800KB before upload
+async function compressImage(file: File, maxWidthPx = 1200, qualityVal = 0.75): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let { width, height } = img;
+      if (width > maxWidthPx) {
+        height = Math.round((height * maxWidthPx) / width);
+        width = maxWidthPx;
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(url);
+        if (blob) {
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+        } else {
+          resolve(file);
+        }
+      }, 'image/jpeg', qualityVal);
+    };
+    img.src = url;
+  });
+}
+
 export default function HomePage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -54,16 +83,16 @@ export default function HomePage() {
   const [references, setReferences] = useState("");
   const [hasLogo, setHasLogo] = useState("");
   const [hasContent, setHasContent] = useState("");
-  const [hasImages, setHasImages] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
-  // Image uploads
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [heroFile, setHeroFile] = useState<File | null>(null);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [compressing, setCompressing] = useState(false);
+
   const logoRef = useRef<HTMLInputElement>(null);
   const heroRef = useRef<HTMLInputElement>(null);
   const photosRef = useRef<HTMLInputElement>(null);
@@ -80,29 +109,48 @@ export default function HomePage() {
     else setFn([...arr, value]);
   }
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCompressing(true);
+    const compressed = await compressImage(file, 400, 0.85);
+    setLogoFile(compressed);
+    setCompressing(false);
+  }
+
+  async function handleHeroChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCompressing(true);
+    const compressed = await compressImage(file, 1400, 0.75);
+    setHeroFile(compressed);
+    setCompressing(false);
+  }
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
-    setPhotoFiles(prev => [...prev, ...files].slice(0, 5));
+    setCompressing(true);
+    const compressed = await Promise.all(files.slice(0, 5).map(f => compressImage(f, 1000, 0.7)));
+    setPhotoFiles(prev => [...prev, ...compressed].slice(0, 5));
+    setCompressing(false);
   }
 
   async function submit() {
     setLoading(true);
-    setMessage("Uploading your assets...");
+    setMessage("Submitting your request...");
 
     const formData = new FormData();
 
-    // Text fields
     const fields: Record<string, string> = {
       businessName, industry, usp, existingWebsite, targetAudience,
       goal, siteType, hasPricing, pricingType, pricingDetails,
-      style, colorPrefs, references, hasLogo, hasContent, hasImages,
+      style, colorPrefs, references, hasLogo, hasContent,
       additionalNotes, name, email, phone,
     };
     Object.entries(fields).forEach(([key, val]) => formData.append(key, val));
     formData.append("pages", JSON.stringify(pages));
     formData.append("features", JSON.stringify(features));
 
-    // Image files
     if (logoFile) formData.append("logo", logoFile);
     if (heroFile) formData.append("hero", heroFile);
     photoFiles.forEach((file, i) => formData.append(`photo_${i}`, file));
@@ -130,19 +178,18 @@ export default function HomePage() {
     setStep(Math.max(1, step - 1));
   }
 
-  const FileUploadBox = ({ label, file, onFile, inputRef, accept, hint }: any) => (
+  const FileUploadBox = ({ label, file, onChange, inputRef, accept, hint, multiple }: any) => (
     <div
       onClick={() => inputRef.current?.click()}
       className="border-2 border-dashed border-white/20 rounded-2xl p-6 cursor-pointer hover:border-white/40 transition-all text-center"
     >
-      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={(e) => {
-        const f = e.target.files?.[0];
-        if (f) onFile(f);
-      }} />
-      {file ? (
+      <input ref={inputRef} type="file" accept={accept} multiple={multiple} className="hidden" onChange={onChange} />
+      {compressing ? (
+        <p className="text-yellow-400 text-sm">Compressing image...</p>
+      ) : file ? (
         <div>
           <p className="text-emerald-400 font-semibold">✓ {file.name}</p>
-          <p className="text-slate-500 text-xs mt-1">{(file.size / 1024).toFixed(0)}KB</p>
+          <p className="text-slate-500 text-xs mt-1">{(file.size / 1024).toFixed(0)}KB (compressed)</p>
         </div>
       ) : (
         <div>
@@ -207,7 +254,7 @@ export default function HomePage() {
           {step === 3 && (
             <div className="grid gap-3 mt-8">
               <p className="text-white font-semibold text-lg">Select the pages you want</p>
-              {["Home", "About", "Services", "Contact", "Shop", "Gallery", "Blog", "Booking", "FAQ", "Testimonials", "Pricing", "Portfolio", "Team"].map(p => (
+              {["Home", "About", "Services", "Contact", "Shop", "Gallery", "Blog", "Booking", "FAQ", "Testimonials", "Pricing", "Portfolio", "Team", "Menu"].map(p => (
                 <label key={p} className="card cursor-pointer">
                   <input type="checkbox" checked={pages.includes(p)} onChange={() => toggleItem(pages, p, setPages)} />
                   <span>{p}</span>
@@ -257,8 +304,8 @@ export default function HomePage() {
                   </div>
                   <textarea
                     placeholder={
-                      pricingType === "tiers" ? "e.g. Starter $99/month - X, Y, Z. Business $199/month - A, B, C"
-                      : pricingType === "products" ? "e.g. Haircut $45, Colour $120, Treatment $80"
+                      pricingType === "tiers" ? "e.g. Starter $99/month - includes X, Y, Z. Business $199/month - includes A, B, C"
+                      : pricingType === "products" ? "e.g. Haircut $45, Colour $120, Sourdough $12, Croissant $5"
                       : pricingType === "hourly" ? "e.g. $85/hour, minimum 2 hours. Day rate $600"
                       : "Describe how your quoting works"
                     }
@@ -274,8 +321,8 @@ export default function HomePage() {
           {step === 6 && (
             <div className="space-y-4 mt-8">
               <p className="text-white font-semibold text-lg">Design preferences</p>
-              <input placeholder="Style (e.g. Luxury dark, Clean minimal, Bold modern)" value={style} onChange={(e) => setStyle(e.target.value)} className="input" />
-              <input placeholder="Colour preferences (e.g. Navy blue and gold, Black and white)" value={colorPrefs} onChange={(e) => setColorPrefs(e.target.value)} className="input" />
+              <input placeholder="Style (e.g. Luxury dark, Clean minimal, Bold modern, Warm rustic)" value={style} onChange={(e) => setStyle(e.target.value)} className="input" />
+              <input placeholder="Colour preferences (e.g. Navy and gold, Black and white, Cream and terracotta)" value={colorPrefs} onChange={(e) => setColorPrefs(e.target.value)} className="input" />
               <textarea placeholder="Websites you like for reference (paste links or describe)" value={references} onChange={(e) => setReferences(e.target.value)} className="textarea" />
               <p className="text-slate-400 text-sm mt-2">Do you have a logo?</p>
               <div className="grid gap-3">
@@ -292,22 +339,22 @@ export default function HomePage() {
           {step === 7 && (
             <div className="space-y-4 mt-8">
               <p className="text-white font-semibold text-lg">Upload your assets</p>
-              <p className="text-slate-400 text-sm">Upload your logo, hero image and any photos. These will be used directly in your website.</p>
+              <p className="text-slate-400 text-sm">Images are automatically compressed before uploading. Skip any you don't have yet.</p>
 
               <FileUploadBox
-                label="Upload Your Logo"
-                hint="PNG, SVG or JPG — max 2MB"
+                label="📎 Upload Your Logo"
+                hint="PNG, SVG or JPG — any size, we'll compress it"
                 file={logoFile}
-                onFile={setLogoFile}
+                onChange={handleLogoChange}
                 inputRef={logoRef}
                 accept="image/*"
               />
 
               <FileUploadBox
-                label="Upload Hero / Banner Image"
-                hint="Main background image — JPG or PNG, max 3MB"
+                label="🖼 Upload Hero / Banner Image"
+                hint="Main background image — any size, we'll compress it"
                 file={heroFile}
-                onFile={setHeroFile}
+                onChange={handleHeroChange}
                 inputRef={heroRef}
                 accept="image/*"
               />
@@ -317,18 +364,18 @@ export default function HomePage() {
                 className="border-2 border-dashed border-white/20 rounded-2xl p-6 cursor-pointer hover:border-white/40 transition-all text-center"
               >
                 <input ref={photosRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoChange} />
-                <p className="text-slate-300 font-semibold">Upload Additional Photos</p>
-                <p className="text-slate-500 text-sm mt-1">Up to 5 photos — JPG or PNG, max 1MB each</p>
+                <p className="text-slate-300 font-semibold">📷 Upload Additional Photos</p>
+                <p className="text-slate-500 text-sm mt-1">Up to 5 photos — any size, we compress automatically</p>
                 {photoFiles.length > 0 && (
                   <div className="mt-3 space-y-1">
                     {photoFiles.map((f, i) => (
-                      <p key={i} className="text-emerald-400 text-sm">✓ {f.name}</p>
+                      <p key={i} className="text-emerald-400 text-sm">✓ {f.name} ({(f.size / 1024).toFixed(0)}KB)</p>
                     ))}
                   </div>
                 )}
               </div>
 
-              <p className="text-slate-500 text-xs">Don't have images yet? Skip this step — we'll use professional stock images.</p>
+              <p className="text-slate-500 text-xs text-center">Don't have images yet? Skip this step — we'll use professional stock images.</p>
             </div>
           )}
 
@@ -344,7 +391,7 @@ export default function HomePage() {
                   </label>
                 ))}
               </div>
-              <textarea placeholder="Anything else we should know? Deadline, special requirements, competitors, anything" value={additionalNotes} onChange={(e) => setAdditionalNotes(e.target.value)} className="textarea mt-4" />
+              <textarea placeholder="Anything else we should know? Deadline, special requirements, competitors to beat, anything goes" value={additionalNotes} onChange={(e) => setAdditionalNotes(e.target.value)} className="textarea mt-4" />
             </div>
           )}
 
@@ -375,8 +422,8 @@ export default function HomePage() {
 
           <div className="flex gap-4 mt-8">
             <button onClick={back} className="btn-outline">Back</button>
-            <button onClick={next} disabled={loading} className="btn-primary">
-              {loading ? message || "Processing..." : step === totalSteps ? "Submit Request" : "Next"}
+            <button onClick={next} disabled={loading || compressing} className="btn-primary">
+              {compressing ? "Compressing images..." : loading ? message || "Processing..." : step === totalSteps ? "Submit Request" : "Next"}
             </button>
           </div>
 
