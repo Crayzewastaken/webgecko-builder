@@ -21,11 +21,7 @@ function extractJson(text: string) {
 }
 
 function safeFileName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 50);
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50);
 }
 
 function extractCSS(html: string): string {
@@ -43,23 +39,15 @@ function extractCSS(html: string): string {
     try {
       const config = eval('(' + tailwindMatch[1] + ')');
       const colors = config?.theme?.extend?.colors || {};
-      const fonts = config?.theme?.extend?.fontFamily || {};
       colorVars = '/* ── THEME COLORS ── */\n:root {\n';
-      Object.entries(colors).forEach(([key, val]) => {
-        colorVars += `  --color-${key}: ${val};\n`;
-      });
-      colorVars += '}\n\n/* ── FONTS ── */\n';
-      Object.entries(fonts).forEach(([key, val]) => {
-        colorVars += `/* ${key}: ${Array.isArray(val) ? val.join(', ') : val} */\n`;
-      });
-    } catch (e) {
-      colorVars = '/* Could not extract theme colors */\n';
-    }
+      Object.entries(colors).forEach(([key, val]) => { colorVars += `  --color-${key}: ${val};\n`; });
+      colorVars += '}\n';
+    } catch (e) {}
   }
-  return `/* WebGecko Generated Styles — paste into WordPress Appearance > Additional CSS */\n\n${colorVars}\n/* ── CUSTOM STYLES ── */\n${styleBlocks.join('\n\n')}`;
+  return `/* WebGecko Generated Styles — paste into WordPress Appearance > Additional CSS */\n\n${colorVars}\n${styleBlocks.join('\n\n')}`;
 }
 
-function calculateQuote(userInput: any): { package: string; price: number; monthlyPrice: number; savings: number; breakdown: string[] } {
+function calculateQuote(userInput: any) {
   const pageCount = Array.isArray(userInput.pages) ? userInput.pages.length : 1;
   const features = Array.isArray(userInput.features) ? userInput.features : [];
   const isMultiPage = userInput.siteType === 'multi';
@@ -72,15 +60,8 @@ function calculateQuote(userInput: any): { package: string; price: number; month
   let competitorPrice = 3500;
   const breakdown: string[] = [];
 
-  if (pageCount >= 8 || hasEcommerce || hasBooking) {
-    packageName = 'Premium';
-    basePrice = 5500;
-    competitorPrice = 15000;
-  } else if (pageCount >= 4 || isMultiPage) {
-    packageName = 'Business';
-    basePrice = 3200;
-    competitorPrice = 7500;
-  }
+  if (pageCount >= 8 || hasEcommerce || hasBooking) { packageName = 'Premium'; basePrice = 5500; competitorPrice = 15000; }
+  else if (pageCount >= 4 || isMultiPage) { packageName = 'Business'; basePrice = 3200; competitorPrice = 7500; }
 
   breakdown.push(`${packageName} package (${pageCount} pages): $${basePrice.toLocaleString()}`);
 
@@ -98,7 +79,7 @@ function calculateQuote(userInput: any): { package: string; price: number; month
   const savings = competitorPrice - totalPrice;
   breakdown.push(`Monthly hosting & maintenance: $${monthlyPrice}/month`);
 
-  return { package: packageName, price: totalPrice, monthlyPrice, savings, breakdown };
+  return { package: packageName, price: totalPrice, monthlyPrice, savings, competitorPrice, breakdown };
 }
 
 function injectEssentials(html: string, email: string, phone: string): string {
@@ -110,197 +91,55 @@ function injectEssentials(html: string, email: string, phone: string): string {
   processed = processed.replace(/\+1 \(555\)[^\s<"']*/g, phone);
   processed = processed.replace(/\(555\)[^\s<"']*/g, phone);
   processed = processed.replace(/555-[0-9-]+/g, phone);
-  processed = processed.replace(/1-800-[^\s<"']*/g, phone);
 
   const script = `
 <script>
 (function() {
-
-// ── PAGE NAVIGATION ──────────────────────────────────────
 window.navigateTo = function(pageId) {
-  document.querySelectorAll('.page, .page-section, [class*="page-section"]').forEach(function(p) {
-    p.style.display = 'none';
-    p.classList.remove('active');
-  });
-  const target =
-    document.getElementById(pageId) ||
-    document.getElementById('page-' + pageId) ||
-    document.querySelector('[data-page="' + pageId + '"]');
-  if (target) {
-    target.style.display = 'block';
-    target.classList.add('active');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-  const mobileMenu = document.getElementById('mobile-menu') || document.getElementById('mobile-nav');
-  if (mobileMenu) { mobileMenu.classList.add('hidden'); mobileMenu.style.display = 'none'; }
+  document.querySelectorAll('.page, .page-section').forEach(function(p) { p.style.display='none'; p.classList.remove('active'); });
+  var target = document.getElementById(pageId) || document.getElementById('page-'+pageId) || document.querySelector('[data-page="'+pageId+'"]');
+  if (target) { target.style.display='block'; target.classList.add('active'); window.scrollTo({top:0,behavior:'smooth'}); }
+  var mm = document.getElementById('mobile-menu') || document.getElementById('mobile-nav');
+  if (mm) { mm.classList.add('hidden'); mm.style.display='none'; }
 };
-
-// ── BIND NAV LINKS ───────────────────────────────────────
-document.querySelectorAll('a, button').forEach(function(el) {
-  const onclick = el.getAttribute('onclick') || '';
-  const href = el.getAttribute('href') || '';
-  const datanav = el.getAttribute('data-nav') || '';
-  const datapage = el.getAttribute('data-page') || '';
-  if (onclick.includes('navigateTo')) return;
-  if (datanav) { el.addEventListener('click', function(e) { e.preventDefault(); window.navigateTo(datanav); }); return; }
-  if (datapage) { el.addEventListener('click', function(e) { e.preventDefault(); window.navigateTo(datapage); }); return; }
-  if (href.startsWith('#') && href.length > 1) {
-    el.addEventListener('click', function(e) {
-      const target = document.querySelector(href);
-      if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth' }); }
-    });
-  }
+document.querySelectorAll('a,button').forEach(function(el) {
+  var oc=el.getAttribute('onclick')||'', hr=el.getAttribute('href')||'', dn=el.getAttribute('data-nav')||'', dp=el.getAttribute('data-page')||'';
+  if (oc.includes('navigateTo')) return;
+  if (dn) { el.addEventListener('click',function(e){e.preventDefault();window.navigateTo(dn);}); return; }
+  if (dp) { el.addEventListener('click',function(e){e.preventDefault();window.navigateTo(dp);}); return; }
+  if (hr.startsWith('#')&&hr.length>1) { el.addEventListener('click',function(e){var t=document.querySelector(hr);if(t){e.preventDefault();t.scrollIntoView({behavior:'smooth'});}}); }
 });
-
-// ── MOBILE HAMBURGER ─────────────────────────────────────
-const hamburgers = document.querySelectorAll(
-  '#hamburger,#hamburger-btn,#menu-btn,[class*="hamburger"],[aria-label="Open menu"],[aria-label="Menu"],[aria-label="Toggle menu"]'
-);
-const mobileMenus = document.querySelectorAll(
-  '#mobile-menu,#mobile-nav,[class*="mobile-menu"],[class*="mobile-nav"]'
-);
-hamburgers.forEach(function(btn) {
+document.querySelectorAll('#hamburger,#hamburger-btn,[class*="hamburger"],[aria-label="Open menu"],[aria-label="Menu"]').forEach(function(btn) {
   if (btn.getAttribute('onclick')) return;
-  btn.addEventListener('click', function() {
-    mobileMenus.forEach(function(menu) {
-      const isHidden = menu.classList.contains('hidden') || menu.style.display === 'none' || getComputedStyle(menu).display === 'none';
-      if (isHidden) { menu.classList.remove('hidden'); menu.style.display = 'flex'; menu.style.flexDirection = 'column'; }
-      else { menu.classList.add('hidden'); menu.style.display = 'none'; }
+  btn.addEventListener('click',function() {
+    document.querySelectorAll('#mobile-menu,#mobile-nav,[class*="mobile-menu"],[class*="mobile-nav"]').forEach(function(menu) {
+      var h=menu.classList.contains('hidden')||menu.style.display==='none'||getComputedStyle(menu).display==='none';
+      if(h){menu.classList.remove('hidden');menu.style.display='flex';menu.style.flexDirection='column';}
+      else{menu.classList.add('hidden');menu.style.display='none';}
     });
   });
 });
-
-// ── FAQ ACCORDION ────────────────────────────────────────
-function initFAQ() {
-  // Method 1: details/summary elements (native HTML accordion)
-  document.querySelectorAll('details').forEach(function(details) {
-    const summary = details.querySelector('summary');
-    if (summary) {
-      summary.style.cursor = 'pointer';
-      summary.addEventListener('click', function(e) {
-        e.preventDefault();
-        const isOpen = details.hasAttribute('open');
-        // Close all others
-        document.querySelectorAll('details').forEach(function(d) { d.removeAttribute('open'); });
-        if (!isOpen) details.setAttribute('open', '');
-      });
-    }
-  });
-
-  // Method 2: div-based FAQ with question/answer pattern
-  const faqContainers = document.querySelectorAll(
-    '[class*="faq"],[class*="accordion"],[class*="FAQ"],[id*="faq"],[id*="FAQ"]'
-  );
-  faqContainers.forEach(function(container) {
-    const items = container.querySelectorAll(
-      '[class*="item"],[class*="question"],[class*="entry"],[class*="row"]'
-    );
-    items.forEach(function(item) {
-      const question = item.querySelector(
-        '[class*="question"],[class*="trigger"],[class*="header"],[class*="title"],h3,h4,button'
-      );
-      const answer = item.querySelector(
-        '[class*="answer"],[class*="content"],[class*="body"],[class*="panel"],p'
-      );
-      if (question && answer) {
-        answer.style.display = 'none';
-        question.style.cursor = 'pointer';
-        question.addEventListener('click', function() {
-          const isOpen = answer.style.display !== 'none';
-          // Close all
-          items.forEach(function(i) {
-            const a = i.querySelector('[class*="answer"],[class*="content"],[class*="body"],[class*="panel"],p');
-            if (a) a.style.display = 'none';
-          });
-          if (!isOpen) answer.style.display = 'block';
-        });
-      }
-    });
-  });
-
-  // Method 3: group-open Tailwind pattern
-  document.querySelectorAll('[class*="group"]').forEach(function(group) {
-    const trigger = group.querySelector('button, [class*="question"], summary, h3, h4');
-    const content = group.querySelector('[class*="answer"], [class*="content"], [class*="panel"]');
-    if (trigger && content) {
-      if (!content.classList.contains('wg-faq-init')) {
-        content.classList.add('wg-faq-init');
-        content.style.display = 'none';
-        trigger.style.cursor = 'pointer';
-        trigger.addEventListener('click', function() {
-          const isOpen = content.style.display !== 'none';
-          content.style.display = isOpen ? 'none' : 'block';
-          // Toggle icon rotation if exists
-          const icon = trigger.querySelector('[class*="rotate"],[class*="arrow"],[class*="chevron"],span');
-          if (icon) icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
-        });
-      }
-    }
-  });
-}
-initFAQ();
-
-// ── ADD TO CART ──────────────────────────────────────────
-let cart = [];
-function showToast(msg) {
-  let toast = document.getElementById('wg-toast');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.id = 'wg-toast';
-    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:99999;transition:opacity 0.3s;pointer-events:none;font-family:sans-serif;';
-    document.body.appendChild(toast);
-  }
-  toast.textContent = msg;
-  toast.style.opacity = '1';
-  setTimeout(function() { toast.style.opacity = '0'; }, 2500);
-}
-document.querySelectorAll('button, a').forEach(function(btn) {
-  const txt = (btn.textContent || '').toLowerCase().trim();
-  if (txt.includes('add to cart') || txt.includes('buy now') || txt.includes('add to bag') || txt.includes('purchase')) {
-    btn.addEventListener('click', function(e) {
-      e.preventDefault(); e.stopPropagation();
-      const card = this.closest('article') || this.closest('[class*="product"]') || this.closest('[class*="card"]') || this.parentElement;
-      const nameEl = card && card.querySelector('h1,h2,h3,h4,h5');
-      const name = nameEl ? nameEl.textContent.trim() : 'Item';
-      const priceEl = card && card.querySelector('[class*="price"],[class*="cost"]');
-      const price = priceEl ? parseFloat(priceEl.textContent.replace(/[^0-9.]/g,'')) : 0;
-      const existing = cart.find(function(i) { return i.name === name; });
-      if (existing) existing.qty++;
-      else cart.push({ name: name, price: price, qty: 1 });
-      showToast(name + ' added to cart \u2713');
-      const total = cart.reduce(function(a,b) { return a + b.qty; }, 0);
-      document.querySelectorAll('#cart-count,#cart-badge,[class*="cart-count"]').forEach(function(badge) { badge.textContent = total; });
-    });
-  }
+// FAQ
+document.querySelectorAll('details').forEach(function(d) {
+  var s=d.querySelector('summary');
+  if(s){s.style.cursor='pointer';s.addEventListener('click',function(e){e.preventDefault();var o=d.hasAttribute('open');document.querySelectorAll('details').forEach(function(x){x.removeAttribute('open');});if(!o)d.setAttribute('open','');});}
 });
-
-// ── FORMS ────────────────────────────────────────────────
-document.querySelectorAll('form').forEach(function(form) {
-  form.addEventListener('submit', function(e) {
-    e.preventDefault();
-    if (form.querySelector('.wg-success')) return;
-    const success = document.createElement('div');
-    success.className = 'wg-success';
-    success.style.cssText = 'background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;font-size:16px;font-family:sans-serif;';
-    success.textContent = '\u2713 Thank you! We will be in touch within 24 hours.';
-    form.appendChild(success);
-    form.querySelectorAll('input,textarea,select,button[type="submit"]').forEach(function(el) { el.setAttribute('disabled','true'); });
+document.querySelectorAll('[class*="faq"],[class*="accordion"],[id*="faq"]').forEach(function(c) {
+  c.querySelectorAll('[class*="item"],[class*="question"],[class*="entry"]').forEach(function(item) {
+    var q=item.querySelector('[class*="question"],[class*="trigger"],[class*="header"],h3,h4,button');
+    var a=item.querySelector('[class*="answer"],[class*="content"],[class*="body"],p');
+    if(q&&a){a.style.display='none';q.style.cursor='pointer';q.addEventListener('click',function(){var o=a.style.display!=='none';c.querySelectorAll('[class*="answer"],[class*="content"],[class*="body"],p').forEach(function(x){x.style.display='none';});if(!o)a.style.display='block';});}
   });
 });
-
-// ── INIT MULTI-PAGE ──────────────────────────────────────
-const allPages = document.querySelectorAll('.page, .page-section');
-if (allPages.length > 1) {
-  let hasActive = false;
-  allPages.forEach(function(p) { if (p.classList.contains('active')) hasActive = true; });
-  if (!hasActive) {
-    allPages.forEach(function(p, i) {
-      if (i === 0) { p.style.display = 'block'; p.classList.add('active'); }
-      else { p.style.display = 'none'; }
-    });
-  }
-}
-
+// Cart
+var cart=[];
+function showToast(msg){var t=document.getElementById('wg-toast');if(!t){t=document.createElement('div');t.id='wg-toast';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:99999;transition:opacity 0.3s;pointer-events:none;';document.body.appendChild(t);}t.textContent=msg;t.style.opacity='1';setTimeout(function(){t.style.opacity='0';},2500);}
+document.querySelectorAll('button,a').forEach(function(btn){var txt=(btn.textContent||'').toLowerCase().trim();if(txt.includes('add to cart')||txt.includes('buy now')||txt.includes('add to bag')){btn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();var card=this.closest('article')||this.closest('[class*="product"]')||this.parentElement;var name=card&&card.querySelector('h1,h2,h3,h4');var n=name?name.textContent.trim():'Item';var ex=cart.find(function(i){return i.name===n;});if(ex)ex.qty++;else cart.push({name:n,qty:1});showToast(n+' added \u2713');var total=cart.reduce(function(a,b){return a+b.qty;},0);document.querySelectorAll('#cart-count,#cart-badge,[class*="cart-count"]').forEach(function(b){b.textContent=total;});});}});
+// Forms
+document.querySelectorAll('form').forEach(function(form){form.addEventListener('submit',function(e){e.preventDefault();if(form.querySelector('.wg-success'))return;var s=document.createElement('div');s.className='wg-success';s.style.cssText='background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;font-family:sans-serif;';s.textContent='\u2713 Thank you! We will be in touch within 24 hours.';form.appendChild(s);form.querySelectorAll('input,textarea,select,button[type="submit"]').forEach(function(el){el.setAttribute('disabled','true');});});});
+// Multi-page init
+var pages=document.querySelectorAll('.page,.page-section');
+if(pages.length>1){var ha=false;pages.forEach(function(p){if(p.classList.contains('active'))ha=true;});if(!ha){pages.forEach(function(p,i){if(i===0){p.style.display='block';p.classList.add('active');}else{p.style.display='none';}});}}
 })();
 </script>`;
 
@@ -313,13 +152,19 @@ export async function POST(req: Request) {
     const userInput = await req.json();
     console.log("REQUEST RECEIVED");
 
-    const pageList = Array.isArray(userInput.pages) && userInput.pages.length > 0
-      ? userInput.pages.join(", ") : "Home";
+    const pageList = Array.isArray(userInput.pages) && userInput.pages.length > 0 ? userInput.pages.join(", ") : "Home";
     const isMultiPage = userInput.siteType === "multi";
     const fileName = safeFileName(userInput.businessName || "website");
     const clientEmail = userInput.email || "";
     const clientPhone = userInput.phone || "";
     const quote = calculateQuote(userInput);
+
+    const pricingSection = userInput.hasPricing === "Yes" && userInput.pricingDetails
+      ? `PRICING SECTION REQUIRED:
+- Pricing type: ${userInput.pricingType}
+- Pricing details: ${userInput.pricingDetails}
+- Display these exact prices prominently on the pricing page/section`
+      : `No pricing section needed`;
 
     console.log("STEP 1: Claude spec...");
     const promptResponse = await anthropic.messages.create({
@@ -331,31 +176,41 @@ export async function POST(req: Request) {
 
 Business: ${userInput.businessName}
 Industry: ${userInput.industry}
+Target Audience: ${userInput.targetAudience || "General"}
 USP: ${userInput.usp}
+Existing Website: ${userInput.existingWebsite || "None"}
 Goal: ${userInput.goal}
 Style: ${userInput.style || "modern premium"}
+Colours: ${userInput.colorPrefs || "professional palette"}
+References: ${userInput.references || "none"}
+Has Logo: ${userInput.hasLogo || "unknown"}
+Has Content: ${userInput.hasContent || "unknown"}
+Has Images: ${userInput.hasImages || "unknown"}
 Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}
+Additional Notes: ${userInput.additionalNotes || "none"}
 Contact Email: ${clientEmail}
 Contact Phone: ${clientPhone}
 
+${pricingSection}
+
 ${isMultiPage ? `
 MULTI-PAGE SITE REQUIRED. Pages: ${pageList}
-- A div for each page with class "page-section" and unique id in lowercase
+- Each page as div with class "page-section" and unique lowercase id
 - Only first page visible, others hidden with style="display:none"
 - Nav links using onclick="navigateTo('pageid')"
 - Mobile hamburger with id="hamburger" toggling id="mobile-menu"
-- On the contact page use REAL email: ${clientEmail} and REAL phone: ${clientPhone}
-- FAQ section must use native HTML details/summary elements for accordion dropdowns
+- Contact page: use REAL email ${clientEmail} and REAL phone ${clientPhone}
+- FAQ: use native HTML details/summary elements
 ` : `
-SINGLE PAGE SITE REQUIRED. Sections: ${pageList}
-- Each section with unique id in lowercase
+SINGLE PAGE SITE. Sections: ${pageList}
+- Each section with unique lowercase id
 - Nav links using href="#sectionid"
 - Mobile hamburger with id="hamburger" toggling id="mobile-menu"
-- In contact section use REAL email: ${clientEmail} and REAL phone: ${clientPhone}
-- FAQ section must use native HTML details/summary elements for accordion dropdowns
+- Contact section: use REAL email ${clientEmail} and REAL phone ${clientPhone}
+- FAQ: use native HTML details/summary elements
 `}
 
-Make it premium and visually stunning for: ${userInput.businessName} — ${userInput.industry}`
+Make it premium, conversion-focused and stunning for: ${userInput.businessName}`
       }]
     });
 
@@ -369,11 +224,7 @@ Make it premium and visually stunning for: ${userInput.businessName} — ${userI
     console.log("STEP 2 DONE:", projectId);
 
     console.log("STEP 3: Generating screen...");
-    const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", {
-      projectId,
-      prompt: spec.stitchPrompt,
-    });
-
+    const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", { projectId, prompt: spec.stitchPrompt });
     const screens = stitchResult?.outputComponents?.find((x: any) => x.design)?.design?.screens || [];
     if (!screens.length) throw new Error("No screens returned");
     const downloadUrl = screens[0]?.htmlCode?.downloadUrl;
@@ -386,16 +237,10 @@ Make it premium and visually stunning for: ${userInput.businessName} — ${userI
 
     const finalHtml = injectEssentials(stitchHtml, clientEmail, clientPhone);
     const cssContent = extractCSS(stitchHtml);
-    console.log("STEP 5: JS injected + CSS extracted");
+    console.log("STEP 5 DONE");
 
     const jobId = `job_${Date.now()}`;
-    await redis.set(jobId, {
-      html: finalHtml,
-      title: spec.projectTitle,
-      fileName,
-      userInput,
-    }, { ex: 86400 });
-
+    await redis.set(jobId, { html: finalHtml, title: spec.projectTitle, fileName, userInput }, { ex: 86400 });
     const processUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/process?id=${jobId}&secret=${process.env.PROCESS_SECRET}`;
 
     console.log("STEP 6: Emailing owner...");
@@ -409,22 +254,27 @@ Make it premium and visually stunning for: ${userInput.businessName} — ${userI
         <p><strong>Client:</strong> ${userInput.name}</p>
         <p><strong>Email:</strong> ${clientEmail}</p>
         <p><strong>Phone:</strong> ${clientPhone}</p>
+        <p><strong>Industry:</strong> ${userInput.industry}</p>
+        <p><strong>Target Audience:</strong> ${userInput.targetAudience || "-"}</p>
         <p><strong>Goal:</strong> ${userInput.goal}</p>
         <p><strong>Site Type:</strong> ${userInput.siteType}</p>
         <p><strong>Pages:</strong> ${pageList}</p>
         <p><strong>Features:</strong> ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "-"}</p>
+        <p><strong>Pricing:</strong> ${userInput.hasPricing === "Yes" ? `${userInput.pricingType} — ${userInput.pricingDetails}` : "No pricing section"}</p>
         <p><strong>Style:</strong> ${userInput.style}</p>
+        <p><strong>Colours:</strong> ${userInput.colorPrefs || "-"}</p>
         <p><strong>References:</strong> ${userInput.references || "-"}</p>
+        <p><strong>Has Logo:</strong> ${userInput.hasLogo || "-"}</p>
+        <p><strong>Has Content:</strong> ${userInput.hasContent || "-"}</p>
+        <p><strong>Has Images:</strong> ${userInput.hasImages || "-"}</p>
+        <p><strong>Notes:</strong> ${userInput.additionalNotes || "-"}</p>
         <br/>
         <h3>💰 Quote</h3>
-        <p><strong>Package:</strong> ${quote.package}</p>
-        <p><strong>Total:</strong> $${quote.price.toLocaleString()}</p>
-        <p><strong>Monthly:</strong> $${quote.monthlyPrice}/month</p>
+        <p><strong>Package:</strong> ${quote.package} — $${quote.price.toLocaleString()} + $${quote.monthlyPrice}/month</p>
         <ul>${quote.breakdown.map(b => `<li>${b}</li>`).join('')}</ul>
         <br/>
-        <p>HTML + CSS attached. Click below for Claude deep fix if needed:</p>
         <a href="${processUrl}" style="background:#22c55e;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">✅ Fix This Site</a>
-        <p style="color:#94a3b8;font-size:12px;">Link expires in 24 hours.</p>
+        <p style="color:#94a3b8;font-size:12px;">Expires in 24 hours.</p>
       `,
       attachments: [
         { filename: `${fileName}.html`, content: Buffer.from(finalHtml).toString("base64") },
@@ -442,12 +292,11 @@ Make it premium and visually stunning for: ${userInput.businessName} — ${userI
         html: `
           <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;">
             <h1 style="font-size:28px;margin-bottom:8px;">Thank you, ${userInput.name}!</h1>
-            <p style="color:#666;margin-bottom:32px;">We have received your website request and our team is reviewing it now.</p>
+            <p style="color:#666;margin-bottom:32px;">We have received your request and our team is reviewing it now. We will be in touch within 24 hours.</p>
             <div style="background:#f9f9f9;border-radius:12px;padding:24px;margin-bottom:24px;">
               <h2 style="font-size:16px;margin-bottom:16px;color:#333;">Your Request Summary</h2>
               <table style="width:100%;border-collapse:collapse;">
-                <tr><td style="padding:8px 0;color:#666;width:140px;">Business</td><td style="padding:8px 0;font-weight:600;">${userInput.businessName}</td></tr>
-                <tr><td style="padding:8px 0;color:#666;">Industry</td><td style="padding:8px 0;font-weight:600;">${userInput.industry}</td></tr>
+                <tr><td style="padding:8px 0;color:#666;width:160px;">Business</td><td style="padding:8px 0;font-weight:600;">${userInput.businessName}</td></tr>
                 <tr><td style="padding:8px 0;color:#666;">Goal</td><td style="padding:8px 0;font-weight:600;">${userInput.goal}</td></tr>
                 <tr><td style="padding:8px 0;color:#666;">Site Type</td><td style="padding:8px 0;font-weight:600;">${userInput.siteType === "multi" ? "Multi Page" : "Single Page"}</td></tr>
                 <tr><td style="padding:8px 0;color:#666;">Pages</td><td style="padding:8px 0;font-weight:600;">${pageList}</td></tr>
@@ -457,21 +306,15 @@ Make it premium and visually stunning for: ${userInput.businessName} — ${userI
             </div>
             <div style="background:#0f172a;border-radius:12px;padding:24px;margin-bottom:24px;color:white;">
               <h2 style="font-size:16px;margin-bottom:16px;color:#f2ca50;">💰 Your Quote — ${quote.package} Package</h2>
-              <p style="font-size:32px;font-weight:800;margin:0;color:white;">$${quote.price.toLocaleString()}</p>
-              <p style="color:#94a3b8;margin-bottom:16px;">+ $${quote.monthlyPrice}/month hosting & maintenance</p>
-              <div style="border-top:1px solid #ffffff20;padding-top:16px;">
-                ${quote.breakdown.map(b => `<p style="margin:4px 0;color:#cbd5e1;font-size:14px;">✓ ${b}</p>`).join('')}
-              </div>
+              <p style="font-size:32px;font-weight:800;margin:0;">\$${quote.price.toLocaleString()}</p>
+              <p style="color:#94a3b8;margin-bottom:16px;">+ \$${quote.monthlyPrice}/month hosting & maintenance</p>
               <div style="background:#22c55e20;border:1px solid #22c55e40;border-radius:8px;padding:16px;margin-top:16px;">
-                <p style="color:#22c55e;font-weight:bold;margin:0;font-size:18px;">🎉 You are saving $${quote.savings.toLocaleString()} compared to the industry average!</p>
+                <p style="color:#22c55e;font-weight:bold;margin:0;">🎉 You are saving \$${quote.savings.toLocaleString()} compared to the industry average of \$${quote.competitorPrice.toLocaleString()}!</p>
               </div>
             </div>
-            <p style="color:#666;">Our team will be in touch within <strong>24 hours</strong> with your website preview.</p>
             <p style="color:#666;">Reply to this email if you have any questions.</p>
-            <br/>
             <div style="border-top:1px solid #eee;padding-top:20px;margin-top:20px;">
-              <p style="color:#999;font-size:12px;">WebGecko — Professional Web Design</p>
-              <p style="color:#999;font-size:12px;">webgecko.au</p>
+              <p style="color:#999;font-size:12px;">WebGecko — Professional Web Design | webgecko.au</p>
             </div>
           </div>
         `,

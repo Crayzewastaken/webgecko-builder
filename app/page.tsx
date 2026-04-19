@@ -44,20 +44,45 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  // Step 1 — Business
   const [businessName, setBusinessName] = useState("");
   const [industry, setIndustry] = useState("");
   const [usp, setUsp] = useState("");
+  const [existingWebsite, setExistingWebsite] = useState("");
+  const [targetAudience, setTargetAudience] = useState("");
+
+  // Step 2 — Goal & Type
   const [goal, setGoal] = useState("");
   const [siteType, setSiteType] = useState("");
+
+  // Step 3 — Pages
   const [pages, setPages] = useState<string[]>([]);
+
+  // Step 4 — Features
   const [features, setFeatures] = useState<string[]>([]);
+
+  // Step 5 — Pricing
+  const [hasPricing, setHasPricing] = useState("");
+  const [pricingType, setPricingType] = useState("");
+  const [pricingDetails, setPricingDetails] = useState("");
+
+  // Step 6 — Design
   const [style, setStyle] = useState("");
+  const [colorPrefs, setColorPrefs] = useState("");
   const [references, setReferences] = useState("");
+  const [hasLogo, setHasLogo] = useState("");
+
+  // Step 7 — Content
+  const [hasContent, setHasContent] = useState("");
+  const [hasImages, setHasImages] = useState("");
+  const [additionalNotes, setAdditionalNotes] = useState("");
+
+  // Step 8 — Contact
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
-  const totalSteps = 6;
+  const totalSteps = 8;
 
   const quote = useMemo(() => {
     if (pages.length === 0 && features.length === 0 && !siteType) return null;
@@ -74,8 +99,12 @@ export default function HomePage() {
     setMessage("Submitting your request...");
 
     const payload = {
-      businessName, industry, usp, goal, siteType,
-      pages, features, style, references, name, email, phone,
+      businessName, industry, usp, existingWebsite, targetAudience,
+      goal, siteType, pages, features,
+      hasPricing, pricingType, pricingDetails,
+      style, colorPrefs, references, hasLogo,
+      hasContent, hasImages, additionalNotes,
+      name, email, phone,
     };
 
     try {
@@ -108,35 +137,43 @@ export default function HomePage() {
 
         <div className="rounded-[2rem] bg-[#111827] border border-white/10 p-8 shadow-2xl">
           <p className="text-sm uppercase tracking-widest text-slate-400">Project Brief</p>
-          <h1 className="text-3xl md:text-5xl font-semibold mt-2">Website Project Questionnaire</h1>
+          <h1 className="text-3xl md:text-4xl font-semibold mt-2">Website Project Questionnaire</h1>
 
           <div className="mt-6 h-2 bg-white/10 rounded-full overflow-hidden">
             <div className="h-full bg-white transition-all" style={{ width: `${(step / totalSteps) * 100}%` }} />
           </div>
+          <p className="text-slate-500 text-xs mt-2">Step {step} of {totalSteps}</p>
 
+          {/* STEP 1 — BUSINESS */}
           {step === 1 && (
             <div className="space-y-4 mt-8">
+              <p className="text-white font-semibold text-lg">Tell us about your business</p>
               <input placeholder="Business Name" value={businessName} onChange={(e) => setBusinessName(e.target.value)} className="input" />
-              <input placeholder="Industry" value={industry} onChange={(e) => setIndustry(e.target.value)} className="input" />
-              <textarea placeholder="What makes your business unique?" value={usp} onChange={(e) => setUsp(e.target.value)} className="textarea" />
+              <input placeholder="Industry (e.g. Real Estate, Fitness, Retail)" value={industry} onChange={(e) => setIndustry(e.target.value)} className="input" />
+              <input placeholder="Target Audience (e.g. Young professionals in Brisbane)" value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} className="input" />
+              <textarea placeholder="What makes your business unique? What do you offer that competitors don't?" value={usp} onChange={(e) => setUsp(e.target.value)} className="textarea" />
+              <input placeholder="Existing website URL (if you have one, or leave blank)" value={existingWebsite} onChange={(e) => setExistingWebsite(e.target.value)} className="input" />
             </div>
           )}
 
+          {/* STEP 2 — GOAL & TYPE */}
           {step === 2 && (
             <div className="space-y-4 mt-8">
-              <p className="text-slate-400 text-sm mb-2">What is the main goal of your website?</p>
+              <p className="text-white font-semibold text-lg">What do you need the website to do?</p>
               <select value={goal} onChange={(e) => setGoal(e.target.value)} className="input">
-                <option value="">Select a goal</option>
+                <option value="">Main goal of your website</option>
                 <option>Generate leads</option>
-                <option>Sell products</option>
-                <option>Bookings</option>
-                <option>Portfolio showcase</option>
+                <option>Sell products online</option>
+                <option>Accept bookings</option>
+                <option>Showcase portfolio</option>
                 <option>Provide information</option>
+                <option>Build brand awareness</option>
               </select>
-              <p className="text-slate-400 text-sm mt-6 mb-2">What type of website do you want?</p>
+
+              <p className="text-slate-400 text-sm mt-4 mb-2">What type of website do you want?</p>
               <div className="grid gap-3">
                 {[
-                  { value: "single", label: "Single Page", desc: "Everything on one scrollable page. Clean and fast." },
+                  { value: "single", label: "Single Page", desc: "Everything on one scrollable page. Clean, fast and modern." },
                   { value: "multi", label: "Multi Page", desc: "Separate pages like Home, About, Services, Contact." },
                 ].map((opt) => (
                   <label key={opt.value} className={`card cursor-pointer border-2 transition-all ${siteType === opt.value ? "border-white" : "border-transparent"}`}>
@@ -151,10 +188,12 @@ export default function HomePage() {
             </div>
           )}
 
+          {/* STEP 3 — PAGES */}
           {step === 3 && (
             <div className="grid gap-3 mt-8">
-              <p className="text-slate-400 text-sm">Select the pages you want</p>
-              {["Home", "About", "Services", "Contact", "Shop", "Gallery", "Blog", "Booking", "FAQ", "Testimonials"].map(p => (
+              <p className="text-white font-semibold text-lg">Select the pages you want</p>
+              <p className="text-slate-400 text-sm">Only select pages you actually need</p>
+              {["Home", "About", "Services", "Contact", "Shop", "Gallery", "Blog", "Booking", "FAQ", "Testimonials", "Pricing", "Portfolio", "Team"].map(p => (
                 <label key={p} className="card cursor-pointer">
                   <input type="checkbox" checked={pages.includes(p)} onChange={() => toggleItem(pages, p, setPages)} />
                   <span>{p}</span>
@@ -163,10 +202,12 @@ export default function HomePage() {
             </div>
           )}
 
+          {/* STEP 4 — FEATURES */}
           {step === 4 && (
             <div className="grid gap-3 mt-8">
-              <p className="text-slate-400 text-sm">Select features you need</p>
-              {["Contact Form", "Booking System", "Payments / Shop", "Blog", "Reviews & Testimonials", "Live Chat", "Photo Gallery", "FAQ Section", "Newsletter Signup", "Social Media Links"].map(f => (
+              <p className="text-white font-semibold text-lg">Select features you need</p>
+              <p className="text-slate-400 text-sm">Only select what you genuinely need</p>
+              {["Contact Form", "Booking System", "Payments / Shop", "Blog", "Reviews & Testimonials", "Live Chat", "Photo Gallery", "FAQ Section", "Newsletter Signup", "Social Media Links", "Google Maps", "Video Background", "Countdown Timer", "Pop-up Form"].map(f => (
                 <label key={f} className="card cursor-pointer">
                   <input type="checkbox" checked={features.includes(f)} onChange={() => toggleItem(features, f, setFeatures)} />
                   <span>{f}</span>
@@ -175,16 +216,108 @@ export default function HomePage() {
             </div>
           )}
 
+          {/* STEP 5 — PRICING */}
           {step === 5 && (
             <div className="space-y-4 mt-8">
-              <input placeholder="Style (e.g. Luxury dark, Clean minimal, Bold modern)" value={style} onChange={(e) => setStyle(e.target.value)} className="input" />
-              <textarea placeholder="Websites you like for reference" value={references} onChange={(e) => setReferences(e.target.value)} className="textarea" />
+              <p className="text-white font-semibold text-lg">Do you need a pricing section on your website?</p>
+              <div className="grid gap-3">
+                {["Yes", "No"].map(opt => (
+                  <label key={opt} className={`card cursor-pointer border-2 transition-all ${hasPricing === opt ? "border-white" : "border-transparent"}`}>
+                    <input type="radio" name="hasPricing" checked={hasPricing === opt} onChange={() => setHasPricing(opt)} className="hidden" />
+                    <span>{opt}</span>
+                  </label>
+                ))}
+              </div>
+
+              {hasPricing === "Yes" && (
+                <>
+                  <p className="text-slate-400 text-sm mt-4">What type of pricing do you have?</p>
+                  <div className="grid gap-3">
+                    {[
+                      { value: "tiers", label: "Pricing Tiers", desc: "Starter / Business / Premium style packages" },
+                      { value: "products", label: "Individual Products", desc: "Each product or service has its own price" },
+                      { value: "quote", label: "Quote Based", desc: "Prices vary — customers request a quote" },
+                      { value: "hourly", label: "Hourly / Day Rate", desc: "You charge by the hour or day" },
+                    ].map(opt => (
+                      <label key={opt.value} className={`card cursor-pointer border-2 transition-all ${pricingType === opt.value ? "border-white" : "border-transparent"}`}>
+                        <input type="radio" name="pricingType" checked={pricingType === opt.value} onChange={() => setPricingType(opt.value)} className="hidden" />
+                        <div>
+                          <p className="font-semibold">{opt.label}</p>
+                          <p className="text-slate-400 text-sm">{opt.desc}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+
+                  <textarea
+                    placeholder={
+                      pricingType === "tiers"
+                        ? "List your tiers e.g. Starter $99/month - includes X, Y, Z. Business $199/month - includes A, B, C"
+                        : pricingType === "products"
+                        ? "List your products/services and prices e.g. Haircut $45, Colour $120, Treatment $80"
+                        : pricingType === "hourly"
+                        ? "e.g. $85/hour, minimum 2 hours. Day rate $600"
+                        : "Describe how your quoting works e.g. Free consultation then custom quote based on requirements"
+                    }
+                    value={pricingDetails}
+                    onChange={(e) => setPricingDetails(e.target.value)}
+                    className="textarea mt-4"
+                  />
+                </>
+              )}
             </div>
           )}
 
+          {/* STEP 6 — DESIGN */}
           {step === 6 && (
             <div className="space-y-4 mt-8">
-              <p className="text-slate-400 text-sm">We will be in touch once we have reviewed your request.</p>
+              <p className="text-white font-semibold text-lg">Design preferences</p>
+              <input placeholder="Style (e.g. Luxury dark, Clean minimal, Bold modern, Friendly and colourful)" value={style} onChange={(e) => setStyle(e.target.value)} className="input" />
+              <input placeholder="Colour preferences (e.g. Navy blue and gold, Black and white, Green and cream)" value={colorPrefs} onChange={(e) => setColorPrefs(e.target.value)} className="input" />
+              <textarea placeholder="Websites you like for reference (paste links or describe what you like about them)" value={references} onChange={(e) => setReferences(e.target.value)} className="textarea" />
+              <div className="grid gap-3">
+                <p className="text-slate-400 text-sm">Do you have a logo?</p>
+                {["Yes — I will provide it", "No — I need one designed", "No — please use text only"].map(opt => (
+                  <label key={opt} className={`card cursor-pointer border-2 transition-all ${hasLogo === opt ? "border-white" : "border-transparent"}`}>
+                    <input type="radio" name="hasLogo" checked={hasLogo === opt} onChange={() => setHasLogo(opt)} className="hidden" />
+                    <span className="text-sm">{opt}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* STEP 7 — CONTENT */}
+          {step === 7 && (
+            <div className="space-y-4 mt-8">
+              <p className="text-white font-semibold text-lg">Content & assets</p>
+              <div className="grid gap-3">
+                <p className="text-slate-400 text-sm">Do you have website copy/text ready?</p>
+                {["Yes — I will provide all text", "Partially — I have some text", "No — please write it for me"].map(opt => (
+                  <label key={opt} className={`card cursor-pointer border-2 transition-all ${hasContent === opt ? "border-white" : "border-transparent"}`}>
+                    <input type="radio" name="hasContent" checked={hasContent === opt} onChange={() => setHasContent(opt)} className="hidden" />
+                    <span className="text-sm">{opt}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="grid gap-3 mt-4">
+                <p className="text-slate-400 text-sm">Do you have photos or images?</p>
+                {["Yes — I will provide photos", "Partially — I have some photos", "No — please use stock images"].map(opt => (
+                  <label key={opt} className={`card cursor-pointer border-2 transition-all ${hasImages === opt ? "border-white" : "border-transparent"}`}>
+                    <input type="radio" name="hasImages" checked={hasImages === opt} onChange={() => setHasImages(opt)} className="hidden" />
+                    <span className="text-sm">{opt}</span>
+                  </label>
+                ))}
+              </div>
+              <textarea placeholder="Anything else we should know? Special requirements, deadline, competitors to beat, anything goes" value={additionalNotes} onChange={(e) => setAdditionalNotes(e.target.value)} className="textarea mt-4" />
+            </div>
+          )}
+
+          {/* STEP 8 — CONTACT */}
+          {step === 8 && (
+            <div className="space-y-4 mt-8">
+              <p className="text-white font-semibold text-lg">Your contact details</p>
+              <p className="text-slate-400 text-sm">We will send a confirmation to your email and be in touch within 24 hours.</p>
               <input placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} className="input" />
               <input placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} className="input" />
               <input placeholder="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} className="input" />
@@ -218,12 +351,14 @@ export default function HomePage() {
           )}
         </div>
 
+        {/* SIDE PANEL */}
         <div className="hidden lg:block space-y-4">
           <div className="rounded-[2rem] bg-black border border-white/10 p-6 sticky top-10">
             <h2 className="text-xl font-semibold">Progress</h2>
-            <p className="text-slate-400 mt-4">Step {step} of {totalSteps}</p>
+            <p className="text-slate-400 mt-2 text-sm">Step {step} of {totalSteps}</p>
             <div className="mt-6 space-y-2 text-sm text-slate-500">
               <p>Business: {businessName || "-"}</p>
+              <p>Industry: {industry || "-"}</p>
               <p>Goal: {goal || "-"}</p>
               <p>Type: {siteType || "-"}</p>
               <p>Pages: {pages.length > 0 ? pages.join(", ") : "-"}</p>
