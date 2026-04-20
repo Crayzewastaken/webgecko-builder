@@ -229,6 +229,8 @@ export async function POST(req: Request) {
       hasPricing: getString("hasPricing"),
       pricingType: getString("pricingType"),
       pricingDetails: getString("pricingDetails"),
+      pricingMethod: getString("pricingMethod"),
+      pricingUrl: getString("pricingUrl"),
       products: getJson("products"),
       style: getString("style"),
       colorPrefs: getString("colorPrefs"),
@@ -287,9 +289,36 @@ export async function POST(req: Request) {
     }
 
     // Build pricing section for prompt
-    let pricingSection = "No pricing section needed";
-    if (userInput.hasPricing === "Yes") {
-      if (userInput.pricingType === "products" && productsWithPhotos.length > 0) {
+let pricingSection = "No pricing section needed";
+if (userInput.hasPricing === "Yes") {
+  const method = userInput.pricingMethod || "manual";
+
+  if (method === "weknow") {
+    pricingSection = `PRICING SECTION REQUIRED:
+Create a professional pricing section appropriate for a ${userInput.industry} business.
+Use industry-standard pricing that looks realistic and professional.
+Style it to match the overall site design.`;
+  } else if (method === "url") {
+    pricingSection = `PRICING SECTION REQUIRED:
+Pull pricing information from the client's existing website: ${userInput.pricingUrl}
+Recreate their pricing section in the new design.
+If you cannot access the URL, create a professional placeholder pricing section.`;
+  } else if (method === "upload") {
+    pricingSection = `PRICING SECTION REQUIRED:
+The client has uploaded a menu/price list document.
+Create a professional pricing section based on their industry: ${userInput.industry}
+The uploaded document will be reviewed separately and pricing will be updated accordingly.`;
+  } else if (userInput.pricingType === "products" && productsWithPhotos.length > 0) {
+    pricingSection = `PRICING SECTION REQUIRED — Individual Products:
+${productsWithPhotos.map((p) => `- ${p.name}: ${p.price}${p.photoUrl ? ` (photo: ${p.photoUrl})` : ''}`).join('\n')}
+Display each product with its name, price, and photo in a grid or card layout.
+Use the exact product photos provided.`;
+  } else {
+    pricingSection = `PRICING SECTION REQUIRED:
+Type: ${userInput.pricingType}
+Details: ${userInput.pricingDetails}`;
+  }
+}
         pricingSection = `PRICING SECTION REQUIRED — Individual Products:
 ${productsWithPhotos.map((p, i) => `- ${p.name}: ${p.price}${p.photoUrl ? ` (photo: ${p.photoUrl})` : ''}`).join('\n')}
 Display each product with its name, price, and photo in a grid or card layout.
