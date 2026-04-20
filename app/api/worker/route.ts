@@ -309,7 +309,7 @@ The client has uploaded a menu/price list document.
 Create a professional pricing section based on their industry: ${userInput.industry}
 The uploaded document will be reviewed separately and pricing will be updated accordingly.`;
   } else if (userInput.pricingType === "products" && productsWithPhotos.length > 0) {
-    pricingSection = `PRICING SECTION REQUIRED — Individual Products:
+    pricingSection = `PRICING SECTION REQUIRED - Individual Products:
 ${productsWithPhotos.map((p) => `- ${p.name}: ${p.price}${p.photoUrl ? ` (photo: ${p.photoUrl})` : ''}`).join('\n')}
 Display each product with its name, price, and photo in a grid or card layout.
 Use the exact product photos provided.`;
