@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 
 function calculateQuote(pages: string[], features: string[], siteType: string) {
   const pageCount = pages.length || 1;
@@ -53,6 +53,10 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [compressing, setCompressing] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileReady, setTurnstileReady] = useState(false);
+  const turnstileRef = useRef<HTMLDivElement>(null);
+  const turnstileWidgetId = useRef<string>("");
 
   const [businessName, setBusinessName] = useState("");
   const [industry, setIndustry] = useState("");
@@ -68,7 +72,6 @@ export default function HomePage() {
   const [pricingMethod, setPricingMethod] = useState("");
   const [products, setProducts] = useState<Product[]>([{ name: "", price: "", photo: null }]);
   const [pricingDetails, setPricingDetails] = useState("");
-  const [pricingFileRef] = useState(() => ({ current: null as HTMLInputElement | null }));
   const [pricingFile, setPricingFile] = useState<File | null>(null);
   const [pricingUrl, setPricingUrl] = useState("");
   const [style, setStyle] = useState("");
@@ -97,6 +100,28 @@ export default function HomePage() {
     if (pages.length === 0 && features.length === 0 && !siteType) return null;
     return calculateQuote(pages, features, siteType);
   }, [pages, features, siteType]);
+
+  // Load Turnstile on final step
+  useEffect(() => {
+    if (step === totalSteps) {
+      const script = document.createElement('script');
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+      script.async = true;
+      script.onload = () => {
+        setTurnstileReady(true);
+        if (turnstileRef.current && (window as any).turnstile) {
+          turnstileWidgetId.current = (window as any).turnstile.render(turnstileRef.current, {
+            sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+            callback: (token: string) => setTurnstileToken(token),
+            'expired-callback': () => setTurnstileToken(""),
+            'error-callback': () => setTurnstileToken(""),
+          });
+        }
+      };
+      document.head.appendChild(script);
+      return () => { document.head.removeChild(script); };
+    }
+  }, [step]);
 
   function toggleItem(arr: string[], value: string, setFn: any) {
     if (arr.includes(value)) setFn(arr.filter((v) => v !== value));
@@ -134,29 +159,30 @@ export default function HomePage() {
     setCompressing(false);
   }
 
-  async function handlePricingSheet(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]; if (!file) return;
-    setPricingFile(file);
-  }
-
   async function submit() {
+    if (!turnstileToken) {
+      setMessage("Please wait for the security check to complete.");
+      return;
+    }
+
     setLoading(true); setMessage("Submitting your request...");
     const formData = new FormData();
     const fields: Record<string, string> = {
       businessName, industry, usp, existingWebsite, targetAudience,
       goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl,
       style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone,
+      turnstileToken,
     };
     Object.entries(fields).forEach(([key, val]) => formData.append(key, val));
     formData.append("pages", JSON.stringify(pages));
     formData.append("features", JSON.stringify(features));
-    const productData = products.map(p => ({ name: p.name, price: p.price }));
-    formData.append("products", JSON.stringify(productData));
+    formData.append("products", JSON.stringify(products.map(p => ({ name: p.name, price: p.price }))));
     products.forEach((p, i) => { if (p.photo) formData.append(`product_photo_${i}`, p.photo); });
     if (pricingFile) formData.append("pricing_sheet", pricingFile);
     if (logoFile) formData.append("logo", logoFile);
     if (heroFile) formData.append("hero", heroFile);
     photoFiles.forEach((file, i) => formData.append(`photo_${i}`, file));
+
     try {
       const res = await fetch("/api/worker", { method: "POST", body: formData });
       const data = await res.json();
@@ -290,9 +316,9 @@ export default function HomePage() {
               <div className="grid gap-3">
                 {[
                   { value: "upload", label: "📄 Upload a menu or price list", desc: "Upload a PDF, image or document of your prices" },
-                  { value: "url", label: "🌐 Use my existing website", desc: "We'll pull your pricing from your current site" },
+                  { value: "url", label: "🌐 Use my existing website", desc: "We will pull your pricing from your current site" },
                   { value: "manual", label: "✏️ Enter manually", desc: "Type in each item, price and upload photos" },
-                  { value: "weknow", label: "🤝 You decide for us", desc: "We'll create a professional pricing section based on your industry" },
+                  { value: "weknow", label: "🤝 You decide for us", desc: "We will create a professional pricing section based on your industry" },
                 ].map(opt => (
                   <label key={opt.value} className={`card cursor-pointer border-2 transition-all ${pricingMethod === opt.value ? "border-white" : "border-transparent"}`}>
                     <input type="radio" name="pricingMethod" checked={pricingMethod === opt.value} onChange={() => setPricingMethod(opt.value)} className="hidden" />
@@ -303,17 +329,13 @@ export default function HomePage() {
 
               {pricingMethod === "upload" && (
                 <div onClick={() => pricingSheetRef.current?.click()} className="border-2 border-dashed border-white/20 rounded-2xl p-6 cursor-pointer hover:border-white/40 transition-all text-center mt-4">
-                  <input ref={pricingSheetRef} type="file" accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={handlePricingSheet} />
-                  {pricingFile ? (
-                    <p className="text-emerald-400 font-semibold">✓ {pricingFile.name}</p>
-                  ) : (
-                    <div><p className="text-slate-300 font-semibold">Upload menu or price list</p><p className="text-slate-500 text-sm mt-1">PDF, image, Word doc — any format</p></div>
-                  )}
+                  <input ref={pricingSheetRef} type="file" accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setPricingFile(f); }} />
+                  {pricingFile ? <p className="text-emerald-400 font-semibold">✓ {pricingFile.name}</p> : <div><p className="text-slate-300 font-semibold">Upload menu or price list</p><p className="text-slate-500 text-sm mt-1">PDF, image, Word doc</p></div>}
                 </div>
               )}
 
               {pricingMethod === "url" && (
-                <input placeholder="Your existing website URL (e.g. https://yourbusiness.com.au)" value={pricingUrl} onChange={(e) => setPricingUrl(e.target.value)} className="input mt-4" />
+                <input placeholder="Your existing website URL" value={pricingUrl} onChange={(e) => setPricingUrl(e.target.value)} className="input mt-4" />
               )}
 
               {pricingMethod === "manual" && pricingType === "products" && (
@@ -329,7 +351,7 @@ export default function HomePage() {
                       <input placeholder="Price (e.g. $12 or from $85)" value={product.price} onChange={(e) => updateProduct(index, 'price', e.target.value)} className="input" />
                       <div onClick={() => productPhotoRefs.current[index]?.click()} className="border-2 border-dashed border-white/20 rounded-xl p-4 cursor-pointer hover:border-white/40 transition-all text-center">
                         <input ref={(el) => { productPhotoRefs.current[index] = el; }} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleProductPhoto(index, f); }} />
-                        {product.photo ? <p className="text-emerald-400 text-sm">✓ {product.photo.name} ({(product.photo.size/1024).toFixed(0)}KB)</p> : <p className="text-slate-400 text-sm">📷 Upload photo (optional)</p>}
+                        {product.photo ? <p className="text-emerald-400 text-sm">✓ {product.photo.name} ({(product.photo.size / 1024).toFixed(0)}KB)</p> : <p className="text-slate-400 text-sm">📷 Upload photo (optional)</p>}
                       </div>
                     </div>
                   ))}
@@ -340,21 +362,12 @@ export default function HomePage() {
               )}
 
               {pricingMethod === "manual" && pricingType !== "products" && (
-                <textarea
-                  placeholder={
-                    pricingType === "tiers" ? "e.g. Starter $99/month - includes X, Y, Z. Business $199/month - includes A, B, C"
-                    : pricingType === "hourly" ? "e.g. $85/hour, minimum 2 hours. Day rate $600"
-                    : "Describe how your quoting works"
-                  }
-                  value={pricingDetails}
-                  onChange={(e) => setPricingDetails(e.target.value)}
-                  className="textarea mt-4"
-                />
+                <textarea placeholder={pricingType === "tiers" ? "e.g. Starter $99/month - includes X, Y, Z" : pricingType === "hourly" ? "e.g. $85/hour, minimum 2 hours" : "Describe how your quoting works"} value={pricingDetails} onChange={(e) => setPricingDetails(e.target.value)} className="textarea mt-4" />
               )}
 
               {pricingMethod === "weknow" && (
                 <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 mt-4">
-                  <p className="text-emerald-400 text-sm">✓ No problem — we'll create a professional pricing section that suits your industry and style.</p>
+                  <p className="text-emerald-400 text-sm">✓ No problem — we will create a professional pricing section that suits your industry and style.</p>
                 </div>
               )}
             </div>
@@ -406,7 +419,7 @@ export default function HomePage() {
                 <input ref={photosRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoChange} />
                 <p className="text-slate-300 font-semibold">📷 Additional Photos</p>
                 <p className="text-slate-500 text-sm mt-1">Up to 5 general photos</p>
-                {photoFiles.length > 0 && photoFiles.map((f, i) => <p key={i} className="text-emerald-400 text-sm mt-1">✓ {f.name} ({(f.size/1024).toFixed(0)}KB)</p>)}
+                {photoFiles.length > 0 && photoFiles.map((f, i) => <p key={i} className="text-emerald-400 text-sm mt-1">✓ {f.name} ({(f.size / 1024).toFixed(0)}KB)</p>)}
               </div>
               <p className="text-slate-500 text-xs text-center">Skip if you don't have assets — we'll use stock images.</p>
             </div>
@@ -425,11 +438,21 @@ export default function HomePage() {
                 ))}
               </div>
               <textarea placeholder="Anything else we should know? Deadline, special requirements, competitors, anything goes" value={additionalNotes} onChange={(e) => setAdditionalNotes(e.target.value)} className="textarea mt-4" />
+
               <p className="text-white font-semibold text-lg mt-6">Your contact details</p>
               <p className="text-slate-400 text-sm">We will send a confirmation to your email and be in touch within 24 hours.</p>
               <input placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} className="input" />
               <input placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} className="input" />
               <input placeholder="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} className="input" />
+
+              {/* Turnstile */}
+              <div className="mt-4">
+                <div ref={turnstileRef} />
+                {!turnstileToken && turnstileReady && (
+                  <p className="text-slate-500 text-xs mt-2">Please complete the security check above</p>
+                )}
+              </div>
+
               {quote && (
                 <div className="mt-6 rounded-2xl bg-[#0f172a] border border-white/10 p-6">
                   <p className="text-xs uppercase tracking-widest text-slate-400 mb-4">Your Estimated Quote</p>
@@ -449,7 +472,7 @@ export default function HomePage() {
 
           <div className="flex gap-4 mt-8">
             <button onClick={back} className="btn-outline">Back</button>
-            <button onClick={next} disabled={loading || compressing} className="btn-primary">
+            <button onClick={next} disabled={loading || compressing || (step === totalSteps && !turnstileToken)} className="btn-primary">
               {compressing ? "Compressing..." : loading ? message || "Processing..." : step === totalSteps ? "Submit Request" : "Next"}
             </button>
           </div>
