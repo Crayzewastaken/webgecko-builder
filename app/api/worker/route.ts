@@ -391,6 +391,10 @@ export async function POST(req: Request) {
         role: "user",
         content: `Return ONLY valid JSON with "projectTitle" and "stitchPrompt".
 
+You are a senior UI designer and front-end developer. Preserve the imported design language. Prioritize clean spacing, premium typography, polished interactions, and reusable components. Avoid generic layouts. Use Tailwind CSS and shadcn/ui where appropriate.
+
+Research similar websites in the ${userInput.industry} industry and take inspiration from their layout patterns, conversion techniques and visual hierarchy — but create something entirely unique and original. Do not copy any existing website. Create a distinctive premium design specific to this business.
+
 Business: ${userInput.businessName}
 Industry: ${userInput.industry}
 Target Audience: ${userInput.targetAudience}
@@ -412,7 +416,7 @@ ${isMultiPage
   ? `MULTI-PAGE SITE. Pages: ${pageList}. Each page as div with class "page-section" and unique lowercase id. Only first page visible, others display:none. Nav using onclick="navigateTo('pageid')". Mobile hamburger id="hamburger" toggling id="mobile-menu". Contact: REAL email ${clientEmail} and phone ${clientPhone}. FAQ: native details/summary elements.`
   : `SINGLE PAGE SITE. Sections: ${pageList}. Each section unique lowercase id. Nav using href="#sectionid". Mobile hamburger id="hamburger" toggling id="mobile-menu". Contact: REAL email ${clientEmail} and phone ${clientPhone}. FAQ: native details/summary elements.`}
 
-Make it premium and stunning for: ${userInput.businessName}`
+Make it premium, unique and stunning for: ${userInput.businessName}`
       }]
     });
 
