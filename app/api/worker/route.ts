@@ -89,52 +89,21 @@ async function uploadToCloudinary(buffer: Buffer, folder: string, filename: stri
   });
 }
 
-// Check all links and buttons in the HTML and fix dead ones
 function checkAndFixLinks(html: string, pages: string[]): { html: string; report: string[] } {
   const issues: string[] = [];
-  let fixed = html;
-
-  // Find all href="#" dead links and fix them
   const deadLinks = html.match(/href="#"(?!\w)/g);
-  if (deadLinks) {
-    issues.push(`Found ${deadLinks.length} dead href="#" links`);
-  }
-
-  // Check all nav links point to real sections/pages
+  if (deadLinks) issues.push(`Found ${deadLinks.length} dead href="#" links`);
   const navLinks = html.match(/href="#([^"]+)"/g) || [];
   navLinks.forEach(link => {
     const id = link.match(/href="#([^"]+)"/)?.[1];
-    if (id && !html.includes(`id="${id}"`)) {
-      issues.push(`Nav link #${id} has no matching section id`);
-      // Add the missing id to the first matching page section
-      const pageMatch = pages.find(p => p.toLowerCase() === id.toLowerCase());
-      if (pageMatch) {
-        fixed = fixed.replace(
-          new RegExp(`(<(?:section|div)[^>]*class="[^"]*(?:page|section)[^"]*"[^>]*>)`),
-          `$1`
-        );
-      }
-    }
+    if (id && !html.includes(`id="${id}"`)) issues.push(`Nav link #${id} has no matching section id`);
   });
-
-  // Check navigateTo calls have matching page sections
   const navigateCalls = html.match(/navigateTo\(['"]([^'"]+)['"]\)/g) || [];
   navigateCalls.forEach(call => {
     const pageId = call.match(/navigateTo\(['"]([^'"]+)['"]\)/)?.[1];
-    if (pageId && !html.includes(`id="${pageId}"`)) {
-      issues.push(`navigateTo('${pageId}') has no matching id="${pageId}" element`);
-    }
+    if (pageId && !html.includes(`id="${pageId}"`)) issues.push(`navigateTo('${pageId}') has no matching element`);
   });
-
-  // Ensure all form submit buttons have type="submit" or are inside forms
-  const orphanButtons = html.match(/<button[^>]*>(?:Submit|Send|Contact|Book|Order)[^<]*<\/button>/gi) || [];
-  orphanButtons.forEach(btn => {
-    if (!btn.includes('type=')) {
-      issues.push(`Button "${btn.substring(0, 50)}" missing type attribute`);
-    }
-  });
-
-  return { html: fixed, report: issues };
+  return { html, report: issues };
 }
 
 function injectImages(
@@ -145,7 +114,6 @@ function injectImages(
   products: { name: string; price: string; photoUrl?: string }[]
 ): string {
   let processed = html;
-
   const script = `
 <script>
 (function() {
@@ -171,7 +139,6 @@ function injectImages(
       }
     }
   }` : ""}
-
   ${heroUrl ? `
   var heroUrl = "${heroUrl}";
   var heroSection = document.querySelector("[class*='hero'],[id*='hero'],section:first-of-type");
@@ -180,7 +147,6 @@ function injectImages(
     var heroImg = heroSection.querySelector("img");
     if (heroImg) { heroImg.src = heroUrl; heroImg.style.objectFit = "cover"; }
   }` : ""}
-
   ${products.filter(p => p.photoUrl).length > 0 ? `
   var productData = ${JSON.stringify(products.filter(p => p.photoUrl))};
   productData.forEach(function(product) {
@@ -197,27 +163,31 @@ function injectImages(
   var productImgs = document.querySelectorAll("[class*='menu'] img, [class*='product'] img, [class*='item'] img, [id*='menu'] img, [class*='card'] img");
   var photoList = productData.map(function(p) { return p.photoUrl; });
   productImgs.forEach(function(img, i) { if (photoList[i]) { img.src = photoList[i]; img.style.objectFit = "cover"; } });` : ""}
-
   ${photoUrls.length > 0 ? `
   var generalPhotos = ${JSON.stringify(photoUrls)};
   var galleryImgs = document.querySelectorAll("[class*='gallery'] img, [id*='gallery'] img");
   galleryImgs.forEach(function(img, i) { if (generalPhotos[i]) img.src = generalPhotos[i]; });` : ""}
 })();
 </script>`;
-
   if (processed.includes("</body>")) return processed.replace("</body>", script + "</body>");
   return processed + script;
 }
 
 function injectEssentials(html: string, email: string, phone: string): string {
   let processed = html;
-  processed = processed.replace(/hello@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
-  processed = processed.replace(/info@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
-  processed = processed.replace(/contact@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
-  processed = processed.replace(/support@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
-  processed = processed.replace(/\+1 \(555\)[^\s<"']*/g, phone);
-  processed = processed.replace(/\(555\)[^\s<"']*/g, phone);
-  processed = processed.replace(/555-[0-9-]+/g, phone);
+  if (email) {
+    processed = processed.replace(/hello@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
+    processed = processed.replace(/info@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
+    processed = processed.replace(/contact@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
+    processed = processed.replace(/support@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
+    processed = processed.replace(/admin@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
+  }
+  if (phone) {
+    processed = processed.replace(/\+1 \(555\)[^\s<"']*/g, phone);
+    processed = processed.replace(/\(555\)[^\s<"']*/g, phone);
+    processed = processed.replace(/555-[0-9-]+/g, phone);
+    processed = processed.replace(/\+61 4[0-9]{2} [0-9]{3} [0-9]{3}/g, phone);
+  }
 
   const script = `
 <script>
@@ -259,7 +229,7 @@ document.querySelectorAll("[class*='faq'],[class*='accordion'],[id*='faq']").for
 });
 var cart = [];
 function showToast(msg) { var t = document.getElementById("wg-toast"); if (!t) { t = document.createElement("div"); t.id = "wg-toast"; t.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:99999;transition:opacity 0.3s;pointer-events:none;"; document.body.appendChild(t); } t.textContent = msg; t.style.opacity = "1"; setTimeout(function() { t.style.opacity = "0"; }, 2500); }
-document.querySelectorAll("button,a").forEach(function(btn) { var txt = (btn.textContent || "").toLowerCase().trim(); if (txt.includes("add to cart") || txt.includes("buy now") || txt.includes("add to bag")) { btn.addEventListener("click", function(e) { e.preventDefault(); e.stopPropagation(); var card = this.closest("article") || this.closest("[class*='product']") || this.parentElement; var name = card && card.querySelector("h1,h2,h3,h4"); var n = name ? name.textContent.trim() : "Item"; var ex = cart.find(function(i) { return i.name === n; }); if (ex) ex.qty++; else cart.push({ name: n, qty: 1 }); showToast(n + " added"); var total = cart.reduce(function(a, b) { return a + b.qty; }, 0); document.querySelectorAll("#cart-count,#cart-badge,[class*='cart-count']").forEach(function(b) { b.textContent = total; }); }); } });
+document.querySelectorAll("button,a").forEach(function(btn) { var txt = (btn.textContent || "").toLowerCase().trim(); if (txt.includes("add to cart") || txt.includes("buy now") || txt.includes("add to bag")) { btn.addEventListener("click", function(e) { e.preventDefault(); e.stopPropagation(); var card = this.closest("article") || this.closest("[class*='product']") || this.parentElement; var nm = card && card.querySelector("h1,h2,h3,h4"); var n = nm ? nm.textContent.trim() : "Item"; var ex = cart.find(function(i) { return i.name === n; }); if (ex) ex.qty++; else cart.push({ name: n, qty: 1 }); showToast(n + " added"); var total = cart.reduce(function(a, b) { return a + b.qty; }, 0); document.querySelectorAll("#cart-count,#cart-badge,[class*='cart-count']").forEach(function(b) { b.textContent = total; }); }); } });
 document.querySelectorAll("form").forEach(function(form) { form.addEventListener("submit", function(e) { e.preventDefault(); if (form.querySelector(".wg-success")) return; var s = document.createElement("div"); s.className = "wg-success"; s.style.cssText = "background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;font-family:sans-serif;"; s.textContent = "Thank you! We will be in touch within 24 hours."; form.appendChild(s); form.querySelectorAll("input,textarea,select,button[type='submit']").forEach(function(el) { el.setAttribute("disabled", "true"); }); }); });
 var pages = document.querySelectorAll(".page,.page-section");
 if (pages.length > 1) { var ha = false; pages.forEach(function(p) { if (p.classList.contains("active")) ha = true; }); if (!ha) { pages.forEach(function(p, i) { if (i === 0) { p.style.display = "block"; p.classList.add("active"); } else { p.style.display = "none"; } }); } }
@@ -274,23 +244,16 @@ export async function POST(req: Request) {
   try {
     console.log("REQUEST RECEIVED");
     const formData = await req.formData();
-
     const getString = (key: string) => formData.get(key)?.toString() || "";
     const getJson = (key: string) => { try { return JSON.parse(getString(key)); } catch { return []; } };
 
-    // Verify Turnstile token
+    // Verify Turnstile
     const turnstileToken = getString("turnstileToken");
-    if (!turnstileToken) {
-      return NextResponse.json({ success: false, message: "Security check failed. Please refresh and try again." });
-    }
-
+    if (!turnstileToken) return NextResponse.json({ success: false, message: "Security check failed. Please refresh and try again." });
     const turnstileVerify = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        secret: process.env.TURNSTILE_SECRET_KEY,
-        response: turnstileToken,
-      }),
+      body: JSON.stringify({ secret: process.env.TURNSTILE_SECRET_KEY, response: turnstileToken }),
     });
     const turnstileResult = await turnstileVerify.json();
     if (!turnstileResult.success) {
@@ -334,6 +297,7 @@ export async function POST(req: Request) {
     const quote = calculateQuote(userInput);
     const folder = `webgecko/${fileName}`;
 
+    // Upload all images in parallel
     let logoUrl: string | null = null;
     let heroUrl: string | null = null;
     const photoUrls: string[] = [];
@@ -341,11 +305,10 @@ export async function POST(req: Request) {
 
     const logoFile = formData.get("logo") as File | null;
     const heroFile = formData.get("hero") as File | null;
-
     const uploadPromises: Promise<void>[] = [];
 
-    if (logoFile && logoFile.size > 0) uploadPromises.push(logoFile.arrayBuffer().then(buf => uploadToCloudinary(Buffer.from(buf), folder, "logo").then(url => { logoUrl = url; })));
-    if (heroFile && heroFile.size > 0) uploadPromises.push(heroFile.arrayBuffer().then(buf => uploadToCloudinary(Buffer.from(buf), folder, "hero").then(url => { heroUrl = url; })));
+    if (logoFile && logoFile.size > 0) uploadPromises.push(logoFile.arrayBuffer().then(buf => uploadToCloudinary(Buffer.from(buf), folder, "logo").then(url => { logoUrl = url; console.log("Logo:", url); })));
+    if (heroFile && heroFile.size > 0) uploadPromises.push(heroFile.arrayBuffer().then(buf => uploadToCloudinary(Buffer.from(buf), folder, "hero").then(url => { heroUrl = url; console.log("Hero:", url); })));
     for (let i = 0; i < 5; i++) {
       const f = formData.get(`photo_${i}`) as File | null;
       if (f && f.size > 0) uploadPromises.push(f.arrayBuffer().then(buf => uploadToCloudinary(Buffer.from(buf), folder, `photo_${i}`).then(url => { photoUrls.push(url); })));
@@ -357,121 +320,180 @@ export async function POST(req: Request) {
         uploadPromises.push(f.arrayBuffer().then(buf => uploadToCloudinary(Buffer.from(buf), `${folder}/products`, `product_${index}`).then(url => { if (productsWithPhotos[index]) productsWithPhotos[index].photoUrl = url; })));
       }
     }
-
     await Promise.all(uploadPromises);
-    console.log(`Uploads done: logo=${!!logoUrl}, hero=${!!heroUrl}, photos=${photoUrls.length}`);
+    console.log(`Uploads done: logo=${!!logoUrl}, hero=${!!heroUrl}, photos=${photoUrls.length}, products=${productsWithPhotos.filter(p => p.photoUrl).length}`);
 
+    // Build pricing section
     const method = userInput.pricingMethod || "manual";
-    let pricingSection = "No pricing section needed";
-
+    let pricingSection = "No pricing section needed.";
     if (userInput.hasPricing === "Yes") {
       if (method === "weknow") {
-        pricingSection = `PRICING SECTION REQUIRED: Create a professional pricing section for a ${userInput.industry} business using industry-standard pricing.`;
+        pricingSection = `PRICING SECTION REQUIRED: Create a professional pricing section for a ${userInput.industry} business using realistic industry-standard pricing.`;
       } else if (method === "url") {
-        pricingSection = `PRICING SECTION REQUIRED: Pull pricing from the client existing website: ${userInput.pricingUrl}. If inaccessible, create a professional placeholder.`;
+        pricingSection = `PRICING SECTION REQUIRED: Pull pricing from the client existing website: ${userInput.pricingUrl}. If inaccessible create a professional placeholder.`;
       } else if (method === "upload") {
-        pricingSection = `PRICING SECTION REQUIRED: Client uploaded a menu/price list. Create a professional pricing section for ${userInput.industry}. Pricing will be updated after document review.`;
+        pricingSection = `PRICING SECTION REQUIRED: Client uploaded a menu or price list. Create a professional pricing section for ${userInput.industry}. Pricing will be confirmed after document review.`;
       } else if (userInput.pricingType === "products" && productsWithPhotos.length > 0) {
         const productList = productsWithPhotos.map(p => `${p.name}: ${p.price}${p.photoUrl ? ` (photo: ${p.photoUrl})` : ""}`).join(", ");
-        pricingSection = `PRICING SECTION REQUIRED - Individual Products: ${productList}. Display each with name, price and photo in a grid layout. Use exact product photos provided.`;
+        pricingSection = `PRICING SECTION REQUIRED - Individual Products: ${productList}. Display each with name, price and photo in a card grid layout. Use exact product photos provided.`;
       } else {
         pricingSection = `PRICING SECTION REQUIRED. Type: ${userInput.pricingType}. Details: ${userInput.pricingDetails}`;
       }
     }
 
     const imageSection = logoUrl || heroUrl || photoUrls.length > 0
-      ? `CLIENT IMAGES: ${logoUrl ? `Logo: ${logoUrl} (use in navbar).` : ""} ${heroUrl ? `Hero: ${heroUrl} (use as main hero background).` : ""} ${photoUrls.length > 0 ? `Photos: ${photoUrls.join(", ")}.` : ""}`
-      : "No branding images - use stock images";
+      ? `CLIENT IMAGES PROVIDED - use these exact URLs: ${logoUrl ? `Logo: ${logoUrl} (place in navbar).` : ""} ${heroUrl ? `Hero image: ${heroUrl} (use as main hero background or banner).` : ""} ${photoUrls.length > 0 ? `General photos: ${photoUrls.join(", ")}.` : ""}`
+      : "No client images provided - use high quality relevant stock images.";
 
+    // STEP 1: Claude generates detailed Stitch prompt
     console.log("STEP 1: Claude spec...");
     const promptResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
-      max_tokens: 2000,
+      max_tokens: 3000,
       messages: [{
         role: "user",
-        content: `Return ONLY valid JSON with "projectTitle" and "stitchPrompt". The stitchPrompt must be extremely detailed and specific — not generic.
+        content: `Return ONLY valid JSON with "projectTitle" and "stitchPrompt". The stitchPrompt must be extremely detailed and specific.
 
-You are a senior UI designer and front-end developer. Your job is to write a detailed Stitch prompt that will generate a premium, unique, conversion-focused website. Prioritize clean spacing, premium typography, polished interactions and reusable components. Avoid generic layouts.
+You are a senior UI designer and front-end developer. Preserve the imported design language. Prioritize clean spacing, premium typography, polished interactions and reusable components. Avoid generic layouts. Use Tailwind CSS and shadcn/ui where appropriate.
 
-Research the ${userInput.industry} industry. Think about what top-tier websites in this space look like — their visual language, layout patterns, hero treatments, section flow and trust signals. Then design something that is distinctly better and more unique than the average.
+Research the ${userInput.industry} industry. Think about what top-tier websites in this space look like. Design something distinctly better and more unique than the average. Do NOT copy any existing website. Create a distinctive premium design.
 
 BUSINESS CONTEXT:
-- Business: ${userInput.businessName}
-- Industry: ${userInput.industry}
-- Target Audience: ${userInput.targetAudience}
-- USP: ${userInput.usp}
-- Goal: ${userInput.goal}
-- Style: ${userInput.style || "modern premium"}
-- Colours: ${userInput.colorPrefs || "professional palette"}
-- References: ${userInput.references || "none"}
-- Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}
-- Notes: ${userInput.additionalNotes || "none"}
-- Contact Email: ${clientEmail}
-- Contact Phone: ${clientPhone}
+Business: ${userInput.businessName}
+Industry: ${userInput.industry}
+Target Audience: ${userInput.targetAudience}
+USP: ${userInput.usp}
+Goal: ${userInput.goal}
+Style: ${userInput.style || "modern premium"}
+Colours: ${userInput.colorPrefs || "professional palette"}
+References: ${userInput.references || "none"}
+Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}
+Notes: ${userInput.additionalNotes || "none"}
+Contact Email: ${clientEmail}
+Contact Phone: ${clientPhone}
 
 ${pricingSection}
 
 ${imageSection}
 
-DESIGN REQUIREMENTS — include ALL of these in the stitchPrompt:
+DESIGN REQUIREMENTS - include ALL of these in the stitchPrompt:
 
-1. HERO SECTION: Describe the exact hero layout. Full viewport height. Bold headline with specific typography treatment (e.g. large serif, heavy sans-serif, split colour). Subheadline. Primary CTA button with specific styling. Background treatment (gradient, image with overlay, dark with geometric pattern, etc). Do not use a plain white hero.
+1. HERO SECTION: Full viewport height. Bold headline with specific typography. Subheadline. Primary CTA button. Distinctive background treatment - NOT plain white. Use gradients, dark overlays, geometric patterns or hero images.
 
-2. NAVIGATION: Sticky navbar with logo left, nav links centre or right, CTA button. Mobile hamburger with id="hamburger" toggling id="mobile-menu". Clean, minimal, glassmorphism or solid dark.
+2. NAVIGATION: Sticky navbar. Logo left. Nav links right. CTA button. Mobile hamburger with id="hamburger" toggling id="mobile-menu". Glassmorphism or solid dark background.
 
-3. SECTION LAYOUTS: For each page/section, describe the specific layout. Do not use generic card grids for everything. Mix layouts — full-width sections, split 50/50 image/text, asymmetric grids, feature rows with icons, testimonial sliders, bold stat counters.
+3. SECTION LAYOUTS: Mix layouts across the site - do NOT use the same card grid for every section. Use full-width sections, 50/50 splits, asymmetric grids, feature rows with icons, stat counters, testimonial sections.
 
-4. TYPOGRAPHY: Specify font pairings. e.g. "Use a bold display font for headings, clean sans-serif for body. Large section headings 60-80px. Generous line height."
+4. TYPOGRAPHY: Bold display font for headings 60-80px. Clean sans-serif for body. Generous spacing.
 
-5. COLOUR USAGE: Be specific. e.g. "Dark #0f172a background, ${userInput.colorPrefs || "emerald green"} for CTAs and accents, white for body text, subtle white/10 borders on cards."
+5. COLOUR: Be specific. Use ${userInput.colorPrefs || "a professional premium palette"}. Dark backgrounds where appropriate. Accent colour for CTAs and highlights.
 
-6. INTERACTIVE ELEMENTS: Hover states on cards (lift + shadow), button hover transitions, smooth scroll, animated stat counters, FAQ accordion with smooth open/close.
+6. TRUST SIGNALS: Star-rated testimonials with realistic names. Stats bar. Trust badges if relevant.
 
-7. TRUST SIGNALS: Reviews/testimonials with star ratings and real-looking names. Stats bar (e.g. 500+ clients, 98% satisfaction). Trust badges if relevant.
+7. CONTACT: Use REAL email ${clientEmail} and REAL phone ${clientPhone}. Working contact form.
 
-8. CONTACT SECTION: Use REAL email ${clientEmail} and REAL phone ${clientPhone}. Include a working contact form. Map embed placeholder if relevant.
-
-9. FOOTER: Full footer with logo, nav links, contact info, social links, copyright.
+8. FOOTER: Full footer with logo, links, contact, social, copyright.
 
 ${isMultiPage
-  ? `MULTI-PAGE: Pages: ${pageList}. Each page as div class="page-section" with unique lowercase id. Only first visible, others display:none. Nav links use onclick="navigateTo('pageid')". Mobile hamburger id="hamburger" toggling id="mobile-menu". FAQ uses native details/summary.`
-  : `SINGLE PAGE: Sections: ${pageList}. Each section has unique lowercase id. Nav links use href="#sectionid". Smooth scroll between sections. Mobile hamburger id="hamburger" toggling id="mobile-menu". FAQ uses native details/summary.`}
+  ? `CRITICAL - MULTI-PAGE SITE REQUIRED. Pages: ${pageList}.
+- Each page MUST be a div with class="page-section" and unique lowercase id (e.g. id="home", id="services", id="about", id="contact")
+- ONLY the first page div is visible (style="display:block"), ALL other page divs MUST have style="display:none"
+- ALL navigation links MUST use onclick="navigateTo('pageid')" - NOT href links
+- Add id="hamburger" button that toggles id="mobile-menu"
+- This is NOT a single scrolling page - it is a true multi-page app where clicking nav shows/hides page divs`
+  : `SINGLE PAGE SITE. Sections: ${pageList}. Each section has a unique lowercase id. Nav links use href="#sectionid". Smooth scroll.`}
 
-IMPORTANT: Do NOT produce a generic template. Every design decision should be intentional and specific to ${userInput.businessName} and the ${userInput.industry} industry. Make it look like it was designed by a boutique agency, not a website builder.``
+Make it premium, unique and conversion-focused for: ${userInput.businessName}`
       }]
     });
 
-    const text = promptResponse.content[0]?.type === "text" ? promptResponse.content[0].text : "{}";
-    const spec = extractJson(text);
+    const promptText = promptResponse.content[0]?.type === "text" ? promptResponse.content[0].text : "{}";
+    const spec = extractJson(promptText);
     console.log("STEP 1 DONE:", spec.projectTitle);
 
+    // STEP 2: Create Stitch project
     console.log("STEP 2: Creating project...");
     const project: any = await stitchClient.callTool("create_project", { title: spec.projectTitle });
     const projectId = project?.name?.split("/")[1];
     console.log("STEP 2 DONE:", projectId);
 
+    // STEP 3: Generate screen
     console.log("STEP 3: Generating screen...");
     const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", { projectId, prompt: spec.stitchPrompt });
     const screens = stitchResult?.outputComponents?.find((x: any) => x.design)?.design?.screens || [];
-    if (!screens.length) throw new Error("No screens returned");
+    if (!screens.length) throw new Error("No screens returned from Stitch");
     const downloadUrl = screens[0]?.htmlCode?.downloadUrl;
-    if (!downloadUrl) throw new Error("No downloadUrl");
+    if (!downloadUrl) throw new Error("No downloadUrl from Stitch");
     console.log("STEP 3 DONE");
 
+    // STEP 4: Fetch raw HTML
     console.log("STEP 4: Fetching HTML...");
-    const stitchHtml = await fetch(downloadUrl).then((r) => r.text());
+    const stitchHtml = await fetch(downloadUrl).then(r => r.text());
     console.log("STEP 4 DONE. Length:", stitchHtml.length);
 
-    // STEP 5: Check and fix links
-    console.log("STEP 5: Checking links...");
-    const { html: checkedHtml, report: linkReport } = checkAndFixLinks(stitchHtml, Array.isArray(userInput.pages) ? userInput.pages : []);
-    console.log("Link report:", linkReport);
+    // STEP 5: Two-pass Claude review - fix all issues
+    console.log("STEP 5: Claude two-pass fix...");
+    const fixPrompt = `You are a senior front-end developer. Review this HTML website and fix ALL issues listed below. Return the COMPLETE fixed HTML only - no explanation, no markdown code fences, just raw HTML starting with <!DOCTYPE html> or <html>.
 
+FIXES REQUIRED:
+
+1. SITE TYPE IS "${userInput.siteType.toUpperCase()}":
+${isMultiPage ? `This MUST be a proper multi-page site with pages: ${pageList}.
+- Every page must be a div with class="page-section" and a unique lowercase id (e.g. id="home", id="services", id="about", id="contact", id="gallery")
+- ONLY the first page div should be visible (style="display:block" or no style), ALL others MUST have style="display:none"  
+- ALL nav links MUST use onclick="navigateTo('pageid')" format
+- If the HTML is currently a single scrolling page, RESTRUCTURE it into proper page-section divs
+- Each page section should contain its full content - header/nav stays outside the page sections` 
+: `This is a single page site. All sections visible and scrollable. Nav links use href="#sectionid".`}
+
+2. REAL CONTACT DETAILS - replace ALL placeholders:
+- Email: ${clientEmail} - replace example@, info@, hello@, contact@, admin@, placeholder emails
+- Phone: ${clientPhone} - replace 555-, (555), +1 555, fake phone numbers
+- If you see "your@email.com" or similar, replace with ${clientEmail}
+
+3. CTA BUTTONS - fix any button that does nothing:
+- "Get a Quote", "Contact Us", "Get Started", "Book Now" buttons must navigate to contact section
+- ${isMultiPage ? `Use onclick="navigateTo('contact')"` : `Use onclick="document.getElementById('contact').scrollIntoView({behavior:'smooth'})"`}
+
+4. FORMS - every contact form must show success message on submit:
+- Add to any form missing it: addEventListener submit -> show green success div
+
+5. MOBILE MENU - ensure hamburger works:
+- Button with id="hamburger" must toggle id="mobile-menu" visibility
+
+6. DEAD LINKS - fix any href="#" that does nothing useful
+
+Here is the HTML:
+
+${stitchHtml.substring(0, 85000)}`;
+
+    const fixResponse = await anthropic.messages.create({
+      model: "claude-sonnet-4-5",
+      max_tokens: 8000,
+      messages: [{ role: "user", content: fixPrompt }]
+    });
+
+    let fixedHtml = fixResponse.content[0]?.type === "text" ? fixResponse.content[0].text : "";
+    fixedHtml = fixedHtml.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+
+    // Fallback to original if Claude response looks wrong
+    if (!fixedHtml || (!fixedHtml.includes("<html") && !fixedHtml.includes("<!DOCTYPE") && !fixedHtml.includes("<body"))) {
+      console.log("STEP 5: Fix response invalid, using original HTML");
+      fixedHtml = stitchHtml;
+    } else {
+      console.log("STEP 5 DONE. Fixed HTML length:", fixedHtml.length);
+    }
+
+    // STEP 6: Link check report
+    const { html: checkedHtml, report: linkReport } = checkAndFixLinks(fixedHtml, Array.isArray(userInput.pages) ? userInput.pages : []);
+
+    // STEP 7: Inject essentials and images
     let finalHtml = injectEssentials(checkedHtml, clientEmail, clientPhone);
     finalHtml = injectImages(finalHtml, logoUrl, heroUrl, photoUrls, productsWithPhotos);
-    const cssContent = extractCSS(stitchHtml);
-    console.log("STEP 5 DONE");
+    const cssContent = extractCSS(fixedHtml);
+    console.log("STEP 7 DONE: Essentials and images injected");
 
+    // STEP 8: Save to Redis for Fix This Site
     const jobId = `job_${Date.now()}`;
     await redis.set(jobId, { html: finalHtml, title: spec.projectTitle, fileName, userInput }, { ex: 86400 });
     const processUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/process?id=${jobId}&secret=${process.env.PROCESS_SECRET}`;
@@ -480,7 +502,8 @@ IMPORTANT: Do NOT produce a generic template. Every design decision should be in
       ? productsWithPhotos.map(p => `${p.name} - ${p.price}${p.photoUrl ? ` - <a href="${p.photoUrl}">View photo</a>` : ""}`).join("<br/>")
       : userInput.pricingDetails || "-";
 
-    console.log("STEP 6: Emailing owner...");
+    // STEP 9: Email owner
+    console.log("STEP 9: Emailing owner...");
     await resend.emails.send({
       from: "WebGecko <hello@webgecko.au>",
       to: process.env.RESULT_TO_EMAIL!,
@@ -497,19 +520,19 @@ IMPORTANT: Do NOT produce a generic template. Every design decision should be in
         <p><strong>Type:</strong> ${userInput.siteType}</p>
         <p><strong>Pages:</strong> ${pageList}</p>
         <p><strong>Features:</strong> ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "-"}</p>
-        <p><strong>Pricing Method:</strong> ${method}</p>
+        <p><strong>Pricing:</strong> ${userInput.hasPricing === "Yes" ? `${userInput.pricingType} via ${method}` : "None"}</p>
         ${userInput.hasPricing === "Yes" ? `<p><strong>Products:</strong><br/>${productSummary}</p>` : ""}
         <p><strong>Style:</strong> ${userInput.style} / ${userInput.colorPrefs || "-"}</p>
         <p><strong>References:</strong> ${userInput.references || "-"}</p>
         <p><strong>Notes:</strong> ${userInput.additionalNotes || "-"}</p>
         ${logoUrl ? `<p><strong>Logo:</strong> <a href="${logoUrl}">View</a></p>` : ""}
         ${heroUrl ? `<p><strong>Hero:</strong> <a href="${heroUrl}">View</a></p>` : ""}
-        ${linkReport.length > 0 ? `<p><strong>Link Check:</strong><br/>${linkReport.join("<br/>")}</p>` : "<p><strong>Link Check:</strong> All links passed</p>"}
+        <p><strong>Link Check:</strong> ${linkReport.length > 0 ? linkReport.join(", ") : "All clear"}</p>
         <br/>
         <h3>Quote: ${quote.package} - $${quote.price.toLocaleString()} + $${quote.monthlyPrice}/month</h3>
         <ul>${quote.breakdown.map(b => `<li>${b}</li>`).join("")}</ul>
         <br/>
-        <a href="${processUrl}" style="background:#22c55e;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;">Fix This Site</a>
+        <a href="${processUrl}" style="background:#22c55e;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">Fix This Site</a>
         <p style="color:#94a3b8;font-size:12px;">Expires 24hrs</p>
       `,
       attachments: [
@@ -517,10 +540,11 @@ IMPORTANT: Do NOT produce a generic template. Every design decision should be in
         { filename: `${fileName}-styles.css`, content: Buffer.from(cssContent).toString("base64") },
       ],
     });
-    console.log("STEP 6 DONE");
+    console.log("STEP 9 DONE");
 
+    // STEP 10: Email client
     if (clientEmail) {
-      console.log("STEP 7: Emailing client...");
+      console.log("STEP 10: Emailing client...");
       await resend.emails.send({
         from: "WebGecko <hello@webgecko.au>",
         to: clientEmail,
@@ -555,7 +579,7 @@ IMPORTANT: Do NOT produce a generic template. Every design decision should be in
           </div>
         `,
       });
-      console.log("STEP 7 DONE");
+      console.log("STEP 10 DONE");
     }
 
     return NextResponse.json({ success: true, message: "Thank you! We have received your request and will be in touch shortly." });
