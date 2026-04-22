@@ -389,34 +389,55 @@ export async function POST(req: Request) {
       max_tokens: 2000,
       messages: [{
         role: "user",
-        content: `Return ONLY valid JSON with "projectTitle" and "stitchPrompt".
+        content: `Return ONLY valid JSON with "projectTitle" and "stitchPrompt". The stitchPrompt must be extremely detailed and specific — not generic.
 
-You are a senior UI designer and front-end developer. Preserve the imported design language. Prioritize clean spacing, premium typography, polished interactions, and reusable components. Avoid generic layouts. Use Tailwind CSS and shadcn/ui where appropriate.
+You are a senior UI designer and front-end developer. Your job is to write a detailed Stitch prompt that will generate a premium, unique, conversion-focused website. Prioritize clean spacing, premium typography, polished interactions and reusable components. Avoid generic layouts.
 
-Research similar websites in the ${userInput.industry} industry and take inspiration from their layout patterns, conversion techniques and visual hierarchy — but create something entirely unique and original. Do not copy any existing website. Create a distinctive premium design specific to this business.
+Research the ${userInput.industry} industry. Think about what top-tier websites in this space look like — their visual language, layout patterns, hero treatments, section flow and trust signals. Then design something that is distinctly better and more unique than the average.
 
-Business: ${userInput.businessName}
-Industry: ${userInput.industry}
-Target Audience: ${userInput.targetAudience}
-USP: ${userInput.usp}
-Goal: ${userInput.goal}
-Style: ${userInput.style || "modern premium"}
-Colours: ${userInput.colorPrefs || "professional palette"}
-References: ${userInput.references || "none"}
-Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}
-Notes: ${userInput.additionalNotes || "none"}
-Contact Email: ${clientEmail}
-Contact Phone: ${clientPhone}
+BUSINESS CONTEXT:
+- Business: ${userInput.businessName}
+- Industry: ${userInput.industry}
+- Target Audience: ${userInput.targetAudience}
+- USP: ${userInput.usp}
+- Goal: ${userInput.goal}
+- Style: ${userInput.style || "modern premium"}
+- Colours: ${userInput.colorPrefs || "professional palette"}
+- References: ${userInput.references || "none"}
+- Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}
+- Notes: ${userInput.additionalNotes || "none"}
+- Contact Email: ${clientEmail}
+- Contact Phone: ${clientPhone}
 
 ${pricingSection}
 
 ${imageSection}
 
-${isMultiPage
-  ? `MULTI-PAGE SITE. Pages: ${pageList}. Each page as div with class "page-section" and unique lowercase id. Only first page visible, others display:none. Nav using onclick="navigateTo('pageid')". Mobile hamburger id="hamburger" toggling id="mobile-menu". Contact: REAL email ${clientEmail} and phone ${clientPhone}. FAQ: native details/summary elements.`
-  : `SINGLE PAGE SITE. Sections: ${pageList}. Each section unique lowercase id. Nav using href="#sectionid". Mobile hamburger id="hamburger" toggling id="mobile-menu". Contact: REAL email ${clientEmail} and phone ${clientPhone}. FAQ: native details/summary elements.`}
+DESIGN REQUIREMENTS — include ALL of these in the stitchPrompt:
 
-Make it premium, unique and stunning for: ${userInput.businessName}`
+1. HERO SECTION: Describe the exact hero layout. Full viewport height. Bold headline with specific typography treatment (e.g. large serif, heavy sans-serif, split colour). Subheadline. Primary CTA button with specific styling. Background treatment (gradient, image with overlay, dark with geometric pattern, etc). Do not use a plain white hero.
+
+2. NAVIGATION: Sticky navbar with logo left, nav links centre or right, CTA button. Mobile hamburger with id="hamburger" toggling id="mobile-menu". Clean, minimal, glassmorphism or solid dark.
+
+3. SECTION LAYOUTS: For each page/section, describe the specific layout. Do not use generic card grids for everything. Mix layouts — full-width sections, split 50/50 image/text, asymmetric grids, feature rows with icons, testimonial sliders, bold stat counters.
+
+4. TYPOGRAPHY: Specify font pairings. e.g. "Use a bold display font for headings, clean sans-serif for body. Large section headings 60-80px. Generous line height."
+
+5. COLOUR USAGE: Be specific. e.g. "Dark #0f172a background, ${userInput.colorPrefs || "emerald green"} for CTAs and accents, white for body text, subtle white/10 borders on cards."
+
+6. INTERACTIVE ELEMENTS: Hover states on cards (lift + shadow), button hover transitions, smooth scroll, animated stat counters, FAQ accordion with smooth open/close.
+
+7. TRUST SIGNALS: Reviews/testimonials with star ratings and real-looking names. Stats bar (e.g. 500+ clients, 98% satisfaction). Trust badges if relevant.
+
+8. CONTACT SECTION: Use REAL email ${clientEmail} and REAL phone ${clientPhone}. Include a working contact form. Map embed placeholder if relevant.
+
+9. FOOTER: Full footer with logo, nav links, contact info, social links, copyright.
+
+${isMultiPage
+  ? `MULTI-PAGE: Pages: ${pageList}. Each page as div class="page-section" with unique lowercase id. Only first visible, others display:none. Nav links use onclick="navigateTo('pageid')". Mobile hamburger id="hamburger" toggling id="mobile-menu". FAQ uses native details/summary.`
+  : `SINGLE PAGE: Sections: ${pageList}. Each section has unique lowercase id. Nav links use href="#sectionid". Smooth scroll between sections. Mobile hamburger id="hamburger" toggling id="mobile-menu". FAQ uses native details/summary.`}
+
+IMPORTANT: Do NOT produce a generic template. Every design decision should be intentional and specific to ${userInput.businessName} and the ${userInput.industry} industry. Make it look like it was designed by a boutique agency, not a website builder.``
       }]
     });
 
