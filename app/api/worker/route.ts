@@ -22,8 +22,30 @@ cloudinary.config({
 });
 
 function extractJson(text: string) {
+  try { return JSON.parse(text); } catch {}
   const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
+  if (start === -1) throw new Error("No JSON found in response");
+  let depth = 0, inString = false, escape = false, end = -1;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (escape) { escape = false; continue; }
+    if (c === "\\" && inString) { escape = true; continue; }
+    if (c === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (c === "{") depth++;
+    if (c === "}") { depth--; if (depth === 0) { end = i; break; } }
+  }
+  if (end === -1) {
+    const titleMatch = text.match(/"projectTitle"\s*:\s*"([^"]+)"/);
+    const promptStart = text.indexOf('"stitchPrompt"');
+    if (titleMatch && promptStart > -1) {
+      const promptValueStart = text.indexOf('"', promptStart + 14) + 1;
+      let prompt = text.slice(promptValueStart, promptValueStart + 1400);
+      prompt = prompt.replace(/\\?"\s*}?\s*$/, "").replace(/\n/g, " ");
+      return { projectTitle: titleMatch[1], stitchPrompt: prompt };
+    }
+    throw new Error("Unterminated JSON and could not recover");
+  }
   return JSON.parse(text.slice(start, end + 1));
 }
 
@@ -247,7 +269,6 @@ export async function POST(req: Request) {
     const getString = (key: string) => formData.get(key)?.toString() || "";
     const getJson = (key: string) => { try { return JSON.parse(getString(key)); } catch { return []; } };
 
-    // Verify Turnstile
     const turnstileToken = getString("turnstileToken");
     if (!turnstileToken) return NextResponse.json({ success: false, message: "Security check failed. Please refresh and try again." });
     const turnstileVerify = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
@@ -297,7 +318,6 @@ export async function POST(req: Request) {
     const quote = calculateQuote(userInput);
     const folder = `webgecko/${fileName}`;
 
-    // Upload all images in parallel
     let logoUrl: string | null = null;
     let heroUrl: string | null = null;
     const photoUrls: string[] = [];
@@ -323,45 +343,40 @@ export async function POST(req: Request) {
     await Promise.all(uploadPromises);
     console.log(`Uploads done: logo=${!!logoUrl}, hero=${!!heroUrl}, photos=${photoUrls.length}, products=${productsWithPhotos.filter(p => p.photoUrl).length}`);
 
-    // Build pricing section
     const method = userInput.pricingMethod || "manual";
     let pricingSection = "No pricing section needed.";
     if (userInput.hasPricing === "Yes") {
       if (method === "weknow") {
         pricingSection = `PRICING SECTION REQUIRED: Create a professional pricing section for a ${userInput.industry} business using realistic industry-standard pricing.`;
       } else if (method === "url") {
-        pricingSection = `PRICING SECTION REQUIRED: Pull pricing from the client existing website: ${userInput.pricingUrl}. If inaccessible create a professional placeholder.`;
+        pricingSection = `PRICING SECTION REQUIRED: Pull pricing from: ${userInput.pricingUrl}. If inaccessible create a professional placeholder.`;
       } else if (method === "upload") {
-        pricingSection = `PRICING SECTION REQUIRED: Client uploaded a menu or price list. Create a professional pricing section for ${userInput.industry}. Pricing will be confirmed after document review.`;
+        pricingSection = `PRICING SECTION REQUIRED: Client uploaded a menu or price list. Create a professional pricing section for ${userInput.industry}.`;
       } else if (userInput.pricingType === "products" && productsWithPhotos.length > 0) {
         const productList = productsWithPhotos.map(p => `${p.name}: ${p.price}${p.photoUrl ? ` (photo: ${p.photoUrl})` : ""}`).join(", ");
-        pricingSection = `PRICING SECTION REQUIRED - Individual Products: ${productList}. Display each with name, price and photo in a card grid layout. Use exact product photos provided.`;
+        pricingSection = `PRICING SECTION: Individual Products: ${productList}. Card grid layout, use exact photos.`;
       } else {
-        pricingSection = `PRICING SECTION REQUIRED. Type: ${userInput.pricingType}. Details: ${userInput.pricingDetails}`;
+        pricingSection = `PRICING SECTION. Type: ${userInput.pricingType}. Details: ${userInput.pricingDetails}`;
       }
     }
 
     const imageSection = logoUrl || heroUrl || photoUrls.length > 0
-      ? `CLIENT IMAGES PROVIDED - use these exact URLs: ${logoUrl ? `Logo: ${logoUrl} (place in navbar).` : ""} ${heroUrl ? `Hero image: ${heroUrl} (use as main hero background or banner).` : ""} ${photoUrls.length > 0 ? `General photos: ${photoUrls.join(", ")}.` : ""}`
-      : "No client images provided - use high quality relevant stock images.";
+      ? `CLIENT IMAGES: ${logoUrl ? `Logo: ${logoUrl} (navbar).` : ""} ${heroUrl ? `Hero: ${heroUrl} (main background).` : ""} ${photoUrls.length > 0 ? `Photos: ${photoUrls.join(", ")}.` : ""}`
+      : "No client images - use stock images.";
 
-    // STEP 1: Claude generates detailed Stitch prompt
     console.log("STEP 1: Claude spec...");
     const promptResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
-      max_tokens: 3000,
+      max_tokens: 2000,
       messages: [{
         role: "user",
-        content: `Return ONLY valid JSON with "projectTitle" and "stitchPrompt". The stitchPrompt must be extremely detailed and specific.
+        content: `Return ONLY a raw JSON object. No markdown. No explanation. No code fences. Two keys: "projectTitle" (string, max 60 chars) and "stitchPrompt" (string, max 1400 chars). If stitchPrompt would exceed 1400 chars, summarise it.
 
-You are a senior UI designer and front-end developer. Preserve the imported design language. Prioritize clean spacing, premium typography, polished interactions and reusable components. Avoid generic layouts. Use Tailwind CSS and shadcn/ui where appropriate.
+You are a senior UI designer. Research the ${userInput.industry} industry and create a premium, unique design — not generic.
 
-Research the ${userInput.industry} industry. Think about what top-tier websites in this space look like. Design something distinctly better and more unique than the average. Do NOT copy any existing website. Create a distinctive premium design.
-
-BUSINESS CONTEXT:
 Business: ${userInput.businessName}
 Industry: ${userInput.industry}
-Target Audience: ${userInput.targetAudience}
+Audience: ${userInput.targetAudience}
 USP: ${userInput.usp}
 Goal: ${userInput.goal}
 Style: ${userInput.style || "modern premium"}
@@ -369,41 +384,17 @@ Colours: ${userInput.colorPrefs || "professional palette"}
 References: ${userInput.references || "none"}
 Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}
 Notes: ${userInput.additionalNotes || "none"}
-Contact Email: ${clientEmail}
-Contact Phone: ${clientPhone}
+Email: ${clientEmail}
+Phone: ${clientPhone}
 
 ${pricingSection}
-
 ${imageSection}
 
-DESIGN REQUIREMENTS - include ALL of these in the stitchPrompt:
-
-1. HERO SECTION: Full viewport height. Bold headline with specific typography. Subheadline. Primary CTA button. Distinctive background treatment - NOT plain white. Use gradients, dark overlays, geometric patterns or hero images.
-
-2. NAVIGATION: Sticky navbar. Logo left. Nav links right. CTA button. Mobile hamburger with id="hamburger" toggling id="mobile-menu". Glassmorphism or solid dark background.
-
-3. SECTION LAYOUTS: Mix layouts across the site - do NOT use the same card grid for every section. Use full-width sections, 50/50 splits, asymmetric grids, feature rows with icons, stat counters, testimonial sections.
-
-4. TYPOGRAPHY: Bold display font for headings 60-80px. Clean sans-serif for body. Generous spacing.
-
-5. COLOUR: Be specific. Use ${userInput.colorPrefs || "a professional premium palette"}. Dark backgrounds where appropriate. Accent colour for CTAs and highlights.
-
-6. TRUST SIGNALS: Star-rated testimonials with realistic names. Stats bar. Trust badges if relevant.
-
-7. CONTACT: Use REAL email ${clientEmail} and REAL phone ${clientPhone}. Working contact form.
-
-8. FOOTER: Full footer with logo, links, contact, social, copyright.
+stitchPrompt must include: hero (full-height, bold headline, CTA, distinctive background), sticky navbar (logo left, hamburger id=hamburger toggling id=mobile-menu), varied section layouts (NOT all card grids), premium typography, specific colours, testimonials with stars, real contact details (${clientEmail} / ${clientPhone}), full footer.
 
 ${isMultiPage
-  ? `CRITICAL - MULTI-PAGE SITE REQUIRED. Pages: ${pageList}.
-- Each page MUST be a div with class="page-section" and unique lowercase id (e.g. id="home", id="services", id="about", id="contact")
-- ONLY the first page div is visible (style="display:block"), ALL other page divs MUST have style="display:none"
-- ALL navigation links MUST use onclick="navigateTo('pageid')" - NOT href links
-- Add id="hamburger" button that toggles id="mobile-menu"
-- This is NOT a single scrolling page - it is a true multi-page app where clicking nav shows/hides page divs`
-  : `SINGLE PAGE SITE. Sections: ${pageList}. Each section has a unique lowercase id. Nav links use href="#sectionid". Smooth scroll.`}
-
-Make it premium, unique and conversion-focused for: ${userInput.businessName}`
+  ? `MULTI-PAGE: Pages: ${pageList}. Each page = div class="page-section" with unique lowercase id. First page visible, others display:none. Nav links use onclick="navigateTo('pageid')".`
+  : `SINGLE PAGE: Sections: ${pageList}. Each has unique lowercase id. Nav uses href="#sectionid".`}`
       }]
     });
 
@@ -411,13 +402,11 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
     const spec = extractJson(promptText);
     console.log("STEP 1 DONE:", spec.projectTitle);
 
-    // STEP 2: Create Stitch project
     console.log("STEP 2: Creating project...");
     const project: any = await stitchClient.callTool("create_project", { title: spec.projectTitle });
     const projectId = project?.name?.split("/")[1];
     console.log("STEP 2 DONE:", projectId);
 
-    // STEP 3: Generate screen
     console.log("STEP 3: Generating screen...");
     const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", { projectId, prompt: spec.stitchPrompt });
     const screens = stitchResult?.outputComponents?.find((x: any) => x.design)?.design?.screens || [];
@@ -426,45 +415,30 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
     if (!downloadUrl) throw new Error("No downloadUrl from Stitch");
     console.log("STEP 3 DONE");
 
-    // STEP 4: Fetch raw HTML
     console.log("STEP 4: Fetching HTML...");
     const stitchHtml = await fetch(downloadUrl).then(r => r.text());
     console.log("STEP 4 DONE. Length:", stitchHtml.length);
 
-    // STEP 5: Two-pass Claude review - fix all issues
     console.log("STEP 5: Claude two-pass fix...");
-    const fixPrompt = `You are a senior front-end developer. Review this HTML website and fix ALL issues listed below. Return the COMPLETE fixed HTML only - no explanation, no markdown code fences, just raw HTML starting with <!DOCTYPE html> or <html>.
+    const fixPrompt = `You are a senior front-end developer. Fix this HTML and return the COMPLETE fixed HTML only. No explanation, no markdown fences, just raw HTML.
 
-FIXES REQUIRED:
+FIXES:
+1. SITE TYPE: "${userInput.siteType.toUpperCase()}"
+${isMultiPage
+  ? `Must be multi-page with pages: ${pageList}. Each page = div class="page-section" with unique lowercase id. First visible, others style="display:none". ALL nav links use onclick="navigateTo('pageid')". If currently single-page, restructure into page-section divs. Header/nav stays outside page sections.`
+  : `Single page. All sections visible. Nav links use href="#sectionid".`}
 
-1. SITE TYPE IS "${userInput.siteType.toUpperCase()}":
-${isMultiPage ? `This MUST be a proper multi-page site with pages: ${pageList}.
-- Every page must be a div with class="page-section" and a unique lowercase id (e.g. id="home", id="services", id="about", id="contact", id="gallery")
-- ONLY the first page div should be visible (style="display:block" or no style), ALL others MUST have style="display:none"  
-- ALL nav links MUST use onclick="navigateTo('pageid')" format
-- If the HTML is currently a single scrolling page, RESTRUCTURE it into proper page-section divs
-- Each page section should contain its full content - header/nav stays outside the page sections` 
-: `This is a single page site. All sections visible and scrollable. Nav links use href="#sectionid".`}
+2. CONTACT: Email=${clientEmail} Phone=${clientPhone}. Replace ALL placeholder emails/phones.
 
-2. REAL CONTACT DETAILS - replace ALL placeholders:
-- Email: ${clientEmail} - replace example@, info@, hello@, contact@, admin@, placeholder emails
-- Phone: ${clientPhone} - replace 555-, (555), +1 555, fake phone numbers
-- If you see "your@email.com" or similar, replace with ${clientEmail}
+3. CTA BUTTONS: "Get a Quote","Contact Us","Book Now","Get Started" must ${isMultiPage ? `use onclick="navigateTo('contact')"` : `scroll to contact section`}.
 
-3. CTA BUTTONS - fix any button that does nothing:
-- "Get a Quote", "Contact Us", "Get Started", "Book Now" buttons must navigate to contact section
-- ${isMultiPage ? `Use onclick="navigateTo('contact')"` : `Use onclick="document.getElementById('contact').scrollIntoView({behavior:'smooth'})"`}
+4. FORMS: Every form must show green success message on submit.
 
-4. FORMS - every contact form must show success message on submit:
-- Add to any form missing it: addEventListener submit -> show green success div
+5. MOBILE MENU: id="hamburger" must toggle id="mobile-menu".
 
-5. MOBILE MENU - ensure hamburger works:
-- Button with id="hamburger" must toggle id="mobile-menu" visibility
+6. Fix any dead href="#" links.
 
-6. DEAD LINKS - fix any href="#" that does nothing useful
-
-Here is the HTML:
-
+HTML:
 ${stitchHtml.substring(0, 85000)}`;
 
     const fixResponse = await anthropic.messages.create({
@@ -476,7 +450,6 @@ ${stitchHtml.substring(0, 85000)}`;
     let fixedHtml = fixResponse.content[0]?.type === "text" ? fixResponse.content[0].text : "";
     fixedHtml = fixedHtml.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
 
-    // Fallback to original if Claude response looks wrong
     if (!fixedHtml || (!fixedHtml.includes("<html") && !fixedHtml.includes("<!DOCTYPE") && !fixedHtml.includes("<body"))) {
       console.log("STEP 5: Fix response invalid, using original HTML");
       fixedHtml = stitchHtml;
@@ -484,16 +457,13 @@ ${stitchHtml.substring(0, 85000)}`;
       console.log("STEP 5 DONE. Fixed HTML length:", fixedHtml.length);
     }
 
-    // STEP 6: Link check report
     const { html: checkedHtml, report: linkReport } = checkAndFixLinks(fixedHtml, Array.isArray(userInput.pages) ? userInput.pages : []);
 
-    // STEP 7: Inject essentials and images
     let finalHtml = injectEssentials(checkedHtml, clientEmail, clientPhone);
     finalHtml = injectImages(finalHtml, logoUrl, heroUrl, photoUrls, productsWithPhotos);
     const cssContent = extractCSS(fixedHtml);
-    console.log("STEP 7 DONE: Essentials and images injected");
+    console.log("STEP 7 DONE");
 
-    // STEP 8: Save to Redis for Fix This Site
     const jobId = `job_${Date.now()}`;
     await redis.set(jobId, { html: finalHtml, title: spec.projectTitle, fileName, userInput }, { ex: 86400 });
     const processUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/process?id=${jobId}&secret=${process.env.PROCESS_SECRET}`;
@@ -502,7 +472,6 @@ ${stitchHtml.substring(0, 85000)}`;
       ? productsWithPhotos.map(p => `${p.name} - ${p.price}${p.photoUrl ? ` - <a href="${p.photoUrl}">View photo</a>` : ""}`).join("<br/>")
       : userInput.pricingDetails || "-";
 
-    // STEP 9: Email owner
     console.log("STEP 9: Emailing owner...");
     await resend.emails.send({
       from: "WebGecko <hello@webgecko.au>",
@@ -542,7 +511,6 @@ ${stitchHtml.substring(0, 85000)}`;
     });
     console.log("STEP 9 DONE");
 
-    // STEP 10: Email client
     if (clientEmail) {
       console.log("STEP 10: Emailing client...");
       await resend.emails.send({
