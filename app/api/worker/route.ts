@@ -1,19 +1,13 @@
-export const maxDuration = 300;
-export const runtime = "nodejs";
 
-import { NextResponse } from "next/server";
-import { stitchClient } from "@/lib/stitch";
-import Anthropic from "@anthropic-ai/sdk";
-import { Resend } from "resend";
+import { NextRequest, NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
+import Anthropic from "@anthropic-ai/sdk";
 import { v2 as cloudinary } from "cloudinary";
+import { Resend } from "resend";
 
+const redis = Redis.fromEnv();
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 const resend = new Resend(process.env.RESEND_API_KEY!);
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
@@ -21,571 +15,917 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET!,
 });
 
-function extractJson(text: string) {
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  return JSON.parse(text.slice(start, end + 1));
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface IntegrationResult {
+  service: string;
+  status: "ok" | "skipped" | "error";
+  embedCode?: string;
+  details?: string;
+  error?: string;
 }
 
-function safeFileName(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50);
+interface ProvisionedIntegrations {
+  formspree?: IntegrationResult;
+  googleMaps?: IntegrationResult;
+  elfsightReviews?: IntegrationResult;
+  elfsightGallery?: IntegrationResult;
+  crisp?: IntegrationResult;
+  mailerlite?: IntegrationResult;
+  calendly?: IntegrationResult;
+  stripe?: IntegrationResult;
 }
 
-function extractCSS(html: string): string {
-  const styleBlocks: string[] = [];
-  const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
-  let match;
-  while ((match = styleRegex.exec(html)) !== null) {
-    if (!match[1].includes("tailwind") && match[1].trim().length > 10) styleBlocks.push(match[1].trim());
-  }
-  const tailwindMatch = html.match(/tailwind\.config\s*=\s*({[\s\S]*?})\s*<\/script>/);
-  let colorVars = "";
-  if (tailwindMatch) {
-    try {
-      const config = eval("(" + tailwindMatch[1] + ")");
-      const colors = config?.theme?.extend?.colors || {};
-      colorVars = "/* THEME COLORS */\n:root {\n";
-      Object.entries(colors).forEach(([key, val]) => { colorVars += `  --color-${key}: ${val};\n`; });
-      colorVars += "}\n";
-    } catch (e) {}
-  }
-  return `/* WebGecko Generated Styles */\n\n${colorVars}\n${styleBlocks.join("\n\n")}`;
+// ─── Turnstile ───────────────────────────────────────────────────────────────
+
+async function verifyTurnstile(token: string): Promise<boolean> {
+  const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ secret: process.env.TURNSTILE_SECRET_KEY, response: token }),
+  });
+  const data = await res.json();
+  return data.success === true;
 }
 
-function calculateQuote(userInput: any) {
-  const pageCount = Array.isArray(userInput.pages) ? userInput.pages.length : 1;
-  const features = Array.isArray(userInput.features) ? userInput.features : [];
-  const isMultiPage = userInput.siteType === "multi";
-  const hasEcommerce = features.includes("Payments / Shop");
-  const hasBooking = features.includes("Booking System");
-  const hasBlog = features.includes("Blog");
-  let packageName = "Starter"; let basePrice = 1800; let competitorPrice = 3500;
-  const breakdown: string[] = [];
-  if (pageCount >= 8 || hasEcommerce || hasBooking) { packageName = "Premium"; basePrice = 5500; competitorPrice = 15000; }
-  else if (pageCount >= 4 || isMultiPage) { packageName = "Business"; basePrice = 3200; competitorPrice = 7500; }
-  breakdown.push(`${packageName} package (${pageCount} pages): $${basePrice.toLocaleString()}`);
-  let addons = 0;
-  if (hasEcommerce && packageName !== "Premium") { addons += 300; breakdown.push("Payments / Shop: +$300"); }
-  if (hasBooking && packageName !== "Premium") { addons += 200; breakdown.push("Booking: +$200"); }
-  if (hasBlog) { addons += 150; breakdown.push("Blog: +$150"); }
-  if (features.includes("Photo Gallery")) { addons += 100; breakdown.push("Gallery: +$100"); }
-  if (features.includes("Reviews & Testimonials")) { addons += 100; breakdown.push("Reviews: +$100"); }
-  if (features.includes("Live Chat")) { addons += 150; breakdown.push("Live chat: +$150"); }
-  if (features.includes("Newsletter Signup")) { addons += 100; breakdown.push("Newsletter: +$100"); }
-  const totalPrice = basePrice + addons;
-  const monthlyPrice = packageName === "Premium" ? 149 : packageName === "Business" ? 99 : 79;
-  const savings = competitorPrice - totalPrice;
-  breakdown.push(`Monthly hosting: $${monthlyPrice}/month`);
-  return { package: packageName, price: totalPrice, monthlyPrice, savings, competitorPrice, breakdown };
-}
+// ─── Cloudinary ───────────────────────────────────────────────────────────────
 
-async function uploadToCloudinary(buffer: Buffer, folder: string, filename: string): Promise<string> {
+async function uploadToCloudinary(file: File, folder: string): Promise<string> {
+  const buffer = Buffer.from(await file.arrayBuffer());
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      { folder, public_id: filename, overwrite: true },
-      (error, result) => { if (error) reject(error); else resolve(result!.secure_url); }
+      { folder, resource_type: "image" },
+      (err, result) => { if (err || !result) reject(err); else resolve(result.secure_url); }
     );
     stream.end(buffer);
   });
 }
 
-function checkAndFixLinks(html: string, pages: string[]): { html: string; report: string[] } {
-  const issues: string[] = [];
-  const deadLinks = html.match(/href="#"(?!\w)/g);
-  if (deadLinks) issues.push(`Found ${deadLinks.length} dead href="#" links`);
-  const navLinks = html.match(/href="#([^"]+)"/g) || [];
-  navLinks.forEach(link => {
-    const id = link.match(/href="#([^"]+)"/)?.[1];
-    if (id && !html.includes(`id="${id}"`)) issues.push(`Nav link #${id} has no matching section id`);
-  });
-  const navigateCalls = html.match(/navigateTo\(['"]([^'"]+)['"]\)/g) || [];
-  navigateCalls.forEach(call => {
-    const pageId = call.match(/navigateTo\(['"]([^'"]+)['"]\)/)?.[1];
-    if (pageId && !html.includes(`id="${pageId}"`)) issues.push(`navigateTo('${pageId}') has no matching element`);
-  });
-  return { html, report: issues };
+// ─── Integrations ─────────────────────────────────────────────────────────────
+// Each returns IntegrationResult. Missing API keys = "skipped" not "error".
+// Always returns embed code — either live or placeholder.
+
+async function provisionFormspree(businessName: string, email: string): Promise<IntegrationResult> {
+  const key = process.env.FORMSPREE_API_KEY;
+  if (!key) {
+    return {
+      service: "Formspree", status: "skipped",
+      embedCode: `<form action="https://formspree.io/f/PLACEHOLDER" method="POST" class="contact-form">
+  <input type="text" name="name" placeholder="Your Name" required />
+  <input type="email" name="_replyto" placeholder="Your Email" required />
+  <textarea name="message" placeholder="Your Message" required></textarea>
+  <button type="submit">Send Message</button>
+</form>`,
+      details: "Add FORMSPREE_API_KEY to Vercel env to auto-provision"
+    };
+  }
+  try {
+    const res = await fetch("https://api.formspree.io/api/0/forms", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: `${businessName} Contact Form`, email }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Formspree API error");
+    const formId = data.hashid;
+    return {
+      service: "Formspree", status: "ok",
+      embedCode: `<form action="https://formspree.io/f/${formId}" method="POST" class="contact-form">
+  <input type="text" name="name" placeholder="Your Name" required />
+  <input type="email" name="_replyto" placeholder="Your Email" required />
+  <textarea name="message" placeholder="Your Message" required></textarea>
+  <button type="submit">Send Message</button>
+</form>`,
+      details: `Form ID: ${formId}`
+    };
+  } catch (e: any) {
+    return { service: "Formspree", status: "error", error: e.message };
+  }
 }
+
+async function provisionGoogleMaps(businessAddress: string, businessName: string): Promise<IntegrationResult> {
+  if (!businessAddress) return { service: "Google Maps", status: "skipped", details: "No address provided" };
+  const key = process.env.GOOGLE_MAPS_API_KEY || "YOUR_GOOGLE_MAPS_KEY";
+  const q = encodeURIComponent(`${businessName} ${businessAddress}`);
+  return {
+    service: "Google Maps",
+    status: process.env.GOOGLE_MAPS_API_KEY ? "ok" : "skipped",
+    embedCode: `<div class="maps-section" style="margin:40px 0;">
+  <iframe src="https://www.google.com/maps/embed/v1/place?key=${key}&q=${q}"
+    width="100%" height="400" style="border:0;border-radius:12px;" allowfullscreen loading="lazy">
+  </iframe>
+</div>`,
+    details: process.env.GOOGLE_MAPS_API_KEY ? "Live embed" : "Add GOOGLE_MAPS_API_KEY to Vercel env"
+  };
+}
+
+async function provisionElfsightReviews(businessName: string): Promise<IntegrationResult> {
+  const key = process.env.ELFSIGHT_API_KEY;
+  if (!key) {
+    return {
+      service: "Elfsight Reviews", status: "skipped",
+      embedCode: `<div class="reviews-widget">
+  <script src="https://static.elfsight.com/platform/platform.js" defer></script>
+  <div class="elfsight-app-REVIEWS-PLACEHOLDER" data-elfsight-app-lazy></div>
+</div>`,
+      details: "Add ELFSIGHT_API_KEY to Vercel env to auto-provision"
+    };
+  }
+  try {
+    const res = await fetch("https://api.elfsight.com/service/widgets", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "google-reviews", name: `${businessName} Reviews` }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data));
+    const widgetId = data.data?.id;
+    return {
+      service: "Elfsight Reviews", status: "ok",
+      embedCode: `<div class="reviews-widget">
+  <script src="https://static.elfsight.com/platform/platform.js" defer></script>
+  <div class="elfsight-app-${widgetId}" data-elfsight-app-lazy></div>
+</div>`,
+      details: `Widget ID: ${widgetId}`
+    };
+  } catch (e: any) {
+    return { service: "Elfsight Reviews", status: "error", error: e.message };
+  }
+}
+
+async function provisionElfsightGallery(businessName: string): Promise<IntegrationResult> {
+  const key = process.env.ELFSIGHT_API_KEY;
+  if (!key) {
+    return {
+      service: "Elfsight Gallery", status: "skipped",
+      embedCode: `<div class="gallery-widget">
+  <script src="https://static.elfsight.com/platform/platform.js" defer></script>
+  <div class="elfsight-app-GALLERY-PLACEHOLDER" data-elfsight-app-lazy></div>
+</div>`,
+      details: "Add ELFSIGHT_API_KEY to Vercel env"
+    };
+  }
+  try {
+    const res = await fetch("https://api.elfsight.com/service/widgets", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "instagram-feed", name: `${businessName} Gallery` }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data));
+    const widgetId = data.data?.id;
+    return {
+      service: "Elfsight Gallery", status: "ok",
+      embedCode: `<div class="gallery-widget">
+  <script src="https://static.elfsight.com/platform/platform.js" defer></script>
+  <div class="elfsight-app-${widgetId}" data-elfsight-app-lazy></div>
+</div>`,
+      details: `Widget ID: ${widgetId}`
+    };
+  } catch (e: any) {
+    return { service: "Elfsight Gallery", status: "error", error: e.message };
+  }
+}
+
+async function provisionCrisp(businessName: string, email: string): Promise<IntegrationResult> {
+  const key = process.env.CRISP_API_KEY;
+  const identifier = process.env.CRISP_API_IDENTIFIER;
+  if (!key || !identifier) {
+    return {
+      service: "Crisp Chat", status: "skipped",
+      embedCode: `<script type="text/javascript">
+  window.$crisp=[];
+  window.CRISP_WEBSITE_ID="PLACEHOLDER-ADD-CRISP-ID";
+  (function(){var d=document;var s=d.createElement("script");
+  s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();
+</script>`,
+      details: "Add CRISP_API_KEY and CRISP_API_IDENTIFIER to Vercel env"
+    };
+  }
+  try {
+    const res = await fetch("https://api.crisp.chat/v1/website", {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${Buffer.from(`${identifier}:${key}`).toString("base64")}`,
+        "Content-Type": "application/json",
+        "X-Crisp-Tier": "plugin",
+      },
+      body: JSON.stringify({ name: businessName, domain: email.split("@")[1] || "webgecko.au" }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data));
+    const websiteId = data.data?.website_id;
+    return {
+      service: "Crisp Chat", status: "ok",
+      embedCode: `<script type="text/javascript">
+  window.$crisp=[];
+  window.CRISP_WEBSITE_ID="${websiteId}";
+  (function(){var d=document;var s=d.createElement("script");
+  s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();
+</script>`,
+      details: `Website ID: ${websiteId}`
+    };
+  } catch (e: any) {
+    return { service: "Crisp Chat", status: "error", error: e.message };
+  }
+}
+
+async function provisionMailerLite(businessName: string): Promise<IntegrationResult> {
+  const key = process.env.MAILERLITE_API_KEY;
+  if (!key) {
+    return {
+      service: "MailerLite", status: "skipped",
+      embedCode: `<div class="newsletter-section">
+  <form class="newsletter-form">
+    <input type="email" placeholder="Enter your email" required />
+    <button type="submit">Subscribe</button>
+  </form>
+</div>`,
+      details: "Add MAILERLITE_API_KEY to Vercel env"
+    };
+  }
+  try {
+    const groupRes = await fetch("https://connect.mailerlite.com/api/groups", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: `${businessName} Subscribers` }),
+    });
+    const groupData = await groupRes.json();
+    if (!groupRes.ok) throw new Error(JSON.stringify(groupData));
+    const groupId = groupData.data?.id;
+    return {
+      service: "MailerLite", status: "ok",
+      embedCode: `<div class="newsletter-section" data-mailerlite-group="${groupId}">
+  <form class="newsletter-form" onsubmit="handleNewsletterSubmit(event, '${groupId}')">
+    <input type="email" name="email" placeholder="Enter your email" required />
+    <button type="submit">Subscribe</button>
+  </form>
+</div>
+<script>
+async function handleNewsletterSubmit(e, groupId) {
+  e.preventDefault();
+  const email = e.target.querySelector('input[name=email]').value;
+  try {
+    await fetch('https://connect.mailerlite.com/api/subscribers', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer ${key}'},
+      body: JSON.stringify({email, groups:[groupId]})
+    });
+    e.target.innerHTML = '<p style="color:#10b981;font-weight:600;">Thanks for subscribing!</p>';
+  } catch(err) { console.error(err); }
+}
+</script>`,
+      details: `Group ID: ${groupId}`
+    };
+  } catch (e: any) {
+    return { service: "MailerLite", status: "error", error: e.message };
+  }
+}
+
+async function provisionCalendly(businessName: string, email: string): Promise<IntegrationResult> {
+  const key = process.env.CALENDLY_API_KEY;
+  const orgUri = process.env.CALENDLY_ORG_URI;
+  const slug = businessName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+  if (!key || !orgUri) {
+    return {
+      service: "Calendly", status: "skipped",
+      embedCode: `<div class="booking-section">
+  <div class="calendly-inline-widget"
+    data-url="https://calendly.com/${slug}"
+    style="min-width:320px;height:630px;">
+  </div>
+  <script type="text/javascript" src="https://assets.calendly.com/assets/external/widget.js" async></script>
+</div>`,
+      details: "Add CALENDLY_API_KEY and CALENDLY_ORG_URI to Vercel env. Update the Calendly URL with the client's link."
+    };
+  }
+  try {
+    await fetch(`${orgUri}/invitations`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    return {
+      service: "Calendly", status: "ok",
+      embedCode: `<div class="booking-section">
+  <div class="calendly-inline-widget"
+    data-url="https://calendly.com/${slug}"
+    style="min-width:320px;height:630px;">
+  </div>
+  <script type="text/javascript" src="https://assets.calendly.com/assets/external/widget.js" async></script>
+</div>`,
+      details: `Invitation sent to ${email}`
+    };
+  } catch (e: any) {
+    return { service: "Calendly", status: "error", error: e.message };
+  }
+}
+
+async function provisionStripe(businessName: string): Promise<IntegrationResult> {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    return {
+      service: "Stripe Shop", status: "skipped",
+      embedCode: `<div class="shop-section">
+  <a href="#" class="buy-button" style="display:inline-block;background:#10b981;color:#fff;padding:14px 28px;border-radius:8px;font-weight:700;text-decoration:none;">Buy Now</a>
+  <!-- Add STRIPE_SECRET_KEY to Vercel env to auto-provision payment links -->
+</div>`,
+      details: "Add STRIPE_SECRET_KEY to Vercel env"
+    };
+  }
+  try {
+    const productRes = await fetch("https://api.stripe.com/v1/products", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ name: `${businessName} - Product`, description: "Update in Stripe dashboard" }),
+    });
+    const product = await productRes.json();
+    if (!productRes.ok) throw new Error(product.error?.message);
+    const priceRes = await fetch("https://api.stripe.com/v1/prices", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ product: product.id, unit_amount: "5000", currency: "aud" }),
+    });
+    const price = await priceRes.json();
+    const linkRes = await fetch("https://api.stripe.com/v1/payment_links", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ "line_items[0][price]": price.id, "line_items[0][quantity]": "1" }),
+    });
+    const link = await linkRes.json();
+    if (!linkRes.ok) throw new Error(link.error?.message);
+    return {
+      service: "Stripe Shop", status: "ok",
+      embedCode: `<div class="shop-section">
+  <a href="${link.url}" class="buy-button stripe-button" target="_blank"
+    style="display:inline-block;background:#10b981;color:#fff;padding:14px 28px;border-radius:8px;font-weight:700;text-decoration:none;">
+    Buy Now
+  </a>
+</div>`,
+      details: `Payment link: ${link.url}`
+    };
+  } catch (e: any) {
+    return { service: "Stripe Shop", status: "error", error: e.message };
+  }
+}
+
+// ─── Run all provisioning in parallel ─────────────────────────────────────────
+
+async function provisionIntegrations(
+  features: string[],
+  businessName: string,
+  businessAddress: string,
+  email: string
+): Promise<ProvisionedIntegrations> {
+  const results: ProvisionedIntegrations = {};
+  const tasks: Promise<void>[] = [];
+
+  tasks.push(provisionFormspree(businessName, email).then(r => { results.formspree = r; }));
+
+  if (features.includes('Google Maps'))
+    tasks.push(provisionGoogleMaps(businessAddress, businessName).then(r => { results.googleMaps = r; }));
+  if (features.includes('Reviews & Testimonials'))
+    tasks.push(provisionElfsightReviews(businessName).then(r => { results.elfsightReviews = r; }));
+  if (features.includes('Photo Gallery'))
+    tasks.push(provisionElfsightGallery(businessName).then(r => { results.elfsightGallery = r; }));
+  if (features.includes('Live Chat'))
+    tasks.push(provisionCrisp(businessName, email).then(r => { results.crisp = r; }));
+  if (features.includes('Newsletter Signup'))
+    tasks.push(provisionMailerLite(businessName).then(r => { results.mailerlite = r; }));
+  if (features.includes('Booking System'))
+    tasks.push(provisionCalendly(businessName, email).then(r => { results.calendly = r; }));
+  if (features.includes('Payments / Shop'))
+    tasks.push(provisionStripe(businessName).then(r => { results.stripe = r; }));
+
+  await Promise.allSettled(tasks);
+  return results;
+}
+
+function buildEmbedSummary(integrations: ProvisionedIntegrations): string {
+  const lines: string[] = [];
+  for (const result of Object.values(integrations)) {
+    if (result?.embedCode) {
+      lines.push(`### ${result.service} (${result.status})\n\`\`\`html\n${result.embedCode}\n\`\`\``);
+    }
+  }
+  return lines.length > 0
+    ? `EMBED CODES — place each in the correct section of the site:\n\n${lines.join('\n\n')}`
+    : "No integrations provisioned.";
+}
+
+// ─── Watermark ────────────────────────────────────────────────────────────────
+
+function injectWatermark(html: string): string {
+  const watermark = `
+<style>
+#wg-watermark{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;
+background:repeating-linear-gradient(-45deg,transparent,transparent 120px,rgba(16,185,129,0.05) 120px,rgba(16,185,129,0.05) 122px);}
+#wg-watermark::after{content:'WEBGECKO PREVIEW';position:fixed;top:50%;left:50%;
+transform:translate(-50%,-50%) rotate(-30deg);font-family:sans-serif;font-size:32px;font-weight:700;
+letter-spacing:6px;color:rgba(16,185,129,0.10);white-space:nowrap;pointer-events:none;}
+#wg-bar{position:fixed;bottom:0;left:0;right:0;background:rgba(10,15,26,0.96);
+border-top:1px solid rgba(16,185,129,0.3);color:#10b981;font-family:sans-serif;font-size:12px;
+padding:8px 16px;text-align:center;z-index:99999;pointer-events:none;}
+</style>
+<div id="wg-watermark"></div>
+<div id="wg-bar">WebGecko Development Preview - Not yet live - webgecko.au</div>
+<script>
+document.addEventListener('contextmenu',e=>e.preventDefault());
+document.addEventListener('keydown',e=>{
+  if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&'IJC'.includes(e.key))||(e.ctrlKey&&e.key==='U'))e.preventDefault();
+});
+</script>`;
+  return html.includes('</body>') ? html.replace('</body>', watermark + '</body>') : html + watermark;
+}
+
+// ─── Vercel deploy ─────────────────────────────────────────────────────────────
+
+async function deployToVercel(jobId: string, html: string): Promise<string | null> {
+  const token = process.env.VERCEL_API_TOKEN;
+  if (!token) return null;
+  try {
+    const projectName = `wg-${jobId.slice(0, 8)}`;
+    const body: any = {
+      name: projectName,
+      files: [{ file: "index.html", data: Buffer.from(html).toString("base64"), encoding: "base64" }],
+      projectSettings: { framework: null },
+      target: "preview",
+    };
+    if (process.env.VERCEL_TEAM_ID) body.teamId = process.env.VERCEL_TEAM_ID;
+    const res = await fetch("https://api.vercel.com/v13/deployments", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    return data.url ? `https://${data.url}` : null;
+  } catch (e) {
+    console.error("Vercel deploy failed:", e);
+    return null;
+  }
+}
+
+// ─── CSS extract ──────────────────────────────────────────────────────────────
+
+function extractCSS(html: string): string {
+  const styles = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map(m => m[1]).join('\n\n');
+  return `/* WebGecko Generated Styles - Paste into WordPress Additional CSS */\n\n${styles}`;
+}
+
+// ─── Link checker ─────────────────────────────────────────────────────────────
+
+function checkLinks(html: string): string {
+  const issues: string[] = [];
+  const dead = [...html.matchAll(/href="(#|javascript:void\(0\))"/g)];
+  if (dead.length) issues.push(`${dead.length} dead href="#" links found`);
+  const noAlt = [...html.matchAll(/<img(?![^>]*alt=)[^>]*>/g)];
+  if (noAlt.length) issues.push(`${noAlt.length} images missing alt text`);
+  return issues.length ? `Issues:\n- ${issues.join('\n- ')}` : 'No issues found';
+}
+
+// ─── Inject essentials ────────────────────────────────────────────────────────
+
+function injectEssentials(html: string): string {
+  const script = `<script>
+(function(){
+  window.navigateTo=function(p){
+    document.querySelectorAll('[data-page]').forEach(x=>x.style.display='none');
+    var t=document.querySelector('[data-page="'+p+'"]');
+    if(t){t.style.display='block';window.scrollTo(0,0);}
+  };
+  document.querySelectorAll('[data-nav]').forEach(function(el){
+    el.addEventListener('click',function(e){e.preventDefault();window.navigateTo(this.getAttribute('data-nav'));});
+  });
+  var hb=document.getElementById('hamburger'),mm=document.getElementById('mobile-menu');
+  if(hb&&mm){hb.addEventListener('click',function(){var o=mm.style.display==='block';mm.style.display=o?'none':'block';});}
+  document.querySelectorAll('.faq-item').forEach(function(item){
+    var q=item.querySelector('.faq-question,h3,h4'),a=item.querySelector('.faq-answer,p');
+    if(q&&a){a.style.display='none';q.style.cursor='pointer';q.addEventListener('click',function(){a.style.display=a.style.display==='block'?'none':'block';});}
+  });
+  window.addToCart=function(n,p){
+    var t=document.createElement('div');
+    t.style.cssText='position:fixed;bottom:24px;right:24px;background:#10b981;color:white;padding:12px 20px;border-radius:12px;font-weight:600;z-index:9999;font-family:sans-serif;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+    t.textContent=(n||'Item')+' added to cart';
+    document.body.appendChild(t);
+    setTimeout(function(){t.remove();},3000);
+  };
+  document.querySelectorAll('form').forEach(function(form){
+    var action=form.getAttribute('action')||'';
+    if(!action.includes('formspree.io')&&!action.includes('http')){
+      form.addEventListener('submit',function(e){
+        e.preventDefault();
+        form.innerHTML='<div style="text-align:center;padding:32px;"><p style="color:#10b981;font-size:18px;font-weight:600;">Message sent! We\'ll be in touch shortly.</p></div>';
+      });
+    }
+  });
+  var pages=document.querySelectorAll('[data-page]');
+  if(pages.length>1){pages.forEach(function(p,i){p.style.display=i===0?'block':'none';});}
+})();
+</script>`;
+  return html.includes('</body>') ? html.replace('</body>', script + '</body>') : html + script;
+}
+
+// ─── Inject images ─────────────────────────────────────────────────────────────
 
 function injectImages(
   html: string,
   logoUrl: string | null,
   heroUrl: string | null,
   photoUrls: string[],
-  products: { name: string; price: string; photoUrl?: string }[]
+  productPhotoMap: { name: string; url: string }[]
 ): string {
-  let processed = html;
-  const script = `
-<script>
-(function() {
-  ${logoUrl ? `
-  var logoUrl = "${logoUrl}";
-  var header = document.querySelector("header, nav, [class*='navbar'], [class*='nav']");
-  if (header) {
-    var existingLogo = header.querySelector("img");
-    if (existingLogo) {
-      existingLogo.src = logoUrl;
-      existingLogo.style.height = "40px";
-      existingLogo.style.width = "auto";
-      existingLogo.style.objectFit = "contain";
-    } else {
-      var textLogo = header.querySelector("[class*='logo'],[class*='brand'],[class*='site-name']");
-      if (textLogo) {
-        var img = document.createElement("img");
-        img.src = logoUrl;
-        img.style.cssText = "height:40px;width:auto;object-fit:contain;";
-        img.alt = "Logo";
-        textLogo.innerHTML = "";
-        textLogo.appendChild(img);
-      }
-    }
-  }` : ""}
-  ${heroUrl ? `
-  var heroUrl = "${heroUrl}";
-  var heroSection = document.querySelector("[class*='hero'],[id*='hero'],section:first-of-type");
-  if (heroSection) {
-    if (heroSection.style.backgroundImage) heroSection.style.backgroundImage = "url(" + heroUrl + ")";
-    var heroImg = heroSection.querySelector("img");
-    if (heroImg) { heroImg.src = heroUrl; heroImg.style.objectFit = "cover"; }
-  }` : ""}
-  ${products.filter(p => p.photoUrl).length > 0 ? `
-  var productData = ${JSON.stringify(products.filter(p => p.photoUrl))};
-  productData.forEach(function(product) {
-    document.querySelectorAll("*").forEach(function(el) {
-      if (el.children.length === 0 && el.textContent && el.textContent.toLowerCase().trim().includes(product.name.toLowerCase())) {
-        var container = el.closest("li, article, [class*='card'], [class*='item'], div");
-        if (container) {
-          var img = container.querySelector("img");
-          if (img && product.photoUrl) { img.src = product.photoUrl; img.style.objectFit = "cover"; }
-        }
-      }
-    });
+  let script = '<script>\n(function(){\n';
+  if (logoUrl) {
+    script += `var li=document.querySelector('header img,nav img,.logo img,#logo img');
+if(li){li.src='${logoUrl}';li.style.maxHeight='60px';}
+else{var lt=document.querySelector('.logo,#logo,header .brand');
+if(lt){var li2=document.createElement('img');li2.src='${logoUrl}';li2.style.maxHeight='60px';lt.insertBefore(li2,lt.firstChild);}}\n`;
+  }
+  if (heroUrl) {
+    script += `var hr=document.querySelector('.hero,#hero,[class*="hero"],section:first-of-type');
+if(hr){var cs=window.getComputedStyle(hr);
+if(cs.backgroundImage==='none'){hr.style.backgroundImage='url(${heroUrl})';hr.style.backgroundSize='cover';hr.style.backgroundPosition='center';}
+else{var hi=hr.querySelector('img');if(hi)hi.src='${heroUrl}';}}\n`;
+  }
+  productPhotoMap.forEach(({ name, url }) => {
+    const safe = name.replace(/'/g, "\\'").toLowerCase();
+    script += `(function(){var els=Array.from(document.querySelectorAll('.product,.item,.menu-item,.service-item'));
+var m=els.find(function(el){return el.textContent.toLowerCase().includes('${safe}');});
+if(m){var img=m.querySelector('img');if(img)img.src='${url}';}})();\n`;
   });
-  var productImgs = document.querySelectorAll("[class*='menu'] img, [class*='product'] img, [class*='item'] img, [id*='menu'] img, [class*='card'] img");
-  var photoList = productData.map(function(p) { return p.photoUrl; });
-  productImgs.forEach(function(img, i) { if (photoList[i]) { img.src = photoList[i]; img.style.objectFit = "cover"; } });` : ""}
-  ${photoUrls.length > 0 ? `
-  var generalPhotos = ${JSON.stringify(photoUrls)};
-  var galleryImgs = document.querySelectorAll("[class*='gallery'] img, [id*='gallery'] img");
-  galleryImgs.forEach(function(img, i) { if (generalPhotos[i]) img.src = generalPhotos[i]; });` : ""}
-})();
-</script>`;
-  if (processed.includes("</body>")) return processed.replace("</body>", script + "</body>");
-  return processed + script;
+  photoUrls.forEach((url, i) => {
+    script += `(function(){var gi=document.querySelectorAll('.gallery img,.photos img,[class*="gallery"] img');
+if(gi[${i}])gi[${i}].src='${url}';})();\n`;
+  });
+  script += '})();\n</script>';
+  return html.includes('</body>') ? html.replace('</body>', script + '</body>') : html + script;
 }
 
-function injectEssentials(html: string, email: string, phone: string): string {
-  let processed = html;
-  if (email) {
-    processed = processed.replace(/hello@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
-    processed = processed.replace(/info@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
-    processed = processed.replace(/contact@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
-    processed = processed.replace(/support@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
-    processed = processed.replace(/admin@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
-  }
-  if (phone) {
-    processed = processed.replace(/\+1 \(555\)[^\s<"']*/g, phone);
-    processed = processed.replace(/\(555\)[^\s<"']*/g, phone);
-    processed = processed.replace(/555-[0-9-]+/g, phone);
-    processed = processed.replace(/\+61 4[0-9]{2} [0-9]{3} [0-9]{3}/g, phone);
-  }
+// ─── Quote calculator (server mirror) ─────────────────────────────────────────
 
-  const script = `
-<script>
-(function() {
-window.navigateTo = function(pageId) {
-  document.querySelectorAll(".page,.page-section").forEach(function(p) { p.style.display = "none"; p.classList.remove("active"); });
-  var t = document.getElementById(pageId) || document.getElementById("page-" + pageId) || document.querySelector('[data-page="' + pageId + '"]');
-  if (t) { t.style.display = "block"; t.classList.add("active"); window.scrollTo({ top: 0, behavior: "smooth" }); }
-  var mm = document.getElementById("mobile-menu") || document.getElementById("mobile-nav");
-  if (mm) { mm.classList.add("hidden"); mm.style.display = "none"; }
-};
-document.querySelectorAll("a,button").forEach(function(el) {
-  var oc = el.getAttribute("onclick") || "", hr = el.getAttribute("href") || "", dn = el.getAttribute("data-nav") || "", dp = el.getAttribute("data-page") || "";
-  if (oc.includes("navigateTo")) return;
-  if (dn) { el.addEventListener("click", function(e) { e.preventDefault(); window.navigateTo(dn); }); return; }
-  if (dp) { el.addEventListener("click", function(e) { e.preventDefault(); window.navigateTo(dp); }); return; }
-  if (hr.startsWith("#") && hr.length > 1) { el.addEventListener("click", function(e) { var t = document.querySelector(hr); if (t) { e.preventDefault(); t.scrollIntoView({ behavior: "smooth" }); } }); }
-});
-document.querySelectorAll("#hamburger,#hamburger-btn,[class*='hamburger'],[aria-label='Open menu'],[aria-label='Menu']").forEach(function(btn) {
-  if (btn.getAttribute("onclick")) return;
-  btn.addEventListener("click", function() {
-    document.querySelectorAll("#mobile-menu,#mobile-nav,[class*='mobile-menu'],[class*='mobile-nav']").forEach(function(menu) {
-      var h = menu.classList.contains("hidden") || menu.style.display === "none" || getComputedStyle(menu).display === "none";
-      if (h) { menu.classList.remove("hidden"); menu.style.display = "flex"; menu.style.flexDirection = "column"; }
-      else { menu.classList.add("hidden"); menu.style.display = "none"; }
-    });
-  });
-});
-document.querySelectorAll("details").forEach(function(d) {
-  var s = d.querySelector("summary");
-  if (s) { s.style.cursor = "pointer"; s.addEventListener("click", function(e) { e.preventDefault(); var o = d.hasAttribute("open"); document.querySelectorAll("details").forEach(function(x) { x.removeAttribute("open"); }); if (!o) d.setAttribute("open", ""); }); }
-});
-document.querySelectorAll("[class*='faq'],[class*='accordion'],[id*='faq']").forEach(function(c) {
-  c.querySelectorAll("[class*='item'],[class*='question'],[class*='entry']").forEach(function(item) {
-    var q = item.querySelector("[class*='question'],[class*='trigger'],h3,h4,button");
-    var a = item.querySelector("[class*='answer'],[class*='content'],p");
-    if (q && a) { a.style.display = "none"; q.style.cursor = "pointer"; q.addEventListener("click", function() { var o = a.style.display !== "none"; c.querySelectorAll("[class*='answer'],[class*='content'],p").forEach(function(x) { x.style.display = "none"; }); if (!o) a.style.display = "block"; }); }
-  });
-});
-var cart = [];
-function showToast(msg) { var t = document.getElementById("wg-toast"); if (!t) { t = document.createElement("div"); t.id = "wg-toast"; t.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:99999;transition:opacity 0.3s;pointer-events:none;"; document.body.appendChild(t); } t.textContent = msg; t.style.opacity = "1"; setTimeout(function() { t.style.opacity = "0"; }, 2500); }
-document.querySelectorAll("button,a").forEach(function(btn) { var txt = (btn.textContent || "").toLowerCase().trim(); if (txt.includes("add to cart") || txt.includes("buy now") || txt.includes("add to bag")) { btn.addEventListener("click", function(e) { e.preventDefault(); e.stopPropagation(); var card = this.closest("article") || this.closest("[class*='product']") || this.parentElement; var nm = card && card.querySelector("h1,h2,h3,h4"); var n = nm ? nm.textContent.trim() : "Item"; var ex = cart.find(function(i) { return i.name === n; }); if (ex) ex.qty++; else cart.push({ name: n, qty: 1 }); showToast(n + " added"); var total = cart.reduce(function(a, b) { return a + b.qty; }, 0); document.querySelectorAll("#cart-count,#cart-badge,[class*='cart-count']").forEach(function(b) { b.textContent = total; }); }); } });
-document.querySelectorAll("form").forEach(function(form) { form.addEventListener("submit", function(e) { e.preventDefault(); if (form.querySelector(".wg-success")) return; var s = document.createElement("div"); s.className = "wg-success"; s.style.cssText = "background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;font-family:sans-serif;"; s.textContent = "Thank you! We will be in touch within 24 hours."; form.appendChild(s); form.querySelectorAll("input,textarea,select,button[type='submit']").forEach(function(el) { el.setAttribute("disabled", "true"); }); }); });
-var pages = document.querySelectorAll(".page,.page-section");
-if (pages.length > 1) { var ha = false; pages.forEach(function(p) { if (p.classList.contains("active")) ha = true; }); if (!ha) { pages.forEach(function(p, i) { if (i === 0) { p.style.display = "block"; p.classList.add("active"); } else { p.style.display = "none"; } }); } }
-})();
-</script>`;
-
-  if (processed.includes("</body>")) return processed.replace("</body>", script + "</body>");
-  return processed + script;
+function calculateQuote(pages: string[], features: string[], siteType: string) {
+  const pageCount = pages.length || 1;
+  const hasEcommerce = features.includes('Payments / Shop');
+  const hasBooking = features.includes('Booking System');
+  const hasBlog = features.includes('Blog');
+  const isMultiPage = siteType === 'multi';
+  let packageName = 'Starter', basePrice = 1800, competitorPrice = 3500;
+  if (pageCount >= 8 || hasEcommerce || hasBooking) { packageName = 'Premium'; basePrice = 5500; competitorPrice = 15000; }
+  else if (pageCount >= 4 || isMultiPage) { packageName = 'Business'; basePrice = 3200; competitorPrice = 7500; }
+  let addons = 0;
+  if (hasEcommerce && packageName !== 'Premium') addons += 300;
+  if (hasBooking && packageName !== 'Premium') addons += 200;
+  if (hasBlog) addons += 150;
+  if (features.includes('Photo Gallery')) addons += 100;
+  if (features.includes('Reviews & Testimonials')) addons += 100;
+  if (features.includes('Live Chat')) addons += 150;
+  if (features.includes('Newsletter Signup')) addons += 100;
+  const totalPrice = basePrice + addons;
+  const monthlyPrice = packageName === 'Premium' ? 149 : packageName === 'Business' ? 99 : 79;
+  const savings = competitorPrice - totalPrice;
+  const deposit = Math.round(totalPrice / 2);
+  return { packageName, totalPrice, monthlyPrice, savings, competitorPrice, deposit };
 }
 
-export async function POST(req: Request) {
+// ─── Email builders ───────────────────────────────────────────────────────────
+
+function buildOwnerEmail(p: any): string {
+  const integrationRows = Object.values(p.integrations as ProvisionedIntegrations)
+    .filter(Boolean)
+    .map((r: any) => `<tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #1e293b;">${r.service}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #1e293b;">${r.status === 'ok' ? '✅ Live' : r.status === 'skipped' ? '⚠️ Skipped' : '❌ Error'}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #1e293b;font-size:12px;color:#94a3b8;">${r.details || r.error || ''}</td>
+    </tr>`).join('');
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>body{font-family:-apple-system,sans-serif;background:#0a0f1a;color:#e2e8f0;margin:0;padding:24px;}
+.card{background:#0f1623;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:24px;margin-bottom:16px;}
+h2{color:#10b981;font-size:13px;text-transform:uppercase;letter-spacing:2px;margin:0 0 16px;}
+td{vertical-align:top;} table{width:100%;border-collapse:collapse;font-size:13px;}
+a.btn{display:inline-block;background:#10b981;color:#000;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:700;margin-right:8px;}
+</style></head><body><div style="max-width:640px;margin:0 auto;">
+<div style="text-align:center;margin-bottom:24px;">
+  <h1 style="color:#10b981;font-size:22px;margin:0;">New WebGecko Job</h1>
+  <p style="color:#64748b;font-size:12px;">ID: ${p.jobId}</p>
+</div>
+<div class="card"><h2>Client</h2><table>
+  <tr><td style="color:#64748b;width:130px;padding:5px 0;">Business</td><td style="padding:5px 0;font-weight:600;">${p.businessName}</td></tr>
+  <tr><td style="color:#64748b;padding:5px 0;">Contact</td><td style="padding:5px 0;">${p.name}</td></tr>
+  <tr><td style="color:#64748b;padding:5px 0;">Email</td><td style="padding:5px 0;"><a href="mailto:${p.email}" style="color:#10b981;">${p.email}</a></td></tr>
+  <tr><td style="color:#64748b;padding:5px 0;">Phone</td><td style="padding:5px 0;">${p.phone}</td></tr>
+  <tr><td style="color:#64748b;padding:5px 0;">ABN</td><td style="padding:5px 0;">${p.abn || 'Not provided'}</td></tr>
+  <tr><td style="color:#64748b;padding:5px 0;">Address</td><td style="padding:5px 0;">${p.businessAddress || 'Not provided'}</td></tr>
+  <tr><td style="color:#64748b;padding:5px 0;">Industry</td><td style="padding:5px 0;">${p.industry}</td></tr>
+  <tr><td style="color:#64748b;padding:5px 0;">Goal</td><td style="padding:5px 0;">${p.goal}</td></tr>
+  <tr><td style="color:#64748b;padding:5px 0;">Type</td><td style="padding:5px 0;">${p.siteType}</td></tr>
+  <tr><td style="color:#64748b;padding:5px 0;">Pages</td><td style="padding:5px 0;">${p.pages.join(', ')}</td></tr>
+  <tr><td style="color:#64748b;padding:5px 0;">Features</td><td style="padding:5px 0;">${p.features.join(', ')}</td></tr>
+</table></div>
+<div class="card"><h2>Quote</h2>
+  <p style="font-size:28px;font-weight:700;color:#fff;margin:0 0 4px;">$${p.quote.totalPrice.toLocaleString()} <span style="font-size:14px;color:#64748b;font-weight:400;">${p.quote.packageName}</span></p>
+  <p style="color:#10b981;margin:0 0 4px;">Deposit: $${p.quote.deposit.toLocaleString()}</p>
+  <p style="color:#64748b;font-size:13px;margin:0;">+ $${p.quote.monthlyPrice}/month hosting</p>
+</div>
+<div class="card"><h2>Integrations</h2>
+  <table><tr style="background:#1e293b;">
+    <th style="padding:8px 12px;text-align:left;color:#94a3b8;font-size:12px;">Service</th>
+    <th style="padding:8px 12px;text-align:left;color:#94a3b8;font-size:12px;">Status</th>
+    <th style="padding:8px 12px;text-align:left;color:#94a3b8;font-size:12px;">Details</th>
+  </tr>${integrationRows}</table>
+</div>
+${p.previewUrl ? `<div class="card"><h2>Preview</h2>
+  <a href="${p.previewUrl}" class="btn">View Preview</a>
+  <a href="${p.processUrl}" class="btn" style="background:#1e293b;color:#10b981;border:1px solid rgba(16,185,129,0.3);">Fix This Site</a>
+</div>` : `<div class="card"><h2>Actions</h2><a href="${p.processUrl}" class="btn">Fix This Site</a></div>`}
+<div class="card"><h2>Link Report</h2>
+  <pre style="font-size:12px;color:#94a3b8;margin:0;white-space:pre-wrap;">${p.linkReport}</pre>
+</div>
+</div></body></html>`;
+}
+
+function buildClientEmail(p: any): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>body{font-family:-apple-system,sans-serif;background:#0a0f1a;color:#e2e8f0;margin:0;padding:24px;}
+.card{background:#0f1623;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:24px;margin-bottom:16px;}
+</style></head><body><div style="max-width:560px;margin:0 auto;">
+<div style="text-align:center;margin-bottom:32px;">
+  <div style="font-size:40px;margin-bottom:12px;">🦎</div>
+  <h1 style="color:#fff;font-size:22px;margin:0 0 8px;">You're all set, ${p.name.split(' ')[0]}!</h1>
+  <p style="color:#64748b;margin:0;">Your ${p.businessName} website is being built right now.</p>
+</div>
+<div class="card">
+  <h2 style="color:#10b981;font-size:13px;text-transform:uppercase;letter-spacing:2px;margin:0 0 12px;">Your order</h2>
+  <p style="margin:0 0 6px;font-weight:600;">${p.businessName} — ${p.quote.packageName} Package</p>
+  <p style="margin:0 0 4px;color:#64748b;font-size:13px;">Pages: ${p.pages.join(', ')}</p>
+  ${p.features.length > 0 ? `<p style="margin:0;color:#64748b;font-size:13px;">Features: ${p.features.join(', ')}</p>` : ''}
+</div>
+<div class="card" style="border-color:rgba(16,185,129,0.2);">
+  <h2 style="color:#10b981;font-size:13px;text-transform:uppercase;letter-spacing:2px;margin:0 0 12px;">Investment</h2>
+  <p style="font-size:32px;font-weight:700;color:#fff;margin:0 0 4px;">$${p.quote.totalPrice.toLocaleString()}</p>
+  <p style="color:#64748b;margin:0 0 12px;font-size:13px;">+ $${p.quote.monthlyPrice}/month hosting</p>
+  <div style="background:rgba(16,185,129,0.1);border-radius:10px;padding:12px;margin-bottom:12px;">
+    <p style="color:#10b981;font-weight:600;margin:0;">Saving $${p.quote.savings.toLocaleString()} vs a typical agency</p>
+  </div>
+  <p style="color:#94a3b8;font-size:13px;margin:0;">50% deposit ($${p.quote.deposit.toLocaleString()}) — secure payment link coming within 24 hours.</p>
+</div>
+<div class="card">
+  <h2 style="color:#10b981;font-size:13px;text-transform:uppercase;letter-spacing:2px;margin:0 0 12px;">Your 10-12 day timeline</h2>
+  ${[['⚡','Right now','Building has started'],['📧','Day 1','Full confirmation email'],['🎨','Days 3-5','First preview link'],['✏️','Days 6-9','Up to 2 revision rounds'],['🚀','Days 10-12','Goes live on your .com.au']].map(([icon,day,desc])=>`
+  <div style="display:flex;gap:12px;margin-bottom:10px;">
+    <span style="font-size:16px;width:24px;flex-shrink:0;">${icon}</span>
+    <div><p style="margin:0;font-weight:600;font-size:13px;">${day}</p><p style="margin:0;color:#64748b;font-size:12px;">${desc}</p></div>
+  </div>`).join('')}
+</div>
+<p style="text-align:center;color:#475569;font-size:12px;">Questions? <a href="mailto:hello@webgecko.au" style="color:#10b981;">hello@webgecko.au</a></p>
+</div></body></html>`;
+}
+
+// ─── Main handler ─────────────────────────────────────────────────────────────
+
+export async function POST(req: NextRequest) {
   try {
-    console.log("REQUEST RECEIVED");
     const formData = await req.formData();
-    const getString = (key: string) => formData.get(key)?.toString() || "";
-    const getJson = (key: string) => { try { return JSON.parse(getString(key)); } catch { return []; } };
 
     // Verify Turnstile
-    const turnstileToken = getString("turnstileToken");
-    if (!turnstileToken) return NextResponse.json({ success: false, message: "Security check failed. Please refresh and try again." });
-    const turnstileVerify = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ secret: process.env.TURNSTILE_SECRET_KEY, response: turnstileToken }),
-    });
-    const turnstileResult = await turnstileVerify.json();
-    if (!turnstileResult.success) {
-      console.log("Turnstile failed:", turnstileResult);
-      return NextResponse.json({ success: false, message: "Security check failed. Please refresh and try again." });
+    const turnstileToken = formData.get("turnstileToken") as string;
+    if (!await verifyTurnstile(turnstileToken)) {
+      return NextResponse.json({ error: "Security check failed" }, { status: 403 });
     }
-    console.log("Turnstile passed");
 
-    const userInput = {
-      businessName: getString("businessName"),
-      industry: getString("industry"),
-      usp: getString("usp"),
-      existingWebsite: getString("existingWebsite"),
-      targetAudience: getString("targetAudience"),
-      goal: getString("goal"),
-      siteType: getString("siteType"),
-      pages: getJson("pages"),
-      features: getJson("features"),
-      hasPricing: getString("hasPricing"),
-      pricingType: getString("pricingType"),
-      pricingMethod: getString("pricingMethod"),
-      pricingUrl: getString("pricingUrl"),
-      pricingDetails: getString("pricingDetails"),
-      products: getJson("products"),
-      style: getString("style"),
-      colorPrefs: getString("colorPrefs"),
-      references: getString("references"),
-      hasLogo: getString("hasLogo"),
-      hasContent: getString("hasContent"),
-      additionalNotes: getString("additionalNotes"),
-      name: getString("name"),
-      email: getString("email"),
-      phone: getString("phone"),
-    };
+    // Parse fields
+    const businessName = formData.get("businessName") as string;
+    const industry = formData.get("industry") as string;
+    const usp = formData.get("usp") as string;
+    const existingWebsite = formData.get("existingWebsite") as string;
+    const targetAudience = formData.get("targetAudience") as string;
+    const businessAddress = formData.get("businessAddress") as string;
+    const goal = formData.get("goal") as string;
+    const siteType = formData.get("siteType") as string;
+    const hasPricing = formData.get("hasPricing") as string;
+    const pricingType = formData.get("pricingType") as string;
+    const pricingMethod = formData.get("pricingMethod") as string;
+    const pricingDetails = formData.get("pricingDetails") as string;
+    const pricingUrl = formData.get("pricingUrl") as string;
+    const style = formData.get("style") as string;
+    const colorPrefs = formData.get("colorPrefs") as string;
+    const references = formData.get("references") as string;
+    const hasLogo = formData.get("hasLogo") as string;
+    const hasContent = formData.get("hasContent") as string;
+    const additionalNotes = formData.get("additionalNotes") as string;
+    const name = formData.get("name") as string;
+    const email = formData.get("email") as string;
+    const phone = formData.get("phone") as string;
+    const abn = formData.get("abn") as string;
+    const pages: string[] = JSON.parse(formData.get("pages") as string || "[]");
+    const features: string[] = JSON.parse(formData.get("features") as string || "[]");
+    const products: { name: string; price: string }[] = JSON.parse(formData.get("products") as string || "[]");
 
-    const pageList = Array.isArray(userInput.pages) && userInput.pages.length > 0 ? userInput.pages.join(", ") : "Home";
-    const isMultiPage = userInput.siteType === "multi";
-    const fileName = safeFileName(userInput.businessName || "website");
-    const clientEmail = userInput.email || "";
-    const clientPhone = userInput.phone || "";
-    const quote = calculateQuote(userInput);
-    const folder = `webgecko/${fileName}`;
+    const jobId = crypto.randomUUID();
+    const quote = calculateQuote(pages, features, siteType);
 
-    // Upload all images in parallel
+    // ── Parallel: image uploads + integration provisioning ────────────────────
+
     let logoUrl: string | null = null;
     let heroUrl: string | null = null;
     const photoUrls: string[] = [];
-    const productsWithPhotos: { name: string; price: string; photoUrl?: string }[] = Array.isArray(userInput.products) ? [...userInput.products] : [];
+    const productPhotoMap: { name: string; url: string }[] = [];
+    let pricingSheetUrl: string | null = null;
 
+    const imageUploads: Promise<void>[] = [];
     const logoFile = formData.get("logo") as File | null;
+    if (logoFile?.size > 0) imageUploads.push(uploadToCloudinary(logoFile, `webgecko/${businessName}/`).then(u => { logoUrl = u; }));
     const heroFile = formData.get("hero") as File | null;
-    const uploadPromises: Promise<void>[] = [];
-
-    if (logoFile && logoFile.size > 0) uploadPromises.push(logoFile.arrayBuffer().then(buf => uploadToCloudinary(Buffer.from(buf), folder, "logo").then(url => { logoUrl = url; console.log("Logo:", url); })));
-    if (heroFile && heroFile.size > 0) uploadPromises.push(heroFile.arrayBuffer().then(buf => uploadToCloudinary(Buffer.from(buf), folder, "hero").then(url => { heroUrl = url; console.log("Hero:", url); })));
+    if (heroFile?.size > 0) imageUploads.push(uploadToCloudinary(heroFile, `webgecko/${businessName}/`).then(u => { heroUrl = u; }));
     for (let i = 0; i < 5; i++) {
       const f = formData.get(`photo_${i}`) as File | null;
-      if (f && f.size > 0) uploadPromises.push(f.arrayBuffer().then(buf => uploadToCloudinary(Buffer.from(buf), folder, `photo_${i}`).then(url => { photoUrls.push(url); })));
+      if (f?.size > 0) { const idx = i; imageUploads.push(uploadToCloudinary(f, `webgecko/${businessName}/`).then(u => { photoUrls[idx] = u; })); }
     }
     for (let i = 0; i < 12; i++) {
       const f = formData.get(`product_photo_${i}`) as File | null;
-      if (f && f.size > 0) {
-        const index = i;
-        uploadPromises.push(f.arrayBuffer().then(buf => uploadToCloudinary(Buffer.from(buf), `${folder}/products`, `product_${index}`).then(url => { if (productsWithPhotos[index]) productsWithPhotos[index].photoUrl = url; })));
-      }
+      if (f?.size > 0 && products[i]) { const idx = i; imageUploads.push(uploadToCloudinary(f, `webgecko/${businessName}/products/`).then(u => { productPhotoMap[idx] = { name: products[idx].name, url: u }; })); }
     }
-    await Promise.all(uploadPromises);
-    console.log(`Uploads done: logo=${!!logoUrl}, hero=${!!heroUrl}, photos=${photoUrls.length}, products=${productsWithPhotos.filter(p => p.photoUrl).length}`);
+    const psFile = formData.get("pricing_sheet") as File | null;
+    if (psFile?.size > 0) imageUploads.push(uploadToCloudinary(psFile, `webgecko/${businessName}/`).then(u => { pricingSheetUrl = u; }));
 
-    // Build pricing section
-    const method = userInput.pricingMethod || "manual";
-    let pricingSection = "No pricing section needed.";
-    if (userInput.hasPricing === "Yes") {
-      if (method === "weknow") {
-        pricingSection = `PRICING SECTION REQUIRED: Create a professional pricing section for a ${userInput.industry} business using realistic industry-standard pricing.`;
-      } else if (method === "url") {
-        pricingSection = `PRICING SECTION REQUIRED: Pull pricing from the client existing website: ${userInput.pricingUrl}. If inaccessible create a professional placeholder.`;
-      } else if (method === "upload") {
-        pricingSection = `PRICING SECTION REQUIRED: Client uploaded a menu or price list. Create a professional pricing section for ${userInput.industry}. Pricing will be confirmed after document review.`;
-      } else if (userInput.pricingType === "products" && productsWithPhotos.length > 0) {
-        const productList = productsWithPhotos.map(p => `${p.name}: ${p.price}${p.photoUrl ? ` (photo: ${p.photoUrl})` : ""}`).join(", ");
-        pricingSection = `PRICING SECTION REQUIRED - Individual Products: ${productList}. Display each with name, price and photo in a card grid layout. Use exact product photos provided.`;
+    const [, integrations] = await Promise.all([
+      Promise.allSettled(imageUploads),
+      provisionIntegrations(features, businessName, businessAddress, email),
+    ]);
+
+    const embedSummary = buildEmbedSummary(integrations);
+
+    // ── Pricing context ──────────────────────────────────────────────────────
+
+    let pricingContext = "";
+    if (hasPricing === "Yes") {
+      if (pricingMethod === "manual" && products.length > 0) {
+        pricingContext = products.map(p => `- ${p.name}: ${p.price}`).join('\n');
+      } else if (pricingMethod === "url" && pricingUrl) {
+        pricingContext = `Pull pricing from: ${pricingUrl}`;
+      } else if (pricingMethod === "upload" && pricingSheetUrl) {
+        pricingContext = `Pricing sheet: ${pricingSheetUrl}`;
+      } else if (pricingMethod === "weknow") {
+        pricingContext = "Create industry-standard pricing for this business type.";
       } else {
-        pricingSection = `PRICING SECTION REQUIRED. Type: ${userInput.pricingType}. Details: ${userInput.pricingDetails}`;
+        pricingContext = pricingDetails || "Create appropriate pricing.";
       }
     }
 
-    const imageSection = logoUrl || heroUrl || photoUrls.length > 0
-      ? `CLIENT IMAGES PROVIDED - use these exact URLs: ${logoUrl ? `Logo: ${logoUrl} (place in navbar).` : ""} ${heroUrl ? `Hero image: ${heroUrl} (use as main hero background or banner).` : ""} ${photoUrls.length > 0 ? `General photos: ${photoUrls.join(", ")}.` : ""}`
-      : "No client images provided - use high quality relevant stock images.";
+    // ── Claude pass 1: Stitch prompt ────────────────────────────────────────
 
-    // STEP 1: Claude generates detailed Stitch prompt
-    console.log("STEP 1: Claude spec...");
-    const promptResponse = await anthropic.messages.create({
+    const pass1 = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
-      max_tokens: 3000,
+      max_tokens: 2000,
       messages: [{
         role: "user",
-        content: `Return ONLY valid JSON with "projectTitle" and "stitchPrompt". The stitchPrompt must be extremely detailed and specific.
+        content: `You are a senior UI designer. Generate a JSON object with "projectTitle" and "stitchPrompt" for this premium Australian business website.
 
-You are a senior UI designer and front-end developer. Preserve the imported design language. Prioritize clean spacing, premium typography, polished interactions and reusable components. Avoid generic layouts. Use Tailwind CSS and shadcn/ui where appropriate.
+Business: ${businessName}
+Industry: ${industry}
+Location: ${businessAddress}
+USP: ${usp}
+Audience: ${targetAudience}
+Goal: ${goal}
+Type: ${siteType === 'multi' ? 'Multi-page' : 'Single page'}
+Pages: ${pages.join(', ')}
+Features: ${features.join(', ')}
+Style: ${style || 'Modern professional'}
+Colours: ${colorPrefs || 'Not specified'}
+References: ${references || 'None'}
+Logo: ${hasLogo}
+Pricing: ${hasPricing === 'Yes' ? pricingType : 'None'}
+${pricingContext ? `Pricing data:\n${pricingContext}` : ''}
 
-Research the ${userInput.industry} industry. Think about what top-tier websites in this space look like. Design something distinctly better and more unique than the average. Do NOT copy any existing website. Create a distinctive premium design.
+The stitchPrompt MUST specify:
+1. Full-viewport hero: bold 60-80px headline, distinctive non-white background (use gradient, image, or dark overlay), strong CTA button
+2. Sticky nav with hamburger (id="hamburger") toggling mobile menu (id="mobile-menu")  
+3. Mixed asymmetric section layouts - NO generic card grids
+4. Specific font pairing and colour hex values based on preferences
+5. Stats bar with trust signals (years, clients, rating)
+6. ${siteType === 'multi' ? 'Each page as <div data-page="pagename"> — first visible, rest hidden' : 'Smooth scroll single page'}
+7. Real-looking placeholder contact details (replace later)
+8. Industry-specific premium design — research competitors and be unique
 
-BUSINESS CONTEXT:
-Business: ${userInput.businessName}
-Industry: ${userInput.industry}
-Target Audience: ${userInput.targetAudience}
-USP: ${userInput.usp}
-Goal: ${userInput.goal}
-Style: ${userInput.style || "modern premium"}
-Colours: ${userInput.colorPrefs || "professional palette"}
-References: ${userInput.references || "none"}
-Features: ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "contact form"}
-Notes: ${userInput.additionalNotes || "none"}
-Contact Email: ${clientEmail}
-Contact Phone: ${clientPhone}
-
-${pricingSection}
-
-${imageSection}
-
-DESIGN REQUIREMENTS - include ALL of these in the stitchPrompt:
-
-1. HERO SECTION: Full viewport height. Bold headline with specific typography. Subheadline. Primary CTA button. Distinctive background treatment - NOT plain white. Use gradients, dark overlays, geometric patterns or hero images.
-
-2. NAVIGATION: Sticky navbar. Logo left. Nav links right. CTA button. Mobile hamburger with id="hamburger" toggling id="mobile-menu". Glassmorphism or solid dark background.
-
-3. SECTION LAYOUTS: Mix layouts across the site - do NOT use the same card grid for every section. Use full-width sections, 50/50 splits, asymmetric grids, feature rows with icons, stat counters, testimonial sections.
-
-4. TYPOGRAPHY: Bold display font for headings 60-80px. Clean sans-serif for body. Generous spacing.
-
-5. COLOUR: Be specific. Use ${userInput.colorPrefs || "a professional premium palette"}. Dark backgrounds where appropriate. Accent colour for CTAs and highlights.
-
-6. TRUST SIGNALS: Star-rated testimonials with realistic names. Stats bar. Trust badges if relevant.
-
-7. CONTACT: Use REAL email ${clientEmail} and REAL phone ${clientPhone}. Working contact form.
-
-8. FOOTER: Full footer with logo, links, contact, social, copyright.
-
-${isMultiPage
-  ? `CRITICAL - MULTI-PAGE SITE REQUIRED. Pages: ${pageList}.
-- Each page MUST be a div with class="page-section" and unique lowercase id (e.g. id="home", id="services", id="about", id="contact")
-- ONLY the first page div is visible (style="display:block"), ALL other page divs MUST have style="display:none"
-- ALL navigation links MUST use onclick="navigateTo('pageid')" - NOT href links
-- Add id="hamburger" button that toggles id="mobile-menu"
-- This is NOT a single scrolling page - it is a true multi-page app where clicking nav shows/hides page divs`
-  : `SINGLE PAGE SITE. Sections: ${pageList}. Each section has a unique lowercase id. Nav links use href="#sectionid". Smooth scroll.`}
-
-Make it premium, unique and conversion-focused for: ${userInput.businessName}`
+Return ONLY valid JSON: {"projectTitle":"...","stitchPrompt":"..."}`
       }]
     });
 
-    const promptText = promptResponse.content[0]?.type === "text" ? promptResponse.content[0].text : "{}";
-    const spec = extractJson(promptText);
-    console.log("STEP 1 DONE:", spec.projectTitle);
+    let projectTitle = `${businessName} Website`;
+    let stitchPrompt = "";
+    try {
+      const text = pass1.content[0].type === 'text' ? pass1.content[0].text : '{}';
+      const parsed = JSON.parse(text);
+      projectTitle = parsed.projectTitle || projectTitle;
+      stitchPrompt = parsed.stitchPrompt || "";
+    } catch {
+      const text = pass1.content[0].type === 'text' ? pass1.content[0].text : '';
+      const m = text.match(/"stitchPrompt"\s*:\s*"([\s\S]+?)"\s*\}/);
+      stitchPrompt = m ? m[1] : text;
+    }
 
-    // STEP 2: Create Stitch project
-    console.log("STEP 2: Creating project...");
-    const project: any = await stitchClient.callTool("create_project", { title: spec.projectTitle });
-    const projectId = project?.name?.split("/")[1];
-    console.log("STEP 2 DONE:", projectId);
+    // ── Stitch ──────────────────────────────────────────────────────────────
 
-    // STEP 3: Generate screen
-    console.log("STEP 3: Generating screen...");
-    const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", { projectId, prompt: spec.stitchPrompt });
-    const screens = stitchResult?.outputComponents?.find((x: any) => x.design)?.design?.screens || [];
-    if (!screens.length) throw new Error("No screens returned from Stitch");
-    const downloadUrl = screens[0]?.htmlCode?.downloadUrl;
-    if (!downloadUrl) throw new Error("No downloadUrl from Stitch");
-    console.log("STEP 3 DONE");
+    let rawHtml = `<!DOCTYPE html><html><head><title>${businessName}</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><h1>${businessName}</h1></body></html>`;
+    try {
+      const { StitchClient } = await import("@/lib/stitch");
+      const stitch = new StitchClient(process.env.STITCH_API_KEY!);
+      const project = await stitch.createProject({ title: projectTitle });
+      const screen = await stitch.generateScreen(project.id, stitchPrompt);
+      if (screen.downloadUrl) {
+        const r = await fetch(screen.downloadUrl);
+        rawHtml = await r.text();
+      }
+    } catch (e) {
+      console.error("Stitch error:", e);
+    }
 
-    // STEP 4: Fetch raw HTML
-    console.log("STEP 4: Fetching HTML...");
-    const stitchHtml = await fetch(downloadUrl).then(r => r.text());
-    console.log("STEP 4 DONE. Length:", stitchHtml.length);
+    // ── Claude pass 2: fix HTML + inject embeds ──────────────────────────────
 
-    // STEP 5: Two-pass Claude review - fix all issues
-    console.log("STEP 5: Claude two-pass fix...");
-    const fixPrompt = `You are a senior front-end developer. Review this HTML website and fix ALL issues listed below. Return the COMPLETE fixed HTML only - no explanation, no markdown code fences, just raw HTML starting with <!DOCTYPE html> or <html>.
-
-FIXES REQUIRED:
-
-1. SITE TYPE IS "${userInput.siteType.toUpperCase()}":
-${isMultiPage ? `This MUST be a proper multi-page site with pages: ${pageList}.
-- Every page must be a div with class="page-section" and a unique lowercase id (e.g. id="home", id="services", id="about", id="contact", id="gallery")
-- ONLY the first page div should be visible (style="display:block" or no style), ALL others MUST have style="display:none"  
-- ALL nav links MUST use onclick="navigateTo('pageid')" format
-- If the HTML is currently a single scrolling page, RESTRUCTURE it into proper page-section divs
-- Each page section should contain its full content - header/nav stays outside the page sections` 
-: `This is a single page site. All sections visible and scrollable. Nav links use href="#sectionid".`}
-
-2. REAL CONTACT DETAILS - replace ALL placeholders:
-- Email: ${clientEmail} - replace example@, info@, hello@, contact@, admin@, placeholder emails
-- Phone: ${clientPhone} - replace 555-, (555), +1 555, fake phone numbers
-- If you see "your@email.com" or similar, replace with ${clientEmail}
-
-3. CTA BUTTONS - fix any button that does nothing:
-- "Get a Quote", "Contact Us", "Get Started", "Book Now" buttons must navigate to contact section
-- ${isMultiPage ? `Use onclick="navigateTo('contact')"` : `Use onclick="document.getElementById('contact').scrollIntoView({behavior:'smooth'})"`}
-
-4. FORMS - every contact form must show success message on submit:
-- Add to any form missing it: addEventListener submit -> show green success div
-
-5. MOBILE MENU - ensure hamburger works:
-- Button with id="hamburger" must toggle id="mobile-menu" visibility
-
-6. DEAD LINKS - fix any href="#" that does nothing useful
-
-Here is the HTML:
-
-${stitchHtml.substring(0, 85000)}`;
-
-    const fixResponse = await anthropic.messages.create({
+    const pass2 = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 8000,
-      messages: [{ role: "user", content: fixPrompt }]
+      messages: [{
+        role: "user",
+        content: `You are a senior web developer. Fix this generated HTML and inject all integration embed codes. Return ONLY the complete fixed HTML with no markdown, no explanation.
+
+REAL BUSINESS DETAILS (replace ALL placeholders):
+- Business: ${businessName}
+- Phone: ${phone}
+- Email: ${email}
+- Address: ${businessAddress}
+- Industry: ${industry}
+
+REQUIRED FIXES:
+1. Replace every placeholder (lorem ipsum, "Your Business", "example@email.com", "555-0000", "Your City") with real details
+2. Fix dead href="#" links - connect to real page sections via data-nav attributes
+3. ${siteType === 'multi' ? 'Ensure pages use <div data-page="pagename"> — first visible, rest hidden via inline style' : 'Ensure anchor links work'}
+4. CTA buttons must do something - link to contact, booking, or form sections
+5. hamburger must have id="hamburger", mobile menu id="mobile-menu"
+6. Add proper meta title and description tags
+7. Ensure mobile responsive
+
+${embedSummary}
+
+ORIGINAL HTML:
+${rawHtml}`
+      }]
     });
 
-    let fixedHtml = fixResponse.content[0]?.type === "text" ? fixResponse.content[0].text : "";
-    fixedHtml = fixedHtml.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+    let fixedHtml = pass2.content[0].type === 'text' ? pass2.content[0].text : rawHtml;
+    fixedHtml = fixedHtml.replace(/^```html?\n?/i, '').replace(/\n?```$/i, '');
 
-    // Fallback to original if Claude response looks wrong
-    if (!fixedHtml || (!fixedHtml.includes("<html") && !fixedHtml.includes("<!DOCTYPE") && !fixedHtml.includes("<body"))) {
-      console.log("STEP 5: Fix response invalid, using original HTML");
-      fixedHtml = stitchHtml;
-    } else {
-      console.log("STEP 5 DONE. Fixed HTML length:", fixedHtml.length);
-    }
+    // ── Post-processing ──────────────────────────────────────────────────────
 
-    // STEP 6: Link check report
-    const { html: checkedHtml, report: linkReport } = checkAndFixLinks(fixedHtml, Array.isArray(userInput.pages) ? userInput.pages : []);
+    const linkReport = checkLinks(fixedHtml);
+    let finalHtml = injectEssentials(fixedHtml);
+    finalHtml = injectImages(finalHtml, logoUrl, heroUrl, photoUrls.filter(Boolean), productPhotoMap.filter(Boolean));
+    const htmlWithWatermark = injectWatermark(finalHtml);
+    const cssContent = extractCSS(finalHtml);
 
-    // STEP 7: Inject essentials and images
-    let finalHtml = injectEssentials(checkedHtml, clientEmail, clientPhone);
-    finalHtml = injectImages(finalHtml, logoUrl, heroUrl, photoUrls, productsWithPhotos);
-    const cssContent = extractCSS(fixedHtml);
-    console.log("STEP 7 DONE: Essentials and images injected");
+    // ── Deploy to Vercel ─────────────────────────────────────────────────────
 
-    // STEP 8: Save to Redis for Fix This Site
-    const jobId = `job_${Date.now()}`;
-    await redis.set(jobId, { html: finalHtml, title: spec.projectTitle, fileName, userInput }, { ex: 86400 });
-    const processUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/process?id=${jobId}&secret=${process.env.PROCESS_SECRET}`;
+    const previewUrl = await deployToVercel(jobId, htmlWithWatermark);
 
-    const productSummary = productsWithPhotos.length > 0
-      ? productsWithPhotos.map(p => `${p.name} - ${p.price}${p.photoUrl ? ` - <a href="${p.photoUrl}">View photo</a>` : ""}`).join("<br/>")
-      : userInput.pricingDetails || "-";
+    // ── Save to Redis ────────────────────────────────────────────────────────
 
-    // STEP 9: Email owner
-    console.log("STEP 9: Emailing owner...");
-    await resend.emails.send({
-      from: "WebGecko <hello@webgecko.au>",
-      to: process.env.RESULT_TO_EMAIL!,
-      subject: `New Request - ${spec.projectTitle}`,
-      html: `
-        <h2>New Website Request</h2>
-        <p><strong>Business:</strong> ${userInput.businessName}</p>
-        <p><strong>Client:</strong> ${userInput.name}</p>
-        <p><strong>Email:</strong> ${clientEmail}</p>
-        <p><strong>Phone:</strong> ${clientPhone}</p>
-        <p><strong>Industry:</strong> ${userInput.industry}</p>
-        <p><strong>Audience:</strong> ${userInput.targetAudience || "-"}</p>
-        <p><strong>Goal:</strong> ${userInput.goal}</p>
-        <p><strong>Type:</strong> ${userInput.siteType}</p>
-        <p><strong>Pages:</strong> ${pageList}</p>
-        <p><strong>Features:</strong> ${Array.isArray(userInput.features) ? userInput.features.join(", ") : "-"}</p>
-        <p><strong>Pricing:</strong> ${userInput.hasPricing === "Yes" ? `${userInput.pricingType} via ${method}` : "None"}</p>
-        ${userInput.hasPricing === "Yes" ? `<p><strong>Products:</strong><br/>${productSummary}</p>` : ""}
-        <p><strong>Style:</strong> ${userInput.style} / ${userInput.colorPrefs || "-"}</p>
-        <p><strong>References:</strong> ${userInput.references || "-"}</p>
-        <p><strong>Notes:</strong> ${userInput.additionalNotes || "-"}</p>
-        ${logoUrl ? `<p><strong>Logo:</strong> <a href="${logoUrl}">View</a></p>` : ""}
-        ${heroUrl ? `<p><strong>Hero:</strong> <a href="${heroUrl}">View</a></p>` : ""}
-        <p><strong>Link Check:</strong> ${linkReport.length > 0 ? linkReport.join(", ") : "All clear"}</p>
-        <br/>
-        <h3>Quote: ${quote.package} - $${quote.price.toLocaleString()} + $${quote.monthlyPrice}/month</h3>
-        <ul>${quote.breakdown.map(b => `<li>${b}</li>`).join("")}</ul>
-        <br/>
-        <a href="${processUrl}" style="background:#22c55e;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">Fix This Site</a>
-        <p style="color:#94a3b8;font-size:12px;">Expires 24hrs</p>
-      `,
-      attachments: [
-        { filename: `${fileName}.html`, content: Buffer.from(finalHtml).toString("base64") },
-        { filename: `${fileName}-styles.css`, content: Buffer.from(cssContent).toString("base64") },
-      ],
-    });
-    console.log("STEP 9 DONE");
+    const processSecret = process.env.PROCESS_SECRET || "webgecko";
+    const processUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/process?jobId=${jobId}&secret=${processSecret}`;
 
-    // STEP 10: Email client
-    if (clientEmail) {
-      console.log("STEP 10: Emailing client...");
-      await resend.emails.send({
+    await redis.set(`job:${jobId}`, JSON.stringify({
+      jobId, businessName, industry, name, email, phone, abn, businessAddress,
+      goal, siteType, pages, features, quote, integrations, previewUrl,
+      html: finalHtml, linkReport, payment_status: "pending",
+      created_at: new Date().toISOString(),
+    }), { ex: 60 * 60 * 24 * 7 }); // 7 day TTL
+
+    // ── Send emails ──────────────────────────────────────────────────────────
+
+    const safeName = businessName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+
+    await Promise.allSettled([
+      resend.emails.send({
         from: "WebGecko <hello@webgecko.au>",
-        to: clientEmail,
-        subject: `We've received your website request!`,
-        html: `
-          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;">
-            <h1 style="font-size:28px;margin-bottom:8px;">Thank you, ${userInput.name}!</h1>
-            <p style="color:#666;margin-bottom:32px;">We have received your request and will be in touch within 24 hours.</p>
-            <div style="background:#f9f9f9;border-radius:12px;padding:24px;margin-bottom:24px;">
-              <h2 style="font-size:16px;margin-bottom:16px;color:#333;">Your Request Summary</h2>
-              <table style="width:100%;border-collapse:collapse;">
-                <tr><td style="padding:8px 0;color:#666;width:160px;">Business</td><td style="padding:8px 0;font-weight:600;">${userInput.businessName}</td></tr>
-                <tr><td style="padding:8px 0;color:#666;">Goal</td><td style="padding:8px 0;font-weight:600;">${userInput.goal}</td></tr>
-                <tr><td style="padding:8px 0;color:#666;">Site Type</td><td style="padding:8px 0;font-weight:600;">${userInput.siteType === "multi" ? "Multi Page" : "Single Page"}</td></tr>
-                <tr><td style="padding:8px 0;color:#666;">Pages</td><td style="padding:8px 0;font-weight:600;">${pageList}</td></tr>
-                <tr><td style="padding:8px 0;color:#666;">Features</td><td style="padding:8px 0;font-weight:600;">${Array.isArray(userInput.features) ? userInput.features.join(", ") : "-"}</td></tr>
-                <tr><td style="padding:8px 0;color:#666;">Style</td><td style="padding:8px 0;font-weight:600;">${userInput.style || "-"}</td></tr>
-              </table>
-            </div>
-            <div style="background:#0f172a;border-radius:12px;padding:24px;margin-bottom:24px;color:white;">
-              <h2 style="font-size:16px;margin-bottom:16px;color:#f2ca50;">Your Quote - ${quote.package} Package</h2>
-              <p style="font-size:32px;font-weight:800;margin:0;">$${quote.price.toLocaleString()}</p>
-              <p style="color:#94a3b8;margin-bottom:16px;">+ $${quote.monthlyPrice}/month hosting</p>
-              <div style="background:#22c55e20;border:1px solid #22c55e40;border-radius:8px;padding:16px;margin-top:16px;">
-                <p style="color:#22c55e;font-weight:bold;margin:0;">You are saving $${quote.savings.toLocaleString()} compared to the industry average of $${quote.competitorPrice.toLocaleString()}!</p>
-              </div>
-            </div>
-            <p style="color:#666;">Reply to this email with any questions.</p>
-            <div style="border-top:1px solid #eee;padding-top:20px;margin-top:20px;">
-              <p style="color:#999;font-size:12px;">WebGecko - Professional Web Design | webgecko.au</p>
-            </div>
-          </div>
-        `,
-      });
-      console.log("STEP 10 DONE");
-    }
+        to: process.env.RESULT_TO_EMAIL!,
+        subject: `New Job: ${businessName} — ${quote.packageName} $${quote.totalPrice.toLocaleString()}`,
+        html: buildOwnerEmail({ jobId, businessName, name, email, phone, abn, businessAddress, industry, goal, siteType, pages, features, quote, integrations, previewUrl, linkReport, processUrl }),
+        attachments: [
+          { filename: `${safeName}.html`, content: Buffer.from(finalHtml).toString("base64") },
+          { filename: `${safeName}-styles.css`, content: Buffer.from(cssContent).toString("base64") },
+        ],
+      }),
+      resend.emails.send({
+        from: "WebGecko <hello@webgecko.au>",
+        to: email,
+        subject: `Your ${businessName} website is being built!`,
+        html: buildClientEmail({ businessName, name, email, pages, features, quote }),
+      }),
+    ]);
 
-    return NextResponse.json({ success: true, message: "Thank you! We have received your request and will be in touch shortly." });
+    return NextResponse.json({ success: true, jobId, previewUrl });
 
   } catch (error: any) {
-    console.error("FAILED:", error.message);
-    return NextResponse.json({ success: false, message: error.message });
+    console.error("Worker error:", error);
+    return NextResponse.json({ error: "Processing failed", details: error.message }, { status: 500 });
   }
 }

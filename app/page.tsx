@@ -22,7 +22,8 @@ function calculateQuote(pages: string[], features: string[], siteType: string) {
   const totalPrice = basePrice + addons;
   const monthlyPrice = packageName === 'Premium' ? 149 : packageName === 'Business' ? 99 : 79;
   const savings = competitorPrice - totalPrice;
-  return { packageName, totalPrice, monthlyPrice, savings, competitorPrice };
+  const deposit = Math.round(totalPrice / 2);
+  return { packageName, totalPrice, monthlyPrice, savings, competitorPrice, deposit };
 }
 
 async function compressImage(file: File, maxWidthPx = 1200, qualityVal = 0.75): Promise<File> {
@@ -46,8 +47,13 @@ async function compressImage(file: File, maxWidthPx = 1200, qualityVal = 0.75): 
 
 type Product = { name: string; price: string; photo: File | null };
 const STORAGE_KEY = 'webgecko_form_v3';
-function saveToStorage(data: any) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) {} }
-function loadFromStorage() { try { const d = localStorage.getItem(STORAGE_KEY); return d ? JSON.parse(d) : null; } catch { return null; } }
+
+function saveToStorage(data: any) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
+}
+function loadFromStorage() {
+  try { const d = localStorage.getItem(STORAGE_KEY); return d ? JSON.parse(d) : null; } catch { return null; }
+}
 
 const FEATURE_BUNDLES = [
   { id: 'contact', icon: '📬', label: 'Contact & Enquiries', desc: 'Contact form, social media links', features: ['Contact Form', 'Social Media Links'] },
@@ -61,48 +67,71 @@ const FEATURE_BUNDLES = [
   { id: 'video', icon: '🎥', label: 'Video Background', desc: 'Cinematic video hero section', features: ['Video Background'] },
 ];
 
-// Steps:
-// 1 - Business
-// 2 - Goals
-// 3 - Pages
-// 4 - Features
-// 5 - Pricing (yes/no + type)
-// 6 - Pricing Details (ONLY if hasPricing=Yes)
-// 7 - Design (always)
-// 8 - Assets (always)
-// 9 - Final Details (always)
-
-const InputField = ({ icon, label, value, onChange, placeholder, required, type = 'text' }: any) => (
+const InputField = ({ icon, label, value, onChange, placeholder, required, type = 'text', hint }: any) => (
   <div>
-    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">{icon} {label} {required && <span className="text-red-400">*</span>}</label>
-    <input type={type} value={value} onChange={onChange} placeholder={placeholder} className="w-full h-14 rounded-2xl bg-slate-900/80 border border-white/10 px-5 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-all text-base" />
+    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">
+      {icon} {label} {required && <span className="text-red-400">*</span>}
+    </label>
+    {hint && <p className="text-slate-600 text-xs mb-2">{hint}</p>}
+    <input
+      type={type}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      className="w-full h-14 rounded-2xl bg-slate-900/80 border border-white/10 px-5 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-all text-base"
+    />
   </div>
 );
 
 const TextAreaField = ({ icon, label, value, onChange, placeholder, required }: any) => (
   <div>
-    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">{icon} {label} {required && <span className="text-red-400">*</span>}</label>
-    <textarea value={value} onChange={onChange} placeholder={placeholder} className="w-full min-h-[120px] rounded-2xl bg-slate-900/80 border border-white/10 px-5 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-all resize-none text-base" />
+    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">
+      {icon} {label} {required && <span className="text-red-400">*</span>}
+    </label>
+    <textarea
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      className="w-full min-h-[120px] rounded-2xl bg-slate-900/80 border border-white/10 px-5 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-all resize-none text-base"
+    />
   </div>
 );
 
 const SelectCard = ({ selected, onClick, label, desc, icon }: any) => (
-  <div onClick={onClick} className={`cursor-pointer rounded-2xl p-4 border-2 transition-all active:scale-98 ${selected ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}>
+  <div onClick={onClick} className={`cursor-pointer rounded-2xl p-4 border-2 transition-all ${selected ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}>
     <div className="flex items-start gap-3">
       <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center ${selected ? 'border-emerald-500 bg-emerald-500' : 'border-white/30'}`}>
         {selected && <div className="w-2 h-2 rounded-full bg-white" />}
       </div>
-      <div><p className="font-semibold text-white text-sm">{icon && <span className="mr-1">{icon}</span>}{label}</p>{desc && <p className="text-slate-400 text-xs mt-0.5">{desc}</p>}</div>
+      <div>
+        <p className="font-semibold text-white text-sm">{icon && <span className="mr-1">{icon}</span>}{label}</p>
+        {desc && <p className="text-slate-400 text-xs mt-0.5">{desc}</p>}
+      </div>
     </div>
   </div>
 );
 
 const CheckCard = ({ checked, onClick, label }: any) => (
-  <div onClick={onClick} className={`cursor-pointer rounded-xl p-3 border transition-all flex items-center gap-3 active:scale-98 ${checked ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}>
+  <div onClick={onClick} className={`cursor-pointer rounded-xl p-3 border transition-all flex items-center gap-3 ${checked ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}>
     <div className={`w-5 h-5 rounded flex-shrink-0 flex items-center justify-center border-2 transition-all ${checked ? 'border-emerald-500 bg-emerald-500' : 'border-white/30'}`}>
       {checked && <span className="text-white text-xs font-bold">✓</span>}
     </div>
     <span className="text-sm text-white">{label}</span>
+  </div>
+);
+
+const TimelineStep = ({ icon, title, desc, active, done }: any) => (
+  <div className="flex gap-3">
+    <div className="flex flex-col items-center">
+      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0 border-2 transition-all ${done ? 'bg-emerald-500 border-emerald-500' : active ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-900 border-white/10'}`}>
+        {done ? '✓' : icon}
+      </div>
+      <div className="w-px flex-1 bg-white/8 my-1" />
+    </div>
+    <div className="pb-5">
+      <p className={`font-semibold text-sm ${active ? 'text-white' : 'text-slate-400'}`}>{title}</p>
+      <p className="text-slate-500 text-xs mt-0.5">{desc}</p>
+    </div>
   </div>
 );
 
@@ -115,11 +144,13 @@ export default function HomePage() {
   const [errors, setErrors] = useState<string[]>([]);
   const turnstileRef = useRef<HTMLDivElement>(null);
 
+  // Form state
   const [businessName, setBusinessName] = useState("");
   const [industry, setIndustry] = useState("");
   const [usp, setUsp] = useState("");
   const [existingWebsite, setExistingWebsite] = useState("");
   const [targetAudience, setTargetAudience] = useState("");
+  const [businessAddress, setBusinessAddress] = useState("");
   const [goal, setGoal] = useState("");
   const [siteType, setSiteType] = useState("");
   const [pages, setPages] = useState<string[]>([]);
@@ -140,6 +171,7 @@ export default function HomePage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [abn, setAbn] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [heroFile, setHeroFile] = useState<File | null>(null);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
@@ -150,7 +182,6 @@ export default function HomePage() {
   const pricingSheetRef = useRef<HTMLInputElement>(null);
   const productPhotoRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Dynamic steps based on whether pricing is needed
   const steps = useMemo(() => {
     const base = [
       { id: 'business', label: 'Your Business' },
@@ -183,6 +214,7 @@ export default function HomePage() {
     return calculateQuote(pages, features, siteType);
   }, [pages, features, siteType]);
 
+  // Restore from localStorage on mount
   useEffect(() => {
     const saved = loadFromStorage();
     if (!saved) return;
@@ -191,6 +223,7 @@ export default function HomePage() {
     if (saved.usp) setUsp(saved.usp);
     if (saved.existingWebsite) setExistingWebsite(saved.existingWebsite);
     if (saved.targetAudience) setTargetAudience(saved.targetAudience);
+    if (saved.businessAddress) setBusinessAddress(saved.businessAddress);
     if (saved.goal) setGoal(saved.goal);
     if (saved.siteType) setSiteType(saved.siteType);
     if (saved.pages) setPages(saved.pages);
@@ -209,13 +242,26 @@ export default function HomePage() {
     if (saved.name) setName(saved.name);
     if (saved.email) setEmail(saved.email);
     if (saved.phone) setPhone(saved.phone);
+    if (saved.abn) setAbn(saved.abn);
     if (saved.step) setStep(saved.step);
   }, []);
 
+  // Save to localStorage on every change
   useEffect(() => {
-    saveToStorage({ businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, step });
-  }, [businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, step]);
+    saveToStorage({
+      businessName, industry, usp, existingWebsite, targetAudience, businessAddress,
+      goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod,
+      pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent,
+      additionalNotes, name, email, phone, abn, step
+    });
+  }, [
+    businessName, industry, usp, existingWebsite, targetAudience, businessAddress,
+    goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod,
+    pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent,
+    additionalNotes, name, email, phone, abn, step
+  ]);
 
+  // Turnstile
   useEffect(() => {
     if (currentStepId !== 'contact') return;
     const renderWidget = () => {
@@ -238,16 +284,43 @@ export default function HomePage() {
     document.head.appendChild(script);
   }, [currentStepId]);
 
-  function toggleBundle(id: string) { setSelectedBundles(prev => prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]); }
-  function toggleItem(arr: string[], value: string, setFn: any) { setFn(arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value]); }
+  function toggleBundle(id: string) {
+    setSelectedBundles(prev => prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]);
+  }
+  function toggleItem(arr: string[], value: string, setFn: any) {
+    setFn(arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value]);
+  }
   function addProduct() { if (products.length < 12) setProducts(p => [...p, { name: "", price: "", photo: null }]); }
   function removeProduct(i: number) { setProducts(p => p.filter((_, idx) => idx !== i)); }
-  function updateProduct(i: number, field: keyof Product, val: any) { setProducts(p => p.map((x, idx) => idx === i ? { ...x, [field]: val } : x)); }
+  function updateProduct(i: number, field: keyof Product, val: any) {
+    setProducts(p => p.map((x, idx) => idx === i ? { ...x, [field]: val } : x));
+  }
 
-  async function handleProductPhoto(i: number, file: File) { setCompressing(true); updateProduct(i, 'photo', await compressImage(file, 600, 0.6)); setCompressing(false); }
-  async function handleLogoChange(e: any) { const f = e.target.files?.[0]; if (!f) return; setCompressing(true); setLogoFile(await compressImage(f, 400, 0.85)); setCompressing(false); }
-  async function handleHeroChange(e: any) { const f = e.target.files?.[0]; if (!f) return; setCompressing(true); setHeroFile(await compressImage(f, 1400, 0.75)); setCompressing(false); }
-  async function handlePhotoChange(e: any) { const files = Array.from(e.target.files || []) as File[]; setCompressing(true); const c = await Promise.all(files.slice(0, 5).map(f => compressImage(f as File, 1000, 0.7))); setPhotoFiles(prev => [...prev, ...c].slice(0, 5)); setCompressing(false); }
+  async function handleProductPhoto(i: number, file: File) {
+    setCompressing(true);
+    updateProduct(i, 'photo', await compressImage(file, 600, 0.6));
+    setCompressing(false);
+  }
+  async function handleLogoChange(e: any) {
+    const f = e.target.files?.[0]; if (!f) return;
+    setCompressing(true); setLogoFile(await compressImage(f, 400, 0.85)); setCompressing(false);
+  }
+  async function handleHeroChange(e: any) {
+    const f = e.target.files?.[0]; if (!f) return;
+    setCompressing(true); setHeroFile(await compressImage(f, 1400, 0.75)); setCompressing(false);
+  }
+  async function handlePhotoChange(e: any) {
+    const files = Array.from(e.target.files || []) as File[];
+    setCompressing(true);
+    const c = await Promise.all(files.slice(0, 5).map(f => compressImage(f as File, 1000, 0.7)));
+    setPhotoFiles(prev => [...prev, ...c].slice(0, 5));
+    setCompressing(false);
+  }
+
+  function validateAbn(value: string): boolean {
+    const digits = value.replace(/\s/g, '');
+    return /^\d{11}$/.test(digits);
+  }
 
   function validateStep(): string[] {
     const errs: string[] = [];
@@ -261,12 +334,17 @@ export default function HomePage() {
       if (!goal) errs.push("Please select the main goal of your website");
       if (!siteType) errs.push("Please select single page or multi page");
     }
-    if (currentStepId === 'pages') { if (pages.length === 0) errs.push("Please select at least one page"); }
-    if (currentStepId === 'pricing') { if (!hasPricing) errs.push("Please select whether you need a pricing section"); }
+    if (currentStepId === 'pages') {
+      if (pages.length === 0) errs.push("Please select at least one page");
+    }
+    if (currentStepId === 'pricing') {
+      if (!hasPricing) errs.push("Please select whether you need a pricing section");
+    }
     if (currentStepId === 'contact') {
       if (!name.trim()) errs.push("Full name is required");
       if (!email.trim() || !email.includes('@')) errs.push("A valid email address is required");
       if (!phone.trim()) errs.push("Phone number is required");
+      if (abn.trim() && !validateAbn(abn)) errs.push("ABN must be 11 digits if provided");
       if (!turnstileToken) errs.push("Please wait for the security check to complete");
     }
     return errs;
@@ -280,7 +358,12 @@ export default function HomePage() {
     localStorage.removeItem(STORAGE_KEY);
 
     const formData = new FormData();
-    const fields: Record<string, string> = { businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, turnstileToken };
+    const fields: Record<string, string> = {
+      businessName, industry, usp, existingWebsite, targetAudience, businessAddress,
+      goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl,
+      style, colorPrefs, references, hasLogo, hasContent, additionalNotes,
+      name, email, phone, abn, turnstileToken
+    };
     Object.entries(fields).forEach(([k, v]) => formData.append(k, v));
     formData.append("pages", JSON.stringify(pages));
     formData.append("features", JSON.stringify(features));
@@ -305,72 +388,142 @@ export default function HomePage() {
   function back() { setErrors([]); setStep(Math.max(1, step - 1)); }
 
   const FileUploadBox = ({ label, file, onChange, inputRef, accept, hint }: any) => (
-    <div onClick={() => inputRef.current?.click()} className="border-2 border-dashed border-white/10 rounded-2xl p-5 cursor-pointer active:scale-98 transition-all text-center bg-slate-900/50">
+    <div
+      onClick={() => inputRef.current?.click()}
+      className="border-2 border-dashed border-white/10 rounded-2xl p-5 cursor-pointer transition-all text-center bg-slate-900/50"
+    >
       <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={onChange} />
-      {file ? <div><p className="text-emerald-400 font-semibold text-sm">✓ {file.name}</p><p className="text-slate-500 text-xs mt-1">{(file.size/1024).toFixed(0)}KB</p></div>
-             : <div><p className="text-slate-300 font-semibold text-sm">{label}</p><p className="text-slate-500 text-xs mt-1">{hint}</p></div>}
+      {file
+        ? <div><p className="text-emerald-400 font-semibold text-sm">✓ {file.name}</p><p className="text-slate-500 text-xs mt-1">{(file.size / 1024).toFixed(0)}KB</p></div>
+        : <div><p className="text-slate-300 font-semibold text-sm">{label}</p><p className="text-slate-500 text-xs mt-1">{hint}</p></div>
+      }
     </div>
   );
 
+  // ─── SUCCESS SCREEN ───────────────────────────────────────────────────────────
   if (submitted) {
+    const deposit = quote?.deposit ?? 0;
+    const total = quote?.totalPrice ?? 0;
+    const pkg = quote?.packageName ?? 'Starter';
+
     return (
       <main className="min-h-screen bg-[#0a0f1a] text-white flex items-center justify-center p-6">
-        <div className="max-w-lg w-full text-center">
-          <div className="w-24 h-24 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center mx-auto mb-8">
-            <span className="text-5xl">✓</span>
+        <div className="max-w-lg w-full">
+
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center mx-auto mb-5">
+              <span className="text-4xl">🎉</span>
+            </div>
+            <h1 className="text-3xl font-bold mb-2">You're all set, {name.split(' ')[0]}!</h1>
+            <p className="text-slate-400">Your website request has been received. Here's what happens next.</p>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold mb-3">Request Submitted!</h1>
-          <p className="text-slate-400 text-base md:text-lg mb-8">Your website request has been received. Your confirmation email will arrive within <strong className="text-white">2 to 5 minutes</strong>.</p>
-          <div className="bg-[#0f1623] border border-white/10 rounded-3xl p-6 text-left space-y-4 mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl flex-shrink-0">📧</div>
-              <div><p className="text-white font-semibold text-sm">Check your email</p><p className="text-slate-400 text-sm">{email}</p></div>
+
+          {/* Timeline */}
+          <div className="bg-[#0f1623] border border-white/8 rounded-3xl p-6 mb-5">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-5">Your 10-12 day timeline</p>
+            <TimelineStep icon="⚡" title="Right now — Building starts" desc="We're generating your site and setting up all your integrations." active done />
+            <TimelineStep icon="📧" title="Day 1 — Confirmation email" desc={`Check ${email} — your full brief and quote are on the way.`} active={false} done={false} />
+            <TimelineStep icon="🎨" title="Days 3-5 — First preview ready" desc="You'll receive a link to review your site and request changes." active={false} done={false} />
+            <TimelineStep icon="✏️" title="Days 6-9 — Revision rounds" desc="Up to 2 rounds of changes included. We fine-tune until you're happy." active={false} done={false} />
+            <TimelineStep icon="🚀" title="Days 10-12 — Go live" desc="Your site launches on your .com.au domain with SSL, fully live." active={false} done={false} />
+          </div>
+
+          {/* Quote summary */}
+          {quote && (
+            <div className="bg-[#0f1623] border border-white/8 rounded-3xl p-6 mb-5">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Your quote</p>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-2xl font-bold text-white">${total.toLocaleString()}</p>
+                  <p className="text-slate-500 text-xs">{pkg} Package + ${quote.monthlyPrice}/mo hosting</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-emerald-400 font-semibold text-sm">Saving ${quote.savings.toLocaleString()}</p>
+                  <p className="text-slate-600 text-xs">vs industry average</p>
+                </div>
+              </div>
+              <div className="border-t border-white/8 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-slate-400 text-sm">50% deposit due now</p>
+                  <p className="text-white font-bold">${deposit.toLocaleString()}</p>
+                </div>
+                {/* Pay Now button - placeholder until Stripe is ready */}
+                <button
+                  disabled
+                  className="w-full h-14 rounded-2xl bg-emerald-500/30 border border-emerald-500/30 text-emerald-400/60 font-bold text-sm cursor-not-allowed"
+                >
+                  💳 Pay ${deposit.toLocaleString()} Deposit — Coming Soon
+                </button>
+                <p className="text-slate-600 text-xs text-center mt-2">Payment portal launching shortly. We'll email you a secure link.</p>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl flex-shrink-0">📞</div>
-              <div><p className="text-white font-semibold text-sm">We'll call you within 24 hours</p><p className="text-slate-400 text-sm">{phone}</p></div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl flex-shrink-0">🌐</div>
-              <div><p className="text-white font-semibold text-sm">{businessName}</p><p className="text-slate-400 text-sm">{quote ? `${quote.packageName} — $${quote.totalPrice.toLocaleString()} + $${quote.monthlyPrice}/month` : "Quote on the way"}</p></div>
+          )}
+
+          {/* Contact details */}
+          <div className="bg-[#0f1623] border border-white/8 rounded-3xl p-6 mb-5">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">We'll be in touch</p>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-base flex-shrink-0">📧</div>
+                <div><p className="text-white text-sm font-medium">Confirmation email</p><p className="text-slate-500 text-xs">{email}</p></div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-base flex-shrink-0">📞</div>
+                <div><p className="text-white text-sm font-medium">We'll call within 24 hours</p><p className="text-slate-500 text-xs">{phone}</p></div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-base flex-shrink-0">🌐</div>
+                <div><p className="text-white text-sm font-medium">{businessName}</p><p className="text-slate-500 text-xs">Your site is being built right now</p></div>
+              </div>
             </div>
           </div>
-          <p className="text-slate-600 text-sm">Didn't receive an email? Check spam or contact <span className="text-slate-400">hello@webgecko.au</span></p>
+
+          <p className="text-slate-600 text-xs text-center">
+            Questions? Email <span className="text-slate-400">hello@webgecko.au</span> or check your spam if you don't receive our email.
+          </p>
         </div>
       </main>
     );
   }
 
+  // ─── MAIN FORM ────────────────────────────────────────────────────────────────
   return (
     <main className="min-h-screen bg-[#0a0f1a] text-white p-3 md:p-8">
       <div className="max-w-6xl mx-auto grid lg:grid-cols-[1fr_300px] gap-4 md:gap-6">
         <div className="rounded-2xl md:rounded-3xl bg-[#0f1623] border border-white/8 p-5 md:p-10 shadow-2xl">
 
-          {/* Header */}
+          {/* Step header */}
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm flex-shrink-0">{step}</div>
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm flex-shrink-0">{step}</div>
             <div className="min-w-0">
               <p className="text-xs text-slate-500 uppercase tracking-widest">Step {step} of {totalSteps}</p>
-              <p className="text-white font-semibold truncate">{steps[step-1]?.label}</p>
+              <p className="text-white font-semibold truncate">{steps[step - 1]?.label}</p>
             </div>
             <div className="ml-auto text-xs text-slate-600 flex-shrink-0">{Math.round((step / totalSteps) * 100)}%</div>
           </div>
+
+          {/* Progress bar */}
           <div className="h-1 bg-white/5 rounded-full overflow-hidden mb-6 md:mb-8">
-            <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500 rounded-full" style={{ width: `${(step / totalSteps) * 100}%` }} />
+            <div
+              className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500 rounded-full"
+              style={{ width: `${(step / totalSteps) * 100}%` }}
+            />
           </div>
 
-          {/* STEP: business */}
+          {/* ── STEP: business ── */}
           {currentStepId === 'business' && (
             <div className="space-y-4 md:space-y-5">
               <InputField icon="🏢" label="Business Name" value={businessName} onChange={(e: any) => setBusinessName(e.target.value)} placeholder="e.g. Sunrise Bakery" required />
               <InputField icon="🏭" label="Industry" value={industry} onChange={(e: any) => setIndustry(e.target.value)} placeholder="e.g. Food & Hospitality, Real Estate, Fitness" required />
+              <InputField icon="📍" label="Business Address" value={businessAddress} onChange={(e: any) => setBusinessAddress(e.target.value)} placeholder="e.g. 123 Main St, Brisbane QLD 4000" hint="Used for Google Maps and your .com.au domain registration" />
               <InputField icon="🎯" label="Target Audience" value={targetAudience} onChange={(e: any) => setTargetAudience(e.target.value)} placeholder="e.g. Homeowners in Brisbane aged 30-55" required />
               <TextAreaField icon="⭐" label="What makes you unique?" value={usp} onChange={(e: any) => setUsp(e.target.value)} placeholder="What do you offer that competitors don't?" required />
               <InputField icon="🌐" label="Existing Website (optional)" value={existingWebsite} onChange={(e: any) => setExistingWebsite(e.target.value)} placeholder="https://yourwebsite.com.au" />
             </div>
           )}
 
-          {/* STEP: goals */}
+          {/* ── STEP: goals ── */}
           {currentStepId === 'goals' && (
             <div className="space-y-5 md:space-y-6">
               <div>
@@ -384,14 +537,14 @@ export default function HomePage() {
               <div>
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">📄 Website Type <span className="text-red-400">*</span></label>
                 <div className="grid gap-3">
-                  <SelectCard selected={siteType === "single"} onClick={() => setSiteType("single")} label="Single Page" desc="Everything on one scrollable page. Clean, fast and modern." icon="📃" />
+                  <SelectCard selected={siteType === "single"} onClick={() => setSiteType("single")} label="Single Page" desc="Everything on one scrollable page." icon="📃" />
                   <SelectCard selected={siteType === "multi"} onClick={() => setSiteType("multi")} label="Multi Page" desc="Separate pages like Home, About, Services, Contact." icon="📑" />
                 </div>
               </div>
             </div>
           )}
 
-          {/* STEP: pages */}
+          {/* ── STEP: pages ── */}
           {currentStepId === 'pages' && (
             <div>
               <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">📑 Select Pages <span className="text-red-400">*</span></label>
@@ -403,20 +556,27 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* STEP: features */}
+          {/* ── STEP: features ── */}
           {currentStepId === 'features' && (
             <div>
               <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">⚙️ Website Features</label>
               <p className="text-slate-500 text-sm mb-4">Select the bundles that suit your business.</p>
               <div className="grid gap-3">
                 {FEATURE_BUNDLES.map(bundle => (
-                  <div key={bundle.id} onClick={() => toggleBundle(bundle.id)} className={`cursor-pointer rounded-2xl p-4 border-2 transition-all ${selectedBundles.includes(bundle.id) ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}>
+                  <div
+                    key={bundle.id}
+                    onClick={() => toggleBundle(bundle.id)}
+                    className={`cursor-pointer rounded-2xl p-4 border-2 transition-all ${selectedBundles.includes(bundle.id) ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}
+                  >
                     <div className="flex items-center gap-3">
                       <div className={`w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center ${selectedBundles.includes(bundle.id) ? 'border-emerald-500 bg-emerald-500' : 'border-white/30'}`}>
                         {selectedBundles.includes(bundle.id) && <span className="text-white text-xs font-bold">✓</span>}
                       </div>
                       <span className="text-lg">{bundle.icon}</span>
-                      <div><p className="font-semibold text-white text-sm">{bundle.label}</p><p className="text-slate-400 text-xs">{bundle.desc}</p></div>
+                      <div>
+                        <p className="font-semibold text-white text-sm">{bundle.label}</p>
+                        <p className="text-slate-400 text-xs">{bundle.desc}</p>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -429,7 +589,7 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* STEP: pricing */}
+          {/* ── STEP: pricing ── */}
           {currentStepId === 'pricing' && (
             <div className="space-y-5">
               <div>
@@ -453,7 +613,7 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* STEP: pricing_details */}
+          {/* ── STEP: pricing_details ── */}
           {currentStepId === 'pricing_details' && (
             <div className="space-y-5">
               <div>
@@ -492,7 +652,8 @@ export default function HomePage() {
                 </div>
               )}
               {pricingMethod === "manual" && pricingType !== "products" && (
-                <TextAreaField icon="💰" label="Pricing Details" value={pricingDetails} onChange={(e: any) => setPricingDetails(e.target.value)} placeholder={pricingType === "tiers" ? "e.g. Starter $99/month - X, Y, Z. Business $199/month - A, B, C" : pricingType === "hourly" ? "e.g. $85/hour, minimum 2 hours" : "Describe how your quoting works"} />
+                <TextAreaField icon="💰" label="Pricing Details" value={pricingDetails} onChange={(e: any) => setPricingDetails(e.target.value)}
+                  placeholder={pricingType === "tiers" ? "e.g. Starter $99/month - X, Y, Z" : pricingType === "hourly" ? "e.g. $85/hour, minimum 2 hours" : "Describe how your quoting works"} />
               )}
               {pricingMethod === "weknow" && (
                 <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4">
@@ -502,7 +663,7 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* STEP: design */}
+          {/* ── STEP: design ── */}
           {currentStepId === 'design' && (
             <div className="space-y-4 md:space-y-5">
               <InputField icon="🎨" label="Style" value={style} onChange={(e: any) => setStyle(e.target.value)} placeholder="e.g. Luxury dark, Clean minimal, Warm rustic, Bold modern" />
@@ -519,7 +680,7 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* STEP: assets */}
+          {/* ── STEP: assets ── */}
           {currentStepId === 'assets' && (
             <div className="space-y-4">
               <p className="text-slate-400 text-sm">All images compressed automatically. Skip anything you don't have yet.</p>
@@ -531,11 +692,11 @@ export default function HomePage() {
                 <p className="text-slate-500 text-xs mt-1">Up to 5 general photos</p>
                 {photoFiles.length > 0 && photoFiles.map((f, i) => <p key={i} className="text-emerald-400 text-xs mt-1">✓ {f.name}</p>)}
               </div>
-              <p className="text-slate-600 text-xs text-center">No assets? Skip this — we'll use professional stock images.</p>
+              <p className="text-slate-600 text-xs text-center">No assets? Skip — we'll use professional stock images.</p>
             </div>
           )}
 
-          {/* STEP: contact */}
+          {/* ── STEP: contact ── */}
           {currentStepId === 'contact' && (
             <div className="space-y-4 md:space-y-5">
               <div>
@@ -546,14 +707,29 @@ export default function HomePage() {
                   ))}
                 </div>
               </div>
-              <TextAreaField icon="📌" label="Anything else we should know? (optional)" value={additionalNotes} onChange={(e: any) => setAdditionalNotes(e.target.value)} placeholder="Deadline, special requirements, competitors, links to pull content from..." />
+              <TextAreaField icon="📌" label="Anything else we should know? (optional)" value={additionalNotes} onChange={(e: any) => setAdditionalNotes(e.target.value)} placeholder="Deadline, requirements, competitors, links to pull content from..." />
+
               <div className="border-t border-white/8 pt-5 space-y-4">
                 <p className="text-white font-semibold">📬 Your Contact Details</p>
                 <InputField icon="👤" label="Full Name" value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Your full name" required />
                 <InputField icon="📧" label="Email Address" value={email} onChange={(e: any) => setEmail(e.target.value)} placeholder="your@email.com.au" required type="email" />
                 <InputField icon="📱" label="Phone Number" value={phone} onChange={(e: any) => setPhone(e.target.value)} placeholder="04XX XXX XXX" required type="tel" />
+                <InputField
+                  icon="🏛️"
+                  label="ABN (optional)"
+                  value={abn}
+                  onChange={(e: any) => setAbn(e.target.value)}
+                  placeholder="e.g. 51 824 753 556"
+                  hint="Required to register your .com.au domain. You can provide this later."
+                  type="text"
+                />
               </div>
-              <div><div ref={turnstileRef} />{!turnstileToken && turnstileReady && <p className="text-slate-500 text-xs mt-2">Complete the security check above to submit</p>}</div>
+
+              <div>
+                <div ref={turnstileRef} />
+                {!turnstileToken && turnstileReady && <p className="text-slate-500 text-xs mt-2">Complete the security check above to submit</p>}
+              </div>
+
               {quote && (
                 <div className="rounded-2xl bg-gradient-to-br from-emerald-950/50 to-slate-900/50 border border-emerald-500/20 p-5">
                   <p className="text-xs font-semibold text-emerald-400 uppercase tracking-widest mb-3">💰 Your Estimated Quote</p>
@@ -561,7 +737,8 @@ export default function HomePage() {
                     <p className="text-4xl md:text-5xl font-bold text-white">${quote.totalPrice.toLocaleString()}</p>
                     <p className="text-slate-400 mb-1 text-sm">one-time</p>
                   </div>
-                  <p className="text-slate-400 text-sm mb-3">+ ${quote.monthlyPrice}/month hosting & maintenance</p>
+                  <p className="text-slate-400 text-sm mb-1">+ ${quote.monthlyPrice}/month hosting & maintenance</p>
+                  <p className="text-slate-500 text-sm mb-3">50% deposit: <span className="text-white font-semibold">${quote.deposit.toLocaleString()}</span></p>
                   <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
                     <p className="text-emerald-400 font-semibold text-sm">🎉 Saving ${quote.savings.toLocaleString()} vs the industry average</p>
                   </div>
@@ -578,16 +755,24 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* Nav */}
+          {/* Navigation */}
           <div className="flex gap-3 mt-6 md:mt-8">
-            {step > 1 && <button onClick={back} className="h-14 px-6 md:px-8 rounded-2xl border border-white/10 text-slate-400 font-medium text-sm">← Back</button>}
-            <button onClick={next} disabled={compressing || (currentStepId === 'contact' && !turnstileToken)} className="flex-1 h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold transition-all text-sm">
-              {compressing ? "⏳ Compressing..." : currentStepId === 'contact' ? "🚀 Submit Request" : "Continue →"}
+            {step > 1 && (
+              <button onClick={back} className="h-14 px-6 md:px-8 rounded-2xl border border-white/10 text-slate-400 font-medium text-sm">
+                Back
+              </button>
+            )}
+            <button
+              onClick={next}
+              disabled={compressing || (currentStepId === 'contact' && !turnstileToken)}
+              className="flex-1 h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold transition-all text-sm"
+            >
+              {compressing ? "Compressing..." : currentStepId === 'contact' ? "Submit Request" : "Continue"}
             </button>
           </div>
         </div>
 
-        {/* Side Panel — hidden on mobile */}
+        {/* ── SIDEBAR ── */}
         <div className="hidden lg:block">
           <div className="rounded-3xl bg-[#0f1623] border border-white/8 p-6 sticky top-8">
             <div className="flex items-center gap-2 mb-6">
@@ -611,13 +796,15 @@ export default function HomePage() {
               {siteType && <p>📄 {siteType === 'multi' ? 'Multi Page' : 'Single Page'}</p>}
               {pages.length > 0 && <p className="truncate">📑 {pages.join(', ')}</p>}
               {name && <p>👤 {name}</p>}
+              {abn && <p>🏛️ ABN: {abn}</p>}
             </div>
             {quote && (
               <div className="mt-4 border-t border-white/8 pt-4">
                 <p className="text-xs text-slate-500 uppercase tracking-widest mb-2">Live Quote</p>
                 <p className="text-2xl font-bold text-white">${quote.totalPrice.toLocaleString()}</p>
                 <p className="text-slate-500 text-xs">+ ${quote.monthlyPrice}/month</p>
-                <p className="text-emerald-400 text-xs mt-1 font-semibold">{quote.packageName} Package</p>
+                <p className="text-emerald-400 text-xs mt-0.5 font-semibold">{quote.packageName} Package</p>
+                <p className="text-slate-500 text-xs mt-1">Deposit: <span className="text-white">${quote.deposit.toLocaleString()}</span></p>
                 <div className="mt-2 bg-emerald-500/10 rounded-lg p-2">
                   <p className="text-emerald-400 text-xs">Saving ${quote.savings.toLocaleString()} vs agencies</p>
                 </div>
