@@ -1,818 +1,1202 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 
-function calculateQuote(pages: string[], features: string[], siteType: string) {
-  const pageCount = pages.length || 1;
-  const hasEcommerce = features.includes('Payments / Shop');
-  const hasBooking = features.includes('Booking System');
-  const hasBlog = features.includes('Blog');
-  const isMultiPage = siteType === 'multi';
-  let packageName = 'Starter'; let basePrice = 1800; let competitorPrice = 3500;
-  if (pageCount >= 8 || hasEcommerce || hasBooking) { packageName = 'Premium'; basePrice = 5500; competitorPrice = 15000; }
-  else if (pageCount >= 4 || isMultiPage) { packageName = 'Business'; basePrice = 3200; competitorPrice = 7500; }
-  let addons = 0;
-  if (hasEcommerce && packageName !== 'Premium') addons += 300;
-  if (hasBooking && packageName !== 'Premium') addons += 200;
-  if (hasBlog) addons += 150;
-  if (features.includes('Photo Gallery')) addons += 100;
-  if (features.includes('Reviews & Testimonials')) addons += 100;
-  if (features.includes('Live Chat')) addons += 150;
-  if (features.includes('Newsletter Signup')) addons += 100;
-  const totalPrice = basePrice + addons;
-  const monthlyPrice = packageName === 'Premium' ? 149 : packageName === 'Business' ? 99 : 79;
-  const savings = competitorPrice - totalPrice;
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface QuoteResult {
+  packageName: string;
+  totalPrice: number;
+  monthlyPrice: number;
+  savings: number;
+  competitorPrice: number;
+  deposit: number;
+}
+
+interface FormState {
+  businessName: string;
+  industry: string;
+  usp: string;
+  existingWebsite: string;
+  targetAudience: string;
+  businessAddress: string;
+  goal: string;
+  siteType: string;
+  pages: string[];
+  features: string[];
+  hasPricing: string;
+  pricingType: string;
+  pricingMethod: string;
+  pricingDetails: string;
+  pricingUrl: string;
+  style: string;
+  colorPrefs: string;
+  references: string;
+  hasLogo: string;
+  hasContent: string;
+  additionalNotes: string;
+  name: string;
+  email: string;
+  phone: string;
+  abn: string;
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const PAGES_OPTIONS = [
+  "Home", "About", "Services", "Team", "Gallery", "Portfolio",
+  "Blog", "Testimonials", "FAQ", "Pricing", "Contact", "Booking",
+  "Shop", "Privacy Policy", "Terms",
+];
+
+const FEATURE_BUNDLES = [
+  { id: "contact", icon: "📬", label: "Contact & Enquiries", desc: "Contact form, social media links", features: ["Contact Form", "Social Media Links"] },
+  { id: "trust", icon: "⭐", label: "Trust & Reviews", desc: "Customer reviews, testimonials, FAQ section", features: ["Reviews & Testimonials", "FAQ Section"] },
+  { id: "location", icon: "📍", label: "Location & Maps", desc: "Google Maps, directions to your business", features: ["Google Maps"] },
+  { id: "booking", icon: "📅", label: "Bookings & Appointments", desc: "Online booking system for appointments", features: ["Booking System"] },
+  { id: "shop", icon: "🛒", label: "Online Shop & Payments", desc: "Sell products or services", features: ["Payments / Shop"] },
+  { id: "content", icon: "📰", label: "Blog & Content", desc: "Blog posts, news, articles", features: ["Blog"] },
+  { id: "gallery", icon: "🖼️", label: "Photo Gallery", desc: "Showcase your work or portfolio", features: ["Photo Gallery"] },
+  { id: "growth", icon: "📈", label: "Growth & Marketing", desc: "Newsletter signup, live chat, pop-up forms", features: ["Newsletter Signup", "Live Chat", "Pop-up Form"] },
+  { id: "video", icon: "🎥", label: "Video Background", desc: "Cinematic video hero section", features: ["Video Background"] },
+];
+
+const STYLE_OPTIONS = ["Modern & Minimal", "Bold & Vibrant", "Corporate & Professional", "Warm & Friendly", "Dark & Premium", "Playful & Creative"];
+const GOAL_OPTIONS = ["Get more leads & enquiries", "Sell products online", "Build brand awareness", "Share information & content", "Showcase portfolio & work", "Accept bookings & appointments"];
+
+const STEPS = [
+  { id: "business", label: "Business" },
+  { id: "goals", label: "Goals" },
+  { id: "pages", label: "Pages" },
+  { id: "features", label: "Features" },
+  { id: "pricing", label: "Pricing" },
+  { id: "pricing_details", label: "Pricing Details" },
+  { id: "design", label: "Design" },
+  { id: "assets", label: "Assets" },
+  { id: "contact", label: "Contact" },
+];
+
+const STORAGE_KEY = "webgecko_form_v3";
+
+// ─── Quote calculator ─────────────────────────────────────────────────────────
+
+function calculateQuote(pages: string[], features: string[], siteType: string): QuoteResult {
+  let packageName = "Starter";
+  let basePrice = 1800;
+  let competitorPrice = 3500;
+  let monthlyPrice = 79;
+
+  const hasEcom = features.includes("Payments / Shop");
+  const hasBooking = features.includes("Booking System");
+  const pageCount = pages.length;
+  const isMulti = siteType === "multi";
+
+  if (pageCount >= 8 || hasEcom) {
+    packageName = "Premium";
+    basePrice = 5500;
+    competitorPrice = 15000;
+    monthlyPrice = 149;
+  } else if (pageCount >= 4 || isMulti || hasBooking) {
+    packageName = "Business";
+    basePrice = 3200;
+    competitorPrice = 7500;
+    monthlyPrice = 99;
+  }
+
+  let addOns = 0;
+  if (hasEcom) addOns += 300;
+  if (hasBooking) addOns += 200;
+  if (features.includes("Blog")) addOns += 150;
+  if (features.includes("Photo Gallery")) addOns += 100;
+  if (features.includes("Reviews & Testimonials")) addOns += 100;
+  if (features.includes("Live Chat")) addOns += 150;
+  if (features.includes("Newsletter Signup")) addOns += 100;
+
+  const totalPrice = basePrice + addOns;
   const deposit = Math.round(totalPrice / 2);
+  const savings = competitorPrice - totalPrice;
+
   return { packageName, totalPrice, monthlyPrice, savings, competitorPrice, deposit };
 }
 
-async function compressImage(file: File, maxWidthPx = 1200, qualityVal = 0.75): Promise<File> {
-  return new Promise((resolve) => {
+// ─── Image compression ────────────────────────────────────────────────────────
+
+async function compressImage(file: File, maxWidthPx: number, qualityVal: number): Promise<File> {
+  return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
-      const canvas = document.createElement('canvas');
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement("canvas");
       let { width, height } = img;
-      if (width > maxWidthPx) { height = Math.round((height * maxWidthPx) / width); width = maxWidthPx; }
-      canvas.width = width; canvas.height = height;
-      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
-      canvas.toBlob((blob) => {
-        URL.revokeObjectURL(url);
-        resolve(blob ? new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }) : file);
-      }, 'image/jpeg', qualityVal);
+      if (width > maxWidthPx) {
+        height = Math.round((height * maxWidthPx) / width);
+        width = maxWidthPx;
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("No canvas context"));
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return reject(new Error("Compression failed"));
+          const compressed = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), {
+            type: "image/jpeg",
+            lastModified: Date.now(),
+          });
+          resolve(compressed);
+        },
+        "image/jpeg",
+        qualityVal / 100
+      );
     };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Image load failed")); };
     img.src = url;
   });
 }
 
-type Product = { name: string; price: string; photo: File | null };
-const STORAGE_KEY = 'webgecko_form_v3';
-
-function saveToStorage(data: any) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
-}
-function loadFromStorage() {
-  try { const d = localStorage.getItem(STORAGE_KEY); return d ? JSON.parse(d) : null; } catch { return null; }
-}
-
-const FEATURE_BUNDLES = [
-  { id: 'contact', icon: '📬', label: 'Contact & Enquiries', desc: 'Contact form, social media links', features: ['Contact Form', 'Social Media Links'] },
-  { id: 'trust', icon: '⭐', label: 'Trust & Reviews', desc: 'Customer reviews, testimonials, FAQ section', features: ['Reviews & Testimonials', 'FAQ Section'] },
-  { id: 'location', icon: '📍', label: 'Location & Maps', desc: 'Google Maps, directions to your business', features: ['Google Maps'] },
-  { id: 'booking', icon: '📅', label: 'Bookings & Appointments', desc: 'Online booking system for appointments or classes', features: ['Booking System'] },
-  { id: 'shop', icon: '🛒', label: 'Online Shop & Payments', desc: 'Sell products or services and accept payments', features: ['Payments / Shop'] },
-  { id: 'content', icon: '📰', label: 'Blog & Content', desc: 'Blog posts, news, articles and updates', features: ['Blog'] },
-  { id: 'gallery', icon: '🖼️', label: 'Photo Gallery', desc: 'Showcase your work, products or portfolio', features: ['Photo Gallery'] },
-  { id: 'growth', icon: '📈', label: 'Growth & Marketing', desc: 'Newsletter signup, live chat, pop-up forms', features: ['Newsletter Signup', 'Live Chat', 'Pop-up Form'] },
-  { id: 'video', icon: '🎥', label: 'Video Background', desc: 'Cinematic video hero section', features: ['Video Background'] },
-];
-
-const InputField = ({ icon, label, value, onChange, placeholder, required, type = 'text', hint }: any) => (
-  <div>
-    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">
-      {icon} {label} {required && <span className="text-red-400">*</span>}
-    </label>
-    {hint && <p className="text-slate-600 text-xs mb-2">{hint}</p>}
-    <input
-      type={type}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      className="w-full h-14 rounded-2xl bg-slate-900/80 border border-white/10 px-5 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-all text-base"
-    />
-  </div>
-);
-
-const TextAreaField = ({ icon, label, value, onChange, placeholder, required }: any) => (
-  <div>
-    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">
-      {icon} {label} {required && <span className="text-red-400">*</span>}
-    </label>
-    <textarea
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      className="w-full min-h-[120px] rounded-2xl bg-slate-900/80 border border-white/10 px-5 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-all resize-none text-base"
-    />
-  </div>
-);
-
-const SelectCard = ({ selected, onClick, label, desc, icon }: any) => (
-  <div onClick={onClick} className={`cursor-pointer rounded-2xl p-4 border-2 transition-all ${selected ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}>
-    <div className="flex items-start gap-3">
-      <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center ${selected ? 'border-emerald-500 bg-emerald-500' : 'border-white/30'}`}>
-        {selected && <div className="w-2 h-2 rounded-full bg-white" />}
-      </div>
-      <div>
-        <p className="font-semibold text-white text-sm">{icon && <span className="mr-1">{icon}</span>}{label}</p>
-        {desc && <p className="text-slate-400 text-xs mt-0.5">{desc}</p>}
-      </div>
-    </div>
-  </div>
-);
-
-const CheckCard = ({ checked, onClick, label }: any) => (
-  <div onClick={onClick} className={`cursor-pointer rounded-xl p-3 border transition-all flex items-center gap-3 ${checked ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}>
-    <div className={`w-5 h-5 rounded flex-shrink-0 flex items-center justify-center border-2 transition-all ${checked ? 'border-emerald-500 bg-emerald-500' : 'border-white/30'}`}>
-      {checked && <span className="text-white text-xs font-bold">✓</span>}
-    </div>
-    <span className="text-sm text-white">{label}</span>
-  </div>
-);
-
-const TimelineStep = ({ icon, title, desc, active, done }: any) => (
-  <div className="flex gap-3">
-    <div className="flex flex-col items-center">
-      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0 border-2 transition-all ${done ? 'bg-emerald-500 border-emerald-500' : active ? 'bg-emerald-500/20 border-emerald-500' : 'bg-slate-900 border-white/10'}`}>
-        {done ? '✓' : icon}
-      </div>
-      <div className="w-px flex-1 bg-white/8 my-1" />
-    </div>
-    <div className="pb-5">
-      <p className={`font-semibold text-sm ${active ? 'text-white' : 'text-slate-400'}`}>{title}</p>
-      <p className="text-slate-500 text-xs mt-0.5">{desc}</p>
-    </div>
-  </div>
-);
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function HomePage() {
-  const [step, setStep] = useState(1);
-  const [submitted, setSubmitted] = useState(false);
-  const [compressing, setCompressing] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState("");
-  const [turnstileReady, setTurnstileReady] = useState(false);
-  const [errors, setErrors] = useState<string[]>([]);
-  const turnstileRef = useRef<HTMLDivElement>(null);
+  const [step, setStep] = useState(0);
+  const [form, setForm] = useState<FormState>({
+    businessName: "", industry: "", usp: "", existingWebsite: "",
+    targetAudience: "", businessAddress: "", goal: "", siteType: "single",
+    pages: [], features: [], hasPricing: "No", pricingType: "",
+    pricingMethod: "", pricingDetails: "", pricingUrl: "", style: "",
+    colorPrefs: "", references: "", hasLogo: "No", hasContent: "No",
+    additionalNotes: "", name: "", email: "", phone: "", abn: "",
+  });
 
-  // Form state
-  const [businessName, setBusinessName] = useState("");
-  const [industry, setIndustry] = useState("");
-  const [usp, setUsp] = useState("");
-  const [existingWebsite, setExistingWebsite] = useState("");
-  const [targetAudience, setTargetAudience] = useState("");
-  const [businessAddress, setBusinessAddress] = useState("");
-  const [goal, setGoal] = useState("");
-  const [siteType, setSiteType] = useState("");
-  const [pages, setPages] = useState<string[]>([]);
-  const [selectedBundles, setSelectedBundles] = useState<string[]>([]);
-  const [hasPricing, setHasPricing] = useState("");
-  const [pricingType, setPricingType] = useState("");
-  const [pricingMethod, setPricingMethod] = useState("");
-  const [products, setProducts] = useState<Product[]>([{ name: "", price: "", photo: null }]);
-  const [pricingDetails, setPricingDetails] = useState("");
-  const [pricingFile, setPricingFile] = useState<File | null>(null);
-  const [pricingUrl, setPricingUrl] = useState("");
-  const [style, setStyle] = useState("");
-  const [colorPrefs, setColorPrefs] = useState("");
-  const [references, setReferences] = useState("");
-  const [hasLogo, setHasLogo] = useState("");
-  const [hasContent, setHasContent] = useState("");
-  const [additionalNotes, setAdditionalNotes] = useState("");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [abn, setAbn] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [heroFile, setHeroFile] = useState<File | null>(null);
-  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [photoFiles, setPhotoFiles] = useState<(File | null)[]>([null, null, null, null, null]);
 
-  const logoRef = useRef<HTMLInputElement>(null);
-  const heroRef = useRef<HTMLInputElement>(null);
-  const photosRef = useRef<HTMLInputElement>(null);
-  const pricingSheetRef = useRef<HTMLInputElement>(null);
-  const productPhotoRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [submitResult, setSubmitResult] = useState<{ quote: QuoteResult; previewUrl: string } | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef<HTMLDivElement>(null);
+  const turnstileRendered = useRef(false);
 
-  const steps = useMemo(() => {
-    const base = [
-      { id: 'business', label: 'Your Business' },
-      { id: 'goals', label: 'Website Goals' },
-      { id: 'pages', label: 'Pages' },
-      { id: 'features', label: 'Features' },
-      { id: 'pricing', label: 'Pricing' },
-    ];
-    if (hasPricing === 'Yes') base.push({ id: 'pricing_details', label: 'Pricing Details' });
-    base.push({ id: 'design', label: 'Design' });
-    base.push({ id: 'assets', label: 'Assets' });
-    base.push({ id: 'contact', label: 'Final Details' });
-    return base;
-  }, [hasPricing]);
+  // Derived steps — skip pricing_details if hasPricing !== "Yes"
+  const visibleSteps = STEPS.filter((s) => {
+    if (s.id === "pricing_details") return form.hasPricing === "Yes";
+    return true;
+  });
 
-  const totalSteps = steps.length;
-  const currentStepId = steps[step - 1]?.id;
+  const currentStep = visibleSteps[step];
+  const isLastStep = step === visibleSteps.length - 1;
 
-  const features = useMemo(() => {
-    const all: string[] = [];
-    selectedBundles.forEach(id => {
-      const bundle = FEATURE_BUNDLES.find(b => b.id === id);
-      if (bundle) bundle.features.forEach(f => { if (!all.includes(f)) all.push(f); });
-    });
-    return all;
-  }, [selectedBundles]);
+  // ─── Persistence ────────────────────────────────────────────────────────────
 
-  const quote = useMemo(() => {
-    if (pages.length === 0 && features.length === 0 && !siteType) return null;
-    return calculateQuote(pages, features, siteType);
-  }, [pages, features, siteType]);
-
-  // Restore from localStorage on mount
   useEffect(() => {
-    const saved = loadFromStorage();
-    if (!saved) return;
-    if (saved.businessName) setBusinessName(saved.businessName);
-    if (saved.industry) setIndustry(saved.industry);
-    if (saved.usp) setUsp(saved.usp);
-    if (saved.existingWebsite) setExistingWebsite(saved.existingWebsite);
-    if (saved.targetAudience) setTargetAudience(saved.targetAudience);
-    if (saved.businessAddress) setBusinessAddress(saved.businessAddress);
-    if (saved.goal) setGoal(saved.goal);
-    if (saved.siteType) setSiteType(saved.siteType);
-    if (saved.pages) setPages(saved.pages);
-    if (saved.selectedBundles) setSelectedBundles(saved.selectedBundles);
-    if (saved.hasPricing) setHasPricing(saved.hasPricing);
-    if (saved.pricingType) setPricingType(saved.pricingType);
-    if (saved.pricingMethod) setPricingMethod(saved.pricingMethod);
-    if (saved.pricingDetails) setPricingDetails(saved.pricingDetails);
-    if (saved.pricingUrl) setPricingUrl(saved.pricingUrl);
-    if (saved.style) setStyle(saved.style);
-    if (saved.colorPrefs) setColorPrefs(saved.colorPrefs);
-    if (saved.references) setReferences(saved.references);
-    if (saved.hasLogo) setHasLogo(saved.hasLogo);
-    if (saved.hasContent) setHasContent(saved.hasContent);
-    if (saved.additionalNotes) setAdditionalNotes(saved.additionalNotes);
-    if (saved.name) setName(saved.name);
-    if (saved.email) setEmail(saved.email);
-    if (saved.phone) setPhone(saved.phone);
-    if (saved.abn) setAbn(saved.abn);
-    if (saved.step) setStep(saved.step);
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.form) setForm(parsed.form);
+        if (typeof parsed.step === "number") setStep(parsed.step);
+      }
+    } catch {
+      // ignore
+    }
   }, []);
 
-  // Save to localStorage on every change
   useEffect(() => {
-    saveToStorage({
-      businessName, industry, usp, existingWebsite, targetAudience, businessAddress,
-      goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod,
-      pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent,
-      additionalNotes, name, email, phone, abn, step
-    });
-  }, [
-    businessName, industry, usp, existingWebsite, targetAudience, businessAddress,
-    goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod,
-    pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent,
-    additionalNotes, name, email, phone, abn, step
-  ]);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ form, step }));
+    } catch {
+      // ignore
+    }
+  }, [form, step]);
 
-  // Turnstile
+  // ─── Turnstile ──────────────────────────────────────────────────────────────
+
   useEffect(() => {
-    if (currentStepId !== 'contact') return;
-    const renderWidget = () => {
-      setTimeout(() => {
-        if (turnstileRef.current && (window as any).turnstile) {
-          (window as any).turnstile.render(turnstileRef.current, {
-            sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
-            callback: (token: string) => setTurnstileToken(token),
-            'expired-callback': () => setTurnstileToken(""),
-          });
-          setTurnstileReady(true);
-        }
-      }, 150);
-    };
-    if (document.querySelector('script[src*="turnstile"]')) { renderWidget(); return; }
-    const script = document.createElement('script');
-    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+    if (currentStep?.id !== "contact") return;
+    if (turnstileRendered.current) return;
+
+    const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+    if (!siteKey) return;
+
+    const script = document.createElement("script");
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
     script.async = true;
-    script.onload = renderWidget;
-    document.head.appendChild(script);
-  }, [currentStepId]);
-
-  function toggleBundle(id: string) {
-    setSelectedBundles(prev => prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]);
-  }
-  function toggleItem(arr: string[], value: string, setFn: any) {
-    setFn(arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value]);
-  }
-  function addProduct() { if (products.length < 12) setProducts(p => [...p, { name: "", price: "", photo: null }]); }
-  function removeProduct(i: number) { setProducts(p => p.filter((_, idx) => idx !== i)); }
-  function updateProduct(i: number, field: keyof Product, val: any) {
-    setProducts(p => p.map((x, idx) => idx === i ? { ...x, [field]: val } : x));
-  }
-
-  async function handleProductPhoto(i: number, file: File) {
-    setCompressing(true);
-    updateProduct(i, 'photo', await compressImage(file, 600, 0.6));
-    setCompressing(false);
-  }
-  async function handleLogoChange(e: any) {
-    const f = e.target.files?.[0]; if (!f) return;
-    setCompressing(true); setLogoFile(await compressImage(f, 400, 0.85)); setCompressing(false);
-  }
-  async function handleHeroChange(e: any) {
-    const f = e.target.files?.[0]; if (!f) return;
-    setCompressing(true); setHeroFile(await compressImage(f, 1400, 0.75)); setCompressing(false);
-  }
-  async function handlePhotoChange(e: any) {
-    const files = Array.from(e.target.files || []) as File[];
-    setCompressing(true);
-    const c = await Promise.all(files.slice(0, 5).map(f => compressImage(f as File, 1000, 0.7)));
-    setPhotoFiles(prev => [...prev, ...c].slice(0, 5));
-    setCompressing(false);
-  }
-
-  function validateAbn(value: string): boolean {
-    const digits = value.replace(/\s/g, '');
-    return /^\d{11}$/.test(digits);
-  }
-
-  function validateStep(): string[] {
-    const errs: string[] = [];
-    if (currentStepId === 'business') {
-      if (!businessName.trim()) errs.push("Business name is required");
-      if (!industry.trim()) errs.push("Industry is required");
-      if (!targetAudience.trim()) errs.push("Target audience is required");
-      if (!usp.trim()) errs.push("Please describe what makes your business unique");
-    }
-    if (currentStepId === 'goals') {
-      if (!goal) errs.push("Please select the main goal of your website");
-      if (!siteType) errs.push("Please select single page or multi page");
-    }
-    if (currentStepId === 'pages') {
-      if (pages.length === 0) errs.push("Please select at least one page");
-    }
-    if (currentStepId === 'pricing') {
-      if (!hasPricing) errs.push("Please select whether you need a pricing section");
-    }
-    if (currentStepId === 'contact') {
-      if (!name.trim()) errs.push("Full name is required");
-      if (!email.trim() || !email.includes('@')) errs.push("A valid email address is required");
-      if (!phone.trim()) errs.push("Phone number is required");
-      if (abn.trim() && !validateAbn(abn)) errs.push("ABN must be 11 digits if provided");
-      if (!turnstileToken) errs.push("Please wait for the security check to complete");
-    }
-    return errs;
-  }
-
-  async function submit() {
-    const errs = validateStep();
-    if (errs.length > 0) { setErrors(errs); return; }
-    setErrors([]);
-    setSubmitted(true);
-    localStorage.removeItem(STORAGE_KEY);
-
-    const formData = new FormData();
-    const fields: Record<string, string> = {
-      businessName, industry, usp, existingWebsite, targetAudience, businessAddress,
-      goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl,
-      style, colorPrefs, references, hasLogo, hasContent, additionalNotes,
-      name, email, phone, abn, turnstileToken
-    };
-    Object.entries(fields).forEach(([k, v]) => formData.append(k, v));
-    formData.append("pages", JSON.stringify(pages));
-    formData.append("features", JSON.stringify(features));
-    formData.append("products", JSON.stringify(products.map(p => ({ name: p.name, price: p.price }))));
-    products.forEach((p, i) => { if (p.photo) formData.append(`product_photo_${i}`, p.photo); });
-    if (pricingFile) formData.append("pricing_sheet", pricingFile);
-    if (logoFile) formData.append("logo", logoFile);
-    if (heroFile) formData.append("hero", heroFile);
-    photoFiles.forEach((f, i) => formData.append(`photo_${i}`, f));
-
-    fetch("/api/worker", { method: "POST", body: formData }).catch(console.error);
-  }
-
-  function next() {
-    const errs = validateStep();
-    if (errs.length > 0) { setErrors(errs); return; }
-    setErrors([]);
-    if (step < totalSteps) setStep(step + 1);
-    else submit();
-  }
-
-  function back() { setErrors([]); setStep(Math.max(1, step - 1)); }
-
-  const FileUploadBox = ({ label, file, onChange, inputRef, accept, hint }: any) => (
-    <div
-      onClick={() => inputRef.current?.click()}
-      className="border-2 border-dashed border-white/10 rounded-2xl p-5 cursor-pointer transition-all text-center bg-slate-900/50"
-    >
-      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={onChange} />
-      {file
-        ? <div><p className="text-emerald-400 font-semibold text-sm">✓ {file.name}</p><p className="text-slate-500 text-xs mt-1">{(file.size / 1024).toFixed(0)}KB</p></div>
-        : <div><p className="text-slate-300 font-semibold text-sm">{label}</p><p className="text-slate-500 text-xs mt-1">{hint}</p></div>
+    script.onload = () => {
+      if (turnstileRef.current && !turnstileRendered.current) {
+        turnstileRendered.current = true;
+        // @ts-ignore
+        window.turnstile?.render(turnstileRef.current, {
+          sitekey: siteKey,
+          callback: (token: string) => setTurnstileToken(token),
+          "expired-callback": () => setTurnstileToken(""),
+        });
       }
-    </div>
-  );
+    };
+    document.head.appendChild(script);
+  }, [currentStep]);
 
-  // ─── SUCCESS SCREEN ───────────────────────────────────────────────────────────
-  if (submitted) {
-    const deposit = quote?.deposit ?? 0;
-    const total = quote?.totalPrice ?? 0;
-    const pkg = quote?.packageName ?? 'Starter';
+  // ─── Field helpers ──────────────────────────────────────────────────────────
+
+  const setField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const toggleArray = useCallback((key: "pages" | "features", value: string) => {
+    setForm((prev) => {
+      const arr = prev[key] as string[];
+      return {
+        ...prev,
+        [key]: arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value],
+      };
+    });
+  }, []);
+
+  const toggleBundle = useCallback((bundleFeatures: string[]) => {
+    setForm((prev) => {
+      const current = prev.features;
+      const allOn = bundleFeatures.every((f) => current.includes(f));
+      if (allOn) {
+        return { ...prev, features: current.filter((f) => !bundleFeatures.includes(f)) };
+      } else {
+        const added = [...current];
+        for (const f of bundleFeatures) {
+          if (!added.includes(f)) added.push(f);
+        }
+        return { ...prev, features: added };
+      }
+    });
+  }, []);
+
+  // ─── Navigation ─────────────────────────────────────────────────────────────
+
+  const next = () => setStep((s) => Math.min(s + 1, visibleSteps.length - 1));
+  const prev = () => setStep((s) => Math.max(s - 1, 0));
+
+  // ─── Submit ─────────────────────────────────────────────────────────────────
+
+  const handleSubmit = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      const fd = new FormData();
+      fd.append("businessName", form.businessName);
+      fd.append("industry", form.industry);
+      fd.append("usp", form.usp);
+      fd.append("existingWebsite", form.existingWebsite);
+      fd.append("targetAudience", form.targetAudience);
+      fd.append("businessAddress", form.businessAddress);
+      fd.append("goal", form.goal);
+      fd.append("siteType", form.siteType);
+      fd.append("hasPricing", form.hasPricing);
+      fd.append("pricingType", form.pricingType);
+      fd.append("pricingMethod", form.pricingMethod);
+      fd.append("pricingDetails", form.pricingDetails);
+      fd.append("pricingUrl", form.pricingUrl);
+      fd.append("style", form.style);
+      fd.append("colorPrefs", form.colorPrefs);
+      fd.append("references", form.references);
+      fd.append("hasLogo", form.hasLogo);
+      fd.append("hasContent", form.hasContent);
+      fd.append("additionalNotes", form.additionalNotes);
+      fd.append("name", form.name);
+      fd.append("email", form.email);
+      fd.append("phone", form.phone);
+      fd.append("abn", form.abn);
+      fd.append("pages", JSON.stringify(form.pages));
+      fd.append("features", JSON.stringify(form.features));
+      fd.append("products", JSON.stringify([]));
+      fd.append("turnstileToken", turnstileToken);
+
+      if (logoFile) {
+        const compressed = await compressImage(logoFile, 400, 85);
+        fd.append("logo", compressed, compressed.name);
+      }
+      if (heroFile) {
+        const compressed = await compressImage(heroFile, 1400, 75);
+        fd.append("hero", compressed, compressed.name);
+      }
+      for (let i = 0; i < photoFiles.length; i++) {
+        if (photoFiles[i]) {
+          const compressed = await compressImage(photoFiles[i]!, 1000, 70);
+          fd.append(`photo_${i}`, compressed, compressed.name);
+        }
+      }
+
+      const resp = await fetch("/api/worker", { method: "POST", body: fd });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        throw new Error(data.error || "Submission failed");
+      }
+
+      localStorage.removeItem(STORAGE_KEY);
+      setSubmitResult({ quote: data.quote, previewUrl: data.previewUrl });
+      setSubmitted(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const quote = calculateQuote(form.pages, form.features, form.siteType);
+
+  // ─── Success Screen ──────────────────────────────────────────────────────────
+
+  if (submitted && submitResult) {
+    const firstName = form.name.split(" ")[0];
+    const q = submitResult.quote || quote;
+
+    const timeline = [
+      { icon: "🤖", day: "Day 1", title: "AI Build", desc: "Your site is generated by our AI pipeline" },
+      { icon: "🎨", day: "Day 2–4", title: "Design Review", desc: "Our team refines and polishes your site" },
+      { icon: "✉️", day: "Day 5–7", title: "Your Review", desc: "We send you the preview for feedback" },
+      { icon: "🔧", day: "Day 8–10", title: "Revisions", desc: "We make any changes you request" },
+      { icon: "🚀", day: "Day 10–12", title: "Launch!", desc: "Your website goes live on your domain" },
+    ];
 
     return (
-      <main className="min-h-screen bg-[#0a0f1a] text-white flex items-center justify-center p-6">
-        <div className="max-w-lg w-full">
+      <div style={{ minHeight: "100vh", background: "#0a0f1a", color: "#e2e8f0", fontFamily: "sans-serif", padding: "40px 20px" }}>
+        <div style={{ maxWidth: 640, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 40 }}>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
+            <h1 style={{ fontSize: "2rem", fontWeight: 800, color: "#ffffff", margin: "0 0 8px" }}>
+              You&apos;re all set, {firstName}!
+            </h1>
+            <p style={{ color: "#94a3b8", fontSize: "1.05rem", margin: 0 }}>
+              We&apos;ve received your submission for <strong style={{ color: "#10b981" }}>{form.businessName}</strong>
+            </p>
+          </div>
 
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center mx-auto mb-5">
-              <span className="text-4xl">🎉</span>
+          {/* Quote card */}
+          <div style={{ background: "#0f1623", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 28, marginBottom: 24 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div>
+                <div style={{ color: "#64748b", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Your Package</div>
+                <div style={{ color: "#10b981", fontSize: "1.4rem", fontWeight: 700 }}>{q.packageName}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ color: "#64748b", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Total Investment</div>
+                <div style={{ color: "#ffffff", fontSize: "2rem", fontWeight: 800 }}>${q.totalPrice.toLocaleString()}</div>
+              </div>
             </div>
-            <h1 className="text-3xl font-bold mb-2">You're all set, {name.split(' ')[0]}!</h1>
-            <p className="text-slate-400">Your website request has been received. Here's what happens next.</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+              <div style={{ background: "#0a0f1a", borderRadius: 10, padding: "14px 16px" }}>
+                <div style={{ color: "#64748b", fontSize: "0.75rem", marginBottom: 4 }}>Deposit to start</div>
+                <div style={{ color: "#e2e8f0", fontSize: "1.1rem", fontWeight: 700 }}>${q.deposit.toLocaleString()}</div>
+              </div>
+              <div style={{ background: "#0a0f1a", borderRadius: 10, padding: "14px 16px" }}>
+                <div style={{ color: "#64748b", fontSize: "0.75rem", marginBottom: 4 }}>Monthly hosting</div>
+                <div style={{ color: "#e2e8f0", fontSize: "1.1rem", fontWeight: 700 }}>${q.monthlyPrice}/mo</div>
+              </div>
+            </div>
+            <button
+              disabled
+              style={{ width: "100%", background: "#1f2937", color: "#64748b", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "14px", fontSize: "1rem", fontWeight: 600, cursor: "not-allowed" }}
+            >
+              Pay Deposit — Coming Soon
+            </button>
           </div>
 
           {/* Timeline */}
-          <div className="bg-[#0f1623] border border-white/8 rounded-3xl p-6 mb-5">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-5">Your 10-12 day timeline</p>
-            <TimelineStep icon="⚡" title="Right now — Building starts" desc="We're generating your site and setting up all your integrations." active done />
-            <TimelineStep icon="📧" title="Day 1 — Confirmation email" desc={`Check ${email} — your full brief and quote are on the way.`} active={false} done={false} />
-            <TimelineStep icon="🎨" title="Days 3-5 — First preview ready" desc="You'll receive a link to review your site and request changes." active={false} done={false} />
-            <TimelineStep icon="✏️" title="Days 6-9 — Revision rounds" desc="Up to 2 rounds of changes included. We fine-tune until you're happy." active={false} done={false} />
-            <TimelineStep icon="🚀" title="Days 10-12 — Go live" desc="Your site launches on your .com.au domain with SSL, fully live." active={false} done={false} />
+          <div style={{ background: "#0f1623", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 28, marginBottom: 24 }}>
+            <h3 style={{ color: "#e2e8f0", margin: "0 0 20px", fontSize: "1.1rem" }}>What happens next</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {timeline.map((t, i) => (
+                <div key={i} style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: "#0a0f1a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
+                    {t.icon}
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 2 }}>
+                      <span style={{ color: "#10b981", fontSize: "0.75rem", fontWeight: 600 }}>{t.day}</span>
+                      <span style={{ color: "#e2e8f0", fontWeight: 600 }}>{t.title}</span>
+                    </div>
+                    <p style={{ color: "#64748b", fontSize: "0.88rem", margin: 0 }}>{t.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Quote summary */}
-          {quote && (
-            <div className="bg-[#0f1623] border border-white/8 rounded-3xl p-6 mb-5">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Your quote</p>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p className="text-2xl font-bold text-white">${total.toLocaleString()}</p>
-                  <p className="text-slate-500 text-xs">{pkg} Package + ${quote.monthlyPrice}/mo hosting</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-emerald-400 font-semibold text-sm">Saving ${quote.savings.toLocaleString()}</p>
-                  <p className="text-slate-600 text-xs">vs industry average</p>
-                </div>
-              </div>
-              <div className="border-t border-white/8 pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-slate-400 text-sm">50% deposit due now</p>
-                  <p className="text-white font-bold">${deposit.toLocaleString()}</p>
-                </div>
-                {/* Pay Now button - placeholder until Stripe is ready */}
-                <button
-                  disabled
-                  className="w-full h-14 rounded-2xl bg-emerald-500/30 border border-emerald-500/30 text-emerald-400/60 font-bold text-sm cursor-not-allowed"
-                >
-                  💳 Pay ${deposit.toLocaleString()} Deposit — Coming Soon
-                </button>
-                <p className="text-slate-600 text-xs text-center mt-2">Payment portal launching shortly. We'll email you a secure link.</p>
-              </div>
+          {/* Preview link */}
+          {submitResult.previewUrl && (
+            <div style={{ background: "#052e16", border: "1px solid #10b981", borderRadius: 12, padding: 20, marginBottom: 24, textAlign: "center" }}>
+              <p style={{ color: "#10b981", fontWeight: 600, margin: "0 0 12px" }}>Your preview is ready!</p>
+              <a
+                href={submitResult.previewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: "inline-block", background: "#10b981", color: "#fff", padding: "12px 24px", borderRadius: 8, textDecoration: "none", fontWeight: 600 }}
+              >
+                View Website Preview →
+              </a>
             </div>
           )}
 
           {/* Contact details */}
-          <div className="bg-[#0f1623] border border-white/8 rounded-3xl p-6 mb-5">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">We'll be in touch</p>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-base flex-shrink-0">📧</div>
-                <div><p className="text-white text-sm font-medium">Confirmation email</p><p className="text-slate-500 text-xs">{email}</p></div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-base flex-shrink-0">📞</div>
-                <div><p className="text-white text-sm font-medium">We'll call within 24 hours</p><p className="text-slate-500 text-xs">{phone}</p></div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-base flex-shrink-0">🌐</div>
-                <div><p className="text-white text-sm font-medium">{businessName}</p><p className="text-slate-500 text-xs">Your site is being built right now</p></div>
-              </div>
-            </div>
+          <div style={{ background: "#0f1623", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: 24, textAlign: "center" }}>
+            <p style={{ color: "#94a3b8", margin: "0 0 12px" }}>Questions? We&apos;re here to help.</p>
+            <p style={{ color: "#e2e8f0", margin: "0 0 4px" }}>📧 hello@webgecko.au &nbsp;·&nbsp; 📞 1300 WEBGECKO</p>
+            <p style={{ color: "#475569", fontSize: "0.8rem", margin: "12px 0 0" }}>
+              Didn&apos;t get an email? Check your spam or contact hello@webgecko.au
+            </p>
           </div>
-
-          <p className="text-slate-600 text-xs text-center">
-            Questions? Email <span className="text-slate-400">hello@webgecko.au</span> or check your spam if you don't receive our email.
-          </p>
         </div>
-      </main>
+      </div>
     );
   }
 
-  // ─── MAIN FORM ────────────────────────────────────────────────────────────────
-  return (
-    <main className="min-h-screen bg-[#0a0f1a] text-white p-3 md:p-8">
-      <div className="max-w-6xl mx-auto grid lg:grid-cols-[1fr_300px] gap-4 md:gap-6">
-        <div className="rounded-2xl md:rounded-3xl bg-[#0f1623] border border-white/8 p-5 md:p-10 shadow-2xl">
+  // ─── Step renderers ───────────────────────────────────────────────────────────
 
-          {/* Step header */}
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm flex-shrink-0">{step}</div>
-            <div className="min-w-0">
-              <p className="text-xs text-slate-500 uppercase tracking-widest">Step {step} of {totalSteps}</p>
-              <p className="text-white font-semibold truncate">{steps[step - 1]?.label}</p>
-            </div>
-            <div className="ml-auto text-xs text-slate-600 flex-shrink-0">{Math.round((step / totalSteps) * 100)}%</div>
+  const renderStep = () => {
+    switch (currentStep?.id) {
+
+      case "business":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <InputField label="Business Name *" value={form.businessName} onChange={(v) => setField("businessName", v)} placeholder="e.g. Sunrise Plumbing" />
+            <InputField label="Industry *" value={form.industry} onChange={(v) => setField("industry", v)} placeholder="e.g. Plumbing, Dentist, Real Estate" />
+            <InputField label="Business Address" value={form.businessAddress} onChange={(v) => setField("businessAddress", v)} placeholder="123 Main St, Brisbane QLD 4000" hint="Used for Google Maps embed on your site" />
+            <InputField label="Target Audience" value={form.targetAudience} onChange={(v) => setField("targetAudience", v)} placeholder="e.g. Home owners in Brisbane" />
+            <InputField label="Unique Selling Point" value={form.usp} onChange={(v) => setField("usp", v)} placeholder="What makes you different?" />
+            <InputField label="Existing Website (optional)" value={form.existingWebsite} onChange={(v) => setField("existingWebsite", v)} placeholder="https://yoursite.com.au" />
           </div>
+        );
 
-          {/* Progress bar */}
-          <div className="h-1 bg-white/5 rounded-full overflow-hidden mb-6 md:mb-8">
-            <div
-              className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500 rounded-full"
-              style={{ width: `${(step / totalSteps) * 100}%` }}
-            />
-          </div>
-
-          {/* ── STEP: business ── */}
-          {currentStepId === 'business' && (
-            <div className="space-y-4 md:space-y-5">
-              <InputField icon="🏢" label="Business Name" value={businessName} onChange={(e: any) => setBusinessName(e.target.value)} placeholder="e.g. Sunrise Bakery" required />
-              <InputField icon="🏭" label="Industry" value={industry} onChange={(e: any) => setIndustry(e.target.value)} placeholder="e.g. Food & Hospitality, Real Estate, Fitness" required />
-              <InputField icon="📍" label="Business Address" value={businessAddress} onChange={(e: any) => setBusinessAddress(e.target.value)} placeholder="e.g. 123 Main St, Brisbane QLD 4000" hint="Used for Google Maps and your .com.au domain registration" />
-              <InputField icon="🎯" label="Target Audience" value={targetAudience} onChange={(e: any) => setTargetAudience(e.target.value)} placeholder="e.g. Homeowners in Brisbane aged 30-55" required />
-              <TextAreaField icon="⭐" label="What makes you unique?" value={usp} onChange={(e: any) => setUsp(e.target.value)} placeholder="What do you offer that competitors don't?" required />
-              <InputField icon="🌐" label="Existing Website (optional)" value={existingWebsite} onChange={(e: any) => setExistingWebsite(e.target.value)} placeholder="https://yourwebsite.com.au" />
-            </div>
-          )}
-
-          {/* ── STEP: goals ── */}
-          {currentStepId === 'goals' && (
-            <div className="space-y-5 md:space-y-6">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">🎯 Main Goal <span className="text-red-400">*</span></label>
-                <div className="grid gap-2">
-                  {["Generate leads", "Sell products online", "Accept bookings", "Showcase portfolio", "Provide information", "Build brand awareness"].map(opt => (
-                    <SelectCard key={opt} selected={goal === opt} onClick={() => setGoal(opt)} label={opt} />
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">📄 Website Type <span className="text-red-400">*</span></label>
-                <div className="grid gap-3">
-                  <SelectCard selected={siteType === "single"} onClick={() => setSiteType("single")} label="Single Page" desc="Everything on one scrollable page." icon="📃" />
-                  <SelectCard selected={siteType === "multi"} onClick={() => setSiteType("multi")} label="Multi Page" desc="Separate pages like Home, About, Services, Contact." icon="📑" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── STEP: pages ── */}
-          {currentStepId === 'pages' && (
+      case "goals":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">📑 Select Pages <span className="text-red-400">*</span></label>
-              <div className="grid grid-cols-2 gap-2">
-                {["Home", "About", "Services", "Contact", "Shop", "Gallery", "Blog", "Booking", "FAQ", "Testimonials", "Pricing", "Portfolio", "Team", "Menu"].map(p => (
-                  <CheckCard key={p} checked={pages.includes(p)} onClick={() => toggleItem(pages, p, setPages)} label={p} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── STEP: features ── */}
-          {currentStepId === 'features' && (
-            <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">⚙️ Website Features</label>
-              <p className="text-slate-500 text-sm mb-4">Select the bundles that suit your business.</p>
-              <div className="grid gap-3">
-                {FEATURE_BUNDLES.map(bundle => (
-                  <div
-                    key={bundle.id}
-                    onClick={() => toggleBundle(bundle.id)}
-                    className={`cursor-pointer rounded-2xl p-4 border-2 transition-all ${selectedBundles.includes(bundle.id) ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}
+              <label style={labelStyle}>Main Goal *</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {GOAL_OPTIONS.map((g) => (
+                  <button
+                    key={g}
+                    onClick={() => setField("goal", g)}
+                    style={{
+                      ...radioCardStyle,
+                      borderColor: form.goal === g ? "#10b981" : "rgba(255,255,255,0.08)",
+                      background: form.goal === g ? "rgba(16,185,129,0.08)" : "#0a0f1a",
+                    }}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center ${selectedBundles.includes(bundle.id) ? 'border-emerald-500 bg-emerald-500' : 'border-white/30'}`}>
-                        {selectedBundles.includes(bundle.id) && <span className="text-white text-xs font-bold">✓</span>}
-                      </div>
-                      <span className="text-lg">{bundle.icon}</span>
-                      <div>
-                        <p className="font-semibold text-white text-sm">{bundle.label}</p>
-                        <p className="text-slate-400 text-xs">{bundle.desc}</p>
-                      </div>
-                    </div>
-                  </div>
+                    <span style={{ color: form.goal === g ? "#10b981" : "#94a3b8", fontSize: "0.9rem" }}>{g}</span>
+                  </button>
                 ))}
               </div>
-              {selectedBundles.length > 0 && (
-                <div className="mt-4 p-3 bg-slate-900/80 rounded-xl border border-white/10">
-                  <p className="text-xs text-emerald-400">{features.join(', ')}</p>
-                </div>
-              )}
             </div>
-          )}
-
-          {/* ── STEP: pricing ── */}
-          {currentStepId === 'pricing' && (
-            <div className="space-y-5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">💰 Pricing Section <span className="text-red-400">*</span></label>
-                <div className="grid gap-3">
-                  <SelectCard selected={hasPricing === "Yes"} onClick={() => setHasPricing("Yes")} label="Yes — include pricing" desc="Show your prices, packages or menu on the site" icon="✅" />
-                  <SelectCard selected={hasPricing === "No"} onClick={() => setHasPricing("No")} label="No — no pricing needed" desc="Clients contact you for a quote" icon="❌" />
-                </div>
+            <div>
+              <label style={labelStyle}>Website Type *</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {[
+                  { v: "single", label: "Single Page", desc: "Smooth scroll, one URL" },
+                  { v: "multi", label: "Multi Page", desc: "Separate pages with navigation" },
+                ].map(({ v, label, desc }) => (
+                  <button
+                    key={v}
+                    onClick={() => setField("siteType", v)}
+                    style={{
+                      ...radioCardStyle,
+                      borderColor: form.siteType === v ? "#10b981" : "rgba(255,255,255,0.08)",
+                      background: form.siteType === v ? "rgba(16,185,129,0.08)" : "#0a0f1a",
+                    }}
+                  >
+                    <div style={{ color: form.siteType === v ? "#10b981" : "#e2e8f0", fontWeight: 600, marginBottom: 4 }}>{label}</div>
+                    <div style={{ color: "#64748b", fontSize: "0.8rem" }}>{desc}</div>
+                  </button>
+                ))}
               </div>
-              {hasPricing === "Yes" && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">📊 Pricing Type</label>
-                  <div className="grid gap-2">
-                    <SelectCard selected={pricingType === "products"} onClick={() => setPricingType("products")} label="Individual Products / Services" desc="Each item has its own name, price and photo" icon="🛍️" />
-                    <SelectCard selected={pricingType === "tiers"} onClick={() => setPricingType("tiers")} label="Pricing Tiers" desc="Starter / Business / Premium packages" icon="📦" />
-                    <SelectCard selected={pricingType === "quote"} onClick={() => setPricingType("quote")} label="Quote Based" desc="Customers request a custom quote" icon="📋" />
-                    <SelectCard selected={pricingType === "hourly"} onClick={() => setPricingType("hourly")} label="Hourly / Day Rate" desc="You charge by the hour or day" icon="⏱️" />
-                  </div>
-                </div>
-              )}
             </div>
-          )}
+          </div>
+        );
 
-          {/* ── STEP: pricing_details ── */}
-          {currentStepId === 'pricing_details' && (
-            <div className="space-y-5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">📤 How to provide pricing</label>
-                <div className="grid gap-2">
-                  <SelectCard selected={pricingMethod === "upload"} onClick={() => setPricingMethod("upload")} label="Upload a menu or price list" desc="PDF, image or Word document" icon="📄" />
-                  <SelectCard selected={pricingMethod === "url"} onClick={() => setPricingMethod("url")} label="Use my existing website" desc="We'll pull pricing from your current site" icon="🌐" />
-                  <SelectCard selected={pricingMethod === "manual"} onClick={() => setPricingMethod("manual")} label="Enter manually" desc="Type each item, price and upload photos" icon="✏️" />
-                  <SelectCard selected={pricingMethod === "weknow"} onClick={() => setPricingMethod("weknow")} label="You decide for us" desc="We'll create a professional pricing section" icon="🤝" />
-                </div>
-              </div>
-              {pricingMethod === "upload" && (
-                <div onClick={() => pricingSheetRef.current?.click()} className="border-2 border-dashed border-white/10 rounded-2xl p-5 cursor-pointer text-center bg-slate-900/50">
-                  <input ref={pricingSheetRef} type="file" accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setPricingFile(f); }} />
-                  {pricingFile ? <p className="text-emerald-400 font-semibold text-sm">✓ {pricingFile.name}</p> : <div><p className="text-slate-300 font-semibold text-sm">📎 Upload menu or price list</p><p className="text-slate-500 text-xs mt-1">PDF, image, Word doc</p></div>}
-                </div>
-              )}
-              {pricingMethod === "url" && <InputField icon="🌐" label="Existing Website URL" value={pricingUrl} onChange={(e: any) => setPricingUrl(e.target.value)} placeholder="https://yourwebsite.com.au" />}
-              {pricingMethod === "manual" && pricingType === "products" && (
-                <div className="space-y-4">
-                  {products.map((product, index) => (
-                    <div key={index} className="bg-slate-900/80 border border-white/10 rounded-2xl p-4 space-y-3">
-                      <div className="flex justify-between items-center">
-                        <p className="text-emerald-400 font-semibold text-sm">Item {index + 1}</p>
-                        {products.length > 1 && <button onClick={() => removeProduct(index)} className="text-red-400 text-xs">Remove</button>}
-                      </div>
-                      <InputField icon="🏷️" label="Product / Service Name" value={product.name} onChange={(e: any) => updateProduct(index, 'name', e.target.value)} placeholder="e.g. Sourdough Loaf" />
-                      <InputField icon="💵" label="Price" value={product.price} onChange={(e: any) => updateProduct(index, 'price', e.target.value)} placeholder="e.g. $12 or from $85" />
-                      <div onClick={() => productPhotoRefs.current[index]?.click()} className="border-2 border-dashed border-white/10 rounded-xl p-3 cursor-pointer text-center">
-                        <input ref={(el) => { productPhotoRefs.current[index] = el; }} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleProductPhoto(index, f); }} />
-                        {product.photo ? <p className="text-emerald-400 text-sm">✓ {product.photo.name}</p> : <p className="text-slate-500 text-sm">📷 Upload photo (optional)</p>}
-                      </div>
+      case "pages":
+        return (
+          <div>
+            <p style={{ color: "#94a3b8", marginBottom: 16, fontSize: "0.95rem" }}>Choose the pages you want on your website.</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+              {PAGES_OPTIONS.map((p) => {
+                const selected = form.pages.includes(p);
+                return (
+                  <button
+                    key={p}
+                    onClick={() => toggleArray("pages", p)}
+                    style={{
+                      padding: "12px 8px",
+                      borderRadius: 10,
+                      border: `1px solid ${selected ? "#10b981" : "rgba(255,255,255,0.08)"}`,
+                      background: selected ? "rgba(16,185,129,0.08)" : "#0a0f1a",
+                      color: selected ? "#10b981" : "#94a3b8",
+                      cursor: "pointer",
+                      fontSize: "0.85rem",
+                      fontWeight: selected ? 600 : 400,
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {selected ? "✓ " : ""}{p}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+
+      case "features":
+        return (
+          <div>
+            <p style={{ color: "#94a3b8", marginBottom: 16, fontSize: "0.95rem" }}>Select the features you want included.</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {FEATURE_BUNDLES.map((bundle) => {
+                const active = bundle.features.every((f) => form.features.includes(f));
+                return (
+                  <button
+                    key={bundle.id}
+                    onClick={() => toggleBundle(bundle.features)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 16,
+                      padding: "16px 20px",
+                      borderRadius: 12,
+                      border: `1px solid ${active ? "#10b981" : "rgba(255,255,255,0.08)"}`,
+                      background: active ? "rgba(16,185,129,0.08)" : "#0a0f1a",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      transition: "all 0.15s",
+                      width: "100%",
+                    }}
+                  >
+                    <span style={{ fontSize: 28, flexShrink: 0 }}>{bundle.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: active ? "#10b981" : "#e2e8f0", fontWeight: 600, marginBottom: 2 }}>{bundle.label}</div>
+                      <div style={{ color: "#64748b", fontSize: "0.82rem" }}>{bundle.desc}</div>
                     </div>
-                  ))}
-                  {products.length < 12 && <button onClick={addProduct} className="w-full h-12 rounded-2xl border border-white/10 text-slate-400 text-sm">+ Add another item</button>}
-                </div>
-              )}
-              {pricingMethod === "manual" && pricingType !== "products" && (
-                <TextAreaField icon="💰" label="Pricing Details" value={pricingDetails} onChange={(e: any) => setPricingDetails(e.target.value)}
-                  placeholder={pricingType === "tiers" ? "e.g. Starter $99/month - X, Y, Z" : pricingType === "hourly" ? "e.g. $85/hour, minimum 2 hours" : "Describe how your quoting works"} />
-              )}
-              {pricingMethod === "weknow" && (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4">
-                  <p className="text-emerald-400 text-sm">✓ We'll create a professional pricing section that suits your industry and style.</p>
-                </div>
-              )}
+                    <div style={{
+                      width: 22, height: 22, borderRadius: 6,
+                      border: `2px solid ${active ? "#10b981" : "rgba(255,255,255,0.2)"}`,
+                      background: active ? "#10b981" : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0,
+                    }}>
+                      {active && <span style={{ color: "#fff", fontSize: 13, fontWeight: 700 }}>✓</span>}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </div>
+        );
 
-          {/* ── STEP: design ── */}
-          {currentStepId === 'design' && (
-            <div className="space-y-4 md:space-y-5">
-              <InputField icon="🎨" label="Style" value={style} onChange={(e: any) => setStyle(e.target.value)} placeholder="e.g. Luxury dark, Clean minimal, Warm rustic, Bold modern" />
-              <InputField icon="🎨" label="Colour Preferences" value={colorPrefs} onChange={(e: any) => setColorPrefs(e.target.value)} placeholder="e.g. Navy and gold, Black and white, Cream and terracotta" />
-              <TextAreaField icon="🔗" label="Reference Websites (optional)" value={references} onChange={(e: any) => setReferences(e.target.value)} placeholder="Links to websites you like, or describe what appeals to you" />
+      case "pricing":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div>
+              <label style={labelStyle}>Do you want to display pricing on your website? *</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {["Yes", "No"].map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setField("hasPricing", v)}
+                    style={{
+                      ...radioCardStyle,
+                      borderColor: form.hasPricing === v ? "#10b981" : "rgba(255,255,255,0.08)",
+                      background: form.hasPricing === v ? "rgba(16,185,129,0.08)" : "#0a0f1a",
+                    }}
+                  >
+                    <span style={{ color: form.hasPricing === v ? "#10b981" : "#94a3b8", fontWeight: 600 }}>{v}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {form.hasPricing === "Yes" && (
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">🖼️ Do you have a logo?</label>
-                <div className="grid gap-2">
-                  {["Yes — I will provide it", "No — I need one designed", "No — please use text only"].map(opt => (
-                    <SelectCard key={opt} selected={hasLogo === opt} onClick={() => setHasLogo(opt)} label={opt} />
+                <label style={labelStyle}>Pricing Type *</label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  {["Fixed prices", "Quote-based", "Subscription", "Hourly rates"].map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setField("pricingType", v)}
+                      style={{
+                        ...radioCardStyle,
+                        borderColor: form.pricingType === v ? "#10b981" : "rgba(255,255,255,0.08)",
+                        background: form.pricingType === v ? "rgba(16,185,129,0.08)" : "#0a0f1a",
+                      }}
+                    >
+                      <span style={{ color: form.pricingType === v ? "#10b981" : "#94a3b8", fontSize: "0.9rem" }}>{v}</span>
+                    </button>
                   ))}
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        );
 
-          {/* ── STEP: assets ── */}
-          {currentStepId === 'assets' && (
-            <div className="space-y-4">
-              <p className="text-slate-400 text-sm">All images compressed automatically. Skip anything you don't have yet.</p>
-              <FileUploadBox label="📎 Upload Your Logo" hint="Any size — we compress it" file={logoFile} onChange={handleLogoChange} inputRef={logoRef} accept="image/*" />
-              <FileUploadBox label="🖼️ Upload Hero / Banner Image" hint="Main background image — any size" file={heroFile} onChange={handleHeroChange} inputRef={heroRef} accept="image/*" />
-              <div onClick={() => photosRef.current?.click()} className="border-2 border-dashed border-white/10 rounded-2xl p-5 cursor-pointer text-center bg-slate-900/50">
-                <input ref={photosRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoChange} />
-                <p className="text-slate-300 font-semibold text-sm">📷 Additional Photos</p>
-                <p className="text-slate-500 text-xs mt-1">Up to 5 general photos</p>
-                {photoFiles.length > 0 && photoFiles.map((f, i) => <p key={i} className="text-emerald-400 text-xs mt-1">✓ {f.name}</p>)}
+      case "pricing_details":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div>
+              <label style={labelStyle}>How will you provide your pricing? *</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {[
+                  { v: "manual", label: "I'll type it in", desc: "Enter prices manually" },
+                  { v: "url", label: "Link to page", desc: "URL with pricing info" },
+                  { v: "upload", label: "Upload file", desc: "PDF or image" },
+                  { v: "weknow", label: "You decide", desc: "Use industry standard" },
+                ].map(({ v, label, desc }) => (
+                  <button
+                    key={v}
+                    onClick={() => setField("pricingMethod", v)}
+                    style={{
+                      ...radioCardStyle,
+                      borderColor: form.pricingMethod === v ? "#10b981" : "rgba(255,255,255,0.08)",
+                      background: form.pricingMethod === v ? "rgba(16,185,129,0.08)" : "#0a0f1a",
+                    }}
+                  >
+                    <div style={{ color: form.pricingMethod === v ? "#10b981" : "#e2e8f0", fontWeight: 600, marginBottom: 4 }}>{label}</div>
+                    <div style={{ color: "#64748b", fontSize: "0.8rem" }}>{desc}</div>
+                  </button>
+                ))}
               </div>
-              <p className="text-slate-600 text-xs text-center">No assets? Skip — we'll use professional stock images.</p>
             </div>
-          )}
-
-          {/* ── STEP: contact ── */}
-          {currentStepId === 'contact' && (
-            <div className="space-y-4 md:space-y-5">
+            {form.pricingMethod === "manual" && (
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">📝 Do you have website copy ready?</label>
-                <div className="grid gap-2">
-                  {["Yes — I will provide all text", "Partially — I have some text", "No — please write it for me"].map(opt => (
-                    <SelectCard key={opt} selected={hasContent === opt} onClick={() => setHasContent(opt)} label={opt} />
-                  ))}
-                </div>
-              </div>
-              <TextAreaField icon="📌" label="Anything else we should know? (optional)" value={additionalNotes} onChange={(e: any) => setAdditionalNotes(e.target.value)} placeholder="Deadline, requirements, competitors, links to pull content from..." />
-
-              <div className="border-t border-white/8 pt-5 space-y-4">
-                <p className="text-white font-semibold">📬 Your Contact Details</p>
-                <InputField icon="👤" label="Full Name" value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Your full name" required />
-                <InputField icon="📧" label="Email Address" value={email} onChange={(e: any) => setEmail(e.target.value)} placeholder="your@email.com.au" required type="email" />
-                <InputField icon="📱" label="Phone Number" value={phone} onChange={(e: any) => setPhone(e.target.value)} placeholder="04XX XXX XXX" required type="tel" />
-                <InputField
-                  icon="🏛️"
-                  label="ABN (optional)"
-                  value={abn}
-                  onChange={(e: any) => setAbn(e.target.value)}
-                  placeholder="e.g. 51 824 753 556"
-                  hint="Required to register your .com.au domain. You can provide this later."
-                  type="text"
+                <label style={labelStyle}>Enter your pricing details</label>
+                <textarea
+                  value={form.pricingDetails}
+                  onChange={(e) => setField("pricingDetails", e.target.value)}
+                  placeholder="e.g. Basic service $150, Premium $280..."
+                  style={{ ...inputStyle, minHeight: 120, resize: "vertical" as const }}
                 />
               </div>
-
-              <div>
-                <div ref={turnstileRef} />
-                {!turnstileToken && turnstileReady && <p className="text-slate-500 text-xs mt-2">Complete the security check above to submit</p>}
-              </div>
-
-              {quote && (
-                <div className="rounded-2xl bg-gradient-to-br from-emerald-950/50 to-slate-900/50 border border-emerald-500/20 p-5">
-                  <p className="text-xs font-semibold text-emerald-400 uppercase tracking-widest mb-3">💰 Your Estimated Quote</p>
-                  <div className="flex items-end gap-2 mb-1">
-                    <p className="text-4xl md:text-5xl font-bold text-white">${quote.totalPrice.toLocaleString()}</p>
-                    <p className="text-slate-400 mb-1 text-sm">one-time</p>
-                  </div>
-                  <p className="text-slate-400 text-sm mb-1">+ ${quote.monthlyPrice}/month hosting & maintenance</p>
-                  <p className="text-slate-500 text-sm mb-3">50% deposit: <span className="text-white font-semibold">${quote.deposit.toLocaleString()}</span></p>
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
-                    <p className="text-emerald-400 font-semibold text-sm">🎉 Saving ${quote.savings.toLocaleString()} vs the industry average</p>
-                  </div>
-                  <p className="text-slate-600 text-xs mt-2">{quote.packageName} Package</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Errors */}
-          {errors.length > 0 && (
-            <div className="mt-5 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
-              {errors.map((err, i) => <p key={i} className="text-red-400 text-sm">⚠️ {err}</p>)}
-            </div>
-          )}
-
-          {/* Navigation */}
-          <div className="flex gap-3 mt-6 md:mt-8">
-            {step > 1 && (
-              <button onClick={back} className="h-14 px-6 md:px-8 rounded-2xl border border-white/10 text-slate-400 font-medium text-sm">
-                Back
-              </button>
             )}
-            <button
-              onClick={next}
-              disabled={compressing || (currentStepId === 'contact' && !turnstileToken)}
-              className="flex-1 h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold transition-all text-sm"
-            >
-              {compressing ? "Compressing..." : currentStepId === 'contact' ? "Submit Request" : "Continue"}
-            </button>
+            {form.pricingMethod === "url" && (
+              <InputField label="URL with pricing info" value={form.pricingUrl} onChange={(v) => setField("pricingUrl", v)} placeholder="https://..." />
+            )}
+          </div>
+        );
+
+      case "design":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div>
+              <label style={labelStyle}>Design Style *</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {STYLE_OPTIONS.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setField("style", s)}
+                    style={{
+                      ...radioCardStyle,
+                      borderColor: form.style === s ? "#10b981" : "rgba(255,255,255,0.08)",
+                      background: form.style === s ? "rgba(16,185,129,0.08)" : "#0a0f1a",
+                    }}
+                  >
+                    <span style={{ color: form.style === s ? "#10b981" : "#94a3b8", fontSize: "0.88rem" }}>{s}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <InputField label="Colour preferences" value={form.colorPrefs} onChange={(v) => setField("colorPrefs", v)} placeholder="e.g. Navy blue and gold, or green tones" />
+            <InputField label="Reference websites (optional)" value={form.references} onChange={(v) => setField("references", v)} placeholder="Sites you like the look of" />
+            <div>
+              <label style={labelStyle}>Do you have a logo?</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {["Yes", "No"].map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setField("hasLogo", v)}
+                    style={{
+                      ...radioCardStyle,
+                      borderColor: form.hasLogo === v ? "#10b981" : "rgba(255,255,255,0.08)",
+                      background: form.hasLogo === v ? "rgba(16,185,129,0.08)" : "#0a0f1a",
+                    }}
+                  >
+                    <span style={{ color: form.hasLogo === v ? "#10b981" : "#94a3b8", fontWeight: 600 }}>{v}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+      case "assets":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {form.hasLogo === "Yes" && (
+              <FileUploadField
+                label="Upload your logo"
+                accept="image/*"
+                file={logoFile}
+                onChange={async (f) => {
+                  if (f) {
+                    const c = await compressImage(f, 400, 85);
+                    setLogoFile(c);
+                  } else {
+                    setLogoFile(null);
+                  }
+                }}
+              />
+            )}
+            <FileUploadField
+              label="Hero / banner image (optional)"
+              accept="image/*"
+              file={heroFile}
+              onChange={async (f) => {
+                if (f) {
+                  const c = await compressImage(f, 1400, 75);
+                  setHeroFile(c);
+                } else {
+                  setHeroFile(null);
+                }
+              }}
+            />
+            <div>
+              <label style={labelStyle}>Additional photos (up to 5)</label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {photoFiles.map((pf, i) => (
+                  <FileUploadField
+                    key={i}
+                    label={`Photo ${i + 1}`}
+                    accept="image/*"
+                    file={pf}
+                    onChange={async (f) => {
+                      const newArr = [...photoFiles];
+                      if (f) {
+                        const c = await compressImage(f, 1000, 70);
+                        newArr[i] = c;
+                      } else {
+                        newArr[i] = null;
+                      }
+                      setPhotoFiles(newArr);
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+      case "contact":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div>
+              <label style={labelStyle}>Do you have content ready? (text, descriptions)</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {["Yes", "No"].map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setField("hasContent", v)}
+                    style={{
+                      ...radioCardStyle,
+                      borderColor: form.hasContent === v ? "#10b981" : "rgba(255,255,255,0.08)",
+                      background: form.hasContent === v ? "rgba(16,185,129,0.08)" : "#0a0f1a",
+                    }}
+                  >
+                    <span style={{ color: form.hasContent === v ? "#10b981" : "#94a3b8", fontWeight: 600 }}>{v}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label style={labelStyle}>Additional notes (optional)</label>
+              <textarea
+                value={form.additionalNotes}
+                onChange={(e) => setField("additionalNotes", e.target.value)}
+                placeholder="Anything else we should know..."
+                style={{ ...inputStyle, minHeight: 90, resize: "vertical" as const }}
+              />
+            </div>
+            <InputField label="Your Full Name *" value={form.name} onChange={(v) => setField("name", v)} placeholder="Jane Smith" />
+            <InputField label="Email Address *" value={form.email} onChange={(v) => setField("email", v)} placeholder="jane@example.com" type="email" />
+            <InputField label="Phone Number *" value={form.phone} onChange={(v) => setField("phone", v)} placeholder="0400 000 000" type="tel" />
+            <InputField
+              label="ABN (optional)"
+              value={form.abn}
+              onChange={(v) => setField("abn", v)}
+              placeholder="12 345 678 901"
+              hint="Required to register your .com.au domain. You can provide this later."
+            />
+
+            {/* Quote summary */}
+            <div style={{ background: "#0a0f1a", borderRadius: 12, padding: 20, border: "1px solid rgba(255,255,255,0.08)", marginTop: 8 }}>
+              <div style={{ color: "#64748b", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Your Quote Summary</div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                <span style={{ color: "#94a3b8" }}>Package</span>
+                <span style={{ color: "#10b981", fontWeight: 700 }}>{quote.packageName}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                <span style={{ color: "#94a3b8" }}>Total</span>
+                <span style={{ color: "#ffffff", fontWeight: 700 }}>${quote.totalPrice.toLocaleString()}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                <span style={{ color: "#94a3b8" }}>Deposit</span>
+                <span style={{ color: "#e2e8f0" }}>${quote.deposit.toLocaleString()}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#94a3b8" }}>Monthly</span>
+                <span style={{ color: "#e2e8f0" }}>${quote.monthlyPrice}/mo</span>
+              </div>
+            </div>
+
+            {/* Turnstile */}
+            {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+              <div>
+                <div ref={turnstileRef} style={{ marginTop: 8 }} />
+              </div>
+            )}
+
+            {error && (
+              <div style={{ background: "#2d0a0a", border: "1px solid #ef4444", borderRadius: 10, padding: "14px 16px", color: "#f87171", fontSize: "0.9rem" }}>
+                {error}
+              </div>
+            )}
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  // ─── Validate current step ────────────────────────────────────────────────────
+
+  const canContinue = () => {
+    switch (currentStep?.id) {
+      case "business": return !!form.businessName && !!form.industry;
+      case "goals": return !!form.goal && !!form.siteType;
+      case "pages": return form.pages.length > 0;
+      case "features": return true;
+      case "pricing": return true;
+      case "pricing_details": return !!form.pricingMethod;
+      case "design": return !!form.style;
+      case "assets": return true;
+      case "contact":
+        return !!form.name && !!form.email && !!form.phone &&
+          (!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || !!turnstileToken);
+      default: return true;
+    }
+  };
+
+  // ─── Render ──────────────────────────────────────────────────────────────────
+
+  const stepLabel = currentStep ? (
+    STEPS.findIndex((s) => s.id === currentStep.id) + 1
+  ) : 1;
+  const totalSteps = visibleSteps.length;
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0a0f1a", color: "#e2e8f0", fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
+      {/* Mobile header */}
+      <div style={{ background: "#0f1623", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "16px 20px", display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{ fontSize: 24 }}>🦎</span>
+        <span style={{ fontWeight: 700, fontSize: "1.1rem", color: "#10b981" }}>WebGecko</span>
+      </div>
+
+      <div style={{ display: "flex", maxWidth: 1100, margin: "0 auto", padding: "0 0 80px" }}>
+        {/* Sidebar */}
+        <div style={{ width: 280, flexShrink: 0, padding: "32px 24px", display: "none" }} className="sidebar">
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ fontSize: 32, marginBottom: 4 }}>🦎</div>
+            <div style={{ fontWeight: 800, fontSize: "1.3rem", color: "#10b981" }}>WebGecko</div>
+            <div style={{ color: "#64748b", fontSize: "0.8rem" }}>Automated Web Design Agency</div>
+          </div>
+
+          {/* Step list */}
+          <div style={{ marginBottom: 32 }}>
+            {visibleSteps.map((s, i) => {
+              const done = i < step;
+              const current = i === step;
+              return (
+                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, opacity: i > step ? 0.4 : 1 }}>
+                  <div style={{
+                    width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
+                    border: `2px solid ${done || current ? "#10b981" : "rgba(255,255,255,0.15)"}`,
+                    background: done ? "#10b981" : "transparent",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 12,
+                  }}>
+                    {done ? "✓" : <span style={{ color: current ? "#10b981" : "#475569", fontWeight: 600, fontSize: 11 }}>{i + 1}</span>}
+                  </div>
+                  <span style={{ color: current ? "#e2e8f0" : done ? "#10b981" : "#64748b", fontSize: "0.88rem", fontWeight: current ? 600 : 400 }}>
+                    {s.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Live summary */}
+          {(form.businessName || form.industry) && (
+            <div style={{ background: "#0a0f1a", borderRadius: 10, padding: 16, marginBottom: 20, border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div style={{ color: "#64748b", fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Summary</div>
+              {form.businessName && <SummaryRow label="Business" value={form.businessName} />}
+              {form.industry && <SummaryRow label="Industry" value={form.industry} />}
+              {form.goal && <SummaryRow label="Goal" value={form.goal} />}
+              {form.siteType && <SummaryRow label="Type" value={form.siteType} />}
+              {form.pages.length > 0 && <SummaryRow label="Pages" value={`${form.pages.length} selected`} />}
+              {form.name && <SummaryRow label="Name" value={form.name} />}
+              {form.abn && <SummaryRow label="ABN" value={form.abn} />}
+            </div>
+          )}
+
+          {/* Live quote */}
+          <div style={{ background: "#0a0f1a", borderRadius: 10, padding: 16, border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div style={{ color: "#64748b", fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Live Quote</div>
+            <div style={{ color: "#10b981", fontWeight: 700, fontSize: "1rem", marginBottom: 4 }}>{quote.packageName}</div>
+            <div style={{ color: "#ffffff", fontWeight: 800, fontSize: "1.4rem", marginBottom: 8 }}>${quote.totalPrice.toLocaleString()}</div>
+            <SummaryRow label="Deposit" value={`$${quote.deposit.toLocaleString()}`} />
+            <SummaryRow label="Monthly" value={`$${quote.monthlyPrice}/mo`} />
+            <SummaryRow label="You save" value={`$${quote.savings.toLocaleString()}`} accent />
           </div>
         </div>
 
-        {/* ── SIDEBAR ── */}
-        <div className="hidden lg:block">
-          <div className="rounded-3xl bg-[#0f1623] border border-white/8 p-6 sticky top-8">
-            <div className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-sm">W</div>
-              <span className="font-semibold text-white">WebGecko</span>
+        {/* Main content */}
+        <div style={{ flex: 1, padding: "32px 20px 20px", maxWidth: 680 }}>
+          {/* Progress bar */}
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <span style={{ color: "#64748b", fontSize: "0.8rem" }}>Step {stepLabel} of {totalSteps}</span>
+              <span style={{ color: "#10b981", fontSize: "0.8rem", fontWeight: 600 }}>{Math.round((step / (totalSteps - 1)) * 100)}% complete</span>
             </div>
-            <div className="space-y-1 mb-5">
-              {steps.map((s, i) => (
-                <div key={s.id} className={`flex items-center gap-3 p-2 rounded-xl transition-all ${i + 1 === step ? 'bg-emerald-500/10 border border-emerald-500/20' : i + 1 < step ? 'opacity-60' : 'opacity-25'}`}>
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${i + 1 < step ? 'bg-emerald-500 text-black font-bold' : i + 1 === step ? 'border-2 border-emerald-500 text-emerald-400' : 'border border-white/20 text-slate-600'}`}>
-                    {i + 1 < step ? '✓' : i + 1}
-                  </div>
-                  <span className={`text-xs ${i + 1 === step ? 'text-white font-semibold' : 'text-slate-500'}`}>{s.label}</span>
-                </div>
-              ))}
+            <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2 }}>
+              <div style={{
+                height: "100%",
+                width: `${Math.round(((step + 1) / totalSteps) * 100)}%`,
+                background: "#10b981",
+                borderRadius: 2,
+                transition: "width 0.3s ease",
+              }} />
             </div>
-            <div className="border-t border-white/8 pt-4 space-y-1 text-xs text-slate-600">
-              {businessName && <p>🏢 {businessName}</p>}
-              {industry && <p>🏭 {industry}</p>}
-              {goal && <p>🎯 {goal}</p>}
-              {siteType && <p>📄 {siteType === 'multi' ? 'Multi Page' : 'Single Page'}</p>}
-              {pages.length > 0 && <p className="truncate">📑 {pages.join(', ')}</p>}
-              {name && <p>👤 {name}</p>}
-              {abn && <p>🏛️ ABN: {abn}</p>}
-            </div>
-            {quote && (
-              <div className="mt-4 border-t border-white/8 pt-4">
-                <p className="text-xs text-slate-500 uppercase tracking-widest mb-2">Live Quote</p>
-                <p className="text-2xl font-bold text-white">${quote.totalPrice.toLocaleString()}</p>
-                <p className="text-slate-500 text-xs">+ ${quote.monthlyPrice}/month</p>
-                <p className="text-emerald-400 text-xs mt-0.5 font-semibold">{quote.packageName} Package</p>
-                <p className="text-slate-500 text-xs mt-1">Deposit: <span className="text-white">${quote.deposit.toLocaleString()}</span></p>
-                <div className="mt-2 bg-emerald-500/10 rounded-lg p-2">
-                  <p className="text-emerald-400 text-xs">Saving ${quote.savings.toLocaleString()} vs agencies</p>
-                </div>
-              </div>
+          </div>
+
+          {/* Step heading */}
+          <div style={{ marginBottom: 28 }}>
+            <h2 style={{ color: "#ffffff", fontSize: "1.6rem", fontWeight: 700, margin: "0 0 6px" }}>
+              {stepHeadings[currentStep?.id || ""] || currentStep?.label}
+            </h2>
+            <p style={{ color: "#64748b", margin: 0, fontSize: "0.95rem" }}>
+              {stepSubheadings[currentStep?.id || ""] || ""}
+            </p>
+          </div>
+
+          {/* Step content */}
+          <div style={{ marginBottom: 32 }}>
+            {renderStep()}
+          </div>
+
+          {/* Navigation */}
+          <div style={{ display: "flex", gap: 12, justifyContent: "space-between" }}>
+            <button
+              onClick={prev}
+              disabled={step === 0}
+              style={{
+                padding: "13px 24px",
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "transparent",
+                color: step === 0 ? "#374151" : "#94a3b8",
+                cursor: step === 0 ? "not-allowed" : "pointer",
+                fontSize: "0.95rem",
+                fontWeight: 500,
+              }}
+            >
+              ← Back
+            </button>
+
+            {isLastStep ? (
+              <button
+                onClick={handleSubmit}
+                disabled={loading || !canContinue()}
+                style={{
+                  flex: 1,
+                  padding: "13px 24px",
+                  borderRadius: 10,
+                  border: "none",
+                  background: canContinue() && !loading ? "#10b981" : "#1f2937",
+                  color: canContinue() && !loading ? "#ffffff" : "#64748b",
+                  cursor: canContinue() && !loading ? "pointer" : "not-allowed",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  transition: "all 0.15s",
+                }}
+              >
+                {loading ? "Building your website…" : "Submit & Build My Website 🚀"}
+              </button>
+            ) : (
+              <button
+                onClick={next}
+                disabled={!canContinue()}
+                style={{
+                  flex: 1,
+                  padding: "13px 24px",
+                  borderRadius: 10,
+                  border: "none",
+                  background: canContinue() ? "#10b981" : "#1f2937",
+                  color: canContinue() ? "#ffffff" : "#64748b",
+                  cursor: canContinue() ? "pointer" : "not-allowed",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  transition: "all 0.15s",
+                }}
+              >
+                Continue →
+              </button>
             )}
           </div>
         </div>
       </div>
-    </main>
+    </div>
+  );
+}
+
+// ─── Shared styles ────────────────────────────────────────────────────────────
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  background: "rgba(15,22,35,0.8)",
+  border: "1px solid rgba(255,255,255,0.1)",
+  borderRadius: 12,
+  color: "#e2e8f0",
+  padding: "14px 16px",
+  fontSize: "0.95rem",
+  outline: "none",
+  fontFamily: "inherit",
+  height: 56,
+  boxSizing: "border-box",
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  color: "#94a3b8",
+  fontSize: "0.85rem",
+  marginBottom: 8,
+  fontWeight: 500,
+};
+
+const radioCardStyle: React.CSSProperties = {
+  padding: "14px 16px",
+  borderRadius: 12,
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "#0a0f1a",
+  cursor: "pointer",
+  textAlign: "left",
+  transition: "all 0.15s",
+  width: "100%",
+};
+
+const stepHeadings: Record<string, string> = {
+  business: "Tell us about your business",
+  goals: "What are your goals?",
+  pages: "Which pages do you need?",
+  features: "What features do you want?",
+  pricing: "Do you want pricing on your site?",
+  pricing_details: "Tell us about your pricing",
+  design: "How should your site look?",
+  assets: "Upload your assets",
+  contact: "Your contact details",
+};
+
+const stepSubheadings: Record<string, string> = {
+  business: "This helps us build a site that truly represents your brand",
+  goals: "We'll optimise your site to achieve what matters most",
+  pages: "Select all the sections you want included",
+  features: "Bundle features to add powerful functionality",
+  pricing: "Display your services and pricing clearly",
+  pricing_details: "Help us show your pricing the right way",
+  design: "Tell us the vibe and aesthetic you're going for",
+  assets: "Upload any images you have — we'll handle the rest",
+  contact: "Almost done! We'll send your preview here",
+};
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function InputField({
+  label, value, onChange, placeholder, hint, type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  hint?: string;
+  type?: string;
+}) {
+  return (
+    <div>
+      <label style={labelStyle}>{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={inputStyle}
+      />
+      {hint && <p style={{ color: "#475569", fontSize: "0.78rem", margin: "6px 0 0" }}>{hint}</p>}
+    </div>
+  );
+}
+
+function FileUploadField({
+  label, accept, file, onChange,
+}: {
+  label: string;
+  accept: string;
+  file: File | null;
+  onChange: (f: File | null) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <div>
+      <label style={labelStyle}>{label}</label>
+      <div
+        onClick={() => inputRef.current?.click()}
+        style={{
+          border: `2px dashed ${file ? "#10b981" : "rgba(255,255,255,0.12)"}`,
+          borderRadius: 12,
+          padding: "20px 16px",
+          textAlign: "center",
+          cursor: "pointer",
+          background: file ? "rgba(16,185,129,0.05)" : "transparent",
+          transition: "all 0.15s",
+        }}
+      >
+        <div style={{ fontSize: 24, marginBottom: 6 }}>{file ? "✅" : "📁"}</div>
+        <div style={{ color: file ? "#10b981" : "#64748b", fontSize: "0.88rem" }}>
+          {file ? file.name : "Click to upload"}
+        </div>
+        {file && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onChange(null); }}
+            style={{ marginTop: 8, background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "0.8rem" }}
+          >
+            Remove
+          </button>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const f = e.target.files?.[0] || null;
+          onChange(f);
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
+}
+
+function SummaryRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+      <span style={{ color: "#475569", fontSize: "0.78rem" }}>{label}</span>
+      <span style={{ color: accent ? "#10b981" : "#94a3b8", fontSize: "0.78rem", fontWeight: accent ? 600 : 400, textAlign: "right", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</span>
+    </div>
   );
 }
