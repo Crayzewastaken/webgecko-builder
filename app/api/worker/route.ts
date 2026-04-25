@@ -556,7 +556,7 @@ async function deployToVercel(
         {
           file: "index.html",
           data: html,
-          encoding: "utf8",
+          encoding: "utf-8",
         },
       ],
       projectSettings: {
