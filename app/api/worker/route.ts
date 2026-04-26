@@ -635,10 +635,11 @@ function buildOwnerEmail(params: {
   previewUrl: string;
   integrations: Record<string, IntegrationResult>;
   hasBooking: boolean;
+  fixItUrl?: string;
 }): string {
   const {
     jobId, businessName, name, email, phone, abn, industry, goal,
-    siteType, pages, features, quote, previewUrl, integrations, hasBooking,
+    siteType, pages, features, quote, previewUrl, integrations, hasBooking, fixItUrl,
   } = params;
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko-builder.vercel.app";
@@ -723,9 +724,11 @@ function buildOwnerEmail(params: {
             ${integrationRows}
           </table>
 
-          <div style="text-align:center;margin-top:24px;">
+          <div style="text-align:center;margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
             <a href="${previewUrl}" style="display:inline-block;background:#10b981;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:600;font-size:15px;">View Website Preview →</a>
+            ${fixItUrl ? `<a href="${fixItUrl}" style="display:inline-block;background:#f59e0b;color:#000000;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:600;font-size:15px;">🔧 Fix It (Re-run Pass 2)</a>` : ""}
           </div>
+          <p style="color:#475569;font-size:12px;text-align:center;margin-top:12px;">📎 HTML file attached to this email</p>
         </td></tr>
         <tr><td style="padding:20px 32px;border-top:1px solid rgba(255,255,255,0.06);">
           <p style="color:#475569;font-size:12px;margin:0;">WebGecko Automated Pipeline · Job ${jobId}</p>
@@ -1044,6 +1047,7 @@ Make it distinctive and premium. No generic templates.`,
       stitchPromptRaw = `Build a professional ${industry} website for ${businessName}. Include sections for: ${pages.join(", ")}. Style: ${style}. Dark themed with emerald accents.`;
     }
 
+    console.log(`\n🌐 STEP 5: Google Stitch — generating HTML...`);
     // Google Stitch (HTML generation)
     let rawHtml = "";
     try {
@@ -1051,14 +1055,16 @@ Make it distinctive and premium. No generic templates.`,
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.STITCH_API_KEY}`,
+          "x-api-key": process.env.STITCH_API_KEY || "",
         },
         body: JSON.stringify({ prompt: stitchPromptRaw }),
       });
 
+      console.log(`  Stitch status: ${stitchResp.status}`);
       if (stitchResp.ok) {
         const stitchData = await stitchResp.json();
-        rawHtml = stitchData.html || stitchData.output || "";
+        rawHtml = stitchData.html || stitchData.output || stitchData.result || stitchData.code || stitchData.content || "";
+        console.log(`  Stitch keys: ${Object.keys(stitchData).join(", ")}, HTML length: ${rawHtml.length}`);
       }
     } catch (e) {
       console.error("Stitch failed:", e);
@@ -1234,6 +1240,8 @@ Return ONLY the complete, valid HTML document. No explanations, no markdown, no 
     // Send owner email
     try {
       const ownerEmail = process.env.RESULT_TO_EMAIL || "hello@webgecko.au";
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko-builder.vercel.app";
+      const fixItUrl = `${baseUrl}/api/fix?jobId=${jobId}&secret=${encodeURIComponent(process.env.PROCESS_SECRET || "")}`;
       await resend.emails.send({
         from: "WebGecko Pipeline <pipeline@webgecko.au>",
         to: ownerEmail,
@@ -1254,8 +1262,16 @@ Return ONLY the complete, valid HTML document. No explanations, no markdown, no 
           previewUrl,
           integrations,
           hasBooking,
+          fixItUrl,
         }),
+        attachments: [
+          {
+            filename: `${businessName.replace(/[^a-zA-Z0-9]/g, "-")}-website.html`,
+            content: Buffer.from(watermarkedHtml).toString("base64"),
+          },
+        ],
       });
+      console.log(`  ✅ Owner email sent to ${ownerEmail} with HTML attachment`);
     } catch (e) {
       console.error("Owner email failed:", e);
     }

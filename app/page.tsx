@@ -552,6 +552,7 @@ export default function HomePage() {
                 <InputField icon="👤" label="Full Name" value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Your full name" required />
                 <InputField icon="📧" label="Email Address" value={email} onChange={(e: any) => setEmail(e.target.value)} placeholder="your@email.com.au" required type="email" />
                 <InputField icon="📱" label="Phone Number" value={phone} onChange={(e: any) => setPhone(e.target.value)} placeholder="04XX XXX XXX" required type="tel" />
+                <InputField icon="🔢" label="ABN (optional)" value={abn} onChange={(e: any) => setAbn(e.target.value)} placeholder="12 345 678 901" />
               </div>
               <div><div ref={turnstileRef} />{!turnstileToken && turnstileReady && <p className="text-slate-500 text-xs mt-2">Complete the security check above to submit</p>}</div>
               {quote && (
