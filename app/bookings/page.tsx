@@ -281,4 +281,4 @@ export default function BookingsPage() {
       <BookingsDashboard />
     </Suspense>
   );
-}s
+}
