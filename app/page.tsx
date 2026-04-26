@@ -283,7 +283,6 @@ export default function HomePage() {
     const errs = validateStep();
     if (errs.length > 0) { setErrors(errs); return; }
     setErrors([]);
-    setSubmitted(true);
     localStorage.removeItem(STORAGE_KEY);
 
     const formData = new FormData();
