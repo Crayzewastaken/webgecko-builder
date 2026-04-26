@@ -441,7 +441,7 @@ export async function POST(req: Request) {
     console.log("STEP 1: Claude spec...");
     const promptResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
-      max_tokens: 3000,
+      max_tokens: 1500,
       messages: [{
         role: "user",
         content: `Return ONLY valid JSON with "projectTitle" and "stitchPrompt". The stitchPrompt must be extremely detailed and specific.
@@ -495,8 +495,9 @@ ${isMultiPage
 - This is NOT a single scrolling page - it is a true multi-page app where clicking nav shows/hides page divs`
   : `SINGLE PAGE SITE. Sections: ${pageList}. Each section has a unique lowercase id. Nav links use href="#sectionid". Smooth scroll.`}
 
-Make it premium, unique and conversion-focused for: ${userInput.businessName}`
-      }]
+Make it premium, unique and conversion-focused for: ${userInput.businessName}
+
+CRITICAL: Your response must be valid complete JSON only. No text before or after. The stitchPrompt value must be under 800 words. Do not truncate mid-sentence.`      }]
     });
 
     const promptText = promptResponse.content[0]?.type === "text" ? promptResponse.content[0].text : "{}";
