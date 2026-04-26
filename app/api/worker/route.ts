@@ -839,9 +839,7 @@ export async function POST(req: NextRequest) {
     try { products = JSON.parse((formData.get("products") as string) || "[]"); } catch { products = []; }
     void products;
 
-    console.log(`\n🚀 PIPELINE STARTED: ${businessName}`);
     // Verify Turnstile
-    console.log(`🔐 STEP 1: Verifying Turnstile...`);
     if (turnstileToken) {
       const valid = await verifyTurnstile(turnstileToken);
       if (!valid) {
@@ -909,7 +907,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(`\n⚙️ STEP 3: Provisioning integrations... Features: ${features.join(", ") || "none"}`);
     // Provision integrations in parallel (step 4)
     const timezone = "Australia/Brisbane";
 
@@ -989,7 +986,6 @@ export async function POST(req: NextRequest) {
       .map(([k, v]) => `${k}: ${v}`)
       .join(", ");
 
-    console.log(`\n🤖 STEP 4: Claude pass 1 — generating design brief...`);
     // Claude pass 1: Generate Stitch prompt
     let stitchPromptRaw = "";
     let projectTitle = businessName;
@@ -1048,7 +1044,6 @@ Make it distinctive and premium. No generic templates.`,
       stitchPromptRaw = `Build a professional ${industry} website for ${businessName}. Include sections for: ${pages.join(", ")}. Style: ${style}. Dark themed with emerald accents.`;
     }
 
-    console.log(`\n🌐 STEP 5: Google Stitch — generating HTML...`);
     // Google Stitch (HTML generation)
     let rawHtml = "";
     try {
@@ -1061,17 +1056,14 @@ Make it distinctive and premium. No generic templates.`,
         body: JSON.stringify({ prompt: stitchPromptRaw }),
       });
 
-      console.log(`  Stitch status: ${stitchResp.status}`);
       if (stitchResp.ok) {
         const stitchData = await stitchResp.json();
-        console.log(`  Stitch keys: ${Object.keys(stitchData).join(", ")}`);
-        rawHtml = stitchData.html || stitchData.output || stitchData.result || stitchData.content || "";
-        console.log(`  Stitch HTML length: ${rawHtml.length} chars`);
-      } else {
-        const errText = await stitchResp.text();
-        console.log(`  Stitch error body: ${errText.slice(0, 500)}`);
+        rawHtml = stitchData.html || stitchData.output || "";
       }
-s
+    } catch (e) {
+      console.error("Stitch failed:", e);
+    }
+
     if (!rawHtml) {
       rawHtml = `<!DOCTYPE html>
 <html lang="en">
@@ -1130,7 +1122,6 @@ ${pages.map((p) => `<section class="section" id="${p.toLowerCase().replace(/\s+/
 </html>`;
     }
 
-    console.log(`\n🤖 STEP 6: Claude pass 2 — fixing HTML and injecting embeds...`);
     // Claude pass 2: Fix HTML, inject embed codes
     let finalHtml = rawHtml;
     try {
@@ -1194,7 +1185,6 @@ Return ONLY the complete, valid HTML document. No explanations, no markdown, no 
     });
     const watermarkedHtml = injectWatermark(imagedHtml);
 
-    console.log(`\n🚀 STEP 7: Deploying to Vercel...`);
     // Deploy to Vercel
     let previewUrl = "";
     let deploymentId = "";
@@ -1241,8 +1231,6 @@ Return ONLY the complete, valid HTML document. No explanations, no markdown, no 
       console.error("Redis save failed:", e);
     }
 
-    console.log(`\n📧 STEP 9: Sending emails...`);
-    console.log(`  Owner email → ${process.env.RESULT_TO_EMAIL}`);
     // Send owner email
     try {
       const ownerEmail = process.env.RESULT_TO_EMAIL || "hello@webgecko.au";
@@ -1272,7 +1260,6 @@ Return ONLY the complete, valid HTML document. No explanations, no markdown, no 
       console.error("Owner email failed:", e);
     }
 
-    console.log(`  Client email → ${email}`);
     // Send client email
     try {
       await resend.emails.send({
@@ -1285,7 +1272,6 @@ Return ONLY the complete, valid HTML document. No explanations, no markdown, no 
       console.error("Client email failed:", e);
     }
 
-    console.log(`\n✅ PIPELINE COMPLETE — jobId: ${jobId} | preview: ${previewUrl}`);
     return Response.json({
       success: true,
       jobId,
