@@ -1061,13 +1061,16 @@ Make it distinctive and premium. No generic templates.`,
         body: JSON.stringify({ prompt: stitchPromptRaw }),
       });
 
+      console.log(`  Stitch status: ${stitchResp.status}`);
       if (stitchResp.ok) {
         const stitchData = await stitchResp.json();
-        rawHtml = stitchData.html || stitchData.output || "";
+        console.log(`  Stitch keys: ${Object.keys(stitchData).join(", ")}`);
+        rawHtml = stitchData.html || stitchData.output || stitchData.result || stitchData.content || "";
+        console.log(`  Stitch HTML length: ${rawHtml.length} chars`);
+      } else {
+        const errText = await stitchResp.text();
+        console.log(`  Stitch error body: ${errText.slice(0, 500)}`);
       }
-    } catch (e) {
-      console.error("Stitch failed:", e);
-    }
 
     if (!rawHtml) {
       rawHtml = `<!DOCTYPE html>
