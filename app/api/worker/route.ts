@@ -24,9 +24,19 @@ cloudinary.config({
 });
 
 function extractJson(text: string) {
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  return JSON.parse(text.slice(start, end + 1));
+  try {
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start === -1 || end === -1) throw new Error("No JSON found");
+    return JSON.parse(text.slice(start, end + 1));
+  } catch {
+    const titleMatch = text.match(/"projectTitle"\s*:\s*"([^"]+)"/);
+    const promptMatch = text.match(/"stitchPrompt"\s*:\s*"([\s\S]{0,2000})/);
+    return {
+      projectTitle: titleMatch?.[1] || "Website Project",
+      stitchPrompt: promptMatch?.[1]?.replace(/"\s*}?\s*$/, "") || text.slice(0, 2000),
+    };
+  }
 }
 
 function safeFileName(name: string): string {
