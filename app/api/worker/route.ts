@@ -360,6 +360,7 @@ export async function POST(req: Request) {
       phone: getString("phone"),
       abn: getString("abn"),
       domain: getString("domain"),
+      businessAddress: getString("businessAddress"),
     };
 
     const pageList = Array.isArray(userInput.pages) && userInput.pages.length > 0 ? userInput.pages.join(", ") : "Home";
@@ -441,7 +442,7 @@ export async function POST(req: Request) {
     console.log("STEP 1: Claude spec...");
     const promptResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
-      max_tokens: 1500,
+      max_tokens: 3000,
       messages: [{
         role: "user",
         content: `Return ONLY valid JSON with "projectTitle" and "stitchPrompt". The stitchPrompt must be extremely detailed and specific.
@@ -495,9 +496,8 @@ ${isMultiPage
 - This is NOT a single scrolling page - it is a true multi-page app where clicking nav shows/hides page divs`
   : `SINGLE PAGE SITE. Sections: ${pageList}. Each section has a unique lowercase id. Nav links use href="#sectionid". Smooth scroll.`}
 
-Make it premium, unique and conversion-focused for: ${userInput.businessName}
-
-CRITICAL: Your response must be valid complete JSON only. No text before or after. The stitchPrompt value must be under 800 words. Do not truncate mid-sentence.`      }]
+Make it premium, unique and conversion-focused for: ${userInput.businessName}`
+      }]
     });
 
     const promptText = promptResponse.content[0]?.type === "text" ? promptResponse.content[0].text : "{}";
@@ -524,53 +524,142 @@ CRITICAL: Your response must be valid complete JSON only. No text before or afte
     const stitchHtml = await fetch(downloadUrl).then(r => r.text());
     console.log("STEP 4 DONE. Length:", stitchHtml.length);
 
-    // STEP 5: Claude fix pass
+    // STEP 5: Claude strict post-processor
     console.log("STEP 5: Claude fix pass...");
-    const fixPrompt = `You are a senior front-end developer. Review this HTML website and fix ALL issues listed below. Return the COMPLETE fixed HTML only - no explanation, no markdown code fences, just raw HTML starting with <!DOCTYPE html> or <html>.
 
-FIXES REQUIRED:
+    // Build Google Maps embed if address provided
+    const businessAddress = (userInput as any).businessAddress || "";
+    const googleMapsEmbed = businessAddress && process.env.GOOGLE_MAPS_API_KEY
+      ? `<iframe width="100%" height="350" style="border:0;border-radius:12px;" loading="lazy" allowfullscreen src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress || userInput.businessName + " " + userInput.industry)}"></iframe>`
+      : "";
 
-1. SITE TYPE IS "${userInput.siteType.toUpperCase()}":
-${isMultiPage ? `This MUST be a proper multi-page site with pages: ${pageList}.
-- Every page must be a div with class="page-section" and a unique lowercase id
-- ONLY the first page div should be visible, ALL others MUST have style="display:none"
-- ALL nav links MUST use onclick="navigateTo('pageid')" format`
-: `This is a single page site. All sections visible and scrollable. Nav links use href="#sectionid".`}
+    // Build contact form success script
+    const contactSuccessScript = `
+<script>
+(function(){
+  document.querySelectorAll("form").forEach(function(form){
+    if(form.dataset.wgProcessed) return;
+    form.dataset.wgProcessed = "1";
+    form.addEventListener("submit",function(e){
+      e.preventDefault();
+      if(form.querySelector(".wg-success")) return;
+      var s=document.createElement("div");
+      s.className="wg-success";
+      s.style.cssText="background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;font-family:sans-serif;";
+      s.textContent="Thank you! We will be in touch within 24 hours.";
+      form.appendChild(s);
+      form.querySelectorAll("input,textarea,select,button[type=submit]").forEach(function(el){el.setAttribute("disabled","true");});
+    });
+  });
+})();
+</script>`;
 
-2. REAL CONTACT DETAILS - replace ALL placeholders:
-- Email: ${clientEmail}
-- Phone: ${clientPhone}
+    // Build navigateTo + mobile menu script
+    const coreScript = `
+<script>
+(function(){
+  window.navigateTo=function(pageId){
+    document.querySelectorAll(".page-section,.page").forEach(function(p){p.style.display="none";p.classList.remove("active");});
+    var t=document.getElementById(pageId)||document.getElementById("page-"+pageId)||document.querySelector('[data-page="'+pageId+'"]');
+    if(t){t.style.display="block";t.classList.add("active");window.scrollTo({top:0,behavior:"smooth"});}
+    var mm=document.getElementById("mobile-menu")||document.getElementById("mobile-nav");
+    if(mm){mm.classList.add("hidden");mm.style.display="none";}
+  };
+  window.toggleMobileMenu=function(){
+    var mm=document.getElementById("mobile-menu")||document.getElementById("mobile-nav");
+    if(!mm) return;
+    var hidden=mm.classList.contains("hidden")||mm.style.display==="none"||getComputedStyle(mm).display==="none";
+    if(hidden){mm.classList.remove("hidden");mm.style.display="flex";mm.style.flexDirection="column";}
+    else{mm.classList.add("hidden");mm.style.display="none";}
+  };
+  // Hamburger
+  document.querySelectorAll("#hamburger,#hamburger-btn,[id*=hamburger],[aria-label='Open menu'],[aria-label='Menu']").forEach(function(btn){
+    if(btn.dataset.wgBound) return; btn.dataset.wgBound="1";
+    btn.addEventListener("click",function(e){e.stopPropagation();window.toggleMobileMenu();});
+  });
+  // Multi-page init
+  var pages=document.querySelectorAll(".page-section,.page");
+  if(pages.length>1){
+    var hasActive=false;
+    pages.forEach(function(p){if(p.classList.contains("active")||p.style.display==="block") hasActive=true;});
+    if(!hasActive){pages.forEach(function(p,i){if(i===0){p.style.display="block";p.classList.add("active");}else{p.style.display="none";}});}
+  }
+  // Fix dead buttons
+  document.querySelectorAll("a[href='#'],button:not([type]),button[type='button']").forEach(function(el){
+    if(el.dataset.wgBound) return;
+    var txt=(el.textContent||"").toLowerCase().trim();
+    if(txt.includes("contact")||txt.includes("quote")||txt.includes("get in touch")||txt.includes("enquir")){
+      el.dataset.wgBound="1";
+      el.addEventListener("click",function(e){
+        e.preventDefault();
+        ${isMultiPage ? "window.navigateTo('contact');" : "var c=document.getElementById('contact');if(c)c.scrollIntoView({behavior:'smooth'});"}
+      });
+    } else if(txt.includes("book")||txt.includes("appointment")){
+      el.dataset.wgBound="1";
+      el.addEventListener("click",function(e){
+        e.preventDefault();
+        ${isMultiPage ? "window.navigateTo('booking')||window.navigateTo('contact');" : "var b=document.getElementById('booking')||document.getElementById('contact');if(b)b.scrollIntoView({behavior:'smooth'});"}
+      });
+    } else if(txt.includes("service")){
+      el.dataset.wgBound="1";
+      el.addEventListener("click",function(e){
+        e.preventDefault();
+        ${isMultiPage ? "window.navigateTo('services');" : "var s=document.getElementById('services');if(s)s.scrollIntoView({behavior:'smooth'});"}
+      });
+    }
+  });
+})();
+</script>`;
 
-3. CTA BUTTONS - fix any button that does nothing:
-- ${isMultiPage ? `Use onclick="navigateTo('contact')"` : `Use onclick="document.getElementById('contact').scrollIntoView({behavior:'smooth'})"`}
+    const fixPrompt = `You are a STRICT HTML post-processor for a production web design system.
+You are NOT a designer. You must NOT change layout, structure, styling, or Tailwind classes.
+You MUST preserve the Stitch-generated HTML EXACTLY except for the specific fixes below.
 
-4. FORMS - every contact form must show success message on submit.
+=== HARD RULES ===
+- DO NOT move elements
+- DO NOT redesign sections  
+- DO NOT rewrite layout
+- DO NOT change Tailwind classes
+- DO NOT rename IDs
+- DO NOT convert onclick="navigateTo(...)" to href links
+- DO NOT invent new sections
+- DO NOT add features not listed below
+- PRESERVE all content, copy, images, colors from Stitch
 
-5. MOBILE MENU - ensure hamburger with id="hamburger" toggles id="mobile-menu".
+=== ALLOWED FIXES ONLY ===
 
-6. DEAD LINKS - fix any href="#" that does nothing useful.
+1. CONTACT DETAILS — Replace placeholder emails/phones with real ones:
+   - Replace any example@, info@, hello@, contact@, admin@ with: ${clientEmail}
+   - Replace any 555-, (555), +1 555, fake numbers with: ${clientPhone}
 
-${hasBookingFeature && bookingWidgetHtml ? `7. BOOKING SECTION - inject this booking widget into the booking section (replace placeholder or inject before </body>):
-${bookingWidgetHtml}` : ""}
+2. MULTI-PAGE — Site type is "${userInput.siteType.toUpperCase()}":
+${isMultiPage
+  ? `   - Ensure each page div has class="page-section" and unique lowercase id matching: ${pageList}
+   - ONLY first page visible (display:block), all others display:none
+   - Keep all onclick="navigateTo('...')" exactly as-is`
+  : `   - Single page, all sections visible, nav links use href="#sectionid"`}
 
-7. BUTTONS - make ALL buttons functional. For every button:
-   - "Get a Quote", "Contact Us", "Get in Touch", "Book Now", "Make an Appointment" → ${isMultiPage ? `onclick="navigateTo('contact')"` : `onclick="document.getElementById('contact')?.scrollIntoView({behavior:'smooth'})"`}
-   - "View Services", "Our Services" → ${isMultiPage ? `onclick="navigateTo('services')"` : `onclick="document.getElementById('services')?.scrollIntoView({behavior:'smooth'})"`}
-   - Never leave a button with href="#" or onclick="" that does nothing
+3. DEAD LINKS — Fix any href="#" on nav links to point to correct section/page id
 
-8. VALIDATION - before returning, mentally check:
-   - Every nav link works (has matching section/page id)
-   - No buttons do nothing when clicked
-   - Contact form shows success on submit
-   - Mobile menu toggles correctly
-   - If multi-page: ONLY first page is visible, all others display:none
-   - If the Stitch HTML is already correct and functional, preserve it exactly — only fix what is broken
+4. MAP INJECTION — If a map or location section exists and is empty:
+${googleMapsEmbed ? `   - Inject this iframe INSIDE the existing map/location section only:
+   ${googleMapsEmbed}` : "   - No map key available, skip"}
 
-IMPORTANT: If the Stitch HTML is high quality and working correctly, do NOT rewrite it. Only fix the specific issues listed above. Preserve all styles, layouts and content from Stitch.
+${hasBookingFeature && bookingWidgetHtml
+  ? `5. BOOKING INJECTION — Find section with id="booking" or containing booking content:
+   - Replace placeholder content INSIDE that section with this widget:
+   - DO NOT create a new section. Inject inside existing booking section only.
+   ${bookingWidgetHtml.substring(0, 3000)}`
+  : "5. BOOKING — Not required for this site"}
 
-Here is the HTML to review and fix:
+=== OUTPUT RULES ===
+- Return FULL HTML document
+- No explanations, no markdown, no backticks
+- Must start with <!DOCTYPE html> or <html>
+- Preserve ALL original Stitch HTML — only apply the fixes above
 
-${stitchHtml.substring(0, 75000)}`;
+HTML TO PROCESS:
+${stitchHtml.substring(0, 72000)}`;
 
     const fixResponse = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
