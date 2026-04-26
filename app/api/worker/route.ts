@@ -23,9 +23,14 @@ cloudinary.config({
 });
 
 function extractJson(text: string) {
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  return JSON.parse(text.slice(start, end + 1));
+  try {
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start === -1 || end === -1) throw new Error("No JSON found");
+    return JSON.parse(text.slice(start, end + 1));
+  } catch {
+    return { projectTitle: "Website Project", stitchPrompt: text };
+  }
 }
 
 function safeFileName(name: string): string {
