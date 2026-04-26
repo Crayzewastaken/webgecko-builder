@@ -141,6 +141,7 @@ export default function HomePage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [abn, setAbn] = useState("");
+  const [domain, setDomain] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [heroFile, setHeroFile] = useState<File | null>(null);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
@@ -210,11 +211,13 @@ export default function HomePage() {
     if (saved.name) setName(saved.name);
     if (saved.email) setEmail(saved.email);
     if (saved.phone) setPhone(saved.phone);
+    if (saved.abn) setAbn(saved.abn);
+    if (saved.domain) setDomain(saved.domain);
     if (saved.step) setStep(saved.step);
   }, []);
 
   useEffect(() => {
-    saveToStorage({ businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, step });
+    saveToStorage({ businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, step });
   }, [businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, step]);
 
   useEffect(() => {
@@ -268,6 +271,9 @@ export default function HomePage() {
       if (!name.trim()) errs.push("Full name is required");
       if (!email.trim() || !email.includes('@')) errs.push("A valid email address is required");
       if (!phone.trim()) errs.push("Phone number is required");
+      if (!abn.trim()) errs.push("ABN is required");
+      if (abn.trim() && abn.replace(/\s/g, '').length !== 11) errs.push("ABN must be 11 digits");
+      if (!domain.trim()) errs.push("Preferred domain name is required");
       if (!turnstileToken) errs.push("Please wait for the security check to complete");
     }
     return errs;
@@ -281,7 +287,7 @@ export default function HomePage() {
     localStorage.removeItem(STORAGE_KEY);
 
     const formData = new FormData();
-    const fields: Record<string, string> = { businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, turnstileToken };
+    const fields: Record<string, string> = { businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, turnstileToken };
     Object.entries(fields).forEach(([k, v]) => formData.append(k, v));
     formData.append("pages", JSON.stringify(pages));
     formData.append("features", JSON.stringify(features));
@@ -553,7 +559,8 @@ export default function HomePage() {
                 <InputField icon="👤" label="Full Name" value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Your full name" required />
                 <InputField icon="📧" label="Email Address" value={email} onChange={(e: any) => setEmail(e.target.value)} placeholder="your@email.com.au" required type="email" />
                 <InputField icon="📱" label="Phone Number" value={phone} onChange={(e: any) => setPhone(e.target.value)} placeholder="04XX XXX XXX" required type="tel" />
-                <InputField icon="🔢" label="ABN (optional)" value={abn} onChange={(e: any) => setAbn(e.target.value)} placeholder="12 345 678 901" />
+                <InputField icon="🔢" label="ABN" value={abn} onChange={(e: any) => setAbn(e.target.value)} placeholder="12 345 678 901" required hint="Required to register your .com.au domain." />
+		<InputField icon="🌐" label="Preferred Domain Name" value={domain} onChange={(e: any) => setDomain(e.target.value)} placeholder="e.g.mysalonbrisbane.com.au" required hint="Already have one? Enter it here. Don't have one? We'll register it for you." />
               </div>
               <div><div ref={turnstileRef} />{!turnstileToken && turnstileReady && <p className="text-slate-500 text-xs mt-2">Complete the security check above to submit</p>}</div>
               {quote && (

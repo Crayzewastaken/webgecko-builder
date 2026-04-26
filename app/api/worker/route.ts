@@ -1,4 +1,5 @@
 export const maxDuration = 300;
+import crypto from "crypto";
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
@@ -23,14 +24,9 @@ cloudinary.config({
 });
 
 function extractJson(text: string) {
-  try {
-    const start = text.indexOf("{");
-    const end = text.lastIndexOf("}");
-    if (start === -1 || end === -1) throw new Error("No JSON found");
-    return JSON.parse(text.slice(start, end + 1));
-  } catch {
-    return { projectTitle: "Website Project", stitchPrompt: text };
-  }
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  return JSON.parse(text.slice(start, end + 1));
 }
 
 function safeFileName(name: string): string {
@@ -97,19 +93,34 @@ async function uploadToCloudinary(buffer: Buffer, folder: string, filename: stri
 
 function checkAndFixLinks(html: string, pages: string[]): { html: string; report: string[] } {
   const issues: string[] = [];
-  const deadLinks = html.match(/href="#"(?!\w)/g);
-  if (deadLinks) issues.push(`Found ${deadLinks.length} dead href="#" links`);
-  const navLinks = html.match(/href="#([^"]+)"/g) || [];
-  navLinks.forEach(link => {
-    const id = link.match(/href="#([^"]+)"/)?.[1];
-    if (id && !html.includes(`id="${id}"`)) issues.push(`Nav link #${id} has no matching section id`);
-  });
+  let fixed = html;
+
+  // Find all navigateTo calls and ensure matching IDs exist
   const navigateCalls = html.match(/navigateTo\(['"]([^'"]+)['"]\)/g) || [];
+  const missingIds: string[] = [];
   navigateCalls.forEach(call => {
     const pageId = call.match(/navigateTo\(['"]([^'"]+)['"]\)/)?.[1];
-    if (pageId && !html.includes(`id="${pageId}"`)) issues.push(`navigateTo('${pageId}') has no matching element`);
+    if (pageId && !html.includes(`id="${pageId}"`) && !missingIds.includes(pageId)) {
+      missingIds.push(pageId);
+      issues.push(`navigateTo('${pageId}') has no matching element`);
+    }
   });
-  return { html, report: issues };
+
+  // Fix: add missing ids to page-section divs in order
+  if (missingIds.length > 0) {
+    let idx = 0;
+    fixed = fixed.replace(/<div([^>]*class="[^"]*page-section[^"]*"[^>]*)>/g, (match, attrs) => {
+      if (attrs.includes('id=') || idx >= missingIds.length) { idx++; return match; }
+      const id = missingIds[idx++];
+      return `<div${attrs} id="${id}">`;
+    });
+  }
+
+  // Check dead href="#" links
+  const deadLinks = html.match(/href="#"(?!\w)/g);
+  if (deadLinks) issues.push(`Found ${deadLinks.length} dead href="#" links`);
+
+  return { html: fixed, report: issues };
 }
 
 function injectImages(
@@ -546,7 +557,7 @@ Here is the HTML:
 ${stitchHtml.substring(0, 85000)}`;
 
     const fixResponse = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-5",
       max_tokens: 8000,
       messages: [{ role: "user", content: fixPrompt }]
     });
@@ -570,13 +581,45 @@ ${stitchHtml.substring(0, 85000)}`;
     const cssContent = extractCSS(fixedHtml);
     console.log("STEP 7 DONE");
 
-    // STEP 8: Save to Redis
-    const processUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/process?id=${jobId}&secret=${process.env.PROCESS_SECRET}`;
-    const bookingsUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/bookings?jobId=${jobId}&secret=${process.env.PROCESS_SECRET}`;
+    // STEP 8: Save to Redis + generate client credentials
+    const processUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/fix?id=${jobId}&secret=${encodeURIComponent(process.env.PROCESS_SECRET || "")}`;
+    const bookingsUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/bookings?jobId=${jobId}&secret=${encodeURIComponent(process.env.PROCESS_SECRET || "")}`;
+
+    // Generate client portal credentials
+    const clientSlug = safeFileName(userInput.businessName);
+    const clientPassword = crypto.randomBytes(5).toString("hex"); // e.g. "a3f2b1c4d5"
+    const clientPortalUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/client/${clientSlug}`;
+    const clientSecret = process.env.PROCESS_SECRET || "";
+
+    // Save job data
     await redis.set(jobId, {
       html: finalHtml, title: spec.projectTitle, fileName, userInput,
       hasBooking: hasBookingFeature, jobId,
     }, { ex: 86400 });
+
+    // Save client portal data (no expiry)
+    await redis.set(`client:${clientSlug}`, {
+      slug: clientSlug,
+      password: clientPassword,
+      jobId,
+      clientSecret,
+      businessName: userInput.businessName,
+      name: userInput.name,
+      email: clientEmail,
+      phone: clientPhone,
+      industry: userInput.industry,
+      goal: userInput.goal,
+      siteType: userInput.siteType,
+      pages: userInput.pages,
+      features,
+      style: userInput.style,
+      abn: userInput.abn,
+      domain: userInput.domain,
+      quote,
+      previewUrl: "",
+      hasBooking: hasBookingFeature,
+      created: new Date().toISOString(),
+    });
 
     const productSummary = productsWithPhotos.length > 0
       ? productsWithPhotos.map(p => `${p.name} - ${p.price}${p.photoUrl ? ` - <a href="${p.photoUrl}">View photo</a>` : ""}`).join("<br/>")
@@ -633,36 +676,56 @@ ${stitchHtml.substring(0, 85000)}`;
       await resend.emails.send({
         from: "WebGecko <hello@webgecko.au>",
         to: clientEmail,
-        subject: `We've received your website request!`,
+        subject: `We've received your website request — ${userInput.businessName}`,
         html: `
-          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;">
-            <h1 style="font-size:28px;margin-bottom:8px;">Thank you, ${userInput.name}!</h1>
-            <p style="color:#666;margin-bottom:32px;">We have received your request and will be in touch within 24 hours.</p>
-            <div style="background:#f9f9f9;border-radius:12px;padding:24px;margin-bottom:24px;">
-              <h2 style="font-size:16px;margin-bottom:16px;color:#333;">Your Request Summary</h2>
-              <table style="width:100%;border-collapse:collapse;">
-                <tr><td style="padding:8px 0;color:#666;width:160px;">Business</td><td style="padding:8px 0;font-weight:600;">${userInput.businessName}</td></tr>
-                <tr><td style="padding:8px 0;color:#666;">Goal</td><td style="padding:8px 0;font-weight:600;">${userInput.goal}</td></tr>
-                <tr><td style="padding:8px 0;color:#666;">Site Type</td><td style="padding:8px 0;font-weight:600;">${userInput.siteType === "multi" ? "Multi Page" : "Single Page"}</td></tr>
-                <tr><td style="padding:8px 0;color:#666;">Pages</td><td style="padding:8px 0;font-weight:600;">${pageList}</td></tr>
-                <tr><td style="padding:8px 0;color:#666;">Features</td><td style="padding:8px 0;font-weight:600;">${features.join(", ") || "-"}</td></tr>
-                <tr><td style="padding:8px 0;color:#666;">Style</td><td style="padding:8px 0;font-weight:600;">${userInput.style || "-"}</td></tr>
-                ${userInput.abn ? `<tr><td style="padding:8px 0;color:#666;">ABN</td><td style="padding:8px 0;font-weight:600;">${userInput.abn}</td></tr>` : ""}
-                ${userInput.domain ? `<tr><td style="padding:8px 0;color:#666;">Domain</td><td style="padding:8px 0;font-weight:600;">${userInput.domain}</td></tr>` : ""}
-              </table>
+          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;background:#0a0f1a;">
+            <div style="text-align:center;margin-bottom:32px;">
+              <div style="font-size:40px;margin-bottom:8px;">🦎</div>
+              <h1 style="font-size:28px;margin-bottom:8px;color:#ffffff;">Thank you, ${userInput.name}!</h1>
+              <p style="color:#94a3b8;margin:0;">We have received your website request and our team is on it.</p>
             </div>
-            <div style="background:#0f172a;border-radius:12px;padding:24px;margin-bottom:24px;color:white;">
-              <h2 style="font-size:16px;margin-bottom:16px;color:#f2ca50;">Your Quote - ${quote.package} Package</h2>
-              <p style="font-size:32px;font-weight:800;margin:0;">$${quote.price.toLocaleString()}</p>
-              <p style="color:#94a3b8;margin-bottom:16px;">+ $${quote.monthlyPrice}/month hosting</p>
-              <div style="background:#22c55e20;border:1px solid #22c55e40;border-radius:8px;padding:16px;margin-top:16px;">
-                <p style="color:#22c55e;font-weight:bold;margin:0;">You are saving $${quote.savings.toLocaleString()} compared to the industry average of $${quote.competitorPrice.toLocaleString()}!</p>
+
+            <!-- Client Portal Login Box -->
+            <div style="background:#0f1623;border:2px solid #10b981;border-radius:16px;padding:24px;margin-bottom:24px;">
+              <h2 style="font-size:16px;margin-bottom:4px;color:#10b981;">🔐 Your Client Portal</h2>
+              <p style="color:#94a3b8;font-size:13px;margin-bottom:16px;">Track your project, view your site preview and manage bookings.</p>
+              <div style="background:#0a0f1a;border-radius:10px;padding:16px;margin-bottom:16px;">
+                <p style="margin:0 0 8px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;">Portal URL</p>
+                <a href="${clientPortalUrl}" style="color:#10b981;font-weight:600;font-size:15px;">${clientPortalUrl}</a>
+                <p style="margin:12px 0 4px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;">Username</p>
+                <p style="color:#e2e8f0;font-weight:600;font-size:15px;margin:0;">${clientSlug}</p>
+                <p style="margin:12px 0 4px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;">Password</p>
+                <p style="color:#e2e8f0;font-weight:600;font-size:15px;margin:0;font-family:monospace;">${clientPassword}</p>
+              </div>
+              <a href="${clientPortalUrl}" style="display:inline-block;background:#10b981;color:#000000;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">Access Your Portal →</a>
+            </div>
+
+            <!-- Quote -->
+            <div style="background:#0f1623;border-radius:12px;padding:24px;margin-bottom:24px;">
+              <h2 style="font-size:16px;margin-bottom:4px;color:#f2ca50;">Your Quote — ${quote.package} Package</h2>
+              <p style="font-size:36px;font-weight:800;margin:8px 0 4px;color:#ffffff;">$${quote.price.toLocaleString()}</p>
+              <p style="color:#94a3b8;margin-bottom:16px;font-size:13px;">+ $${quote.monthlyPrice}/month hosting & maintenance</p>
+              <div style="background:#052e16;border:1px solid #10b981;border-radius:8px;padding:14px;">
+                <p style="color:#10b981;font-weight:bold;margin:0;font-size:13px;">🎉 Saving $${quote.savings.toLocaleString()} vs the industry average of $${quote.competitorPrice.toLocaleString()}</p>
               </div>
             </div>
-            <p style="color:#666;">Reply to this email with any questions.</p>
-            <div style="border-top:1px solid #eee;padding-top:20px;margin-top:20px;">
-              <p style="color:#999;font-size:12px;">WebGecko - Professional Web Design | webgecko.au</p>
+
+            <!-- Summary -->
+            <div style="background:#0f1623;border-radius:12px;padding:24px;margin-bottom:24px;">
+              <h2 style="font-size:14px;margin-bottom:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Project Summary</h2>
+              <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <tr><td style="padding:6px 0;color:#64748b;width:140px;">Business</td><td style="padding:6px 0;color:#e2e8f0;font-weight:600;">${userInput.businessName}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;">Goal</td><td style="padding:6px 0;color:#e2e8f0;">${userInput.goal}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;">Site Type</td><td style="padding:6px 0;color:#e2e8f0;">${userInput.siteType === "multi" ? "Multi Page" : "Single Page"}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;">Pages</td><td style="padding:6px 0;color:#e2e8f0;">${pageList}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;">Features</td><td style="padding:6px 0;color:#e2e8f0;">${features.join(", ") || "-"}</td></tr>
+                ${userInput.abn ? `<tr><td style="padding:6px 0;color:#64748b;">ABN</td><td style="padding:6px 0;color:#e2e8f0;">${userInput.abn}</td></tr>` : ""}
+                ${userInput.domain ? `<tr><td style="padding:6px 0;color:#64748b;">Domain</td><td style="padding:6px 0;color:#e2e8f0;">${userInput.domain}</td></tr>` : ""}
+              </table>
             </div>
+
+            <p style="color:#64748b;font-size:12px;text-align:center;">Questions? Reply to this email or contact <a href="mailto:hello@webgecko.au" style="color:#94a3b8;">hello@webgecko.au</a></p>
+            <p style="color:#374151;font-size:11px;text-align:center;margin-top:8px;">WebGecko · Professional Web Design · webgecko.au</p>
           </div>
         `,
       });
