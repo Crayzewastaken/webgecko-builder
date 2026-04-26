@@ -24,19 +24,9 @@ cloudinary.config({
 });
 
 function extractJson(text: string) {
-  try {
-    const start = text.indexOf("{");
-    const end = text.lastIndexOf("}");
-    if (start === -1 || end === -1) throw new Error("No JSON found");
-    return JSON.parse(text.slice(start, end + 1));
-  } catch {
-    const titleMatch = text.match(/"projectTitle"\s*:\s*"([^"]+)"/);
-    const promptMatch = text.match(/"stitchPrompt"\s*:\s*"([\s\S]{0,2000})/);
-    return {
-      projectTitle: titleMatch?.[1] || "Website Project",
-      stitchPrompt: promptMatch?.[1]?.replace(/"\s*}?\s*$/, "") || text.slice(0, 2000),
-    };
-  }
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  return JSON.parse(text.slice(start, end + 1));
 }
 
 function safeFileName(name: string): string {
@@ -562,9 +552,24 @@ ${isMultiPage ? `This MUST be a proper multi-page site with pages: ${pageList}.
 ${hasBookingFeature && bookingWidgetHtml ? `7. BOOKING SECTION - inject this booking widget into the booking section (replace placeholder or inject before </body>):
 ${bookingWidgetHtml}` : ""}
 
-Here is the HTML:
+7. BUTTONS - make ALL buttons functional. For every button:
+   - "Get a Quote", "Contact Us", "Get in Touch", "Book Now", "Make an Appointment" → ${isMultiPage ? `onclick="navigateTo('contact')"` : `onclick="document.getElementById('contact')?.scrollIntoView({behavior:'smooth'})"`}
+   - "View Services", "Our Services" → ${isMultiPage ? `onclick="navigateTo('services')"` : `onclick="document.getElementById('services')?.scrollIntoView({behavior:'smooth'})"`}
+   - Never leave a button with href="#" or onclick="" that does nothing
 
-${stitchHtml.substring(0, 85000)}`;
+8. VALIDATION - before returning, mentally check:
+   - Every nav link works (has matching section/page id)
+   - No buttons do nothing when clicked
+   - Contact form shows success on submit
+   - Mobile menu toggles correctly
+   - If multi-page: ONLY first page is visible, all others display:none
+   - If the Stitch HTML is already correct and functional, preserve it exactly — only fix what is broken
+
+IMPORTANT: If the Stitch HTML is high quality and working correctly, do NOT rewrite it. Only fix the specific issues listed above. Preserve all styles, layouts and content from Stitch.
+
+Here is the HTML to review and fix:
+
+${stitchHtml.substring(0, 75000)}`;
 
     const fixResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
@@ -602,10 +607,11 @@ ${stitchHtml.substring(0, 85000)}`;
     const clientSecret = process.env.PROCESS_SECRET || "";
 
     // Save job data
-    await redis.set(jobId, {
+    await redis.set(`job:${jobId}`, {
       html: finalHtml, title: spec.projectTitle, fileName, userInput,
-      hasBooking: hasBookingFeature, jobId,
-    }, { ex: 86400 });
+      hasBooking: hasBookingFeature, jobId, email: clientEmail, phone: clientPhone,
+      businessName: userInput.businessName, industry: userInput.industry,
+    }, { ex: 86400 * 7 });
 
     // Save client portal data (no expiry)
     await redis.set(`client:${clientSlug}`, {
@@ -741,6 +747,14 @@ ${stitchHtml.substring(0, 85000)}`;
       });
       console.log("STEP 10 DONE");
     }
+
+    // Update client portal with preview URL now that we have it (set during email step)
+    try {
+      const existing = await redis.get<any>(`client:${clientSlug}`);
+      if (existing) {
+        await redis.set(`client:${clientSlug}`, { ...existing, previewUrl: "" });
+      }
+    } catch {}
 
     return NextResponse.json({ success: true, message: "Thank you! We have received your request and will be in touch shortly." });
 

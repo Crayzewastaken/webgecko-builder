@@ -17,10 +17,12 @@ export default function ClientLogin() {
       const res = await fetch("/api/client-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username: username.trim(), password: password.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Invalid credentials");
+      // Store auth flag in sessionStorage so dashboard knows we're logged in
+      sessionStorage.setItem(`wg_auth_${data.slug}`, "1");
       router.push(`/client/${data.slug}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Login failed");
@@ -47,6 +49,7 @@ export default function ClientLogin() {
                 onChange={e => setUsername(e.target.value)}
                 placeholder="your-business-name"
                 required
+                autoComplete="username"
                 className="w-full h-12 rounded-xl bg-slate-900/80 border border-white/10 px-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-all"
               />
             </div>
@@ -58,6 +61,7 @@ export default function ClientLogin() {
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
+                autoComplete="current-password"
                 className="w-full h-12 rounded-xl bg-slate-900/80 border border-white/10 px-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-all"
               />
             </div>
@@ -72,8 +76,8 @@ export default function ClientLogin() {
               {loading ? "Signing in..." : "Sign In →"}
             </button>
           </form>
-          <p className="text-slate-600 text-xs text-center mt-4">
-            Credentials were sent in your confirmation email.<br />
+          <p className="text-slate-600 text-xs text-center mt-6">
+            Your login credentials were sent in your confirmation email.<br />
             Need help? Contact <span className="text-slate-400">hello@webgecko.au</span>
           </p>
         </div>

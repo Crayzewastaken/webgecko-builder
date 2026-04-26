@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Load job from Redis
-  const job = await redis.get<any>(`job:${jobId}`);
+  const job = await redis.get<any>(`job:${jobId}`) || await redis.get<any>(jobId!);
   if (!job) {
     return new Response("Job not found", { status: 404 });
   }
@@ -122,8 +122,27 @@ Return ONLY the complete fixed HTML document starting with <!DOCTYPE html>. No e
     const { url: newPreviewUrl } = await deployToVercel(fixedHtml, `${job.businessName}-fixed`);
     console.log(`✅ Fixed site deployed: ${newPreviewUrl}`);
 
+    // Update client portal previewUrl
+    const clientSlug = job.fileName || job.userInput?.businessName?.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50);
+    if (clientSlug) {
+      try {
+        const existingClient = await redis.get<any>(`client:${clientSlug}`);
+        if (existingClient) {
+          await redis.set(`client:${clientSlug}`, { ...existingClient, previewUrl: newPreviewUrl });
+        }
+      } catch {}
+    }
+
     // Update Redis
-    await redis.set(`job:${jobId}`, { ...job, html: fixedHtml, previewUrl: newPreviewUrl, fixedAt: new Date().toISOString() }, { ex: 60 * 60 * 24 * 7 });
+    await redis.set(jobId!, { ...job, html: fixedHtml, previewUrl: newPreviewUrl, fixedAt: new Date().toISOString() }, { ex: 60 * 60 * 24 * 30 });
+    // Also update client portal with preview URL
+    if (job.userInput?.businessName) {
+      const slug = job.userInput.businessName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50);
+      const clientData = await redis.get<any>(`client:${slug}`);
+      if (clientData) {
+        await redis.set(`client:${slug}`, { ...clientData, previewUrl: newPreviewUrl });
+      }
+    }
 
     // Send updated owner email with new HTML attached
     try {
