@@ -726,10 +726,10 @@ ${stitchHtml.substring(0, 72000)}`;
 
     // STEP 8: Save to Redis + generate client credentials
     const processUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/fix?id=${jobId}&secret=${encodeURIComponent(process.env.PROCESS_SECRET || "")}`;
-    const bookingsUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/c/${clientSlug}/bookings`;
 
     // Generate client portal credentials
-    const clientSlug = safeFileName(userInput.businessName);
+    const clientSlug = safeFileName(userInput.businessName); 
+    const bookingsUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/c/${clientSlug}/bookings`;
     const clientPassword = crypto.randomBytes(5).toString("hex"); // e.g. "a3f2b1c4d5"
     const clientPortalUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/c/${clientSlug}`;
     const clientSecret = process.env.PROCESS_SECRET || "";
