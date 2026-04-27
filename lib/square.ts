@@ -29,52 +29,25 @@ async function squareRequest(method: string, path: string, body?: unknown) {
   return data;
 }
 
-// Dollars → cents (Square uses smallest unit, no decimals for AUD)
+// Dollars -> cents (Square uses smallest unit, no decimals for AUD)
 export function toCents(dollars: number): number {
   return Math.round(dollars * 100);
 }
 
-// Create a one-time payment link
-// Returns { url, orderId, paymentLinkId }
+// Create a one-time payment link.
+// Uses the order object (not quick_pay) so reference_id is embedded —
+// this is how the webhook knows which job + stage was paid.
+// Returns { url, paymentLinkId, orderId }
 export async function createPaymentLink(params: {
   amountDollars: number;
   title: string;
   description: string;
-  referenceId: string;      // your jobId — comes back in webhook
-  redirectUrl: string;      // where Square sends the customer after payment
+  referenceId: string;   // format: "job_xxx-deposit" | "job_xxx-final" | "job_xxx-monthly"
+  redirectUrl: string;
   buyerEmail?: string;
 }) {
-  const idempotencyKey = `${params.referenceId}-${Date.now()}`;
-
-  const body = {
-    idempotency_key: idempotencyKey,
-    quick_pay: {
-      name: params.title,
-      price_money: {
-        amount: toCents(params.amountDollars),
-        currency: "AUD",
-      },
-      location_id: process.env.SQUARE_LOCATION_ID,
-    },
-    payment_note: params.description,
-    pre_populated_data: params.buyerEmail
-      ? { buyer_email: params.buyerEmail }
-      : undefined,
-    checkout_options: {
-      redirect_url: params.redirectUrl,
-      ask_for_shipping_address: false,
-    },
-    order_service_charge: undefined,
-    // Attach your reference so webhook can identify the job
-    order: undefined,
-    // Use reference_id via quick_pay note — webhook uses order metadata
-    payment_link_request_metadata: undefined,
-  };
-
-  // Square Quick Pay doesn't support reference_id directly,
-  // so we embed it in the note and also pass it via the API's order object
-  const fullBody = {
-    idempotency_key: idempotencyKey,
+  const body: Record<string, unknown> = {
+    idempotency_key: `${params.referenceId}-${Date.now()}`,
     order: {
       location_id: process.env.SQUARE_LOCATION_ID,
       reference_id: params.referenceId,
@@ -90,17 +63,18 @@ export async function createPaymentLink(params: {
         },
       ],
     },
-    payment_note: `${params.referenceId}`,
-    pre_populated_data: params.buyerEmail
-      ? { buyer_email: params.buyerEmail }
-      : undefined,
     checkout_options: {
       redirect_url: params.redirectUrl,
       ask_for_shipping_address: false,
     },
   };
 
-  const data = await squareRequest("POST", "/v2/online-checkout/payment-links", fullBody);
+  if (params.buyerEmail) {
+    body.pre_populated_data = { buyer_email: params.buyerEmail };
+  }
+
+  const data = await squareRequest("POST", "/v2/online-checkout/payment-links", body);
+
   return {
     url: data.payment_link?.url as string,
     paymentLinkId: data.payment_link?.id as string,
@@ -108,12 +82,8 @@ export async function createPaymentLink(params: {
   };
 }
 
-// Create a subscription plan + subscribe the customer
-// Square subscriptions require a Customer + Card on file.
-// For WebGecko, we instead create a recurring payment link (monthly invoice link)
-// because we don't store cards. Customer clicks monthly link each month.
-// For a true auto-charge subscription, Square requires OAuth or card-on-file — 
-// that's a future upgrade. For now: generate a reusable monthly payment link.
+// Monthly payment link — just a regular payment link for the first month.
+// referenceId passed in is already "job_xxx-monthly" from the create route.
 export async function createMonthlyPaymentLink(params: {
   monthlyDollars: number;
   businessName: string;
@@ -121,21 +91,17 @@ export async function createMonthlyPaymentLink(params: {
   redirectUrl: string;
   buyerEmail?: string;
 }) {
-  // We create a standard payment link for the first month.
-  // For recurring, we'll re-create this link each month via a cron job (future).
-  // For now: one link the client can use to pay month 1.
   return createPaymentLink({
     amountDollars: params.monthlyDollars,
     title: `${params.businessName} — Monthly Hosting & Maintenance`,
     description: `Monthly performance & hosting fee for ${params.businessName}`,
-    referenceId: `${params.referenceId}-monthly`,
+    referenceId: params.referenceId,   // NOT appending -monthly again — caller already did
     redirectUrl: params.redirectUrl,
     buyerEmail: params.buyerEmail,
   });
 }
 
-// Verify a Square webhook signature
-// Square signs webhooks with HMAC-SHA256
+// Verify a Square webhook signature (HMAC-SHA256)
 export async function verifySquareWebhook(
   body: string,
   signatureHeader: string,
@@ -154,7 +120,7 @@ export async function verifySquareWebhook(
   const sig = await crypto.subtle.sign("HMAC", cryptoKey, msgData);
   const computed = Buffer.from(sig).toString("base64");
 
-  // Constant-time compare
+  // Constant-time compare to prevent timing attacks
   if (computed.length !== signatureHeader.length) return false;
   let diff = 0;
   for (let i = 0; i < computed.length; i++) {
