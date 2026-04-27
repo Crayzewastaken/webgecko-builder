@@ -24,9 +24,24 @@ cloudinary.config({
 });
 
 function extractJson(text: string) {
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  return JSON.parse(text.slice(start, end + 1));
+  try {
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start === -1 || end === -1) throw new Error("No JSON braces found");
+    return JSON.parse(text.slice(start, end + 1));
+  } catch {
+    // Response was truncated — extract what we can with regex
+    const titleMatch = text.match(/"projectTitle"\s*:\s*"([^"]+)"/);
+    const promptMatch = text.match(/"stitchPrompt"\s*:\s*"([\s\S]+)/);
+    let stitchPrompt = promptMatch?.[1] || text;
+    // Strip any trailing partial JSON artifacts
+    stitchPrompt = stitchPrompt.replace(/"\s*}?\s*$/, "").replace(/\\n/g, "\n").slice(0, 4000);
+    console.warn("extractJson: JSON truncated — using regex fallback");
+    return {
+      projectTitle: titleMatch?.[1] || "Website Project",
+      stitchPrompt,
+    };
+  }
 }
 
 function safeFileName(name: string): string {
@@ -465,11 +480,12 @@ export async function POST(req: Request) {
     console.log("STEP 1: Claude spec...");
     const promptResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
-      max_tokens: 3000,
+      max_tokens: 4000,
       messages: [{
         role: "user",
-        content: `Return ONLY valid JSON with "projectTitle" and "stitchPrompt". The stitchPrompt must be extremely detailed and specific.
+        content: `Your response must be ONLY a JSON object. Start your response with { and end with }. No text before or after. No markdown. No backticks.
 
+The JSON must have exactly two keys: "projectTitle" (short string) and "stitchPrompt" (detailed string).
 You are a senior UI designer and front-end developer. Preserve the imported design language. Prioritize clean spacing, premium typography, polished interactions and reusable components. Avoid generic layouts. Use Tailwind CSS and shadcn/ui where appropriate.
 
 Research the ${userInput.industry} industry. Think about what top-tier websites in this space look like. Design something distinctly better and more unique than the average. Do NOT copy any existing website. Create a distinctive premium design.
