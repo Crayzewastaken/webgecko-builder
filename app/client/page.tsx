@@ -23,7 +23,7 @@ export default function ClientLogin() {
       if (!res.ok) throw new Error(data.error || "Invalid credentials");
       // Store auth flag in sessionStorage so dashboard knows we're logged in
       sessionStorage.setItem(`wg_auth_${data.slug}`, "1");
-      router.push(`/client/${data.slug}`);
+      router.push(`/c/${data.slug}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Login failed");
     } finally {

@@ -94,32 +94,50 @@ async function uploadToCloudinary(buffer: Buffer, folder: string, filename: stri
 function checkAndFixLinks(html: string, pages: string[]): { html: string; report: string[] } {
   const issues: string[] = [];
   let fixed = html;
-
-  // Find all navigateTo calls and ensure matching IDs exist
+ 
   const navigateCalls = html.match(/navigateTo\(['"]([^'"]+)['"]\)/g) || [];
   const missingIds: string[] = [];
+ 
   navigateCalls.forEach(call => {
     const pageId = call.match(/navigateTo\(['"]([^'"]+)['"]\)/)?.[1];
     if (pageId && !html.includes(`id="${pageId}"`) && !missingIds.includes(pageId)) {
       missingIds.push(pageId);
       issues.push(`navigateTo('${pageId}') has no matching element`);
+      console.log(`Link Check: navigateTo('${pageId}') has no matching element`);
     }
   });
-
-  // Fix: add missing ids to page-section divs in order
-  if (missingIds.length > 0) {
-    let idx = 0;
+ 
+  for (const pageId of missingIds) {
+    // Strategy A: element whose class/data attr contains the id name
+    const classMatch = new RegExp(
+      `(<(?:section|div|article|main)[^>]*?(?:class|data-page|data-section)=["'][^"']*${pageId}[^"']*["'][^>]*>)`,
+      "i"
+    ).exec(fixed);
+    if (classMatch && !/\bid=/.test(classMatch[1])) {
+      fixed = fixed.replace(classMatch[1], classMatch[1].replace(">", ` id="${pageId}">`));
+      console.log(`Link Fix [A]: injected id="${pageId}" onto class-matched element`);
+      continue;
+    }
+ 
+    // Strategy B: first unid'd page-section div in document order
+    let injected = false;
     fixed = fixed.replace(/<div([^>]*class="[^"]*page-section[^"]*"[^>]*)>/g, (match, attrs) => {
-      if (attrs.includes('id=') || idx >= missingIds.length) { idx++; return match; }
-      const id = missingIds[idx++];
-      return `<div${attrs} id="${id}">`;
+      if (injected || attrs.includes("id=")) return match;
+      injected = true;
+      console.log(`Link Fix [B]: injected id="${pageId}" onto page-section div`);
+      return `<div${attrs} id="${pageId}">`;
     });
+    if (injected) continue;
+ 
+    // Strategy C: zero-height anchor fallback before </body>
+    const anchor = `<div id="${pageId}" style="position:relative;top:-80px;visibility:hidden;pointer-events:none;height:0;"></div>`;
+    fixed = fixed.replace("</body>", `${anchor}\n</body>`);
+    console.log(`Link Fix [C]: anchor fallback inserted for id="${pageId}"`);
   }
-
-  // Check dead href="#" links
+ 
   const deadLinks = html.match(/href="#"(?!\w)/g);
   if (deadLinks) issues.push(`Found ${deadLinks.length} dead href="#" links`);
-
+ 
   return { html: fixed, report: issues };
 }
 
@@ -632,6 +650,21 @@ You MUST preserve the Stitch-generated HTML EXACTLY except for the specific fixe
 - PRESERVE all content, copy, images, colors from Stitch
 
 === ALLOWED FIXES ONLY ===
+0. NAVIGATE-TO ID FIX — DO THIS FIRST:
+   a) Find every navigateTo('x') call in the HTML
+   b) Check if an element with id="x" exists anywhere in the HTML
+   c) If id="x" is MISSING: find the most relevant section (match by class name, heading text, or order among page-section divs) and add id="x" to its opening tag
+   d) If no match: insert <div id="x" style="position:relative;top:-80px;visibility:hidden;pointer-events:none;height:0;"></div> just before </body>
+   e) NEVER leave a navigateTo() call without a matching id in the page
+ 
+0b. CTA BUTTON WIRING:
+   Find ALL call-to-action buttons whose text contains any of: "Join Now", "Book Now",
+   "Get Started", "Sign Up", "Book a Session", "Try Free", "Enquire Now", "Schedule",
+   "Reserve". Also target any button inside a hero or banner section with no real href.
+   - If id="booking" exists in the page: add onclick="document.getElementById('booking').scrollIntoView({behavior:'smooth'})" to the button
+   - If id="booking" does NOT exist but id="contact" does: scroll to contact instead
+   - Never leave a hero CTA with href="#" and no action
+
 
 1. CONTACT DETAILS — Replace placeholder emails/phones with real ones:
    - Replace any example@, info@, hello@, contact@, admin@ with: ${clientEmail}
@@ -693,12 +726,12 @@ ${stitchHtml.substring(0, 72000)}`;
 
     // STEP 8: Save to Redis + generate client credentials
     const processUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/fix?id=${jobId}&secret=${encodeURIComponent(process.env.PROCESS_SECRET || "")}`;
-    const bookingsUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/bookings?jobId=${jobId}&secret=${encodeURIComponent(process.env.PROCESS_SECRET || "")}`;
+    const bookingsUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/c/${clientSlug}/bookings`;
 
     // Generate client portal credentials
     const clientSlug = safeFileName(userInput.businessName);
     const clientPassword = crypto.randomBytes(5).toString("hex"); // e.g. "a3f2b1c4d5"
-    const clientPortalUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/client/${clientSlug}`;
+    const clientPortalUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/c/${clientSlug}`;
     const clientSecret = process.env.PROCESS_SECRET || "";
 
     // Save job data
