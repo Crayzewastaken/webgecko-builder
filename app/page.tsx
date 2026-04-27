@@ -297,6 +297,7 @@ export default function HomePage() {
     if (heroFile) formData.append("hero", heroFile);
     photoFiles.forEach((f, i) => formData.append(`photo_${i}`, f));
 
+    setSubmitted(true);
     fetch("/api/worker", { method: "POST", body: formData }).catch(console.error);
   }
 
