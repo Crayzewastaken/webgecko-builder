@@ -730,6 +730,7 @@ ${stitchHtml.substring(0, 72000)}`;
     // Generate client portal credentials
     const clientSlug = safeFileName(userInput.businessName); 
     const bookingsUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/c/${clientSlug}/bookings`;
+    const unlockUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/payment/unlock?jobId=${jobId}&secret=${encodeURIComponent(process.env.PROCESS_SECRET || "")}`;
     const clientPassword = crypto.randomBytes(5).toString("hex"); // e.g. "a3f2b1c4d5"
     const clientPortalUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/c/${clientSlug}`;
     const clientSecret = process.env.PROCESS_SECRET || "";
@@ -804,6 +805,7 @@ ${stitchHtml.substring(0, 72000)}`;
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
           <a href="${processUrl}" style="background:#22c55e;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">🔧 Fix This Site</a>
           ${hasBookingFeature ? `<a href="${bookingsUrl}" style="background:#10b981;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">📅 View Bookings</a>` : ""}
+          <a href="${unlockUrl}" style="background:#8b5cf6;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">🔓 Unlock Final Payment</a>
         </div>
         <p style="color:#94a3b8;font-size:12px;">Fix link expires 24hrs</p>
       `,
