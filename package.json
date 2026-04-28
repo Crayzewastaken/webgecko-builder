@@ -13,6 +13,7 @@
     "@google/stitch-sdk": "^0.1.0",
     "@upstash/redis": "^1.37.0",
     "cloudinary": "^2.9.0",
+    "inngest": "^4.2.5",
     "jsdom": "^29.0.2",
     "next": "16.2.3",
     "pocketbase": "^0.26.8",
