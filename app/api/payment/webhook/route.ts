@@ -135,6 +135,24 @@ export async function POST(req: NextRequest) {
     await redis.set(paymentStateKey, paymentState);
     console.log(`Payment confirmed: jobId=${jobId} stage=${stage} paymentId=${squarePaymentId}`);
 
+    // 5b. If deposit paid — trigger the pipeline (fire and forget)
+    if (stage === "deposit") {
+      try {
+        const pipelineUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/pipeline/run`;
+        await fetch(pipelineUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jobId,
+            secret: process.env.PROCESS_SECRET,
+          }),
+        }).catch(err => console.error(`Failed to trigger pipeline for ${jobId}:`, err));
+        console.log(`Pipeline triggered for jobId=${jobId}`);
+      } catch (e) {
+        console.error(`Failed to trigger pipeline:`, e);
+      }
+    }
+
     // 6. If final payment confirmed — auto-unlock site launch
     //    (update client portal to show launch ready state)
     if (stage === "final") {
