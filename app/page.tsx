@@ -142,6 +142,7 @@ export default function HomePage() {
   const [phone, setPhone] = useState("");
   const [abn, setAbn] = useState("");
   const [domain, setDomain] = useState("");
+  const [ga4Id, setGa4Id] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [heroFile, setHeroFile] = useState<File | null>(null);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
@@ -286,7 +287,7 @@ export default function HomePage() {
     localStorage.removeItem(STORAGE_KEY);
 
     const formData = new FormData();
-    const fields: Record<string, string> = { businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, turnstileToken };
+    const fields: Record<string, string> = { businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, ga4Id, turnstileToken };
     Object.entries(fields).forEach(([k, v]) => formData.append(k, v));
     formData.append("pages", JSON.stringify(pages));
     formData.append("features", JSON.stringify(features));
@@ -561,6 +562,7 @@ export default function HomePage() {
                 <InputField icon="📱" label="Phone Number" value={phone} onChange={(e: any) => setPhone(e.target.value)} placeholder="04XX XXX XXX" required type="tel" />
                 <InputField icon="🔢" label="ABN" value={abn} onChange={(e: any) => setAbn(e.target.value)} placeholder="12 345 678 901" required hint="Required to register your .com.au domain." />
 		<InputField icon="🌐" label="Preferred Domain Name" value={domain} onChange={(e: any) => setDomain(e.target.value)} placeholder="e.g.mysalonbrisbane.com.au" required hint="Already have one? Enter it here. Don't have one? We'll register it for you." />
+                <InputField icon="📊" label="Google Analytics ID (optional)" value={ga4Id} onChange={(e: any) => setGa4Id(e.target.value)} placeholder="G-XXXXXXXXXX" hint="If you have a GA4 property, we'll wire it into your site automatically." />
               </div>
               <div><div ref={turnstileRef} />{!turnstileToken && turnstileReady && <p className="text-slate-500 text-xs mt-2">Complete the security check above to submit</p>}</div>
               {quote && (
@@ -627,9 +629,7 @@ export default function HomePage() {
                 <p className="text-2xl font-bold text-white">${quote.totalPrice.toLocaleString()}</p>
                 <p className="text-slate-500 text-xs">+ ${quote.monthlyPrice}/month</p>
                 <p className="text-emerald-400 text-xs mt-1 font-semibold">{quote.packageName} Package</p>
-                <div className="mt-2 bg-emerald-500/10 rounded-lg p-2">
-                  <p className="text-emerald-400 text-xs">Saving ${quote.savings.toLocaleString()} vs agencies</p>
-                </div>
+                <p className="text-emerald-400 text-xs font-semibold">🎉 Saving ${quote.savings.toLocaleString()}</p>
               </div>
             )}
           </div>

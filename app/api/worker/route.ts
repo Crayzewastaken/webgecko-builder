@@ -118,6 +118,7 @@ export async function POST(req: Request) {
       abn: getString("abn"),
       domain: getString("domain"),
       businessAddress: getString("businessAddress"),
+      ga4Id: getString("ga4Id"),
     };
 
     const pageList = Array.isArray(userInput.pages) && userInput.pages.length > 0
