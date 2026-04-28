@@ -176,6 +176,14 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
     ? `<iframe width="100%" height="350" style="border:0;border-radius:12px;" loading="lazy" allowfullscreen src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe>`
     : "";
 
+  // Extract all existing IDs from Stitch HTML so Haiku knows what's actually there
+  const existingIds = [...stitchHtml.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]);
+  const existingIdsStr = existingIds.join(", ");
+
+  // Extract all navigateTo calls so Haiku knows exactly what needs to resolve
+  const navigateCalls = [...new Set([...stitchHtml.matchAll(/navigateTo\(['"]([^'"]+)['"]\)/g)].map(m => m[1]))];
+  const missingIds = navigateCalls.filter(id => !existingIds.includes(id));
+
   const fixPrompt = `You are a STRICT HTML post-processor for a production web design system.
 You are NOT a designer. You must NOT change layout, structure, styling, or Tailwind classes.
 Preserve the Stitch-generated HTML EXACTLY except for the specific fixes below.
@@ -185,17 +193,25 @@ Preserve the Stitch-generated HTML EXACTLY except for the specific fixes below.
 - DO NOT convert onclick="navigateTo(...)" to href links
 - DO NOT invent new sections or add features not listed
 - PRESERVE all content, copy, images, colors from Stitch
+- NEVER create a duplicate id — if an element already has an id, do not add the same id elsewhere
+- NEVER nest an element with id="X" inside another element that already has id="X"
 
-=== NAVIGATE-TO ID FIX (do this first) ===
-For every navigateTo('x') call, check if id="x" exists. If missing:
-- Find the most relevant section (match by class name, heading text, or position) and add id="x" to its opening tag
-- If no match: insert <div id="x" style="position:relative;top:-80px;visibility:hidden;pointer-events:none;height:0;"></div> before </body>
-NEVER leave a navigateTo() without a matching id.
+=== EXISTING IDs IN THIS HTML ===
+These IDs already exist: ${existingIdsStr}
+Do NOT add these IDs anywhere else in the document.
+
+=== NAVIGATE-TO ID FIX ===
+These navigateTo() calls have NO matching id element and MUST be fixed: ${missingIds.length > 0 ? missingIds.join(", ") : "none — all IDs are present"}
+
+For each missing id:
+1. FIRST: scan the HTML for a section whose heading text or class name semantically matches the id (e.g. navigateTo('contact') → find a section with "Contact" heading or class containing "contact")
+2. If found: add id="[missing_id]" to that section's opening tag (only if it doesn't already have an id)
+3. If not found: add a new page-section div with that id BEFORE </body>: <div class="page-section" id="[missing_id]" style="display:none;padding:80px 24px;"></div>
 
 === CTA BUTTON FIX ===
 Hero CTA buttons with href="#" or no action (text: Join Now, Book Now, Get Started, Sign Up, etc.):
-- If id="booking" exists: add onclick="document.getElementById('booking').scrollIntoView({behavior:'smooth'})"
-- Else: add onclick="document.getElementById('contact')?.scrollIntoView({behavior:'smooth'})"
+- If id="booking" exists in the existing IDs above: add onclick="window.navigateTo('booking')"
+- Else: add onclick="window.navigateTo('contact')"
 
 === CONTACT DETAILS ===
 Replace placeholder emails/phones:
@@ -210,7 +226,7 @@ ${isMultiPage
 ${googleMapsEmbed ? `=== MAP ===\nInject inside existing map/location section: ${googleMapsEmbed}` : ""}
 
 ${hasBookingFeature && bookingWidgetHtml
-  ? `=== BOOKING ===\nReplace placeholder content INSIDE existing id="booking" section (do NOT create a new section) with:\n${bookingWidgetHtml.substring(0, 3000)}`
+  ? `=== BOOKING ===\nFind the existing element with id="booking" in the HTML. Replace ONLY its inner content with the widget below. DO NOT create a new id="booking" element. DO NOT wrap it in another element with id="booking".\n${bookingWidgetHtml.substring(0, 3000)}`
   : ""}
 
 === OUTPUT ===
@@ -241,7 +257,8 @@ ${stitchHtml.substring(0, 72000)}`;
   );
 
   // STEP 7: Inject essentials (navigateTo, hamburger, forms, cart) + images
-  let finalHtml = injectEssentials(checkedHtml, clientEmail, clientPhone);
+  const ga4Id = job.ga4Id || userInput.ga4Id || "";
+  let finalHtml = injectEssentials(checkedHtml, clientEmail, clientPhone, jobId, ga4Id);
   finalHtml = injectImages(finalHtml, logoUrl, heroUrl, photoUrls, productsWithPhotos);
   const cssContent = extractCSS(fixedHtml);
   console.log(`PIPELINE [${jobId}] STEP 7 DONE`);

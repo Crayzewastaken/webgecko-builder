@@ -136,16 +136,17 @@ export async function POST(req: NextRequest) {
     await redis.set(paymentStateKey, paymentState);
     console.log(`Payment confirmed: jobId=${jobId} stage=${stage} paymentId=${squarePaymentId}`);
 
-    // 5b. If deposit paid — send event to Inngest
+    // 5b. If deposit paid — trigger Inngest build
     if (stage === "deposit") {
       try {
+        // Send event to Inngest to trigger the build
         await inngest.send({
-          name: "payment.deposit.completed",
+          name: "build/website",
           data: { jobId },
         });
-        console.log(`Inngest event sent for ${jobId}`);
+        console.log(`Build triggered via Inngest for ${jobId}`);
       } catch (e) {
-        console.error(`Failed to send Inngest event for ${jobId}:`, e);
+        console.error(`Failed to trigger Inngest build for ${jobId}:`, e);
       }
     }
 

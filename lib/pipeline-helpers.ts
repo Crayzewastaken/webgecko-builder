@@ -113,10 +113,28 @@ export function checkAndFixLinks(html: string, pages: string[]): { html: string;
     });
     if (injected) continue;
 
-    // Strategy C: anchor fallback
-    const anchor = `<div id="${pageId}" style="position:relative;top:-80px;visibility:hidden;pointer-events:none;height:0;"></div>`;
-    fixed = fixed.replace("</body>", `${anchor}\n</body>`);
-    console.log(`Link Fix [C]: anchor fallback for id="${pageId}"`);
+    // Strategy C: if it looks like a contact page, inject a real contact section
+    if (/contact|get.?in.?touch|reach|enquir/i.test(pageId)) {
+      const contactSection = `<div class="page-section" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;">
+  <div style="max-width:600px;margin:0 auto;">
+    <h2 style="color:#f2ca50;font-size:2rem;font-weight:900;text-transform:uppercase;margin-bottom:24px;">Contact Us</h2>
+    <form style="display:flex;flex-direction:column;gap:16px;" onsubmit="event.preventDefault();this.innerHTML='<p style=color:#22c55e;font-weight:bold;>Thank you! We will be in touch within 24 hours.</p>'">
+      <input type="text" placeholder="Your Name" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/>
+      <input type="email" placeholder="Your Email" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/>
+      <input type="tel" placeholder="Your Phone" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/>
+      <textarea placeholder="Your Message" rows="5" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;resize:vertical;"></textarea>
+      <button type="submit" style="background:#f2ca50;color:#0f0f0f;font-weight:900;padding:16px;border:none;border-radius:8px;font-size:1rem;cursor:pointer;text-transform:uppercase;letter-spacing:0.1em;">Send Message</button>
+    </form>
+  </div>
+</div>`;
+      fixed = fixed.replace("</body>", `${contactSection}\n</body>`);
+      console.log(`Link Fix [C]: injected contact section for id="${pageId}"`);
+    } else {
+      // Generic anchor fallback
+      const anchor = `<div id="${pageId}" style="position:relative;top:-80px;visibility:hidden;pointer-events:none;height:0;"></div>`;
+      fixed = fixed.replace("</body>", `${anchor}\n</body>`);
+      console.log(`Link Fix [C]: anchor fallback for id="${pageId}"`);
+    }
   }
 
   const deadLinks = (html.match(/href="#"(?!\w)/g) || []).length;
@@ -129,7 +147,7 @@ export function checkAndFixLinks(html: string, pages: string[]): { html: string;
 // Full version from original worker — includes navigateTo, hamburger, FAQ accordion,
 // cart toast, form handler, multi-page init
 
-export function injectEssentials(html: string, email: string, phone: string): string {
+export function injectEssentials(html: string, email: string, phone: string, jobId?: string, ga4Id?: string): string {
   let processed = html;
 
   if (email) {
@@ -153,8 +171,9 @@ window.navigateTo = function(pageId) {
   document.querySelectorAll(".page,.page-section").forEach(function(p) { p.style.display = "none"; p.classList.remove("active"); });
   var t = document.getElementById(pageId) || document.getElementById("page-" + pageId) || document.querySelector('[data-page="' + pageId + '"]');
   if (t) { t.style.display = "block"; t.classList.add("active"); window.scrollTo({ top: 0, behavior: "smooth" }); }
-  var mm = document.getElementById("mobile-menu") || document.getElementById("mobile-nav");
-  if (mm) { mm.classList.add("hidden"); mm.style.display = "none"; }
+  // Close any open mobile drawer/menu
+  var mm = document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.getElementById("side-drawer");
+  if (mm) { mm.classList.add("hidden"); mm.style.display = "none"; mm.classList.remove("translate-x-0"); mm.classList.add("translate-x-full"); }
 };
 document.querySelectorAll("a,button").forEach(function(el) {
   var oc = el.getAttribute("onclick") || "", hr = el.getAttribute("href") || "", dn = el.getAttribute("data-nav") || "", dp = el.getAttribute("data-page") || "";
@@ -163,14 +182,31 @@ document.querySelectorAll("a,button").forEach(function(el) {
   if (dp) { el.addEventListener("click", function(e) { e.preventDefault(); window.navigateTo(dp); }); return; }
   if (hr.startsWith("#") && hr.length > 1) { el.addEventListener("click", function(e) { var t = document.querySelector(hr); if (t) { e.preventDefault(); t.scrollIntoView({ behavior: "smooth" }); } }); }
 });
-document.querySelectorAll("#hamburger,#hamburger-btn,[class*='hamburger'],[aria-label='Open menu'],[aria-label='Menu']").forEach(function(btn) {
+// Hamburger — catches id="hamburger", id="menu-toggle", class*=hamburger, aria-label patterns
+document.querySelectorAll("#hamburger,#hamburger-btn,#menu-toggle,[class*='hamburger'],[aria-label='Open menu'],[aria-label='Menu'],[aria-label='Toggle menu']").forEach(function(btn) {
   if (btn.getAttribute("onclick")) return;
   btn.addEventListener("click", function() {
-    document.querySelectorAll("#mobile-menu,#mobile-nav,[class*='mobile-menu'],[class*='mobile-nav']").forEach(function(menu) {
-      var h = menu.classList.contains("hidden") || menu.style.display === "none" || getComputedStyle(menu).display === "none";
-      if (h) { menu.classList.remove("hidden"); menu.style.display = "flex"; menu.style.flexDirection = "column"; }
-      else { menu.classList.add("hidden"); menu.style.display = "none"; }
-    });
+    // Find the drawer/menu — catches id="side-drawer", id="mobile-menu", id="mobile-nav", class patterns
+    var drawer = document.getElementById("side-drawer") || document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.querySelector("[class*='side-drawer'],[class*='mobile-menu'],[class*='mobile-nav']");
+    if (!drawer) return;
+    var isOpen = drawer.style.transform === "translateX(0px)" || drawer.style.transform === "translateX(0)" || !drawer.classList.contains("translate-x-full") && drawer.getBoundingClientRect().right > 0 && drawer.getBoundingClientRect().left < window.innerWidth;
+    // For Tailwind translate-based drawers (translate-x-full = closed)
+    if (drawer.classList.contains("translate-x-full") || drawer.style.transform === "translateX(100%)") {
+      drawer.classList.remove("translate-x-full"); drawer.classList.add("translate-x-0"); drawer.style.transform = "translateX(0)";
+    } else if (drawer.classList.contains("translate-x-0") || drawer.style.transform === "translateX(0px)" || drawer.style.transform === "translateX(0)") {
+      drawer.classList.remove("translate-x-0"); drawer.classList.add("translate-x-full"); drawer.style.transform = "translateX(100%)";
+    } else {
+      // Fallback: toggle display
+      var h = getComputedStyle(drawer).display === "none";
+      drawer.style.display = h ? "flex" : "none";
+    }
+  });
+});
+// Close drawer button
+document.querySelectorAll("#close-drawer,[aria-label='Close menu'],[aria-label='Close']").forEach(function(btn) {
+  btn.addEventListener("click", function() {
+    var drawer = document.getElementById("side-drawer") || document.getElementById("mobile-menu") || document.getElementById("mobile-nav");
+    if (drawer) { drawer.classList.remove("translate-x-0"); drawer.classList.add("translate-x-full"); drawer.style.transform = "translateX(100%)"; drawer.style.display = "none"; }
   });
 });
 document.querySelectorAll("details").forEach(function(d) {
@@ -193,8 +229,48 @@ if (pages.length > 1) { var ha = false; pages.forEach(function(p) { if (p.classL
 })();
 </script>`;
 
-  if (processed.includes("</body>")) return processed.replace("</body>", script + "</body>");
-  return processed + script;
+  // WebGecko analytics tracker
+  const wgApiBase = (process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko-builder.vercel.app") + "/api/analytics/track";
+  const trackerScript = jobId ? [
+    '<script>',
+    '(function(){',
+    '  var WG_JOB="' + jobId + '";',
+    '  var WG_API="' + wgApiBase + '";',
+    '  function wgTrack(event,page){try{fetch(WG_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:WG_JOB,event:event,page:page||window.location.pathname})});}catch(e){}}',
+    '  wgTrack("page_view",document.title||window.location.pathname);',
+    '  document.addEventListener("click",function(e){',
+    '    var el=e.target.closest("a,button");',
+    '    if(!el)return;',
+    '    var txt=(el.textContent||"").toLowerCase();',
+    '    var href=el.getAttribute("href")||"";',
+    '    var oc=el.getAttribute("onclick")||"";',
+    '    if(txt.includes("book")||oc.includes("booking")||href.includes("booking")){wgTrack("booking_click");}',
+    '    else if(txt.includes("contact")||oc.includes("contact")||href.includes("contact")){wgTrack("contact_click");}',
+    '  });',
+    '  document.addEventListener("submit",function(e){wgTrack("form_submit");});',
+    '})();',
+    '</script>',
+  ].join("\n") : "";
+
+  // GA4 tag
+  const ga4Script = ga4Id ? `
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=${ga4Id}"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', '${ga4Id}');
+</script>` : "";
+
+  // Inject GA4 into <head> if possible
+  if (ga4Script && processed.includes("</head>")) {
+    processed = processed.replace("</head>", ga4Script + "\n</head>");
+  }
+
+  const allScripts = script + trackerScript;
+  if (processed.includes("</body>")) return processed.replace("</body>", allScripts + "</body>");
+  return processed + allScripts;
 }
 
 // ─── injectImages ─────────────────────────────────────────────────────────────
@@ -274,7 +350,6 @@ export const SLOT_DURATIONS: Record<string, number> = {
   legal: 60, accounting: 60, financial: 60,
   beauty: 45, hair: 45, spa: 60, fitness: 60,
   "personal training": 60, cleaning: 120,
-  trades: 60, plumbing: 60, electrical: 60,
   consulting: 60, coaching: 60, photography: 120,
   default: 60,
 };
