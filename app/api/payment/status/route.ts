@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
 
   // Load payment state
   const paymentState = await redis.get<any>(`payment:${jobId}`) || {
-    depositPaid: false, finalUnlocked: false, finalPaid: false, monthlyActive: false, payments: {},
+    depositPaid: false, finalUnlocked: false, finalPaid: false, monthlyActive: false, previewUnlocked: false, payments: {},
   };
 
   return NextResponse.json({
@@ -78,6 +78,7 @@ export async function GET(req: NextRequest) {
     finalUnlocked: paymentState.finalUnlocked,
     finalPaid: paymentState.finalPaid,
     monthlyActive: paymentState.monthlyActive,
+    previewUnlocked: paymentState.previewUnlocked,
     quote: {
       total: totalPrice,
       monthly: monthlyPrice,

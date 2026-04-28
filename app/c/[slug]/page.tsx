@@ -51,6 +51,7 @@ interface PaymentStatus {
   finalUnlocked: boolean;
   finalPaid: boolean;
   monthlyActive: boolean;
+  previewUnlocked: boolean;
   quote: {
     total: number;
     monthly: number;
@@ -218,7 +219,7 @@ export default function ClientPortal() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" },
     { id: "preview", label: "Site Preview" },
-    ...(client?.hasBooking ? [{ id: "bookings" as Tab, label: "Bookings" }] : []),
+    ...(client?.hasBooking && paymentStatus?.previewUnlocked ? [{ id: "bookings" as Tab, label: "Bookings" }] : []),
     { id: "quote", label: "Quote & Pay" },
   ];
 
@@ -487,7 +488,7 @@ export default function ClientPortal() {
               </div>
             )}
 
-            {client.hasBooking && (
+            {client.hasBooking && paymentStatus?.previewUnlocked && (
               <div style={c.card}>
                 <div style={c.cardLabel}>Booking Admin</div>
                 <div style={{ color: "#555", fontSize: "13px", marginBottom: "12px" }}>
@@ -527,7 +528,17 @@ export default function ClientPortal() {
         ════════════════════════════════════════ */}
         {tab === "preview" && (
           <div style={c.card}>
-            {client.previewUrl ? (
+            {!paymentStatus?.previewUnlocked ? (
+              <div style={{ textAlign: "center", padding: "48px 0" }}>
+                <div style={{ fontSize: "36px", marginBottom: "12px" }}>🔒</div>
+                <div style={{ color: "#888", fontSize: "15px", marginBottom: "6px" }}>
+                  Coming soon
+                </div>
+                <div style={{ color: "#444", fontSize: "13px" }}>
+                  The preview will be available shortly.
+                </div>
+              </div>
+            ) : client.previewUrl ? (
               <>
                 <div style={c.cardLabel}>Live Preview</div>
                 <div style={{
@@ -584,27 +595,41 @@ export default function ClientPortal() {
         ════════════════════════════════════════ */}
         {tab === "bookings" && client.hasBooking && (
           <>
-            <div style={c.card}>
-              <div style={c.cardLabel}>Booking Requests</div>
-              <div style={{ color: "#555", fontSize: "13px", marginBottom: "12px" }}>
-                Recent submissions from your website.
+            {!paymentStatus?.previewUnlocked ? (
+              <div style={c.card}>
+                <div style={{ textAlign: "center", padding: "48px 0" }}>
+                  <div style={{ fontSize: "36px", marginBottom: "12px" }}>🔒</div>
+                  <div style={{ color: "#888", fontSize: "15px", marginBottom: "6px" }}>
+                    Coming soon
+                  </div>
+                  <div style={{ color: "#444", fontSize: "13px" }}>
+                    Bookings will be available shortly.
+                  </div>
+                </div>
               </div>
-              <a
-                href={`/c/${slug}/bookings`}
-                style={{
-                  display: "inline-block",
-                  background: "linear-gradient(135deg, #00c896, #0099ff)",
-                  color: "#000",
-                  borderRadius: "8px",
-                  padding: "10px 20px",
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  textDecoration: "none",
-                }}
-              >
-                Full Booking Dashboard →
-              </a>
-            </div>
+            ) : (
+              <div style={c.card}>
+                <div style={c.cardLabel}>Booking Requests</div>
+                <div style={{ color: "#555", fontSize: "13px", marginBottom: "12px" }}>
+                  Recent submissions from your website.
+                </div>
+                <a
+                  href={`/c/${slug}/bookings`}
+                  style={{
+                    display: "inline-block",
+                    background: "linear-gradient(135deg, #00c896, #0099ff)",
+                    color: "#000",
+                    borderRadius: "8px",
+                    padding: "10px 20px",
+                    fontSize: "14px",
+                    fontWeight: 700,
+                    textDecoration: "none",
+                  }}
+                >
+                  Full Booking Dashboard →
+                </a>
+              </div>
+            )}
 
             {bookings.length === 0 ? (
               <div style={{ ...c.card, textAlign: "center", padding: "48px" }}>

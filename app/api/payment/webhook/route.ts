@@ -16,6 +16,8 @@ interface ClientPaymentState {
   finalUnlocked: boolean;
   finalPaid: boolean;
   monthlyActive: boolean;
+  previewUnlocked: boolean;
+  previewUnlockedAt?: string;
   payments: Record<string, {
     stage: string;
     status: string;
@@ -115,6 +117,7 @@ export async function POST(req: NextRequest) {
       finalUnlocked: false,
       finalPaid: false,
       monthlyActive: false,
+      previewUnlocked: false,
       payments: {},
     };
 

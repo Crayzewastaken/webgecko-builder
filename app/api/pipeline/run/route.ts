@@ -276,6 +276,7 @@ ${stitchHtml.substring(0, 72000)}`;
   // STEP 9: Update Redis
   const processUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/fix?id=${jobId}&secret=${encodeURIComponent(process.env.PROCESS_SECRET || "")}`;
   const unlockUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/payment/unlock?jobId=${jobId}&secret=${encodeURIComponent(process.env.PROCESS_SECRET || "")}`;
+  const releaseUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/unlock/release?jobId=${jobId}&secret=${encodeURIComponent(process.env.PROCESS_SECRET || "")}`;
   const bookingsUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/c/${clientSlug}/bookings`;
 
   await redis.set(`job:${jobId}`, {
@@ -318,9 +319,9 @@ ${stitchHtml.substring(0, 72000)}`;
         ${previewUrl ? `<p><a href="${previewUrl}" style="color:#22c55e;">🌐 View Preview</a></p>` : ""}
         <br/>
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <a href="${releaseUrl}" style="background:#00c896;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">📤 Release to Client</a>
           <a href="${processUrl}" style="background:#22c55e;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">🔧 Fix This Site</a>
           <a href="${unlockUrl}" style="background:#8b5cf6;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">🔓 Unlock Final Payment</a>
-          ${hasBookingFeature ? `<a href="${bookingsUrl}" style="background:#10b981;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">📅 View Bookings</a>` : ""}
         </div>
         <p style="color:#94a3b8;font-size:12px;margin-top:12px;">HTML and CSS files attached below.</p>
       `,
