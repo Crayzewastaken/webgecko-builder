@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 import { verifySquareWebhook } from "@/lib/square";
+import { inngest } from "@/lib/inngest";
 
 export const runtime = "nodejs";
 
@@ -135,24 +136,22 @@ export async function POST(req: NextRequest) {
     await redis.set(paymentStateKey, paymentState);
     console.log(`Payment confirmed: jobId=${jobId} stage=${stage} paymentId=${squarePaymentId}`);
 
-    // 5b. If deposit paid — trigger the pipeline asynchronously
+    // 5b. If deposit paid — trigger the pipeline via Inngest (no time limit)
     if (stage === "deposit") {
-      // Don't await — start the pipeline in background and return webhook response immediately
-      // The pipeline will complete even after this webhook returns (up to maxDuration limit)
-      fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/pipeline/run`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobId,
-          secret: process.env.PROCESS_SECRET,
-        }),
-      }).then(res => {
-        if (res.ok) {
-          console.log(`Pipeline request sent for jobId=${jobId}`);
-        } else {
-          console.error(`Pipeline request failed for ${jobId}: ${res.status}`);
-        }
-      }).catch(e => console.error(`Failed to trigger pipeline for ${jobId}:`, e));
+      try {
+        // Send event to Inngest — it will handle running the pipeline with no time limits
+        await inngest.send({
+          name: "payment/deposit.completed",
+          data: {
+            jobId,
+            stage: "deposit",
+            squarePaymentId,
+          },
+        });
+        console.log(`Inngest event sent for jobId=${jobId}`);
+      } catch (e) {
+        console.error(`Failed to send Inngest event for ${jobId}:`, e);
+      }
     }
 
     // 6. If final payment confirmed — auto-unlock site launch

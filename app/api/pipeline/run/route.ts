@@ -2,7 +2,7 @@
 // Full Stitch + Claude build pipeline.
 // Triggered by Square webhook (POST) after deposit paid, or manually (GET) by owner.
 
-export const maxDuration = 300;
+export const maxDuration = 60; // Inngest handles long runs, this endpoint is rarely called directly
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
