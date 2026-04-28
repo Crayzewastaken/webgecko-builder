@@ -136,19 +136,14 @@ export async function POST(req: NextRequest) {
     await redis.set(paymentStateKey, paymentState);
     console.log(`Payment confirmed: jobId=${jobId} stage=${stage} paymentId=${squarePaymentId}`);
 
-    // 5b. If deposit paid — trigger the pipeline via Inngest (no time limit)
+    // 5b. If deposit paid — send event to Inngest
     if (stage === "deposit") {
       try {
-        // Send event to Inngest — it will handle running the pipeline with no time limits
         await inngest.send({
-          name: "payment/deposit.completed",
-          data: {
-            jobId,
-            stage: "deposit",
-            squarePaymentId,
-          },
+          name: "payment.deposit.completed",
+          data: { jobId },
         });
-        console.log(`Inngest event sent for jobId=${jobId}`);
+        console.log(`Inngest event sent for ${jobId}`);
       } catch (e) {
         console.error(`Failed to send Inngest event for ${jobId}:`, e);
       }
