@@ -30,7 +30,7 @@ const redis = new Redis({
 
 // ─── Core pipeline ────────────────────────────────────────────────────────────
 
-async function runPipeline(jobId: string): Promise<{ success: boolean; error?: string }> {
+export async function runPipeline(jobId: string): Promise<{ success: boolean; error?: string }> {
   const job = await redis.get<any>(`job:${jobId}`) || await redis.get<any>(jobId);
   if (!job) return { success: false, error: "Job not found" };
   if (job.status === "building") return { success: false, error: "Already building" };
