@@ -92,7 +92,7 @@ export async function runPipeline(jobId: string): Promise<{ success: boolean; er
   console.log(`PIPELINE [${jobId}] STEP 1: Generating spec...`);
   const promptResponse = await anthropic.messages.create({
     model: "claude-sonnet-4-5",
-    max_tokens: 4000,
+    max_tokens: 8000,
     messages: [{
       role: "user",
       content: `Your response must be ONLY a JSON object. Start with { and end with }. No text before or after. No markdown. No backticks.
@@ -236,8 +236,8 @@ HTML TO PROCESS:
 ${stitchHtml.substring(0, 72000)}`;
 
   const fixResponse = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 8000,
+    model: "claude-sonnet-4-5",
+    max_tokens: 16000,
     messages: [{ role: "user", content: fixPrompt }],
   });
 
@@ -295,6 +295,7 @@ ${stitchHtml.substring(0, 72000)}`;
   const unlockUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/payment/unlock?jobId=${jobId}&secret=${encodeURIComponent(process.env.PROCESS_SECRET || "")}`;
   const releaseUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/unlock/release?jobId=${jobId}&secret=${encodeURIComponent(process.env.PROCESS_SECRET || "")}`;
   const bookingsUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/c/${clientSlug}/bookings`;
+  const adminUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/admin?secret=${encodeURIComponent(process.env.PROCESS_SECRET || "")}`;
 
   await redis.set(`job:${jobId}`, {
     ...job,
@@ -339,8 +340,10 @@ ${stitchHtml.substring(0, 72000)}`;
           <a href="${releaseUrl}" style="background:#00c896;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">📤 Release to Client</a>
           <a href="${processUrl}" style="background:#22c55e;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">🔧 Fix This Site</a>
           <a href="${unlockUrl}" style="background:#8b5cf6;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">🔓 Unlock Final Payment</a>
+          <a href="${adminUrl}" style="background:#1e293b;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;border:1px solid #334155;">📊 Admin Dashboard</a>
         </div>
-        <p style="color:#94a3b8;font-size:12px;margin-top:12px;">HTML and CSS files attached below.</p>
+        <p style="color:#94a3b8;font-size:12px;margin-top:12px;">Admin dashboard (bookmark this): <a href="${adminUrl}" style="color:#00c896;">${adminUrl}</a></p>
+        <p style="color:#94a3b8;font-size:12px;margin-top:4px;">HTML and CSS files attached below.</p>
       `,
       attachments: [
         { filename: `${fileName}.html`, content: Buffer.from(finalHtml).toString("base64") },
@@ -387,11 +390,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Await the pipeline (maxDuration=300s, pipeline takes ~2-3 min)
     const result = await runPipeline(jobId);
     return NextResponse.json(result);
   } catch (err) {
-    console.error(`Pipeline failed for ${jobId}:`, err);
+    console.error("Pipeline failed for " + jobId + ":", err);
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
   }
 }

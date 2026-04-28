@@ -99,43 +99,54 @@ export function checkAndFixLinks(html: string, pages: string[]): { html: string;
     ).exec(fixed);
     if (classMatch && !/\bid=/.test(classMatch[1])) {
       fixed = fixed.replace(classMatch[1], classMatch[1].replace(">", ` id="${pageId}">`));
-      console.log(`Link Fix [A]: id="${pageId}"`);
+      console.log(`Link Fix [A]: id="${pageId}" via class match`);
       continue;
     }
 
-    // Strategy B: first unid'd page-section div in document order
-    let injected = false;
+    // Strategy B: scan heading text for semantic match
+    const escapedId = pageId.replace(/[-_]/g, "[\\s\\-_]?");
+    const headingPattern = new RegExp(
+      "(<(?:section|div|article|main)(?:[^>](?!id=))*>)(?:[\\s\\S]{0,2000}?)<(?:h1|h2|h3)[^>]*>[^<]*" + escapedId + "[^<]*</(?:h1|h2|h3)>",
+      "i"
+    );
+    const headingMatch = headingPattern.exec(fixed);
+    if (headingMatch && !/\bid=/.test(headingMatch[1])) {
+      fixed = fixed.replace(headingMatch[1], headingMatch[1].replace(/>$/, ` id="${pageId}">`));
+      console.log(`Link Fix [B]: id="${pageId}" via heading text match`);
+      continue;
+    }
+
+    // Strategy C: first unid'd page-section div in document order
+    let injectedC = false;
     fixed = fixed.replace(/<div([^>]*class="[^"]*page-section[^"]*"[^>]*)>/g, (m, attrs) => {
-      if (injected || attrs.includes("id=")) return m;
-      injected = true;
-      console.log(`Link Fix [B]: id="${pageId}" on page-section`);
+      if (injectedC || attrs.includes("id=")) return m;
+      injectedC = true;
+      console.log(`Link Fix [C]: id="${pageId}" on page-section`);
       return `<div${attrs} id="${pageId}">`;
     });
-    if (injected) continue;
+    if (injectedC) continue;
 
-    // Strategy C: if it looks like a contact page, inject a real contact section
-    if (/contact|get.?in.?touch|reach|enquir/i.test(pageId)) {
-      const contactSection = `<div class="page-section" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;">
-  <div style="max-width:600px;margin:0 auto;">
-    <h2 style="color:#f2ca50;font-size:2rem;font-weight:900;text-transform:uppercase;margin-bottom:24px;">Contact Us</h2>
-    <form style="display:flex;flex-direction:column;gap:16px;" onsubmit="event.preventDefault();this.innerHTML='<p style=color:#22c55e;font-weight:bold;>Thank you! We will be in touch within 24 hours.</p>'">
-      <input type="text" placeholder="Your Name" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/>
-      <input type="email" placeholder="Your Email" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/>
-      <input type="tel" placeholder="Your Phone" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/>
-      <textarea placeholder="Your Message" rows="5" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;resize:vertical;"></textarea>
-      <button type="submit" style="background:#f2ca50;color:#0f0f0f;font-weight:900;padding:16px;border:none;border-radius:8px;font-size:1rem;cursor:pointer;text-transform:uppercase;letter-spacing:0.1em;">Send Message</button>
-    </form>
-  </div>
-</div>`;
-      fixed = fixed.replace("</body>", `${contactSection}\n</body>`);
-      console.log(`Link Fix [C]: injected contact section for id="${pageId}"`);
-    } else {
-      // Generic anchor fallback
-      const anchor = `<div id="${pageId}" style="position:relative;top:-80px;visibility:hidden;pointer-events:none;height:0;"></div>`;
-      fixed = fixed.replace("</body>", `${anchor}\n</body>`);
-      console.log(`Link Fix [C]: anchor fallback for id="${pageId}"`);
-    }
+    // Strategy D: inject a real styled section before </body>
+    const sectionTemplates: Record<string, string> = {
+      contact: `<div class="page-section" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:600px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:8px;">Contact Us</h2><p style="color:#94a3b8;margin-bottom:24px;">Get in touch and we will respond within 24 hours.</p><form style="display:flex;flex-direction:column;gap:16px;" onsubmit="event.preventDefault();this.innerHTML='<p style=color:#22c55e;font-weight:bold;font-size:1.1rem;>Thank you! We will be in touch shortly.</p>'"><input type="text" placeholder="Your Name" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/><input type="email" placeholder="Your Email" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/><input type="tel" placeholder="Your Phone" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/><textarea placeholder="Your Message" rows="5" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;resize:vertical;"></textarea><button type="submit" style="background:#10b981;color:#fff;font-weight:700;padding:16px;border:none;border-radius:8px;font-size:1rem;cursor:pointer;">Send Message</button></form></div></div>`,
+      about: `<div class="page-section" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:16px;">About Us</h2><p style="color:#94a3b8;font-size:1.1rem;line-height:1.8;">We are a dedicated team committed to delivering exceptional results for our clients. With years of experience in the industry, we pride ourselves on quality, reliability, and customer satisfaction.</p></div></div>`,
+      services: `<div class="page-section" id="${pageId}" style="display:none;padding:80px 24px;background:#0a0f1a;"><div style="max-width:900px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Our Services</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:24px;"><div style="background:#1e293b;border-radius:12px;padding:28px;"><h3 style="color:#10b981;margin-bottom:8px;">Professional Service</h3><p style="color:#94a3b8;">High quality results delivered on time and on budget.</p></div></div></div></div>`,
+      pricing: `<div class="page-section" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Pricing</h2><p style="color:#94a3b8;">Contact us for a custom quote tailored to your needs.</p></div></div>`,
+      gallery: `<div class="page-section" id="${pageId}" style="display:none;padding:80px 24px;background:#0a0f1a;"><div style="max-width:1000px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Gallery</h2><p style="color:#94a3b8;">Our portfolio of recent work.</p></div></div>`,
+    };
+
+    const templateKey = Object.keys(sectionTemplates).find(k => new RegExp(k, "i").test(pageId));
+    const injectedHtml = templateKey
+      ? sectionTemplates[templateKey]
+      : `<div class="page-section" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;text-align:center;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:16px;">${pageId.charAt(0).toUpperCase() + pageId.slice(1)}</h2><p style="color:#94a3b8;">Content coming soon.</p></div></div>`;
+
+    fixed = fixed.replace("</body>", `${injectedHtml}\n</body>`);
+    console.log(`Link Fix [D]: injected "${templateKey || "generic"}" section for id="${pageId}"`);
   }
+
+  const firstTarget = allTargets[0] || "contact";
+  fixed = fixed.replace(/href="#"(?=[^>]*>(?:Book Now|Get Started|Join Now|Contact Us|Sign Up|Learn More|Get Quote)[^<]*<)/gi,
+    `onclick="window.navigateTo && window.navigateTo('${firstTarget}')" href="#"`);
 
   const deadLinks = (html.match(/href="#"(?!\w)/g) || []).length;
   if (deadLinks) issues.push(`Found ${deadLinks} dead href="#" links`);

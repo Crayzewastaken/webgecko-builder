@@ -82,6 +82,14 @@ export default function ClientPortal() {
   // Booking state
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
+  // Feedback state
+  const [feedback, setFeedback] = useState<{ id: string; text: string; createdAt: string }[]>([]);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackRound, setFeedbackRound] = useState(1);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [revisionSent, setRevisionSent] = useState(false);
+
   // ── Auth + data load ────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -96,6 +104,7 @@ export default function ClientPortal() {
   useEffect(() => {
     if (tab === "quote" && client) loadPaymentStatus();
     if (tab === "bookings" && client?.hasBooking) loadBookings();
+    if (tab === "preview" && client) loadFeedback();
   }, [tab, client]);
 
   // Check ?payment=done redirect from Square
@@ -187,6 +196,54 @@ export default function ClientPortal() {
     }
   }
 
+  async function loadFeedback() {
+    if (!slug) return;
+    setFeedbackLoading(true);
+    try {
+      const res = await fetch(`/api/preview/feedback?slug=${slug}`);
+      if (res.ok) {
+        const data = await res.json();
+        setFeedback(data.feedback || []);
+        setFeedbackRound(data.round || 1);
+      }
+    } finally {
+      setFeedbackLoading(false);
+    }
+  }
+
+  async function submitFeedback() {
+    if (!feedbackText.trim() || feedback.length >= 10) return;
+    setFeedbackSubmitting(true);
+    try {
+      const res = await fetch(`/api/preview/feedback?slug=${slug}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: feedbackText.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFeedback(data.feedback || []);
+        setFeedbackText("");
+      }
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  }
+
+  async function triggerRevision() {
+    if (!confirm("Submit all feedback for revision? Claude will apply your changes and we'll review the result.")) return;
+    setFeedbackSubmitting(true);
+    try {
+      const res = await fetch(`/api/preview/feedback?slug=${slug}`, { method: "DELETE" });
+      if (res.ok) {
+        setRevisionSent(true);
+        setFeedback([]);
+      }
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  }
+
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
   function getTimeline(): string {
@@ -219,7 +276,7 @@ export default function ClientPortal() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" },
     { id: "preview", label: "Site Preview" },
-    ...(client?.hasBooking && paymentStatus?.previewUnlocked ? [{ id: "bookings" as Tab, label: "Bookings" }] : []),
+    ...(client?.hasBooking ? [{ id: "bookings" as Tab, label: "Bookings" }] : []),
     { id: "quote", label: "Quote & Pay" },
   ];
 
@@ -527,67 +584,106 @@ export default function ClientPortal() {
             SITE PREVIEW
         ════════════════════════════════════════ */}
         {tab === "preview" && (
-          <div style={c.card}>
+          <>
             {!paymentStatus?.previewUnlocked ? (
-              <div style={{ textAlign: "center", padding: "48px 0" }}>
-                <div style={{ fontSize: "36px", marginBottom: "12px" }}>🔒</div>
-                <div style={{ color: "#888", fontSize: "15px", marginBottom: "6px" }}>
-                  Coming soon
-                </div>
-                <div style={{ color: "#444", fontSize: "13px" }}>
-                  The preview will be available shortly.
+              <div style={c.card}>
+                <div style={{ textAlign: "center", padding: "48px 0" }}>
+                  <div style={{ fontSize: "36px", marginBottom: "12px" }}>🔒</div>
+                  <div style={{ color: "#888", fontSize: "15px", marginBottom: "6px" }}>Preview coming soon</div>
+                  <div style={{ color: "#444", fontSize: "13px" }}>You'll receive an email when your site is ready to review.</div>
                 </div>
               </div>
-            ) : client.previewUrl ? (
+            ) : client.jobId ? (
               <>
-                <div style={c.cardLabel}>Live Preview</div>
-                <div style={{
-                  position: "relative",
-                  width: "100%",
-                  paddingBottom: "60%",
-                  background: "#0d0d0d",
-                  borderRadius: "8px",
-                  overflow: "hidden",
-                  marginTop: "10px",
-                }}>
-                  <iframe
-                    src={client.previewUrl}
-                    style={{
-                      position: "absolute",
-                      top: 0, left: 0,
-                      width: "100%", height: "100%",
-                      border: "none",
-                    }}
-                    title="Site Preview"
-                  />
+                {/* Preview embed via proxy (avoids X-Frame-Options) */}
+                <div style={{ ...c.card, padding: 0, overflow: "hidden" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                    <span style={{ color: "#e2e8f0", fontWeight: 600, fontSize: "13px" }}>🖥 Live Preview — Round {feedbackRound}</span>
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      {client.previewUrl && (
+                        <a href={client.previewUrl} target="_blank" rel="noopener noreferrer"
+                          style={{ color: "#0099ff", fontSize: "12px", textDecoration: "none" }}>
+                          Open in new tab ↗
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ position: "relative", width: "100%", paddingBottom: "62%", background: "#0a0a0a" }}>
+                    <iframe
+                      src={`/api/preview/proxy?slug=${slug}`}
+                      style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
+                      title="Site Preview"
+                    />
+                  </div>
                 </div>
-                <a
-                  href={client.previewUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: "inline-block",
-                    marginTop: "12px",
-                    color: "#0099ff",
-                    fontSize: "13px",
-                    textDecoration: "none",
-                  }}
-                >
-                  Open in new tab ↗
-                </a>
+
+                {/* Feedback panel */}
+                <div style={c.card}>
+                  <div style={{ color: "#e2e8f0", fontWeight: 700, fontSize: "14px", marginBottom: "4px" }}>
+                    💬 Leave Feedback ({feedback.length}/10)
+                  </div>
+                  <div style={{ color: "#64748b", fontSize: "12px", marginBottom: "16px" }}>
+                    Describe changes you'd like — we'll apply them all at once.
+                    {feedback.length >= 10 && <span style={{ color: "#f59e0b" }}> Max comments reached — submit for revision.</span>}
+                  </div>
+
+                  {revisionSent ? (
+                    <div style={{ background: "#0a1a0f", border: "1px solid #10b98133", borderRadius: "10px", padding: "20px", textAlign: "center" }}>
+                      <div style={{ fontSize: "24px", marginBottom: "8px" }}>✅</div>
+                      <div style={{ color: "#10b981", fontWeight: 600 }}>Feedback submitted!</div>
+                      <div style={{ color: "#64748b", fontSize: "13px", marginTop: "4px" }}>We're applying your changes. You'll receive an email once the revised site is ready.</div>
+                    </div>
+                  ) : (
+                    <>
+                      {feedback.length > 0 && (
+                        <div style={{ display: "flex", flexDirection: "column" as const, gap: "8px", marginBottom: "16px" }}>
+                          {feedback.map((f, i) => (
+                            <div key={f.id} style={{ background: "#0f1a2e", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", padding: "12px 14px", display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                              <span style={{ color: "#475569", fontSize: "11px", minWidth: "18px", marginTop: "2px" }}>{i + 1}.</span>
+                              <span style={{ color: "#cbd5e1", fontSize: "13px", lineHeight: "1.5" }}>{f.text}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {feedback.length < 10 && (
+                        <div style={{ display: "flex", gap: "10px", marginBottom: "14px" }}>
+                          <input
+                            type="text"
+                            value={feedbackText}
+                            onChange={e => setFeedbackText(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") submitFeedback(); }}
+                            placeholder="e.g. Change the hero button colour to blue"
+                            style={{ flex: 1, background: "#0f1623", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", padding: "10px 14px", color: "#e2e8f0", fontSize: "13px", outline: "none" }}
+                          />
+                          <button
+                            onClick={submitFeedback}
+                            disabled={feedbackSubmitting || !feedbackText.trim()}
+                            style={{ background: "#1e40af", color: "#fff", border: "none", borderRadius: "8px", padding: "10px 18px", fontSize: "13px", fontWeight: 600, cursor: "pointer", opacity: feedbackSubmitting || !feedbackText.trim() ? 0.5 : 1 }}
+                          >Add</button>
+                        </div>
+                      )}
+                      {feedback.length > 0 && (
+                        <button
+                          onClick={triggerRevision}
+                          disabled={feedbackSubmitting}
+                          style={{ width: "100%", background: "linear-gradient(135deg,#00c896,#0099ff)", color: "#000", border: "none", borderRadius: "10px", padding: "14px", fontSize: "14px", fontWeight: 800, cursor: "pointer", opacity: feedbackSubmitting ? 0.6 : 1 }}
+                        >
+                          {feedbackSubmitting ? "Submitting…" : `Submit ${feedback.length} Change${feedback.length > 1 ? "s" : ""} for Revision`}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
               </>
             ) : (
-              <div style={{ textAlign: "center", padding: "48px 0" }}>
-                <div style={{ fontSize: "36px", marginBottom: "12px" }}>🏗️</div>
-                <div style={{ color: "#888", fontSize: "15px", marginBottom: "6px" }}>
-                  Your prototype is being built.
-                </div>
-                <div style={{ color: "#444", fontSize: "13px" }}>
-                  You'll receive an email once it's ready to review.
+              <div style={c.card}>
+                <div style={{ textAlign: "center", padding: "48px 0" }}>
+                  <div style={{ fontSize: "36px", marginBottom: "12px" }}>🏗️</div>
+                  <div style={{ color: "#888", fontSize: "15px" }}>Your site is being built. You'll receive an email when it's ready.</div>
                 </div>
               </div>
             )}
-          </div>
+          </>
         )}
 
         {/* ════════════════════════════════════════
