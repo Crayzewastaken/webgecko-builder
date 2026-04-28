@@ -4,7 +4,7 @@ import { inngest } from "@/lib/inngest";
 
 export const buildWebsite = inngest.createFunction(
   { id: "build-website" },
-  { event: "payment.deposit.completed" },
+  "payment.deposit.completed",
   async ({ event, step }) => {
     const { jobId } = event.data;
 
