@@ -369,8 +369,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Fire and forget — webhook must return fast, pipeline takes 2-3 minutes
-  runPipeline(jobId).catch(err => console.error(`Pipeline failed for ${jobId}:`, err));
-
-  return NextResponse.json({ ok: true, message: "Pipeline triggered" });
+  try {
+    // Await the pipeline (maxDuration=300s, pipeline takes ~2-3 min)
+    const result = await runPipeline(jobId);
+    return NextResponse.json(result);
+  } catch (err) {
+    console.error(`Pipeline failed for ${jobId}:`, err);
+    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+  }
 }

@@ -135,22 +135,24 @@ export async function POST(req: NextRequest) {
     await redis.set(paymentStateKey, paymentState);
     console.log(`Payment confirmed: jobId=${jobId} stage=${stage} paymentId=${squarePaymentId}`);
 
-    // 5b. If deposit paid — trigger the pipeline (fire and forget)
+    // 5b. If deposit paid — trigger the pipeline asynchronously
     if (stage === "deposit") {
-      try {
-        const pipelineUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/pipeline/run`;
-        await fetch(pipelineUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            jobId,
-            secret: process.env.PROCESS_SECRET,
-          }),
-        }).catch(err => console.error(`Failed to trigger pipeline for ${jobId}:`, err));
-        console.log(`Pipeline triggered for jobId=${jobId}`);
-      } catch (e) {
-        console.error(`Failed to trigger pipeline:`, e);
-      }
+      // Don't await — start the pipeline in background and return webhook response immediately
+      // The pipeline will complete even after this webhook returns (up to maxDuration limit)
+      fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/pipeline/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobId,
+          secret: process.env.PROCESS_SECRET,
+        }),
+      }).then(res => {
+        if (res.ok) {
+          console.log(`Pipeline request sent for jobId=${jobId}`);
+        } else {
+          console.error(`Pipeline request failed for ${jobId}: ${res.status}`);
+        }
+      }).catch(e => console.error(`Failed to trigger pipeline for ${jobId}:`, e));
     }
 
     // 6. If final payment confirmed — auto-unlock site launch
