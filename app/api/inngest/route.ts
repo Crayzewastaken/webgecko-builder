@@ -3,8 +3,10 @@ import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest";
 
 export const buildWebsite = inngest.createFunction(
-  { id: "build-website" },
-  "payment.deposit.completed",
+  {
+    id: "build-website",
+    trigger: { event: "payment.deposit.completed" }
+  },
   async ({ event, step }) => {
     const { jobId } = event.data;
 
