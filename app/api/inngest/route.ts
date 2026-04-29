@@ -186,73 +186,124 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
       const navigateCalls = [...new Set([...stitchHtml.matchAll(/navigateTo\(['"]([^'"]+)['"]\)/g)].map((m: RegExpMatchArray) => m[1]))];
       const missingIds = navigateCalls.filter((id: string) => !existingIds.includes(id));
 
-      let bookingWidgetHtml = "";
-      if (hasBookingFeature) {
-        try {
-          const services = getServicesForIndustry(userInput.industry);
-          bookingWidgetHtml = generateBookingWidget({
-            jobId, businessName: userInput.businessName,
-            timezone: "Australia/Brisbane",
-            services, primaryColor: "#10b981",
-            apiBase: process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko-builder.vercel.app",
-          });
-        } catch (e) { console.error("Booking widget failed:", e); }
-      }
+      const bookingNavTarget = hasBookingFeature ? "booking" : "contact";
 
-      const fixPrompt = `You are a STRICT HTML post-processor for a production web design system.
-You are NOT a designer. You must NOT change layout, structure, styling, or Tailwind classes.
-Preserve the Stitch-generated HTML EXACTLY except for the specific fixes below.
+      const fixPrompt = `You are a STRICT HTML post-processor for a production web design system. Your job is surgical fixes only — do NOT redesign, restyle, or restructure anything.
 
-=== HARD RULES ===
-- DO NOT move elements, redesign sections, change Tailwind classes, or rename IDs
-- DO NOT convert onclick="navigateTo(...)" to href links
-- DO NOT invent new sections or add features not listed
-- PRESERVE all content, copy, images, colors from Stitch
-- NEVER create a duplicate id — if an element already has an id, do not add the same id elsewhere
-- NEVER nest an element with id="X" inside another element that already has id="X"
+════════════════════════════════════════
+SYSTEM ARCHITECTURE — READ FIRST
+════════════════════════════════════════
+This site uses a custom WebGecko backend. These APIs already exist and MUST be used:
+- Booking: POST /api/book  |  Availability: GET /api/availability?jobId=...&date=...
+- Forms: handled by inline JS (no external services)
+- Navigation: window.navigateTo(pageId) — already injected after this step
+- Hamburger: #hamburger toggles #mobile-menu — already handled after this step
 
-=== EXISTING IDs IN THIS HTML ===
-These IDs already exist: ${existingIdsStr}
-Do NOT add these IDs anywhere else in the document.
+CRITICAL — BOOKING SYSTEM RULES:
+- ${hasBookingFeature ? "This site HAS a booking system. The booking widget will be injected AFTER this step by code — NOT by you." : "This site does NOT have a booking system."}
+- NEVER add Cal.com, Calendly, or any other external booking service
+- NEVER generate fake booking modals, calendars, or booking forms in the HTML
+- NEVER add any booking-related HTML at all — it is handled externally
+- ALL hero/CTA buttons with booking intent must use ONLY: onclick="window.navigateTo('${bookingNavTarget}')"
+- Do NOT add any other onclick or href to booking buttons
 
-=== NAVIGATE-TO ID FIX ===
-These navigateTo() calls have NO matching id element and MUST be fixed: ${missingIds.length > 0 ? missingIds.join(", ") : "none — all IDs are present"}
+════════════════════════════════════════
+HARD RULES — DO NOT BREAK ANY OF THESE
+════════════════════════════════════════
+1. DO NOT change layout, Tailwind classes, colors, fonts, or section structure
+2. DO NOT rename, move, or duplicate any id attribute
+3. DO NOT add onclick="navigateTo(...)" to elements that already have one
+4. DO NOT replace existing onclick="navigateTo(...)" with href links
+5. DO NOT invent sections, pages, or features not listed below
+6. DO NOT add external scripts (no CDN links, no third-party embeds except Google Maps if provided)
+7. NEVER nest id="X" inside another element that already has id="X"
+8. PRESERVE all Stitch-generated copy, images, testimonials, stats, and colors exactly
 
-For each missing id:
-1. FIRST: scan the HTML for a section whose heading text or class name semantically matches the id (e.g. navigateTo('contact') → find a section with "Contact" heading or class containing "contact")
-2. If found: add id="[missing_id]" to that section's opening tag (only if it doesn't already have an id)
-3. If not found: add a new page-section div with that id BEFORE </body>: <div class="page-section" id="[missing_id]" style="display:none;padding:80px 24px;"></div>
+════════════════════════════════════════
+EXISTING IDs IN THIS HTML
+════════════════════════════════════════
+These ids already exist — DO NOT add them anywhere else:
+${existingIdsStr}
 
-=== CTA BUTTON FIX ===
-Hero CTA buttons with href="#" or no action (text: Join Now, Book Now, Get Started, Sign Up, etc.):
-- If id="booking" exists in the existing IDs above: add onclick="window.navigateTo('booking')"
-- Else: add onclick="window.navigateTo('contact')"
+════════════════════════════════════════
+FIX 1 — MISSING navigateTo() TARGETS
+════════════════════════════════════════
+These navigateTo() calls have no matching id and MUST be resolved:
+${missingIds.length > 0 ? missingIds.map(id => `- navigateTo('${id}') → no element with id="${id}" exists`).join("\n") : "NONE — all navigation targets are present, skip this fix"}
 
-=== CONTACT DETAILS ===
-Replace placeholder emails/phones:
-- Any example@, info@, hello@, contact@ → ${clientEmail}
-- Any 555-, (555), fake numbers → ${clientPhone}
+Resolution order (try each in sequence, stop when resolved):
+A. Find a <section>, <div>, <article>, or <main> whose class/data attribute CONTAINS "${missingIds[0] || "id"}" — add id="[missing_id]" to its opening tag if it has no id
+B. Find a section containing an <h1>, <h2>, or <h3> whose text matches the id name — add id="[missing_id]" to that section's opening tag if it has no id
+C. Find the first <div class="page-section"> that has no id — add id="[missing_id]" to it
+D. ONLY if A/B/C all fail: inject before </body>: <div class="page-section" id="[missing_id]" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;text-align:center;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:700;">[Section Name]</h2></div></div>
 
-=== MULTI-PAGE: "${userInput.siteType.toUpperCase()}" ===
+════════════════════════════════════════
+FIX 2 — CTA BUTTONS
+════════════════════════════════════════
+Find hero/header CTA buttons with href="#" or no action. These are buttons with text like:
+"Book Now", "Book a Session", "Get Started", "Join Now", "Sign Up", "Free Trial", "Book Free", "Reserve", "Enquire Now", "Get a Quote", "Start Today"
+
+For each found:
+- Remove href="#" (or set href="javascript:void(0)")
+- Add: onclick="window.navigateTo('${bookingNavTarget}')"
+- DO NOT touch buttons that already have onclick="navigateTo(...)"
+- DO NOT touch nav links, footer links, or social buttons
+
+════════════════════════════════════════
+FIX 3 — CONTACT DETAILS
+════════════════════════════════════════
+Replace ALL placeholder contact info:
+- Emails matching: example@*, *@example.com, hello@company*, info@company*, contact@company* → ${clientEmail}
+- Phones matching: 555-*, (555)*, +1 555*, fake AU numbers like 0400 000 000 → ${clientPhone}
+- Keep the real client email/phone if already correct: ${clientEmail} / ${clientPhone}
+
+════════════════════════════════════════
+FIX 4 — PAGE/SECTION STRUCTURE (${userInput.siteType.toUpperCase()})
+════════════════════════════════════════
 ${isMultiPage
-  ? `Ensure page divs have class="page-section" and ids matching: ${pageList}. Only first page visible (display:block), others display:none. Keep all onclick="navigateTo(...)" exactly as-is.`
-  : `Single page, all sections visible, nav uses href="#sectionid".`}
+  ? `MULTI-PAGE SITE. Pages required: ${pageList}
+- Each page div must have class="page-section" and a unique lowercase id matching the page name
+- ONLY the first page div should be visible (style="display:block"), all others style="display:none"
+- All nav links must use onclick="navigateTo('pageid')" — NOT href
+- Keep all existing onclick="navigateTo(...)" exactly as-is`
+  : `SINGLE-PAGE SITE. All sections remain visible.
+- Nav links should use href="#sectionid" for smooth scroll
+- Do NOT add page-section classes or display:none to sections`}
 
-${googleMapsEmbed ? `=== MAP ===\nInject inside existing map/location section: ${googleMapsEmbed}` : ""}
-
-${hasBookingFeature && bookingWidgetHtml
-  ? `=== BOOKING ===\nFind the existing element with id="booking" in the HTML. Replace ONLY its inner content with the widget below. DO NOT create a new id="booking" element. DO NOT wrap it in another element with id="booking".\n${bookingWidgetHtml.substring(0, 3000)}`
+${googleMapsEmbed
+  ? `════════════════════════════════════════
+FIX 5 — GOOGLE MAPS
+════════════════════════════════════════
+Find the map/location/directions section in the HTML. Replace any placeholder map or map container's inner content with this embed:
+${googleMapsEmbed}`
   : ""}
 
-=== OUTPUT ===
-Return FULL HTML document. No explanations, no markdown, no backticks. Must start with <!DOCTYPE html> or <html>.
+
+════════════════════════════════════════
+VALIDATION CHECKLIST (run before output)
+════════════════════════════════════════
+Before returning, verify:
+[ ] All navigateTo('x') calls have a matching id="x" element
+[ ] No button has href="#" without an onclick (except anchors with real href targets)
+[ ] No duplicate id attributes exist anywhere
+[ ] Contact email is ${clientEmail} and phone is ${clientPhone}
+[ ] No Cal.com, Calendly, or external booking embeds added
+[ ] All Stitch layout/styling preserved exactly
+
+════════════════════════════════════════
+OUTPUT
+════════════════════════════════════════
+Return the COMPLETE HTML document with ONLY the fixes above applied.
+- No explanations, no markdown, no code fences, no backticks
+- Must start with <!DOCTYPE html> or <html>
+- Must include the complete <head>, all <style> blocks, all <script> blocks, and complete <body>
 
 HTML TO PROCESS:
-${stitchHtml.substring(0, 72000)}`;
+${stitchHtml.substring(0, 40000)}`;
 
       const fixResponse = await anthropic.messages.create({
-        model: "claude-sonnet-4-5",
-        max_tokens: 16000,
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 12000,
         messages: [{ role: "user", content: fixPrompt }],
       });
 
@@ -267,7 +318,7 @@ ${stitchHtml.substring(0, 72000)}`;
 
     console.log(`[Inngest] STEP 5 DONE. Length: ${fixedHtml.length}`);
 
-    // ── STEP 6-7: Link check + inject essentials ──────────────────────────────
+    // ── STEP 6: Link check + inject essentials + booking widget ──────────────
     const finalHtml = await step.run("step6-inject", async () => {
       const { html: checkedHtml } = checkAndFixLinks(
         fixedHtml,
@@ -276,6 +327,40 @@ ${stitchHtml.substring(0, 72000)}`;
       const ga4Id = job.ga4Id || userInput.ga4Id || "";
       let html = injectEssentials(checkedHtml, clientEmail, clientPhone, jobId, ga4Id);
       html = injectImages(html, logoUrl, heroUrl, photoUrls, productsWithPhotos);
+
+      // ── Booking widget injection (done by code, never by Claude) ────────────
+      if (hasBookingFeature) {
+        try {
+          const services = getServicesForIndustry(userInput.industry);
+          const bookingWidgetHtml = generateBookingWidget({
+            jobId,
+            businessName: userInput.businessName,
+            timezone: "Australia/Brisbane",
+            services,
+            primaryColor: "#10b981",
+            apiBase: process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko-builder.vercel.app",
+          });
+
+          // Strategy 1: replace inner content of existing id="booking" element
+          const bookingElMatch = html.match(/<([a-z][a-z0-9]*)[^>]*\sid="booking"[^>]*>([\s\S]*?)<\/\1>/i);
+          if (bookingElMatch) {
+            const fullMatch = bookingElMatch[0];
+            const tag = bookingElMatch[1];
+            const openTagEnd = fullMatch.indexOf(">") + 1;
+            const openTag = fullMatch.substring(0, openTagEnd);
+            const closeTag = `</${tag}>`;
+            html = html.replace(fullMatch, openTag + "\n" + bookingWidgetHtml + "\n" + closeTag);
+            console.log("[Inngest] Booking widget injected into existing #booking element");
+          } else {
+            // Strategy 2: insert the full widget before </body>
+            html = html.replace("</body>", bookingWidgetHtml + "\n</body>");
+            console.log("[Inngest] Booking widget injected before </body> (no #booking element found)");
+          }
+        } catch (e) {
+          console.error("[Inngest] Booking widget injection failed:", e);
+        }
+      }
+
       return html;
     });
 
