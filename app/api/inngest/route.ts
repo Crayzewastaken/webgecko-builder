@@ -421,7 +421,7 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
             // Find product card sections containing this product name and inject a buy link
             html = html.replace(
               new RegExp(`(<(?:div|article|li)[^>]*>[\\s\\S]*?${escapedName}[\\s\\S]*?)(</(?:div|article|li)>)`, "gi"),
-              (match, body, close) => {
+              (match: string, body: string, close: string) => {
                 if (match.includes(item.paymentLinkUrl) || match.includes("wg-buy-btn")) return match;
                 return `${body}<div style="margin-top:12px;"><a href="${item.paymentLinkUrl}" target="_blank" rel="noopener" style="display:inline-block;background:#10b981;color:#fff;padding:10px 24px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;">Buy Now →</a></div>${close}`;
               }
