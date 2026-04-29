@@ -90,6 +90,51 @@ const CANCEL_OPTIONS = [
   },
 ];
 
+// ─── Editable Change Item ────────────────────────────────────────────────────
+
+function EditableChange({ index, item, onUpdate, onDelete }: {
+  index: number;
+  item: { id: string; text: string; createdAt: string };
+  onUpdate: (text: string) => void;
+  onDelete: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(item.text);
+
+  function save() {
+    if (val.trim()) onUpdate(val.trim());
+    setEditing(false);
+  }
+
+  return (
+    <div style={{
+      background: "#111827", border: "1px solid #1e2d42", borderRadius: 8,
+      padding: "9px 12px", display: "flex", gap: 8, alignItems: "flex-start",
+    }}>
+      <span style={{ color: "#334155", fontSize: 11, minWidth: 18, marginTop: editing ? 10 : 2, fontWeight: 600 }}>{index + 1}.</span>
+      {editing ? (
+        <div style={{ flex: 1, display: "flex", gap: 6, alignItems: "flex-start", flexWrap: "wrap" }}>
+          <input
+            autoFocus value={val} onChange={e => setVal(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") save(); if (e.key === "Escape") { setVal(item.text); setEditing(false); } }}
+            style={{ flex: 1, minWidth: 160, background: "#080c14", border: "1px solid #2563eb60", borderRadius: 6, padding: "6px 10px", color: "#e2e8f0", fontSize: 13, outline: "none" }}
+          />
+          <button onClick={save} style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save</button>
+          <button onClick={() => { setVal(item.text); setEditing(false); }} style={{ background: "#1e2531", color: "#64748b", border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}>Cancel</button>
+        </div>
+      ) : (
+        <span style={{ flex: 1, color: "#cbd5e1", fontSize: 13, lineHeight: 1.5, marginTop: 1 }}>{item.text}</span>
+      )}
+      <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+        {!editing && (
+          <button onClick={() => setEditing(true)} style={{ background: "none", border: "none", color: "#334155", cursor: "pointer", fontSize: 13, padding: "2px 4px" }} title="Edit">✎</button>
+        )}
+        <button onClick={onDelete} style={{ background: "none", border: "none", color: "#334155", cursor: "pointer", fontSize: 14, padding: "2px 4px" }} title="Remove">✕</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ClientPortal() {
@@ -349,7 +394,116 @@ export default function ClientPortal() {
         {tabs.map(t => <button key={t.id} style={S.tabBtn(tab === t.id)} onClick={() => setTab(t.id)}>{t.label}</button>)}
       </div>
 
-      <div style={S.body}>
+      {/* ══════════════════════ SITE PREVIEW (full-width, outside padded body) ══════════════════════ */}
+      {tab === "preview" && (
+          <>
+            {!paymentStatus?.previewUnlocked ? (
+              <div style={{ margin: "16px", background: "#0d1117", border: "1px solid #1e2531", borderRadius: 12, textAlign: "center", padding: "48px 24px" }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>🔒</div>
+                <div style={{ color: "#64748b", fontSize: 15 }}>Preview coming soon</div>
+                <div style={{ color: "#334155", fontSize: 13, marginTop: 6 }}>You'll receive an email when your site is ready to review.</div>
+              </div>
+            ) : client.jobId ? (
+              <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 112px)" }}>
+                {/* iframe — takes all remaining space */}
+                <div style={{ flex: 1, position: "relative", background: "#080c14", borderBottom: "1px solid #1e2531", minHeight: 0 }}>
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", background: "#0d1117", borderBottom: "1px solid #1e2531", zIndex: 10 }}>
+                    <span style={{ color: "#cbd5e1", fontWeight: 600, fontSize: 13 }}>🖥 Live Preview — Round {feedbackRound}</span>
+                    {client.previewUrl && <a href={client.previewUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#38bdf8", fontSize: 12, textDecoration: "none" }}>Open in new tab ↗</a>}
+                  </div>
+                  <iframe
+                    src={`/api/preview/proxy?slug=${slug}`}
+                    style={{ position: "absolute", top: 42, left: 0, width: "100%", height: "calc(100% - 42px)", border: "none" }}
+                    title="Site Preview"
+                  />
+                </div>
+
+                {/* Changes panel */}
+                <div style={{ background: "#0d1117", borderTop: "1px solid #1e2531", padding: "14px 16px", flexShrink: 0 }}>
+                  {revisionSent ? (
+                    <div style={{ background: "#00c89612", border: "1px solid #00c89625", borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+                      <div style={{ fontSize: 24 }}>✅</div>
+                      <div>
+                        <div style={{ color: "#00c896", fontWeight: 700, fontSize: 14 }}>Changes submitted!</div>
+                        <div style={{ color: "#475569", fontSize: 13, marginTop: 2 }}>We're applying your changes. You'll get an email when the revised site is ready.</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                        <div style={{ color: "#e2e8f0", fontWeight: 700, fontSize: 14 }}>✏️ Request Changes</div>
+                        <div style={{
+                          fontSize: 12, fontWeight: 700,
+                          color: feedback.length >= 10 ? "#f87171" : feedback.length >= 8 ? "#fbbf24" : "#64748b",
+                          background: feedback.length >= 10 ? "#f8717115" : feedback.length >= 8 ? "#fbbf2415" : "#131c2e",
+                          border: `1px solid ${feedback.length >= 10 ? "#f8717130" : feedback.length >= 8 ? "#fbbf2430" : "#1e2d42"}`,
+                          borderRadius: 20, padding: "3px 10px",
+                        }}>
+                          {feedback.length}/10 changes
+                        </div>
+                      </div>
+
+                      {feedback.length > 0 && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10, maxHeight: 180, overflowY: "auto" }}>
+                          {feedback.map((f, i) => (
+                            <EditableChange
+                              key={f.id}
+                              index={i}
+                              item={f}
+                              onUpdate={(newText) => setFeedback(prev => prev.map(x => x.id === f.id ? { ...x, text: newText } : x))}
+                              onDelete={() => setFeedback(prev => prev.filter(x => x.id !== f.id))}
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                      {feedback.length < 10 && (
+                        <div style={{ display: "flex", gap: 8, marginBottom: feedback.length > 0 ? 10 : 0 }}>
+                          <input
+                            type="text" value={feedbackText}
+                            onChange={e => setFeedbackText(e.target.value)}
+                            onKeyDown={e => e.key === "Enter" && submitFeedback()}
+                            placeholder="e.g. Change the hero button to blue"
+                            style={{ flex: 1, background: "#131c2e", border: "1px solid #1e2d42", borderRadius: 8, padding: "10px 14px", color: "#e2e8f0", fontSize: 13, outline: "none" }}
+                          />
+                          <button
+                            onClick={submitFeedback}
+                            disabled={feedbackSubmitting || !feedbackText.trim()}
+                            style={{ background: "linear-gradient(135deg,#00c896,#0099ff)", color: "#000", border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: feedbackSubmitting || !feedbackText.trim() ? "not-allowed" : "pointer", opacity: feedbackSubmitting || !feedbackText.trim() ? 0.5 : 1 }}>
+                            Add
+                          </button>
+                        </div>
+                      )}
+
+                      {feedback.length > 0 && (
+                        <button
+                          onClick={triggerRevision}
+                          disabled={feedbackSubmitting}
+                          style={{ width: "100%", background: feedback.length >= 10 ? "linear-gradient(135deg,#f59e0b,#ef4444)" : "linear-gradient(135deg,#00c896,#0099ff)", color: "#000", border: "none", borderRadius: 10, padding: "13px", fontSize: 14, fontWeight: 800, cursor: "pointer", opacity: feedbackSubmitting ? 0.6 : 1, marginTop: 2 }}>
+                          {feedbackSubmitting ? "Submitting…" : `Submit ${feedback.length} Change${feedback.length !== 1 ? "s" : ""} for Revision →`}
+                        </button>
+                      )}
+
+                      {feedback.length === 0 && (
+                        <div style={{ color: "#334155", fontSize: 12, marginTop: 2 }}>First 10 changes are free. Additional changes are $15 each.</div>
+                      )}
+                      {feedback.length >= 10 && (
+                        <div style={{ color: "#fbbf24", fontSize: 11, marginTop: 8, textAlign: "center" }}>10 changes reached — submit now or remove some to add different ones.</div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div style={{ margin: "16px", background: "#0d1117", border: "1px solid #1e2531", borderRadius: 12, textAlign: "center", padding: "48px 24px" }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>🏗️</div>
+                <div style={{ color: "#64748b", fontSize: 15 }}>Your site is being built.</div>
+              </div>
+            )}
+          </>
+      )}
+
+      <div style={tab === "preview" ? { display: "none" } : S.body}>
 
         {/* ══════════════════════ OVERVIEW ══════════════════════ */}
         {tab === "overview" && (
@@ -493,84 +647,6 @@ export default function ClientPortal() {
             <div style={{ ...S.card, background: "transparent", border: "1px solid #131b27" }}>
               <div style={{ color: "#2a3347", fontSize: 13 }}>Questions? <a href="mailto:hello@webgecko.au" style={{ color: "#334155" }}>hello@webgecko.au</a></div>
             </div>
-          </>
-        )}
-
-        {/* ══════════════════════ SITE PREVIEW ══════════════════════ */}
-        {tab === "preview" && (
-          <>
-            {!paymentStatus?.previewUnlocked ? (
-              <div style={{ ...S.card, textAlign: "center", padding: "48px 24px" }}>
-                <div style={{ fontSize: 36, marginBottom: 12 }}>🔒</div>
-                <div style={{ color: "#4a5568", fontSize: 15 }}>Preview coming soon</div>
-                <div style={{ color: "#2a3347", fontSize: 13, marginTop: 6 }}>You'll receive an email when your site is ready to review.</div>
-              </div>
-            ) : client.jobId ? (
-              <>
-                <div style={{ ...S.card, padding: 0, overflow: "hidden" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderBottom: "1px solid #1e2531" }}>
-                    <span style={{ color: "#e2e8f0", fontWeight: 600, fontSize: 13 }}>🖥 Live Preview — Round {feedbackRound}</span>
-                    {client.previewUrl && <a href={client.previewUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#0099ff", fontSize: 12, textDecoration: "none" }}>Open in new tab ↗</a>}
-                  </div>
-                  <div style={{ position: "relative", width: "100%", paddingBottom: "62%", background: "#080c14" }}>
-                    <iframe src={`/api/preview/proxy?slug=${slug}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }} title="Site Preview" />
-                  </div>
-                </div>
-
-                <div style={S.card}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                    <div style={{ color: "#e2e8f0", fontWeight: 700, fontSize: 14 }}>✏️ Request Changes</div>
-                    <div style={{ fontSize: 12, color: feedback.length >= 10 ? "#ff6b6b" : feedback.length >= 8 ? "#ffcc55" : "#4a5568", fontWeight: 600 }}>{feedback.length}/10 free changes</div>
-                  </div>
-                  <div style={{ color: "#4a5568", fontSize: 12, marginBottom: 14 }}>
-                    First 10 changes included free.{feedback.length >= 10 && <span style={{ color: "#ffcc55" }}> Additional changes are $15 each.</span>}
-                  </div>
-
-                  {revisionSent ? (
-                    <div style={{ background: "#00c89610", border: "1px solid #00c89625", borderRadius: 10, padding: 20, textAlign: "center" }}>
-                      <div style={{ fontSize: 24, marginBottom: 8 }}>✅</div>
-                      <div style={{ color: "#00c896", fontWeight: 600 }}>Changes submitted!</div>
-                      <div style={{ color: "#4a5568", fontSize: 13, marginTop: 4 }}>We're applying your changes. You'll get an email when the revised site is ready.</div>
-                    </div>
-                  ) : (
-                    <>
-                      {feedback.length > 0 && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
-                          {feedback.map((f, i) => (
-                            <div key={f.id} style={{ background: "#080c14", border: "1px solid #1e2531", borderRadius: 8, padding: "10px 14px", display: "flex", gap: 10, alignItems: "flex-start", justifyContent: "space-between" }}>
-                              <div style={{ display: "flex", gap: 8 }}>
-                                <span style={{ color: "#2a3347", fontSize: 11, minWidth: 18, marginTop: 2 }}>{i + 1}.</span>
-                                <span style={{ color: "#94a3b8", fontSize: 13, lineHeight: 1.5 }}>{f.text}</span>
-                              </div>
-                              <button onClick={() => setFeedback(prev => prev.filter(x => x.id !== f.id))} style={{ background: "none", border: "none", color: "#2a3347", cursor: "pointer", fontSize: 14, flexShrink: 0 }}>✕</button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {feedback.length < 10 && (
-                        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                          <input type="text" value={feedbackText} onChange={e => setFeedbackText(e.target.value)} onKeyDown={e => e.key === "Enter" && submitFeedback()}
-                            placeholder="e.g. Change the hero button to blue"
-                            style={{ flex: 1, background: "#080c14", border: "1px solid #1e2531", borderRadius: 8, padding: "10px 14px", color: "#e2e8f0", fontSize: 13, outline: "none" }} />
-                          <button onClick={submitFeedback} disabled={feedbackSubmitting || !feedbackText.trim()} style={{ ...S.btn("primary", feedbackSubmitting || !feedbackText.trim()), padding: "10px 16px", fontSize: 13 }}>Add</button>
-                        </div>
-                      )}
-                      {feedback.length > 0 && (
-                        <button onClick={triggerRevision} disabled={feedbackSubmitting}
-                          style={{ width: "100%", background: "linear-gradient(135deg,#00c896,#0099ff)", color: "#000", border: "none", borderRadius: 10, padding: 13, fontSize: 14, fontWeight: 800, cursor: "pointer", opacity: feedbackSubmitting ? 0.6 : 1 }}>
-                          {feedbackSubmitting ? "Submitting…" : `Submit ${feedback.length} Change${feedback.length !== 1 ? "s" : ""} for Revision`}
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div style={{ ...S.card, textAlign: "center", padding: "48px 24px" }}>
-                <div style={{ fontSize: 36, marginBottom: 12 }}>🏗️</div>
-                <div style={{ color: "#4a5568", fontSize: 15 }}>Your site is being built.</div>
-              </div>
-            )}
           </>
         )}
 
@@ -786,14 +862,61 @@ export default function ClientPortal() {
               </div>
             </div>
 
+            {/* Plan tiers */}
+            {!showSubModal && (
+              <div style={S.card}>
+                <div style={S.label}>Update Plan</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
+                  {/* Essential */}
+                  <div style={{
+                    background: "#080c14", border: `2px solid ${(client.quote?.monthlyPrice || 0) < 149 ? "#00c896" : "#1e2531"}`,
+                    borderRadius: 12, padding: "16px 14px",
+                  }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Essential</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: "#e2e8f0", lineHeight: 1 }}>$99<span style={{ fontSize: 12, color: "#4a5568", fontWeight: 400 }}>/mo</span></div>
+                    <div style={{ height: 1, background: "#1e2531", margin: "12px 0" }} />
+                    {["Hosting & SSL", "5 site changes/month", "SEO updates", "Email support"].map(f => (
+                      <div key={f} style={{ fontSize: 12, color: "#64748b", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                        <span style={{ color: "#00c896", fontSize: 10 }}>✓</span>{f}
+                      </div>
+                    ))}
+                    <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Switch to Essential plan — " + client.businessName)}`}
+                      style={{ display: "block", textAlign: "center", marginTop: 12, background: "#1a2233", color: "#94a3b8", borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+                      Switch to Essential
+                    </a>
+                  </div>
+
+                  {/* Premium */}
+                  <div style={{
+                    background: "#0a1628", border: `2px solid ${(client.quote?.monthlyPrice || 0) >= 149 ? "#00c896" : "#0099ff40"}`,
+                    borderRadius: 12, padding: "16px 14px", position: "relative" as const,
+                  }}>
+                    {(client.quote?.monthlyPrice || 0) >= 149 && (
+                      <div style={{ position: "absolute", top: -10, right: 10, background: "#00c896", color: "#000", fontSize: 10, fontWeight: 800, padding: "2px 10px", borderRadius: 20 }}>CURRENT</div>
+                    )}
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Premium</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: "#e2e8f0", lineHeight: 1 }}>$149<span style={{ fontSize: 12, color: "#4a5568", fontWeight: 400 }}>/mo</span></div>
+                    <div style={{ height: 1, background: "#1e2531", margin: "12px 0" }} />
+                    {["Hosting & SSL", "10 site changes/month", "Monthly AI fix pass", "SEO & speed updates", "Priority support"].map(f => (
+                      <div key={f} style={{ fontSize: 12, color: "#64748b", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                        <span style={{ color: "#00c896", fontSize: 10 }}>✓</span>{f}
+                      </div>
+                    ))}
+                    <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Upgrade to Premium plan — " + client.businessName)}`}
+                      style={{ display: "block", textAlign: "center", marginTop: 12, background: "linear-gradient(135deg,#00c896,#0099ff)", color: "#000", borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
+                      Upgrade to Premium
+                    </a>
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: "#334155", textAlign: "center", marginTop: 12 }}>Plan changes take effect after your current paid month ends.</div>
+              </div>
+            )}
+
             {/* Manage subscription */}
             {!showSubModal ? (
               <div style={{ ...S.card, background: "transparent", border: "1px solid #131b27" }}>
-                <div style={{ fontSize: 13, color: "#2a3347", marginBottom: 10 }}>Need to make changes to your plan?</div>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <a href="mailto:hello@webgecko.au?subject=Upgrade%20my%20plan" style={{ ...S.btn("secondary"), textDecoration: "none", fontSize: 13 }}>📨 Upgrade Plan</a>
-                  <button onClick={() => { setShowSubModal(true); setSubStep("reason"); setCancelOption(null); setCancelReason(""); }} style={{ ...S.btn("ghost"), fontSize: 13 }}>Manage subscription</button>
-                </div>
+                <div style={{ fontSize: 13, color: "#475569", marginBottom: 10 }}>Want to cancel or change something else?</div>
+                <button onClick={() => { setShowSubModal(true); setSubStep("reason"); setCancelOption(null); setCancelReason(""); }} style={{ ...S.btn("ghost"), fontSize: 13 }}>Manage subscription</button>
               </div>
             ) : (
               <div style={S.card}>
@@ -812,7 +935,7 @@ export default function ClientPortal() {
                       { r: "other", label: "💬 Something else" },
                     ].map(({ r, label }) => (
                       <button key={r} onClick={() => { setCancelReason(r); setSubStep("option"); }}
-                        style={{ display: "block", width: "100%", textAlign: "left", background: cancelReason === r ? "#0d1a2e" : "#080c14", border: `1px solid ${cancelReason === r ? "#0099ff40" : "#1e2531"}`, borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#94a3b8", cursor: "pointer", marginBottom: 8 }}>
+                        style={{ display: "block", width: "100%", textAlign: "left", background: cancelReason === r ? "#0d1a2e" : "#080c14", border: "1px solid #1e2531", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#94a3b8", cursor: "pointer", marginBottom: 8 }}>
                         {label}
                       </button>
                     ))}
@@ -824,9 +947,9 @@ export default function ClientPortal() {
                 {subStep === "option" && (
                   <>
                     <div style={{ fontWeight: 700, fontSize: 15, color: "#e2e8f0", marginBottom: 4 }}>
-                      {cancelReason === "too-expensive" ? "💡 Let's find something that works" :
-                       cancelReason === "not-using" ? "⏸ Want to pause instead?" :
-                       cancelReason === "unhappy" ? "🔧 Let us fix it first" :
+                      {cancelReason === "too-expensive" ? "Let's find something that works" :
+                       cancelReason === "not-using" ? "Want to pause instead?" :
+                       cancelReason === "unhappy" ? "Let us fix it first" :
                        "Here are your options"}
                     </div>
                     <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 16 }}>
@@ -836,22 +959,20 @@ export default function ClientPortal() {
                        "Choose how you'd like to leave. Each option has a different exit fee."}
                     </div>
 
-                    {/* Offer for fixable reasons */}
                     {(cancelReason === "too-expensive" || cancelReason === "not-using" || cancelReason === "unhappy") && (
                       <div style={{ marginBottom: 16 }}>
                         {cancelReason === "unhappy" && (
                           <button onClick={() => { setShowSubModal(false); setTab("preview"); }} style={{ ...S.btn("primary"), width: "100%", marginBottom: 10, fontSize: 13 }}>
-                            Request Changes Now →
+                            Request Changes Now
                           </button>
                         )}
-                        <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Plan query — " + client.businessName)}&body=${encodeURIComponent("Hi, I wanted to discuss my plan.\n\nReason: " + cancelReason + "\n\nBusiness: " + client.businessName)}`}
+                        <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Plan query — " + client.businessName)}&body=${encodeURIComponent("Hi, I wanted to discuss my plan.\n\nBusiness: " + client.businessName)}`}
                           style={{ ...S.btn("secondary"), textDecoration: "none", width: "100%", display: "flex", fontSize: 13, marginBottom: 10 }}>
-                          📨 Talk to Us First
+                          Talk to Us First
                         </a>
                       </div>
                     )}
 
-                    {/* Cancel options with pricing */}
                     <div style={{ ...S.label, marginTop: 8 }}>Or choose a cancellation option</div>
                     {CANCEL_OPTIONS.map(opt => (
                       <button key={opt.id} onClick={() => { setCancelOption(opt); setSubStep("confirm"); }}
@@ -872,7 +993,7 @@ export default function ClientPortal() {
                         </div>
                       </button>
                     ))}
-                    <button onClick={() => setSubStep("reason")} style={{ ...S.btn("ghost"), fontSize: 13 }}>← Back</button>
+                    <button onClick={() => setSubStep("reason")} style={{ ...S.btn("ghost"), fontSize: 13 }}>Back</button>
                   </>
                 )}
 
@@ -894,22 +1015,15 @@ export default function ClientPortal() {
                       </div>
                     </div>
                     <div style={{ fontSize: 12, color: "#4a5568", marginBottom: 16 }}>
-                      Clicking below sends a cancellation request to our team. We'll confirm within 1 business day and arrange next steps.
+                      Clicking below sends a cancellation request to our team. We'll confirm within 1 business day.
                     </div>
                     <a
-                      href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Cancellation request — " + client.businessName + " — " + cancelOption.label)}&body=${encodeURIComponent(
-                        "Hi WebGecko team,\n\nI'd like to cancel my subscription.\n\n" +
-                        "Business: " + client.businessName + "\n" +
-                        "Option chosen: " + cancelOption.label + "\n" +
-                        "Exit fee quoted: " + (cancelOption.priceCalc(buildPrice) === 0 ? "Free" : "$" + cancelOption.priceCalc(buildPrice).toLocaleString()) + "\n" +
-                        "Reason: " + cancelReason + "\n\n" +
-                        "Please confirm receipt and next steps."
-                      )}`}
+                      href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Cancellation — " + client.businessName + " — " + cancelOption.label)}&body=${encodeURIComponent("Hi WebGecko,\n\nI'd like to cancel.\n\nBusiness: " + client.businessName + "\nOption: " + cancelOption.label + "\nReason: " + cancelReason)}`}
                       style={{ ...S.btn("danger"), textDecoration: "none", width: "100%", display: "flex", fontSize: 13, marginBottom: 10 }}>
                       Send Cancellation Request
                     </a>
-                    <button onClick={() => { setShowSubModal(false); }} style={{ ...S.btn("secondary"), width: "100%", fontSize: 13 }}>Keep my plan</button>
-                    <button onClick={() => setSubStep("option")} style={{ ...S.btn("ghost"), marginTop: 8, fontSize: 12 }}>← Back</button>
+                    <button onClick={() => setShowSubModal(false)} style={{ ...S.btn("secondary"), width: "100%", fontSize: 13 }}>Keep my plan</button>
+                    <button onClick={() => setSubStep("option")} style={{ ...S.btn("ghost"), marginTop: 8, fontSize: 12 }}>Back</button>
                   </>
                 )}
               </div>
