@@ -432,7 +432,7 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
         // Inject a small Square trust badge near the shop section
         const squareBadge = `<div style="text-align:center;margin-top:16px;padding:8px;"><img src="https://images.squareup.com/content/en-au/images/marketing/square-logo-lockup-black.svg" alt="Secure checkout powered by Square" style="height:24px;opacity:0.5;" onerror="this.style.display='none';" /><p style="color:rgba(255,255,255,0.4);font-size:11px;margin:4px 0 0;">Secure checkout powered by Square</p></div>`;
         html = html.replace(/(<section[^>]*(?:id|class)="[^"]*shop[^"]*"[^>]*>[\s\S]*?)(<\/section>)/gi,
-          (match, body, close) => body + squareBadge + close
+          (_match: string, body: string, close: string) => body + squareBadge + close
         );
 
         console.log(`[Inngest] STEP 7: Shop buttons wired for ${catalogueItems.length} products`);
