@@ -34,21 +34,26 @@ export function calculateQuote(userInput: any) {
   const hasEcommerce = features.includes("Payments / Shop");
   const hasBooking = features.includes("Booking System");
   const hasBlog = features.includes("Blog");
-  let packageName = "Starter"; let basePrice = 1800; let competitorPrice = 3500;
+
+  // Package based on page count — features are add-ons, not package triggers
+  let packageName = "Starter"; let basePrice = 1500; let competitorPrice = 3000;
   const breakdown: string[] = [];
-  if (pageCount >= 8 || hasEcommerce || hasBooking) { packageName = "Premium"; basePrice = 5500; competitorPrice = 15000; }
-  else if (pageCount >= 4 || isMultiPage) { packageName = "Business"; basePrice = 3200; competitorPrice = 7500; }
+  if (pageCount >= 7 || (isMultiPage && pageCount >= 5)) { packageName = "Premium"; basePrice = 3800; competitorPrice = 12000; }
+  else if (pageCount >= 4 || isMultiPage) { packageName = "Business"; basePrice = 2400; competitorPrice = 6500; }
   breakdown.push(`${packageName} package (${pageCount} pages): $${basePrice.toLocaleString()}`);
+
   let addons = 0;
-  if (hasEcommerce && packageName !== "Premium") { addons += 300; breakdown.push("Payments / Shop: +$300"); }
-  if (hasBooking && packageName !== "Premium") { addons += 200; breakdown.push("Booking: +$200"); }
-  if (hasBlog) { addons += 150; breakdown.push("Blog: +$150"); }
-  if (features.includes("Photo Gallery")) { addons += 100; breakdown.push("Gallery: +$100"); }
+  if (hasBooking) { addons += 400; breakdown.push("Booking system: +$400"); }
+  if (hasEcommerce) { addons += 600; breakdown.push("Online shop (Square): +$600"); }
+  if (hasBlog) { addons += 200; breakdown.push("Blog: +$200"); }
+  if (features.includes("Photo Gallery")) { addons += 150; breakdown.push("Gallery: +$150"); }
   if (features.includes("Reviews & Testimonials")) { addons += 100; breakdown.push("Reviews: +$100"); }
   if (features.includes("Live Chat")) { addons += 150; breakdown.push("Live chat: +$150"); }
   if (features.includes("Newsletter Signup")) { addons += 100; breakdown.push("Newsletter: +$100"); }
+  if (features.includes("Video Background")) { addons += 200; breakdown.push("Video hero: +$200"); }
+
   const totalPrice = basePrice + addons;
-  const monthlyPrice = packageName === "Premium" ? 149 : packageName === "Business" ? 99 : 79;
+  const monthlyPrice = packageName === "Premium" ? 129 : packageName === "Business" ? 89 : 69;
   const savings = competitorPrice - totalPrice;
   breakdown.push(`Monthly hosting: $${monthlyPrice}/month`);
   return { package: packageName, price: totalPrice, monthlyPrice, savings, competitorPrice, breakdown };
@@ -169,10 +174,15 @@ export function injectEssentials(html: string, email: string, phone: string, job
     processed = processed.replace(/admin@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
   }
   if (phone) {
+    const phoneDigits = phone.replace(/\D/g, "");
     processed = processed.replace(/\+1 \(555\)[^\s<"']*/g, phone);
     processed = processed.replace(/\(555\)[^\s<"']*/g, phone);
     processed = processed.replace(/555-[0-9-]+/g, phone);
-    processed = processed.replace(/\+61 4[0-9]{2} [0-9]{3} [0-9]{3}/g, phone);
+    // Only replace AU mobile numbers that aren't already the real number
+    processed = processed.replace(/\b(0[0-9]{3}\s?[0-9]{3}\s?[0-9]{3,4})\b/g, (m: string) => {
+      if (m.replace(/\D/g, "") === phoneDigits) return m;
+      return m; // leave unknown numbers — Step 5 already replaced fakes
+    });
   }
 
   const script = `
@@ -235,8 +245,14 @@ var cart = [];
 function showToast(msg) { var t = document.getElementById("wg-toast"); if (!t) { t = document.createElement("div"); t.id = "wg-toast"; t.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:99999;transition:opacity 0.3s;pointer-events:none;"; document.body.appendChild(t); } t.textContent = msg; t.style.opacity = "1"; setTimeout(function() { t.style.opacity = "0"; }, 2500); }
 document.querySelectorAll("button,a").forEach(function(btn) { var txt = (btn.textContent || "").toLowerCase().trim(); if (txt.includes("add to cart") || txt.includes("buy now") || txt.includes("add to bag")) { btn.addEventListener("click", function(e) { e.preventDefault(); e.stopPropagation(); var card = this.closest("article") || this.closest("[class*='product']") || this.parentElement; var nm = card && card.querySelector("h1,h2,h3,h4"); var n = nm ? nm.textContent.trim() : "Item"; var ex = cart.find(function(i) { return i.name === n; }); if (ex) ex.qty++; else cart.push({ name: n, qty: 1 }); showToast(n + " added"); var total = cart.reduce(function(a, b) { return a + b.qty; }, 0); document.querySelectorAll("#cart-count,#cart-badge,[class*='cart-count']").forEach(function(b) { b.textContent = total; }); }); } });
 document.querySelectorAll("form").forEach(function(form) { form.addEventListener("submit", function(e) { e.preventDefault(); if (form.querySelector(".wg-success")) return; var s = document.createElement("div"); s.className = "wg-success"; s.style.cssText = "background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;font-family:sans-serif;"; s.textContent = "Thank you! We will be in touch within 24 hours."; form.appendChild(s); form.querySelectorAll("input,textarea,select,button[type='submit']").forEach(function(el) { el.setAttribute("disabled", "true"); }); }); });
-var pages = document.querySelectorAll(".page,.page-section");
-if (pages.length > 1) { var ha = false; pages.forEach(function(p) { if (p.classList.contains("active")) ha = true; }); if (!ha) { pages.forEach(function(p, i) { if (i === 0) { p.style.display = "block"; p.classList.add("active"); } else { p.style.display = "none"; } }); } }
+// Multi-page init: ONLY hide sections if navigateTo() is actually used in the HTML.
+// Single-page Stitch sites use class="page-section" as a styling class on every section —
+// running the multi-page logic on them would hide everything below the first section.
+var isMultiPageSite = !!(document.querySelector("[onclick*='navigateTo']") || document.querySelector("[data-nav]") || document.querySelector("[data-page]"));
+if (isMultiPageSite) {
+  var pages = document.querySelectorAll(".page,.page-section");
+  if (pages.length > 1) { var ha = false; pages.forEach(function(p) { if (p.classList.contains("active")) ha = true; }); if (!ha) { pages.forEach(function(p, i) { if (i === 0) { p.style.display = "block"; p.classList.add("active"); } else { p.style.display = "none"; } }); } }
+}
 })();
 </script>`;
 

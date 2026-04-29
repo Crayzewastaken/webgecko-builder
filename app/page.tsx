@@ -8,19 +8,26 @@ function calculateQuote(pages: string[], features: string[], siteType: string) {
   const hasBooking = features.includes('Booking System');
   const hasBlog = features.includes('Blog');
   const isMultiPage = siteType === 'multi';
-  let packageName = 'Starter'; let basePrice = 1800; let competitorPrice = 3500;
-  if (pageCount >= 8 || hasEcommerce || hasBooking) { packageName = 'Premium'; basePrice = 5500; competitorPrice = 15000; }
-  else if (pageCount >= 4 || isMultiPage) { packageName = 'Business'; basePrice = 3200; competitorPrice = 7500; }
+
+  // Package determined by page count / complexity — NOT by features
+  let packageName = 'Starter'; let basePrice = 1500; let competitorPrice = 3000;
+  if (pageCount >= 7 || isMultiPage && pageCount >= 5) { packageName = 'Premium'; basePrice = 3800; competitorPrice = 12000; }
+  else if (pageCount >= 4 || isMultiPage) { packageName = 'Business'; basePrice = 2400; competitorPrice = 6500; }
+
+  // Feature add-ons — flat rates regardless of package
   let addons = 0;
-  if (hasEcommerce && packageName !== 'Premium') addons += 300;
-  if (hasBooking && packageName !== 'Premium') addons += 200;
-  if (hasBlog) addons += 150;
-  if (features.includes('Photo Gallery')) addons += 100;
+  if (hasBooking) addons += 400;       // booking system integration
+  if (hasEcommerce) addons += 600;     // Square shop setup + catalogue
+  if (hasBlog) addons += 200;
+  if (features.includes('Photo Gallery')) addons += 150;
   if (features.includes('Reviews & Testimonials')) addons += 100;
   if (features.includes('Live Chat')) addons += 150;
   if (features.includes('Newsletter Signup')) addons += 100;
+  if (features.includes('Google Maps')) addons += 0; // included
+  if (features.includes('Video Background')) addons += 200;
+
   const totalPrice = basePrice + addons;
-  const monthlyPrice = packageName === 'Premium' ? 149 : packageName === 'Business' ? 99 : 79;
+  const monthlyPrice = packageName === 'Premium' ? 129 : packageName === 'Business' ? 89 : 69;
   const savings = competitorPrice - totalPrice;
   return { packageName, totalPrice, monthlyPrice, savings, competitorPrice };
 }

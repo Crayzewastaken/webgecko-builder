@@ -106,6 +106,8 @@ The JSON must have exactly two keys: "projectTitle" (short string) and "stitchPr
 
 You are a senior UI designer. Design a premium, distinctive website for the business below. Research the ${userInput.industry} industry. Think about top-tier websites in this space. Create something better than average — distinctive, conversion-focused, and premium.
 
+CRITICAL — BUSINESS NAME: The ONLY permitted business name in ALL text, headings, logo, nav, footer, title tag, and copyright is: "${userInput.businessName}". Do NOT invent, shorten, or rename it. Every instance must say exactly "${userInput.businessName}".
+
 BUSINESS CONTEXT:
 Business: ${userInput.businessName}
 Industry: ${userInput.industry}
@@ -249,6 +251,12 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
     const fixedHtml = await step.run("step5-code-fix", async () => {
       let html = stitchHtml;
       const bookingNavTarget = hasBookingFeature ? "booking" : "contact";
+      const businessName = userInput.businessName || "";
+
+      // ── FIX 0: Fix <title> tag to include real business name ──
+      if (businessName) {
+        html = html.replace(/<title>[^<]*<\/title>/i, `<title>${businessName}</title>`);
+      }
 
       // ── FIX 1: Contact details — replace ALL placeholder emails & phones ──
       const clientDomain = clientEmail.split("@")[1] || "";
@@ -269,12 +277,14 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
           return clientEmail;
         });
       }
-      // Phones: replace all obvious fake/placeholder AU numbers
-      html = html.replace(/\b0[0-9]{3}\s?[0-9]{3}\s?[0-9]{3}\b/g, (m: string) => {
-        // Only replace if it looks fake (repeating digits, 000 patterns)
-        if (/0{3}/.test(m.replace(/\s/g, "")) || /1{4}|2{4}|3{4}|4{4}|5{4}|6{4}|7{4}|8{4}|9{4}/.test(m.replace(/\s/g, ""))) return clientPhone;
-        if (m.replace(/\s/g, "") === clientPhone.replace(/\s/g, "")) return m;
-        return clientPhone;
+      // Phones: replace ONLY obvious fake/placeholder AU numbers — do NOT replace real ones
+      const clientPhoneDigits = clientPhone.replace(/\D/g, "");
+      html = html.replace(/\b(0[0-9]{3}\s?[0-9]{3}\s?[0-9]{3,4})\b/g, (m: string) => {
+        const digits = m.replace(/\D/g, "");
+        if (digits === clientPhoneDigits) return m; // already correct — leave it
+        // Only replace if clearly fake: all-zeros suffix, repeating pattern, or placeholder
+        if (/0{4,}/.test(digits) || /(\d)\1{4,}/.test(digits)) return clientPhone;
+        return m; // unknown real-looking number — leave it alone
       });
       html = html.replace(/\(\d{2}\)\s?\d{4}\s?\d{4}/g, clientPhone);
       html = html.replace(/\+61\s?[2-9]\s?\d{4}\s?\d{4}/g, clientPhone);

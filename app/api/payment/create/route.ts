@@ -18,21 +18,24 @@ function calculatePrice(userInput: any): { totalPrice: number; monthlyPrice: num
   const hasBooking = features.includes("Booking System");
   const isMultiPage = userInput?.siteType === "multi";
 
-  let totalPrice = 1800;
-  let monthlyPrice = 79;
-
-  if (pageCount >= 8 || hasEcommerce || hasBooking) {
-    totalPrice = 5500; monthlyPrice = 149;
+  // Package by page count — features are add-ons, not package triggers
+  let totalPrice = 1500;
+  let monthlyPrice = 69;
+  if (pageCount >= 7 || isMultiPage && pageCount >= 5) {
+    totalPrice = 3800; monthlyPrice = 129;
   } else if (pageCount >= 4 || isMultiPage) {
-    totalPrice = 3200; monthlyPrice = 99;
+    totalPrice = 2400; monthlyPrice = 89;
   }
 
+  if (hasBooking) totalPrice += 400;
+  if (hasEcommerce) totalPrice += 600;
   features.forEach(f => {
-    if (f === "Blog") totalPrice += 150;
-    if (f === "Photo Gallery") totalPrice += 100;
+    if (f === "Blog") totalPrice += 200;
+    if (f === "Photo Gallery") totalPrice += 150;
     if (f === "Reviews & Testimonials") totalPrice += 100;
     if (f === "Live Chat") totalPrice += 150;
     if (f === "Newsletter Signup") totalPrice += 100;
+    if (f === "Video Background") totalPrice += 200;
   });
 
   return { totalPrice, monthlyPrice };
