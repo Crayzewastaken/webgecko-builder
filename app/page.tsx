@@ -27,9 +27,12 @@ function calculateQuote(pages: string[], features: string[], siteType: string) {
   if (features.includes('Video Background')) addons += 200;
 
   const totalPrice = basePrice + addons;
-  const monthlyPrice = packageName === 'Premium' ? 129 : packageName === 'Business' ? 89 : 69;
+  // Monthly: introductory rate $109/month for first 3 months, then $119/month ongoing
+  const monthlyIntro = 109;
+  const monthlyOngoing = 119;
+  const monthlyPrice = monthlyIntro; // used for display
   const savings = competitorPrice - totalPrice;
-  return { packageName, totalPrice, monthlyPrice, savings, competitorPrice };
+  return { packageName, totalPrice, monthlyPrice, monthlyIntro, monthlyOngoing, savings, competitorPrice };
 }
 
 async function compressImage(file: File, maxWidthPx = 1200, qualityVal = 0.75): Promise<File> {
@@ -165,12 +168,15 @@ export default function HomePage() {
   const productPhotoRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Dynamic steps based on whether pricing is needed
+  const isMultiPage = siteType === 'multi';
+  const pagesLabel = isMultiPage ? 'Pages' : siteType === 'single' ? 'Sections' : 'Pages / Sections';
+
   const steps = useMemo(() => {
     const base = [
       { id: 'business', label: 'Your Business' },
       { id: 'goals', label: 'Website Goals' },
       { id: 'features', label: 'Features' },
-      { id: 'pages', label: 'Pages' },
+      { id: 'pages', label: isMultiPage ? 'Pages' : siteType === 'single' ? 'Sections' : 'Pages / Sections' },
       { id: 'pricing', label: 'Pricing' },
     ];
     if (hasPricing === 'Yes') base.push({ id: 'pricing_details', label: 'Pricing Details' });
@@ -178,7 +184,7 @@ export default function HomePage() {
     base.push({ id: 'assets', label: 'Assets' });
     base.push({ id: 'contact', label: 'Final Details' });
     return base;
-  }, [hasPricing]);
+  }, [hasPricing, siteType]);
 
   // Pages that are required by currently selected feature bundles
   const requiredPages = useMemo(() => {
@@ -206,6 +212,13 @@ export default function HomePage() {
     if (pages.length === 0 && features.length === 0 && !siteType) return null;
     return calculateQuote(pages, features, siteType);
   }, [pages, features, siteType]);
+
+  // Auto-include Home page when siteType is set
+  useEffect(() => {
+    if (siteType && !pages.includes("Home")) {
+      setPages(p => ["Home", ...p.filter(pg => pg !== "Home")]);
+    }
+  }, [siteType]);
 
   useEffect(() => {
     const saved = loadFromStorage();
@@ -398,7 +411,7 @@ export default function HomePage() {
             </div>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl flex-shrink-0">🌐</div>
-              <div><p className="text-white font-semibold text-sm">{businessName}</p><p className="text-slate-400 text-sm">{quote ? `${quote.packageName} — $${quote.totalPrice.toLocaleString()} + $${quote.monthlyPrice}/month` : "Quote on the way"}</p></div>
+              <div><p className="text-white font-semibold text-sm">{businessName}</p><p className="text-slate-400 text-sm">We'll prepare your custom quote and send it through.</p></div>
             </div>
           </div>
           <p className="text-slate-600 text-sm">Didn't receive an email? Check spam or contact <span className="text-slate-400">hello@webgecko.au</span></p>
@@ -457,20 +470,24 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* STEP: pages */}
+          {/* STEP: pages / sections */}
           {currentStepId === 'pages' && (
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">📑 Select Pages <span className="text-red-400">*</span></label>
-              {requiredPages.length > 0 && (
-                <p className="text-slate-500 text-xs mb-4">🔒 Locked pages are required by your selected features. Tap to remove them if needed.</p>
-              )}
-              {!requiredPages.length && <div className="mb-4" />}
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">
+                {siteType === 'single' ? '📃 Select Sections' : '📑 Select Pages'} <span className="text-red-400">*</span>
+              </label>
+              <p className="text-slate-500 text-xs mb-4">
+                {siteType === 'single'
+                  ? 'Choose which sections appear on your page. Home is always included.'
+                  : 'Choose which pages your website will have. Home is always included.'}
+                {requiredPages.length > 0 && ' 🔒 Locked items are required by your selected features.'}
+              </p>
 
               {/* Confirm remove dialog */}
               {confirmRemovePage && (
                 <div className="mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl">
-                  <p className="text-amber-400 font-semibold text-sm mb-1">Remove "{confirmRemovePage}" page?</p>
-                  <p className="text-slate-400 text-xs mb-3">This page is required by a feature you selected. Removing it may affect functionality.</p>
+                  <p className="text-amber-400 font-semibold text-sm mb-1">Remove "{confirmRemovePage}" {siteType === 'single' ? 'section' : 'page'}?</p>
+                  <p className="text-slate-400 text-xs mb-3">This {siteType === 'single' ? 'section' : 'page'} is required by a feature you selected. Removing it may affect functionality.</p>
                   <div className="flex gap-2">
                     <button onClick={() => { setPages(p => p.filter(pg => pg !== confirmRemovePage)); setConfirmRemovePage(null); }}
                       className="flex-1 h-9 rounded-xl bg-amber-500 text-black text-xs font-bold">Yes, remove it</button>
@@ -481,27 +498,32 @@ export default function HomePage() {
               )}
 
               <div className="grid grid-cols-2 gap-2">
-                {["Home", "About", "Services", "Contact", "Shop", "Gallery", "Blog", "Booking", "FAQ", "Testimonials", "Pricing", "Portfolio", "Team", "Menu"].map(p => {
-                  const isRequired = requiredPages.includes(p);
-                  const isChecked = pages.includes(p);
+                {["Home", "About", "Services", "Contact", "Shop", "Gallery", "Blog", "Booking", "FAQ", "Testimonials", "Pricing", "Portfolio", "Team", "Menu"].map(pg => {
+                  const isHome = pg === "Home";
+                  const isRequired = isHome || requiredPages.includes(pg);
+                  const isChecked = isHome ? true : pages.includes(pg);
                   return (
-                    <div key={p} onClick={() => {
-                      if (isRequired && isChecked) { setConfirmRemovePage(p); return; }
-                      toggleItem(pages, p, setPages);
+                    <div key={pg} onClick={() => {
+                      if (isHome) return; // Home is always locked
+                      if (isRequired && isChecked) { setConfirmRemovePage(pg); return; }
+                      toggleItem(pages, pg, setPages);
                     }}
-                      className={`cursor-pointer rounded-xl p-3 border transition-all flex items-center gap-3 active:scale-98 ${isChecked ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}>
+                      className={isHome ? 'rounded-xl p-3 border transition-all flex items-center gap-3 cursor-not-allowed border-emerald-500/50 bg-emerald-500/5' : `rounded-xl p-3 border transition-all flex items-center gap-3 cursor-pointer active:scale-98 ${isChecked ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}>
                       <div className={`w-5 h-5 rounded flex-shrink-0 flex items-center justify-center border-2 transition-all ${isChecked ? 'border-emerald-500 bg-emerald-500' : 'border-white/30'}`}>
                         {isChecked && <span className="text-white text-xs font-bold">{isRequired ? '🔒' : '✓'}</span>}
                       </div>
-                      <span className="text-sm text-white">{p}</span>
+                      <span className="text-sm text-white">{pg}</span>
                     </div>
                   );
                 })}
               </div>
 
-              {requiredPages.length > 0 && (
+              {(requiredPages.length > 0 || pages.length > 1) && (
                 <div className="mt-3 p-3 bg-slate-900/80 rounded-xl border border-white/10">
-                  <p className="text-xs text-slate-500">🔒 Required: {requiredPages.join(', ')}</p>
+                  <p className="text-xs text-slate-500">
+                    Selected: {["Home", ...pages.filter(p => p !== "Home")].join(', ')}
+                    {requiredPages.length > 0 && ` · 🔒 Locked: ${["Home", ...requiredPages.filter(p => p !== "Home")].join(', ')}`}
+                  </p>
                 </div>
               )}
             </div>
@@ -701,20 +723,7 @@ export default function HomePage() {
                 <InputField icon="📊" label="Google Analytics ID (optional)" value={ga4Id} onChange={(e: any) => setGa4Id(e.target.value)} placeholder="G-XXXXXXXXXX" hint="If you have a GA4 property, we'll wire it into your site automatically." />
               </div>
               <div><div ref={turnstileRef} />{!turnstileToken && turnstileReady && <p className="text-slate-500 text-xs mt-2">Complete the security check above to submit</p>}</div>
-              {quote && (
-                <div className="rounded-2xl bg-gradient-to-br from-emerald-950/50 to-slate-900/50 border border-emerald-500/20 p-5">
-                  <p className="text-xs font-semibold text-emerald-400 uppercase tracking-widest mb-3">💰 Your Estimated Quote</p>
-                  <div className="flex items-end gap-2 mb-1">
-                    <p className="text-4xl md:text-5xl font-bold text-white">${quote.totalPrice.toLocaleString()}</p>
-                    <p className="text-slate-400 mb-1 text-sm">one-time</p>
-                  </div>
-                  <p className="text-slate-400 text-sm mb-3">+ ${quote.monthlyPrice}/month hosting & maintenance</p>
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
-                    <p className="text-emerald-400 font-semibold text-sm">🎉 Saving ${quote.savings.toLocaleString()} vs the industry average</p>
-                  </div>
-                  <p className="text-slate-600 text-xs mt-2">{quote.packageName} Package</p>
-                </div>
-              )}
+              {/* Quote intentionally hidden from client — pricing is confirmed after review */}
             </div>
           )}
 
@@ -759,15 +768,7 @@ export default function HomePage() {
               {pages.length > 0 && <p className="truncate">📑 {pages.join(', ')}</p>}
               {name && <p>👤 {name}</p>}
             </div>
-            {quote && (
-              <div className="mt-4 border-t border-white/8 pt-4">
-                <p className="text-xs text-slate-500 uppercase tracking-widest mb-2">Live Quote</p>
-                <p className="text-2xl font-bold text-white">${quote.totalPrice.toLocaleString()}</p>
-                <p className="text-slate-500 text-xs">+ ${quote.monthlyPrice}/month</p>
-                <p className="text-emerald-400 text-xs mt-1 font-semibold">{quote.packageName} Package</p>
-                <p className="text-emerald-400 text-xs font-semibold">🎉 Saving ${quote.savings.toLocaleString()}</p>
-              </div>
-            )}
+            {/* Live quote intentionally hidden from client */}
           </div>
         </div>
       </div>

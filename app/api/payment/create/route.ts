@@ -11,7 +11,7 @@ const redis = new Redis({
 export type PaymentStage = "deposit" | "final" | "monthly";
 
 // Inline quote calculation — mirrors worker/route.ts calculateQuote()
-function calculatePrice(userInput: any): { totalPrice: number; monthlyPrice: number } {
+function calculatePrice(userInput: any): { totalPrice: number; monthlyPrice: number; monthlyOngoing: number } {
   const features: string[] = Array.isArray(userInput?.features) ? userInput.features : [];
   const pageCount = Array.isArray(userInput?.pages) ? userInput.pages.length : 1;
   const hasEcommerce = features.includes("Payments / Shop");
@@ -20,11 +20,10 @@ function calculatePrice(userInput: any): { totalPrice: number; monthlyPrice: num
 
   // Package by page count — features are add-ons, not package triggers
   let totalPrice = 1500;
-  let monthlyPrice = 69;
-  if (pageCount >= 7 || isMultiPage && pageCount >= 5) {
-    totalPrice = 3800; monthlyPrice = 129;
+  if (pageCount >= 7 || (isMultiPage && pageCount >= 5)) {
+    totalPrice = 3800;
   } else if (pageCount >= 4 || isMultiPage) {
-    totalPrice = 2400; monthlyPrice = 89;
+    totalPrice = 2400;
   }
 
   if (hasBooking) totalPrice += 400;
@@ -38,7 +37,8 @@ function calculatePrice(userInput: any): { totalPrice: number; monthlyPrice: num
     if (f === "Video Background") totalPrice += 200;
   });
 
-  return { totalPrice, monthlyPrice };
+  // Monthly: $109/month intro for first 3 months, then $119/month ongoing
+  return { totalPrice, monthlyPrice: 109, monthlyOngoing: 119 };
 }
 
 // GET /api/payment/create?slug=iron-core-fitness&stage=deposit
@@ -68,7 +68,8 @@ export async function GET(req: NextRequest) {
   // ── Resolve amounts ──────────────────────────────────────────────────────────
   // Priority: stored quote → recalculate from job userInput → recalculate from clientData fields
   let totalPrice: number = Number(clientData.quote?.price) || 0;
-  let monthlyPrice: number = Number(clientData.quote?.monthlyPrice) || 0;
+  let monthlyPrice: number = 109; // intro rate — always $109 for first 3 months
+  const monthlyOngoing: number = 119; // ongoing rate after 3 months
 
   if (!totalPrice) {
     // Try job record
@@ -84,10 +85,11 @@ export async function GET(req: NextRequest) {
       quote: {
         price: totalPrice,
         monthlyPrice,
+        monthlyOngoing,
         package: totalPrice >= 5500 ? "Premium" : totalPrice >= 3200 ? "Business" : "Starter",
         savings: totalPrice,
         competitorPrice: totalPrice * 2,
-        breakdown: [`Base package: $${totalPrice}`],
+        breakdown: [`Base package: $${totalPrice}`, `Hosting: $${monthlyPrice}/month (first 3 months), then $${monthlyOngoing}/month`],
       },
     });
   }
@@ -100,7 +102,9 @@ export async function GET(req: NextRequest) {
   }
 
   const depositAmount = Math.round(totalPrice * 0.5 * 100) / 100;
-  const finalAmount = Math.round((totalPrice - depositAmount) * 100) / 100;
+  // Final payment = remaining balance + first month hosting
+  const remainingBalance = Math.round((totalPrice - depositAmount) * 100) / 100;
+  const finalAmount = Math.round((remainingBalance + monthlyPrice) * 100) / 100;
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
   const redirectUrl = `${baseUrl}/c/${slug}?payment=done`;
@@ -138,13 +142,13 @@ export async function GET(req: NextRequest) {
       });
     } else {
       const amount = stage === "deposit" ? depositAmount : finalAmount;
-      const label = stage === "deposit" ? "50% Deposit" : "50% Final Payment";
+      const label = stage === "deposit" ? "50% Deposit" : "Final Payment + First Month";
       result = await createPaymentLink({
         amountDollars: amount,
         title: `${businessName} — ${label}`,
         description: stage === "deposit"
           ? "Deposit to begin your website build. Balance due after final revision."
-          : "Final payment to launch your website.",
+          : `Final payment to launch your website ($${remainingBalance.toFixed(0)}) plus your first month of hosting ($${monthlyPrice}/month). After 3 months, hosting continues at $${monthlyOngoing}/month.`,
         referenceId,
         redirectUrl,
         buyerEmail: email,
@@ -162,6 +166,8 @@ export async function GET(req: NextRequest) {
   const record = {
     stage,
     amountDollars: stage === "deposit" ? depositAmount : stage === "final" ? finalAmount : monthlyPrice,
+    // For "final": includes first month hosting
+    includesFirstMonth: stage === "final" ? true : undefined,
     paymentLinkId: result.paymentLinkId,
     paymentLinkUrl: result.url,
     orderId: result.orderId,

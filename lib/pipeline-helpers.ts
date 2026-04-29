@@ -53,10 +53,12 @@ export function calculateQuote(userInput: any) {
   if (features.includes("Video Background")) { addons += 200; breakdown.push("Video hero: +$200"); }
 
   const totalPrice = basePrice + addons;
-  const monthlyPrice = packageName === "Premium" ? 129 : packageName === "Business" ? 89 : 69;
+  // Monthly: $109/month intro for 3 months, then $119/month ongoing
+  const monthlyPrice = 109; // intro rate (first 3 months)
+  const monthlyOngoing = 119; // standard ongoing rate
   const savings = competitorPrice - totalPrice;
-  breakdown.push(`Monthly hosting: $${monthlyPrice}/month`);
-  return { package: packageName, price: totalPrice, monthlyPrice, savings, competitorPrice, breakdown };
+  breakdown.push(`Monthly hosting: $${monthlyPrice}/month (first 3 months), then $${monthlyOngoing}/month`);
+  return { package: packageName, price: totalPrice, monthlyPrice, monthlyOngoing, savings, competitorPrice, breakdown };
 }
 
 // ─── extractCSS ───────────────────────────────────────────────────────────────
@@ -224,9 +226,9 @@ document.querySelectorAll("#hamburger,#hamburger-btn,#menu-toggle,[class*='hambu
   });
 });
 // Close drawer button
-document.querySelectorAll("#close-drawer,[aria-label='Close menu'],[aria-label='Close']").forEach(function(btn) {
+document.querySelectorAll("#close-drawer,#close-menu,#menu-close,#nav-close,[aria-label='Close menu'],[aria-label='Close'],[aria-label='Close navigation']").forEach(function(btn) {
   btn.addEventListener("click", function() {
-    var drawer = document.getElementById("side-drawer") || document.getElementById("mobile-menu") || document.getElementById("mobile-nav");
+    var drawer = document.getElementById("side-drawer") || document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.querySelector("[class*='side-drawer'],[class*='mobile-menu'],[class*='mobile-nav']");
     if (drawer) { drawer.classList.remove("translate-x-0"); drawer.classList.add("translate-x-full"); drawer.style.transform = "translateX(100%)"; drawer.style.display = "none"; }
   });
 });

@@ -313,17 +313,25 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
         const mapsEmbed = `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`;
         let mapInjected = false;
         // Strategy 1: Replace MAP PLACEHOLDER text divs that Stitch generates
+        const beforeMapLen = html.length;
         html = html.replace(/<div[^>]*>\s*MAP PLACEHOLDER[^<]*<\/div>/gi, mapsEmbed);
+        if (html.length !== beforeMapLen) mapInjected = true;
         // Strategy 2: Find div with id/class containing map/location/directions that has no iframe yet
-        html = html.replace(/<div([^>]*(?:id|class)="[^"]*(?:map|location|directions|gmap)[^"]*"[^>]*)>([\s\S]*?)<\/div>/gi, (match: string, attrs: string, inner: string) => {
-          if (match.includes('iframe')) return match;
-          mapInjected = true;
-          return `<div${attrs}>${mapsEmbed}</div>`;
-        });
-        // Strategy 3: inject before the closing of the contact section if no map found
+        if (!mapInjected) {
+          html = html.replace(/<div([^>]*(?:id|class)="[^"]*(?:map|location|directions|gmap)[^"]*"[^>]*)>([\s\S]*?)<\/div>/gi, (match: string, attrs: string) => {
+            if (match.includes('iframe')) return match;
+            mapInjected = true;
+            return `<div${attrs}>${mapsEmbed}</div>`;
+          });
+        }
+        // Strategy 3: inject inside the contact section before its last closing </div>
         if (!mapInjected && !html.includes('maps.google') && !html.includes('maps.embed')) {
-          html = html.replace(/(<section[^>]*(?:id|class)="[^"]*contact[^"]*"[^>]*>[\s\S]*?)(<\/section>)/gi, (match: string, body: string, close: string) => {
-            return body + mapsEmbed + close;
+          html = html.replace(/(<section[^>]*(?:id|class)="[^"]*contact[^"]*"[^>]*>)([\s\S]*?)(<\/section>)/gi, (_match: string, open: string, body: string, close: string) => {
+            const lastDiv = body.lastIndexOf('</div>');
+            if (lastDiv !== -1) {
+              return open + body.slice(0, lastDiv) + mapsEmbed + body.slice(lastDiv) + close;
+            }
+            return open + body + mapsEmbed + close;
           });
         }
       }
@@ -359,12 +367,21 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
       if (hasBookingFeature) {
         try {
           const services = getServicesForIndustry(userInput.industry);
+          // Extract accent color from Stitch HTML (CTA buttons are a reliable signal)
+          let accentColor = "#D4AF37"; // fallback gold — common in Stitch premium designs
+          const ctaBgMatch = html.match(/(?:class="[^"]*(?:btn|button|cta)[^"]*"[^>]*|id="[^"]*(?:cta|btn)[^"]*"[^>]*)style="[^"]*background(?:-color)?:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
+          if (ctaBgMatch?.[1]) accentColor = ctaBgMatch[1];
+          else {
+            // Try --primary or --accent CSS variable
+            const cssVarMatch = html.match(/--(?:primary|accent|brand|color-primary)[^:]*:\s*(#[0-9a-fA-F]{3,8})/);
+            if (cssVarMatch?.[1]) accentColor = cssVarMatch[1];
+          }
           const bookingWidgetHtml = generateBookingWidget({
             jobId,
             businessName: userInput.businessName,
             timezone: "Australia/Brisbane",
             services,
-            primaryColor: "#10b981",
+            primaryColor: accentColor,
             apiBase: process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au",
           });
 

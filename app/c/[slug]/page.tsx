@@ -26,6 +26,7 @@ interface ClientData {
     package: string;
     price: number;
     monthlyPrice: number;
+    monthlyOngoing?: number;
     savings: number;
     competitorPrice: number;
     breakdown: string[];
@@ -908,7 +909,7 @@ export default function ClientPortal() {
               <div style={S.card}>
                 <div style={S.label}>{client.quote.package} Package</div>
                 <div style={{ fontSize: 32, fontWeight: 800, color: "#e2e8f0", marginBottom: 4 }}>${client.quote.price.toLocaleString()}</div>
-                <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 14 }}>+ ${client.quote.monthlyPrice}/month hosting & maintenance</div>
+                <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 14 }}>+ $109/month for 3 months, then $119/month hosting & maintenance</div>
                 <div style={{ background: "#00c89610", border: "1px solid #00c89625", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#00c896", marginBottom: 12 }}>
                   🎉 Saving ${client.quote.savings.toLocaleString()} vs the industry average of ${client.quote.competitorPrice.toLocaleString()}
                 </div>
@@ -963,18 +964,27 @@ export default function ClientPortal() {
                   }
                 </div>
 
-                {/* Monthly */}
+                {/* Monthly — included in final payment, just needs activation */}
                 <div style={{ ...S.card, opacity: !paymentStatus.finalPaid ? 0.45 : 1, borderColor: paymentStatus.monthlyActive ? "#00c89630" : "#1e2531" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div><div style={{ fontWeight: 700, fontSize: 16, color: "#e2e8f0", marginBottom: 4 }}>Monthly Hosting & Maintenance</div>
-                      <div style={{ color: "#4a5568", fontSize: 13 }}>{!paymentStatus.finalPaid ? "Unlocked after final payment" : "Performance, hosting & ongoing updates"}</div></div>
-                    <div><span style={{ fontSize: 22, fontWeight: 800, color: "#e2e8f0" }}>${paymentStatus.quote.monthly}</span><span style={{ fontSize: 13, color: "#4a5568" }}>/mo</span></div>
+                      <div style={{ color: "#4a5568", fontSize: 13 }}>
+                        {!paymentStatus.finalPaid
+                          ? "First month included in your final payment"
+                          : "Intro: $109/mo for 3 months, then $119/mo ongoing"}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <span style={{ fontSize: 22, fontWeight: 800, color: "#e2e8f0" }}>$109</span>
+                      <span style={{ fontSize: 13, color: "#4a5568" }}>/mo</span>
+                      <div style={{ fontSize: 10, color: "#4a5568", marginTop: 2 }}>then $119/mo</div>
+                    </div>
                   </div>
                   {paymentStatus.monthlyActive
                     ? <div style={{ color: "#00c896", fontSize: 13, fontWeight: 600, marginTop: 12 }}>✓ Active</div>
                     : paymentStatus.finalPaid
-                    ? <button onClick={() => handlePay("monthly")} disabled={payLoading === "monthly"} style={{ ...S.payBtn(true, "secondary"), opacity: payLoading === "monthly" ? 0.6 : 1 }}>{payLoading === "monthly" ? "Loading…" : "Start Monthly Plan →"}</button>
-                    : <div style={S.lockBox}>🔒 Locked</div>
+                    ? <div style={{ color: "#00c896", fontSize: 13, fontWeight: 600, marginTop: 12 }}>✓ First month included in final payment — active on launch</div>
+                    : <div style={S.lockBox}>🔒 Included in your final payment</div>
                   }
                 </div>
 
@@ -996,8 +1006,9 @@ export default function ClientPortal() {
                   <div style={{ fontSize: 13, color: "#4a5568", marginTop: 2 }}>Hosting, maintenance & ongoing updates</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: "#00c896" }}>${paymentStatus?.quote?.monthly || client.quote?.monthlyPrice || "—"}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: "#00c896" }}>$109</div>
                   <div style={{ fontSize: 12, color: "#4a5568" }}>/month</div>
+                  <div style={{ fontSize: 10, color: "#4a5568", marginTop: 1 }}>then $119/mo</div>
                 </div>
               </div>
               <div style={S.divider} />

@@ -94,11 +94,34 @@ export async function GET(request: NextRequest) {
     // FIX 3: Google Maps
     const businessAddress = userInput?.businessAddress || "";
     if (businessAddress && process.env.GOOGLE_MAPS_API_KEY) {
-      const mapsEmbed = `<iframe width="100%" height="350" style="border:0;border-radius:12px;" loading="lazy" allowfullscreen src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe>`;
-      html = html.replace(/<div[^>]*(?:id|class)="[^"]*(?:map|location|directions)[^"]*"[^>]*>[\s\S]*?<\/div>/i, (match: string) => {
-        if (!match.includes('iframe')) return match.replace(/<\/div>$/, mapsEmbed + '</div>');
-        return match;
-      });
+      const mapsEmbed = `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`;
+      // Skip if map already present
+      if (!html.includes('maps.google') && !html.includes('maps.embed')) {
+        // Strategy 1: Replace MAP PLACEHOLDER divs Stitch generates
+        let mapInjected = false;
+        const beforeLen = html.length;
+        html = html.replace(/<div[^>]*>\s*MAP PLACEHOLDER[^<]*<\/div>/gi, mapsEmbed);
+        if (html.length !== beforeLen) mapInjected = true;
+        // Strategy 2: Replace empty map/location divs
+        if (!mapInjected) {
+          html = html.replace(/<div([^>]*(?:id|class)="[^"]*(?:map|location|directions|gmap)[^"]*"[^>]*)>([\s\S]*?)<\/div>/gi, (match: string, attrs: string) => {
+            if (match.includes('iframe')) return match;
+            mapInjected = true;
+            return `<div${attrs}>${mapsEmbed}</div>`;
+          });
+        }
+        // Strategy 3: inject inside contact section before its last closing div
+        if (!mapInjected) {
+          html = html.replace(/(<section[^>]*(?:id|class)="[^"]*contact[^"]*"[^>]*>)([\s\S]*?)(<\/section>)/gi, (_match: string, open: string, body: string, close: string) => {
+            // Inject before the last closing </div> inside the section body
+            const lastDiv = body.lastIndexOf('</div>');
+            if (lastDiv !== -1) {
+              return open + body.slice(0, lastDiv) + mapsEmbed + body.slice(lastDiv) + close;
+            }
+            return open + body + mapsEmbed + close;
+          });
+        }
+      }
     }
 
     // FIX 4: Strip Calendly
@@ -118,12 +141,20 @@ export async function GET(request: NextRequest) {
     if (hasBookingFeature) {
       try {
         const services = getServicesForIndustry(userInput?.industry || "");
+        // Extract accent color from Stitch HTML
+        let accentColor = "#D4AF37";
+        const ctaBgMatch = html.match(/(?:class="[^"]*(?:btn|button|cta)[^"]*"[^>]*|id="[^"]*(?:cta|btn)[^"]*"[^>]*)style="[^"]*background(?:-color)?:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
+        if (ctaBgMatch?.[1]) accentColor = ctaBgMatch[1];
+        else {
+          const cssVarMatch = html.match(/--(?:primary|accent|brand|color-primary)[^:]*:\s*(#[0-9a-fA-F]{3,8})/);
+          if (cssVarMatch?.[1]) accentColor = cssVarMatch[1];
+        }
         const bookingWidgetHtml = generateBookingWidget({
           jobId,
           businessName: userInput?.businessName || "",
           timezone: "Australia/Brisbane",
           services,
-          primaryColor: "#10b981",
+          primaryColor: accentColor,
           apiBase: process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au",
         });
         html = html.replace(/<([a-z][a-z0-9]*)\b([^>]*)\bid="booking"[^>]*>[\s\S]*?<\/\1>/gi, '<div id="booking"></div>');
