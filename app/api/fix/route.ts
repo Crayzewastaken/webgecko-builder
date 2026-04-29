@@ -60,8 +60,12 @@ export async function GET(request: NextRequest) {
   try {
     // Start from the stored HTML (which is the last deployed version)
     let html: string = job.html || "";
-    if (!html || html.length < 500) {
-      return new Response("No valid HTML stored for this job", { status: 400 });
+    if (!html || html.length < 5000) {
+      return new Response(`No valid HTML stored for this job (only ${html.length} chars — site may not have built correctly yet)`, { status: 400 });
+    }
+    // Reject skeleton placeholder HTML
+    if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) {
+      return new Response("Stored HTML is a skeleton placeholder — please trigger a full rebuild", { status: 400 });
     }
 
     // ── Code-only fix pass (mirrors Step 5 of the build pipeline) ────────────

@@ -170,8 +170,8 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
 
     // ── STEP 3: Stitch generate screen (slow — gets its own step) ─────────────
     const downloadUrl = await step.run("step3-stitch-generate", async () => {
-      const MAX_ATTEMPTS = 4;
-      const RETRY_DELAYS_MS = [15_000, 30_000, 60_000]; // wait between attempts
+      const MAX_ATTEMPTS = 5;
+      const RETRY_DELAYS_MS = [15_000, 30_000, 45_000, 60_000];
 
       let lastError: Error = new Error("Stitch: unknown failure");
 
@@ -192,23 +192,25 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
           if (!screens.length) throw new Error(`Stitch: no screens returned (attempt ${attempt})`);
           const url = screens[0]?.htmlCode?.downloadUrl;
           if (!url) throw new Error(`Stitch: no downloadUrl (attempt ${attempt})`);
-          console.log(`[Inngest] STEP 3: Stitch succeeded on attempt ${attempt}`);
+
+          // Pre-validate the HTML before accepting — reject skeleton placeholders
+          const preCheck = await fetch(url).then(r => r.text()).catch(() => "");
+          if (preCheck.length < 5000) throw new Error(`Stitch HTML too short (${preCheck.length} chars) on attempt ${attempt}`);
+          if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(preCheck)) throw new Error(`Stitch returned skeleton placeholder on attempt ${attempt}`);
+          const styleLen = (preCheck.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
+          if (styleLen < 500) throw new Error(`Stitch HTML has no real CSS on attempt ${attempt}`);
+
+          console.log(`[Inngest] STEP 3: Stitch succeeded on attempt ${attempt} — HTML ${preCheck.length} chars, CSS ${styleLen} chars`);
           return url;
         } catch (err: any) {
           lastError = err;
-          const isServiceUnavailable =
-            err?.message?.includes("unavailable") ||
-            err?.message?.includes("UNKNOWN_ERROR") ||
-            err?.code === "UNKNOWN_ERROR";
-
           console.warn(`[Inngest] STEP 3 attempt ${attempt} failed: ${err?.message}`);
 
-          if (attempt < MAX_ATTEMPTS && isServiceUnavailable) {
+          if (attempt < MAX_ATTEMPTS) {
             const delay = RETRY_DELAYS_MS[attempt - 1] ?? 60_000;
             console.log(`[Inngest] STEP 3: waiting ${delay / 1000}s before retry...`);
             await new Promise(resolve => setTimeout(resolve, delay));
           } else {
-            // Non-recoverable error or out of retries — fail the step
             break;
           }
         }
@@ -222,7 +224,22 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
     // ── STEP 4: Fetch HTML ────────────────────────────────────────────────────
     const stitchHtml = await step.run("step4-fetch-html", async () => {
       const html = await fetch(downloadUrl).then(r => r.text());
-      if (!html || html.length < 100) throw new Error("Stitch HTML empty or too short");
+      if (!html || html.length < 5000) throw new Error(`Stitch HTML too short (${html?.length ?? 0} chars) — likely a skeleton/placeholder`);
+
+      // Reject obvious skeleton outputs — Stitch sometimes returns bare placeholder HTML
+      const skeletonPatterns = [
+        /<h1>\s*(HOME PAGE|ABOUT PAGE|SERVICES PAGE|CONTACT PAGE|PAGE CONTENT)\s*<\/h1>/i,
+        /const BOOKING_URL = "https:\/\/cal\.com\/your-link"/i,
+        /<h1>HOME PAGE<\/h1>/i,
+      ];
+      for (const pattern of skeletonPatterns) {
+        if (pattern.test(html)) throw new Error("Stitch returned a skeleton placeholder — regenerating");
+      }
+
+      // Reject if it has barely any CSS (real Stitch output has thousands of chars of styles)
+      const styleContent = (html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || []).join("");
+      if (styleContent.length < 500) throw new Error(`Stitch HTML has no real CSS (${styleContent.length} chars) — likely a skeleton`);
+
       return html;
     });
 
