@@ -118,6 +118,7 @@ export async function POST(req: Request) {
       abn: getString("abn"),
       domain: getString("domain"),
       businessAddress: getString("businessAddress"),
+      facebookPage: getString("facebookPage"),
       ga4Id: getString("ga4Id"),
     };
 
@@ -345,6 +346,4 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error("INTAKE FAILED:", error.message);
-    return NextResponse.json({ success: false, message: error.message });
-  }
-}
+    return NextResponse.json({ su

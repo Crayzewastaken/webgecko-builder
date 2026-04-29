@@ -160,29 +160,4 @@ export async function GET(request: NextRequest) {
   <p style="margin:4px 0 0;color:rgba(0,0,0,0.6);font-size:13px;">${userInput?.businessName} — code-only fix, design preserved</p></td></tr>
   <tr><td style="padding:28px 32px;">
     <p style="color:#94a3b8;font-size:14px;margin:0 0 20px;">Links, contact details, CTA buttons and booking widget have been re-applied. The Stitch design is unchanged.</p>
-    <a href="${stableUrl}" style="display:inline-block;background:#10b981;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;">View Fixed Site →</a>
-  </td></tr>
-</table></td></tr></table></body></html>`,
-        attachments: [
-          { filename: `${(userInput?.businessName || jobId).replace(/[^a-zA-Z0-9]/g, "-")}-FIXED.html`, content: Buffer.from(html).toString("base64") },
-        ],
-      });
-    } catch (e) { console.error("[Fix] Email failed:", e); }
-
-    return new Response(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Fix Complete</title>
-<style>body{margin:0;background:#0a0f1a;color:#e2e8f0;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;}
-.card{background:#0f1623;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:40px;max-width:480px;text-align:center;}
-h1{color:#10b981;margin:0 0 8px;}p{color:#94a3b8;margin:0 0 20px;}
-a{display:inline-block;background:#10b981;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;}</style></head>
-<body><div class="card"><div style="font-size:48px;margin-bottom:16px;">✅</div>
-<h1>Fix Complete</h1><p>${userInput?.businessName} — code-only pass applied, design preserved. Deployed to stable URL.</p>
-<a href="${stableUrl}" target="_blank">View Fixed Site →</a></div></body></html>`, {
-      status: 200,
-      headers: { "Content-Type": "text/html" },
-    });
-
-  } catch (err) {
-    console.error("[Fix] Error:", err);
-    return new Response(`Error: ${err instanceof Error ? err.message : "Unknown error"}`, { status: 500 });
-  }
-}
+    <a href="${stableUrl}" style="display:inline-block;background:#10b981;color:#fff;padding:14px 28px;border-

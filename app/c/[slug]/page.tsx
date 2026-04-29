@@ -135,6 +135,224 @@ function EditableChange({ index, item, onUpdate, onDelete }: {
   );
 }
 
+// ─── Inline Booking Manager ───────────────────────────────────────────────────
+
+function BookingManager({ slug, client, paymentStatus }: { slug: string; client: ClientData; paymentStatus: PaymentStatus | null }) {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [acting, setActing] = useState<string | null>(null);
+  const [bFilter, setBFilter] = useState<"upcoming" | "past" | "all">("upcoming");
+  const [bSearch, setBSearch] = useState("");
+  const [modal, setModal] = useState<null | "reschedule" | "cancel" | "add">(null);
+  const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
+  const [modalReason, setModalReason] = useState("");
+  const [newDate, setNewDate] = useState("");
+  const [newTime, setNewTime] = useState("");
+  const [addForm, setAddForm] = useState({ name: "", email: "", phone: "", service: "", date: "", time: "", message: "" });
+
+  const today = new Date().toISOString().split("T")[0];
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+
+  useEffect(() => { loadBookings(); }, []);
+
+  async function loadBookings() {
+    if (!client.jobId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/bookings/client?jobId=${client.jobId}&slug=${slug}`);
+      if (res.ok) setBookings((await res.json()).bookings || []);
+    } catch {}
+    finally { setLoading(false); }
+  }
+
+  async function doAction(bookingId: string, action: string, extra?: { reason?: string; newDate?: string; newTime?: string }) {
+    setActing(bookingId);
+    try {
+      const res = await fetch(`/api/bookings/client?slug=${slug}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId: client.jobId, bookingId, action, ...extra }),
+      });
+      if (res.ok) { const d = await res.json(); setBookings(prev => prev.map(b => b.bookingId === bookingId ? d.booking : b)); }
+    } finally { setActing(null); setModal(null); setActiveBooking(null); setModalReason(""); setNewDate(""); setNewTime(""); }
+  }
+
+  async function addBooking() {
+    setActing("add");
+    try {
+      const res = await fetch(`/api/bookings/client?slug=${slug}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId: client.jobId, visitorName: addForm.name, visitorEmail: addForm.email, visitorPhone: addForm.phone, service: addForm.service, date: addForm.date, time: addForm.time, message: addForm.message }),
+      });
+      if (res.ok) { const d = await res.json(); setBookings(prev => [d.booking, ...prev]); setAddForm({ name: "", email: "", phone: "", service: "", date: "", time: "", message: "" }); setModal(null); }
+    } finally { setActing(null); }
+  }
+
+  const filtered = bookings
+    .filter(b => {
+      if (bFilter === "upcoming") return b.date >= today && !["cancelled", "declined"].includes(b.status);
+      if (bFilter === "past") return b.date < today || ["cancelled", "declined"].includes(b.status);
+      return true;
+    })
+    .filter(b => !bSearch || [b.visitorName, b.visitorEmail, b.service].join(" ").toLowerCase().includes(bSearch.toLowerCase()))
+    .sort((a, b) => a.date > b.date ? 1 : -1);
+
+  const upcoming = bookings.filter(b => b.date >= today && !["cancelled", "declined"].includes(b.status)).length;
+  const STATUS_COLOR: Record<string, string> = { confirmed: "#00c896", pending: "#f59e0b", declined: "#ef4444", cancelled: "#6b7280", rescheduled: "#3b82f6" };
+  const pll = (color: string): React.CSSProperties => ({ display: "inline-block", background: `${color}18`, color, border: `1px solid ${color}33`, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600, textTransform: "capitalize" as const });
+  const inp: React.CSSProperties = { width: "100%", background: "#0d1117", border: "1px solid #1e2531", borderRadius: 8, padding: "10px 12px", color: "#e2e8f0", fontSize: 14, boxSizing: "border-box" as const, outline: "none", marginBottom: 10 };
+  const abt = (color: string, bg = "transparent"): React.CSSProperties => ({ flex: 1, minWidth: 60, padding: "8px 10px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: `1px solid ${color}44`, color, background: bg });
+  const ovl: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 };
+  const mdb: React.CSSProperties = { background: "#0d1117", border: "1px solid #1e2531", borderRadius: 16, padding: 24, width: "100%", maxWidth: 440, maxHeight: "90vh", overflowY: "auto" as const };
+
+  if (!paymentStatus?.previewUnlocked) {
+    return (
+      <div style={{ background: "#0d1117", border: "1px solid #1e2531", borderRadius: 12, textAlign: "center", padding: "48px 24px" }}>
+        <div style={{ fontSize: 36, marginBottom: 12 }}>🔒</div>
+        <div style={{ color: "#4a5568", fontSize: 15 }}>Bookings will appear here once your site is released.</div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Stats */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" as const }}>
+        {[{ label: "Total", value: bookings.length, color: "#e2e8f0" }, { label: "Upcoming", value: upcoming, color: "#00c896" }, { label: "Past/Cancelled", value: bookings.length - upcoming, color: "#4a5568" }].map(st => (
+          <div key={st.label} style={{ background: "#0d1117", border: "1px solid #1e2531", borderRadius: 10, padding: "14px 16px", flex: 1, textAlign: "center" as const, minWidth: 80 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: st.color }}>{st.value}</div>
+            <div style={{ fontSize: 11, color: "#4a5568", marginTop: 2 }}>{st.label}</div>
+          </div>
+        ))}
+        <button onClick={() => setModal("add")} style={{ background: "linear-gradient(135deg,#00c896,#0099ff)", border: "none", color: "#000", borderRadius: 10, padding: "14px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" as const }}>+ Add</button>
+      </div>
+
+      {/* Search + filters */}
+      <input type="text" placeholder="Search name, email, service…" value={bSearch} onChange={e => setBSearch(e.target.value)}
+        style={{ ...inp, marginBottom: 12 }} />
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" as const }}>
+        {(["upcoming", "past", "all"] as const).map(f => (
+          <button key={f} onClick={() => setBFilter(f)} style={{ padding: "7px 16px", borderRadius: 20, fontSize: 13, fontWeight: bFilter === f ? 600 : 400, background: bFilter === f ? "linear-gradient(135deg,#00c896,#0099ff)" : "none", border: bFilter === f ? "none" : "1px solid #1e2531", color: bFilter === f ? "#000" : "#4a5568", cursor: "pointer" }}>
+            {f.charAt(0).toUpperCase() + f.slice(1)}
+          </button>
+        ))}
+        <button onClick={loadBookings} style={{ marginLeft: "auto", background: "none", border: "1px solid #1e2531", color: "#4a5568", borderRadius: 8, padding: "7px 12px", fontSize: 12, cursor: "pointer" }}>↻ Refresh</button>
+      </div>
+
+      {/* Booking list */}
+      {loading ? (
+        <div style={{ textAlign: "center", padding: 40, color: "#4a5568" }}>Loading bookings…</div>
+      ) : filtered.length === 0 ? (
+        <div style={{ background: "#0d1117", border: "1px solid #1e2531", borderRadius: 12, textAlign: "center", padding: 40 }}>
+          <div style={{ fontSize: 28, marginBottom: 10 }}>📅</div>
+          <div style={{ color: "#2a3347", fontSize: 14 }}>{bFilter === "upcoming" ? "No upcoming bookings." : "No bookings found."}</div>
+        </div>
+      ) : filtered.map(b => {
+        const isToday = b.date === today;
+        const isTomorrow = b.date === tomorrow;
+        const isDone = ["cancelled", "declined"].includes(b.status);
+        const sc = STATUS_COLOR[b.status] || "#666";
+        return (
+          <div key={b.bookingId} style={{ background: "#0d1117", border: `1px solid ${isToday ? "#00c89630" : "#1e2531"}`, borderRadius: 12, padding: 16, marginBottom: 10, opacity: isDone ? 0.5 : 1 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, gap: 8, flexWrap: "wrap" as const }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const }}>
+                <span style={{ fontWeight: 700, fontSize: 15, color: "#e2e8f0" }}>{b.visitorName}</span>
+                {isToday && <span style={{ ...pll("#00c896"), fontSize: 10 }}>TODAY</span>}
+                {isTomorrow && <span style={{ ...pll("#f59e0b"), fontSize: 10 }}>TOMORROW</span>}
+              </div>
+              <span style={pll(sc)}>{b.status}</span>
+            </div>
+            <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 4 }}>{b.service} · {formatDate(b.date)} at {b.time}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, fontSize: 12, color: "#334155", marginBottom: 8 }}>
+              <div>✉ <a href={`mailto:${b.visitorEmail}`} style={{ color: "#38bdf8" }}>{b.visitorEmail}</a></div>
+              <div>📞 <a href={`tel:${b.visitorPhone}`} style={{ color: "#94a3b8" }}>{b.visitorPhone}</a></div>
+            </div>
+            {b.message && <div style={{ background: "#080c14", borderRadius: 6, padding: "8px 12px", fontSize: 13, color: "#475569", marginBottom: 10 }}>"{b.message}"</div>}
+            {!isDone && (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const, marginTop: 8 }}>
+                {b.status !== "confirmed" && (
+                  <button style={abt("#00c896")} disabled={acting === b.bookingId} onClick={() => doAction(b.bookingId, "confirm")}>
+                    {acting === b.bookingId ? "…" : "✓ Confirm"}
+                  </button>
+                )}
+                <button style={abt("#3b82f6")} onClick={() => { setActiveBooking(b); setModal("reschedule"); setNewDate(b.date); setNewTime(b.time); }}>↻ Reschedule</button>
+                <a href={`mailto:${b.visitorEmail}`} style={{ ...abt("#64748b"), textDecoration: "none", textAlign: "center" as const }}>✉ Email</a>
+                <a href={`tel:${b.visitorPhone}`} style={{ ...abt("#64748b"), textDecoration: "none", textAlign: "center" as const }}>📞 Call</a>
+                <button style={abt("#ef4444")} onClick={() => { setActiveBooking(b); setModal("cancel"); }}>✕ Cancel</button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Reschedule modal */}
+      {modal === "reschedule" && activeBooking && (
+        <div style={ovl} onClick={() => setModal(null)}>
+          <div style={mdb} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#e2e8f0", marginBottom: 16 }}>Reschedule Booking</div>
+            <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 16 }}>{activeBooking.visitorName} — {activeBooking.service}</div>
+            <label style={{ color: "#64748b", fontSize: 12, display: "block", marginBottom: 6 }}>New Date</label>
+            <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} style={inp} />
+            <label style={{ color: "#64748b", fontSize: 12, display: "block", marginBottom: 6 }}>New Time</label>
+            <input type="time" value={newTime} onChange={e => setNewTime(e.target.value)} style={inp} />
+            <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+              <button style={{ ...abt("#4a5568"), flex: "none" as const, padding: "10px 20px" }} onClick={() => setModal(null)}>Cancel</button>
+              <button style={{ ...abt("#3b82f6", "#3b82f618"), flex: 1, padding: 10 }} disabled={!newDate || !newTime || acting === activeBooking.bookingId} onClick={() => doAction(activeBooking.bookingId, "reschedule", { newDate, newTime })}>
+                {acting === activeBooking.bookingId ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel modal */}
+      {modal === "cancel" && activeBooking && (
+        <div style={ovl} onClick={() => setModal(null)}>
+          <div style={mdb} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#e2e8f0", marginBottom: 16 }}>Cancel Booking</div>
+            <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 16 }}>{activeBooking.visitorName} — {activeBooking.date} at {activeBooking.time}</div>
+            <label style={{ color: "#64748b", fontSize: 12, display: "block", marginBottom: 6 }}>Reason (sent to customer)</label>
+            <textarea value={modalReason} onChange={e => setModalReason(e.target.value)} rows={3}
+              placeholder="e.g. We are unavailable that day — please rebook." style={{ ...inp, resize: "vertical" as const, height: 80 }} />
+            <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+              <button style={{ ...abt("#4a5568"), flex: "none" as const, padding: "10px 20px" }} onClick={() => setModal(null)}>Back</button>
+              <button style={{ ...abt("#ef4444", "#ef444418"), flex: 1, padding: 10 }} disabled={acting === activeBooking.bookingId} onClick={() => doAction(activeBooking.bookingId, "cancel", { reason: modalReason })}>
+                {acting === activeBooking.bookingId ? "Cancelling…" : "Confirm Cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add booking modal */}
+      {modal === "add" && (
+        <div style={ovl} onClick={() => setModal(null)}>
+          <div style={mdb} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#e2e8f0", marginBottom: 16 }}>Add Booking Manually</div>
+            {(["name", "email", "phone", "service"] as const).map(field => (
+              <input key={field} type="text" placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
+                value={addForm[field]} onChange={e => setAddForm(p => ({ ...p, [field]: e.target.value }))} style={inp} />
+            ))}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <input type="date" value={addForm.date} onChange={e => setAddForm(p => ({ ...p, date: e.target.value }))} style={{ ...inp, marginBottom: 0 }} />
+              <input type="time" value={addForm.time} onChange={e => setAddForm(p => ({ ...p, time: e.target.value }))} style={{ ...inp, marginBottom: 0 }} />
+            </div>
+            <textarea placeholder="Notes (optional)" value={addForm.message} onChange={e => setAddForm(p => ({ ...p, message: e.target.value }))}
+              rows={2} style={{ ...inp, marginTop: 10, resize: "vertical" as const }} />
+            <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+              <button style={{ ...abt("#4a5568"), flex: "none" as const, padding: "10px 20px" }} onClick={() => setModal(null)}>Cancel</button>
+              <button style={{ ...abt("#00c896", "#00c89618"), flex: 1, padding: 10 }}
+                disabled={!addForm.name || !addForm.email || !addForm.service || !addForm.date || !addForm.time || acting === "add"}
+                onClick={addBooking}>
+                {acting === "add" ? "Adding…" : "Add Booking"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ClientPortal() {
@@ -679,87 +897,7 @@ export default function ClientPortal() {
 
         {/* ══════════════════════ BOOKINGS ══════════════════════ */}
         {tab === "bookings" && hasBooking && (
-          <>
-            {/* Performance */}
-            {bookingsThisMonth.length > 0 && (
-              <div style={S.card}>
-                <div style={S.label}>Performance — Last 30 Days</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginTop: 10 }}>
-                  {[{ n: bookingsThisMonth.length, l: "Bookings" }, { n: peakDay || "—", l: "Peak day" }, { n: topServices[0]?.[0]?.substring(0, 10) || "—", l: "Top service" }].map(({ n, l }) => (
-                    <div key={l} style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: 20, fontWeight: 800, color: "#00c896" }}>{n}</div>
-                      <div style={{ fontSize: 11, color: "#4a5568", marginTop: 2 }}>{l}</div>
-                    </div>
-                  ))}
-                </div>
-                {topServices.length > 0 && (
-                  <>
-                    <div style={S.divider} />
-                    <div style={S.label}>Service Breakdown</div>
-                    {topServices.map(([svc, count]) => (
-                      <div key={svc} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                        <span style={{ fontSize: 13, color: "#94a3b8" }}>{svc}</span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <div style={{ width: 80, height: 4, background: "#1e2531", borderRadius: 2, overflow: "hidden" }}>
-                            <div style={{ width: `${(count / bookingsThisMonth.length) * 100}%`, height: "100%", background: "#00c896", borderRadius: 2 }} />
-                          </div>
-                          <span style={{ fontSize: 12, color: "#4a5568", minWidth: 20, textAlign: "right" }}>{count}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </div>
-            )}
-
-            {!paymentStatus?.previewUnlocked ? (
-              <div style={{ ...S.card, textAlign: "center", padding: "48px 24px" }}>
-                <div style={{ fontSize: 36, marginBottom: 12 }}>🔒</div>
-                <div style={{ color: "#4a5568", fontSize: 15 }}>Bookings available after deposit</div>
-              </div>
-            ) : (
-              <div style={S.card}>
-                <div style={S.label}>Booking Requests</div>
-                <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 12 }}>Recent submissions from your website.</div>
-                <a href={`/c/${slug}/bookings`} style={{ ...S.btn("primary"), textDecoration: "none", display: "inline-flex" }}>Full Booking Dashboard →</a>
-              </div>
-            )}
-
-            {bookings.length === 0 ? (
-              <div style={{ ...S.card, textAlign: "center", padding: 40 }}>
-                <div style={{ fontSize: 28, marginBottom: 10 }}>📅</div>
-                <div style={{ color: "#2a3347", fontSize: 14 }}>No bookings yet.</div>
-              </div>
-            ) : bookings.slice(0, 5).map(b => {
-              const isToday = b.date === today;
-              const isTomorrow = b.date === tomorrow;
-              const cancelled = b.status === "cancelled";
-              return (
-                <div key={b.bookingId} style={{ ...S.card, opacity: cancelled ? 0.45 : 1, borderColor: isToday ? "#00c89630" : "#1e2531" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
-                    <div>
-                      <span style={{ fontWeight: 600, fontSize: 15, color: "#e2e8f0" }}>{b.visitorName}</span>
-                      {isToday && <span style={{ ...S.pill("#00c896"), marginLeft: 8, fontSize: 10 }}>TODAY</span>}
-                      {isTomorrow && <span style={{ ...S.pill("#ffaa00"), marginLeft: 8, fontSize: 10 }}>TOMORROW</span>}
-                    </div>
-                    <span style={S.pill(cancelled ? "#ff4444" : b.status === "confirmed" ? "#00c896" : "#ffaa00")}>{b.status}</span>
-                  </div>
-                  <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 3 }}>{b.service} · {formatDate(b.date)} at {b.time}</div>
-                  <div style={{ color: "#2a3347", fontSize: 12 }}>{b.visitorEmail}</div>
-                  {!cancelled && (
-                    <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                      <a href={`mailto:${b.visitorEmail}`} style={{ ...S.pill("#0099ff"), textDecoration: "none", padding: "6px 14px" }}>Email</a>
-                      <a href={`tel:${b.visitorPhone}`} style={{ ...S.pill("#00c896"), textDecoration: "none", padding: "6px 14px" }}>Call</a>
-                      <button onClick={() => cancelBooking(b.bookingId)} disabled={cancellingId === b.bookingId}
-                        style={{ ...S.pill("#ff4444"), border: "1px solid #ff444433", background: "#ff444415", cursor: "pointer", padding: "6px 14px" }}>
-                        {cancellingId === b.bookingId ? "…" : "Cancel"}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </>
+          <BookingManager slug={slug} client={client} paymentStatus={paymentStatus} />
         )}
 
         {/* ══════════════════════ QUOTE & PAY ══════════════════════ */}
@@ -919,146 +1057,4 @@ export default function ClientPortal() {
                     borderRadius: 12, padding: "16px 14px", position: "relative" as const,
                   }}>
                     {(client.quote?.monthlyPrice || 0) >= 149 && (
-                      <div style={{ position: "absolute", top: -10, right: 10, background: "#00c896", color: "#000", fontSize: 10, fontWeight: 800, padding: "2px 10px", borderRadius: 20 }}>CURRENT</div>
-                    )}
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Premium</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: "#e2e8f0", lineHeight: 1 }}>$149<span style={{ fontSize: 12, color: "#4a5568", fontWeight: 400 }}>/mo</span></div>
-                    <div style={{ height: 1, background: "#1e2531", margin: "12px 0" }} />
-                    {["Hosting & SSL", "10 site changes/month", "Monthly AI fix pass", "SEO & speed updates", "Priority support"].map(f => (
-                      <div key={f} style={{ fontSize: 12, color: "#64748b", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                        <span style={{ color: "#00c896", fontSize: 10 }}>✓</span>{f}
-                      </div>
-                    ))}
-                    <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Upgrade to Premium plan — " + client.businessName)}`}
-                      style={{ display: "block", textAlign: "center", marginTop: 12, background: "linear-gradient(135deg,#00c896,#0099ff)", color: "#000", borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
-                      Upgrade to Premium
-                    </a>
-                  </div>
-                </div>
-                <div style={{ fontSize: 11, color: "#334155", textAlign: "center", marginTop: 12 }}>Plan changes take effect after your current paid month ends.</div>
-              </div>
-            )}
-
-            {/* Manage subscription */}
-            {!showSubModal ? (
-              <div style={{ ...S.card, background: "transparent", border: "1px solid #131b27" }}>
-                <div style={{ fontSize: 13, color: "#475569", marginBottom: 10 }}>Want to cancel or change something else?</div>
-                <button onClick={() => { setShowSubModal(true); setSubStep("reason"); setCancelOption(null); setCancelReason(""); }} style={{ ...S.btn("ghost"), fontSize: 13 }}>Manage subscription</button>
-              </div>
-            ) : (
-              <div style={S.card}>
-
-                {/* Step 1 — Reason */}
-                {subStep === "reason" && (
-                  <>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: "#e2e8f0", marginBottom: 4 }}>What's on your mind?</div>
-                    <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 16 }}>Tell us what's changed and we'll find the right option.</div>
-                    {[
-                      { r: "too-expensive", label: "💰 It's too expensive right now" },
-                      { r: "not-using", label: "😴 I'm not using it enough" },
-                      { r: "unhappy", label: "😕 I'm not happy with the site" },
-                      { r: "switching", label: "🔄 I'm moving to another provider" },
-                      { r: "closing", label: "🚪 My business is closing" },
-                      { r: "other", label: "💬 Something else" },
-                    ].map(({ r, label }) => (
-                      <button key={r} onClick={() => { setCancelReason(r); setSubStep("option"); }}
-                        style={{ display: "block", width: "100%", textAlign: "left", background: cancelReason === r ? "#0d1a2e" : "#080c14", border: "1px solid #1e2531", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#94a3b8", cursor: "pointer", marginBottom: 8 }}>
-                        {label}
-                      </button>
-                    ))}
-                    <button onClick={() => setShowSubModal(false)} style={{ ...S.btn("ghost"), marginTop: 4, fontSize: 13 }}>Never mind</button>
-                  </>
-                )}
-
-                {/* Step 2 — Options based on reason */}
-                {subStep === "option" && (
-                  <>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: "#e2e8f0", marginBottom: 4 }}>
-                      {cancelReason === "too-expensive" ? "Let's find something that works" :
-                       cancelReason === "not-using" ? "Want to pause instead?" :
-                       cancelReason === "unhappy" ? "Let us fix it first" :
-                       "Here are your options"}
-                    </div>
-                    <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 16 }}>
-                      {cancelReason === "too-expensive" ? "We can pause your plan or reduce your tier. Email us — we'd rather work something out than lose you." :
-                       cancelReason === "not-using" ? "You can pause for up to 2 months at no cost. Your site stays live, billing resumes after." :
-                       cancelReason === "unhappy" ? "We'll fix it at no extra cost — use the Site Preview tab to submit changes. If you're still not happy after, we'll sort it out." :
-                       "Choose how you'd like to leave. Each option has a different exit fee."}
-                    </div>
-
-                    {(cancelReason === "too-expensive" || cancelReason === "not-using" || cancelReason === "unhappy") && (
-                      <div style={{ marginBottom: 16 }}>
-                        {cancelReason === "unhappy" && (
-                          <button onClick={() => { setShowSubModal(false); setTab("preview"); }} style={{ ...S.btn("primary"), width: "100%", marginBottom: 10, fontSize: 13 }}>
-                            Request Changes Now
-                          </button>
-                        )}
-                        <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Plan query — " + client.businessName)}&body=${encodeURIComponent("Hi, I wanted to discuss my plan.\n\nBusiness: " + client.businessName)}`}
-                          style={{ ...S.btn("secondary"), textDecoration: "none", width: "100%", display: "flex", fontSize: 13, marginBottom: 10 }}>
-                          Talk to Us First
-                        </a>
-                      </div>
-                    )}
-
-                    <div style={{ ...S.label, marginTop: 8 }}>Or choose a cancellation option</div>
-                    {CANCEL_OPTIONS.map(opt => (
-                      <button key={opt.id} onClick={() => { setCancelOption(opt); setSubStep("confirm"); }}
-                        style={{ display: "block", width: "100%", textAlign: "left", background: "#080c14", border: "1px solid #1e2531", borderRadius: 10, padding: "14px 16px", fontSize: 13, color: "#94a3b8", cursor: "pointer", marginBottom: 10 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                          <div style={{ display: "flex", gap: 10 }}>
-                            <span style={{ fontSize: 20 }}>{opt.icon}</span>
-                            <div>
-                              <div style={{ fontWeight: 600, color: "#e2e8f0", marginBottom: 4 }}>{opt.label}</div>
-                              <div style={{ fontSize: 12, color: "#4a5568" }}>{opt.desc}</div>
-                            </div>
-                          </div>
-                          <div style={{ flexShrink: 0, textAlign: "right" }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: opt.id === "stop" ? "#94a3b8" : "#ffcc55", whiteSpace: "nowrap" }}>
-                              {opt.priceLabel(buildPrice)}
-                            </div>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                    <button onClick={() => setSubStep("reason")} style={{ ...S.btn("ghost"), fontSize: 13 }}>Back</button>
-                  </>
-                )}
-
-                {/* Step 3 — Confirm */}
-                {subStep === "confirm" && cancelOption && (
-                  <>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: "#e2e8f0", marginBottom: 4 }}>Confirm your choice</div>
-                    <div style={{ background: "#080c14", border: "1px solid #1e2531", borderRadius: 10, padding: "16px", marginBottom: 16 }}>
-                      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
-                        <span style={{ fontSize: 24 }}>{cancelOption.icon}</span>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "#e2e8f0" }}>{cancelOption.label}</div>
-                      </div>
-                      <div style={{ fontSize: 13, color: "#4a5568", marginBottom: 8 }}>{cancelOption.desc}</div>
-                      <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid #1e2531" }}>
-                        <span style={{ fontSize: 13, color: "#4a5568" }}>Exit fee</span>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: cancelOption.id === "stop" ? "#94a3b8" : "#ffcc55" }}>
-                          {cancelOption.priceCalc(buildPrice) === 0 ? "Free" : `$${cancelOption.priceCalc(buildPrice).toLocaleString()}`}
-                        </span>
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 12, color: "#4a5568", marginBottom: 16 }}>
-                      Clicking below sends a cancellation request to our team. We'll confirm within 1 business day.
-                    </div>
-                    <a
-                      href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Cancellation — " + client.businessName + " — " + cancelOption.label)}&body=${encodeURIComponent("Hi WebGecko,\n\nI'd like to cancel.\n\nBusiness: " + client.businessName + "\nOption: " + cancelOption.label + "\nReason: " + cancelReason)}`}
-                      style={{ ...S.btn("danger"), textDecoration: "none", width: "100%", display: "flex", fontSize: 13, marginBottom: 10 }}>
-                      Send Cancellation Request
-                    </a>
-                    <button onClick={() => setShowSubModal(false)} style={{ ...S.btn("secondary"), width: "100%", fontSize: 13 }}>Keep my plan</button>
-                    <button onClick={() => setSubStep("option")} style={{ ...S.btn("ghost"), marginTop: 8, fontSize: 12 }}>Back</button>
-                  </>
-                )}
-              </div>
-            )}
-          </>
-        )}
-
-      </div>
-    </div>
-  );
-}
+                      <div style={{ position: "absolute", top: -10, right: 10, background: "#00c896", color: "#000", fontSize: 10, fontWeight: 800, padding: "2px 

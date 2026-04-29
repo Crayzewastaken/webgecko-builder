@@ -118,6 +118,8 @@ Features: ${features.join(", ") || "contact form"}
 Notes: ${userInput.additionalNotes || "none"}
 Contact Email: ${clientEmail}
 Contact Phone: ${clientPhone}
+${userInput.businessAddress ? `Business Address: ${userInput.businessAddress}` : ""}
+${userInput.facebookPage ? `Facebook Page: ${userInput.facebookPage}` : ""}
 
 ${pricingSection}
 ${hasBookingFeature ? `BOOKING: Include a booking section with id="booking". The booking widget will be injected here.` : ""}
@@ -132,8 +134,8 @@ DESIGN REQUIREMENTS — include ALL in the stitchPrompt:
 6. TESTIMONIALS & REVIEWS: Large testimonials section with id="testimonials" — minimum 3 star-rated reviews from realistic Australian names (e.g. "Sarah M.", "James T."), 5-star ratings shown as filled stars ★★★★★, with job titles or context, card or quote layout
 7. FAQ SECTION: Accordion FAQ section with id="faq" — minimum 6 realistic Q&A pairs relevant to ${userInput.industry}, expandable/collapsible with smooth animation
 8. PHOTO GALLERY: ${features.includes("Photo Gallery") ? `Gallery section with id="gallery" — image grid showing work/products/space` : "Skip gallery section"}
-9. CONTACT: Use REAL email ${clientEmail} and REAL phone ${clientPhone}, working contact form with id="contact"
-10. FOOTER: Logo, links, contact, social icons, copyright ${new Date().getFullYear()}
+9. CONTACT: Use REAL email ${clientEmail} and REAL phone ${clientPhone}${userInput.businessAddress ? `, address: ${userInput.businessAddress}` : ""}, working contact form with id="contact"
+10. FOOTER: Logo, links, contact, social icons (${userInput.facebookPage ? `Facebook: ${userInput.facebookPage}` : "use # for Facebook icon"}), copyright ${new Date().getFullYear()}
 11. STATS BAR: Horizontal stats strip with 3-4 numbers (years experience, clients served, etc.)
 12. BUSINESS NAME: The site title, logo text, and all headings MUST use the EXACT business name: "${userInput.businessName}" — do NOT use placeholder names
 
@@ -229,16 +231,41 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
       let html = stitchHtml;
       const bookingNavTarget = hasBookingFeature ? "booking" : "contact";
 
-      // ── FIX 1: Contact details — replace fake/placeholder emails & phones ──
-      // Emails: replace anything that looks like a placeholder
-      html = html.replace(/\b[a-z]+@(example|company|business|yourcompany|yourbusiness|domain|email|test|sample)\.com\b/gi, clientEmail);
-      html = html.replace(/\binfo@[a-z-]+\.(com|com\.au|au)\b/gi, (m: string) => m.includes(clientEmail.split("@")[1]) ? m : clientEmail);
-      html = html.replace(/\bhello@[a-z-]+\.(com|com\.au|au)\b/gi, (m: string) => m.includes(clientEmail.split("@")[1]) ? m : clientEmail);
-      html = html.replace(/\bcontact@[a-z-]+\.(com|com\.au|au)\b/gi, (m: string) => m.includes(clientEmail.split("@")[1]) ? m : clientEmail);
-      // Phones: replace obvious fake AU numbers
-      html = html.replace(/\b0[0-9]{3}\s000\s000\b/g, clientPhone);
-      html = html.replace(/\b0400\s000\s000\b/g, clientPhone);
-      html = html.replace(/\+61\s0[0-9]{3}\s000\s000/g, clientPhone);
+      // ── FIX 1: Contact details — replace ALL placeholder emails & phones ──
+      const clientDomain = clientEmail.split("@")[1] || "";
+      // Placeholder email patterns — anything that isn't the real client domain
+      html = html.replace(/\b[\w.+-]+@(example|company|business|yourcompany|yourbusiness|domain|email|test|sample|placeholder|site|gym|studio|salon|clinic|law|dental|realty|auto|cafe|restaurant|johnsgymsydney|johnsrestaurant|acmeconstruction|smithplumbing|greenthumb|brightsmile|eliteperformance|performancegym|purestrength|ironcore|elitefit|fitnesspro|peakperformance|urbanfit|alphaperformance)\.(com|com\.au|au|net|org)\b/gi, clientEmail);
+      // Generic prefix patterns (info@, hello@, contact@, train@, admin@, support@) pointing to non-client domains
+      html = html.replace(/\b(info|hello|contact|train|admin|support|enquiries|enquiry|bookings|mail|office|team|reception|noreply|no-reply)@(?!webgecko\.au)[\w.-]+\.(com|com\.au|au|net|org)\b/gi, (m: string) => {
+        if (clientDomain && m.endsWith(clientDomain)) return m; // already correct
+        return clientEmail;
+      });
+      // Catch anything that still looks like a placeholder (has the business name slug in it but isn't real)
+      if (clientEmail) {
+        // Replace any email that's clearly not the client's
+        html = html.replace(/\b[\w.+-]+@[\w.-]+\.(com\.au|au)\b/g, (m: string) => {
+          if (m === clientEmail) return m;
+          if (m.includes("webgecko")) return m;
+          if (clientDomain && m.endsWith(clientDomain)) return m;
+          return clientEmail;
+        });
+      }
+      // Phones: replace all obvious fake/placeholder AU numbers
+      html = html.replace(/\b0[0-9]{3}\s?[0-9]{3}\s?[0-9]{3}\b/g, (m: string) => {
+        // Only replace if it looks fake (repeating digits, 000 patterns)
+        if (/0{3}/.test(m.replace(/\s/g, "")) || /1{4}|2{4}|3{4}|4{4}|5{4}|6{4}|7{4}|8{4}|9{4}/.test(m.replace(/\s/g, ""))) return clientPhone;
+        if (m.replace(/\s/g, "") === clientPhone.replace(/\s/g, "")) return m;
+        return clientPhone;
+      });
+      html = html.replace(/\(\d{2}\)\s?\d{4}\s?\d{4}/g, clientPhone);
+      html = html.replace(/\+61\s?[2-9]\s?\d{4}\s?\d{4}/g, clientPhone);
+      // Also replace text-only address placeholders
+      const businessAddress = userInput.businessAddress || "";
+      if (businessAddress) {
+        html = html.replace(/\b123\s+[\w\s]+(?:Street|St|Avenue|Ave|Road|Rd|Lane|Ln|Drive|Dr|Way|Place|Pl|Court|Ct)[,\s]+(?:Sydney|Melbourne|Brisbane|Perth|Adelaide|Gold Coast|Canberra|Darwin|Hobart)[,\s]+(?:NSW|VIC|QLD|WA|SA|ACT|NT|TAS)\s+\d{4}\b/gi, businessAddress);
+        // Also replace "MAP PLACEHOLDER: ..." text with the real address
+        html = html.replace(/MAP PLACEHOLDER[:\s]*[A-Z\s]+/gi, businessAddress);
+      }
 
       // ── FIX 2: CTA buttons — wire booking/enquiry CTAs ──
       const ctaKeywords = ['Book Now','Book a Session','Get Started','Join Now','Sign Up','Free Trial','Book Free','Reserve','Enquire Now','Get a Quote','Start Today','Book Today','Schedule Now','Try Free','Get Free Quote','Book Consultation'];
@@ -253,14 +280,23 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
       });
 
       // ── FIX 3: Google Maps injection ──
-      const businessAddress = userInput.businessAddress || "";
       if (businessAddress && process.env.GOOGLE_MAPS_API_KEY) {
-        const mapsEmbed = `<iframe width="100%" height="350" style="border:0;border-radius:12px;" loading="lazy" allowfullscreen src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe>`;
-        // Find map placeholder sections and inject
-        html = html.replace(/<div[^>]*(?:id|class)="[^"]*(?:map|location|directions)[^"]*"[^>]*>[\s\S]*?<\/div>/i, (match: string) => {
-          if (!match.includes('iframe')) return match.replace(/<\/div>$/, mapsEmbed + '</div>');
-          return match;
+        const mapsEmbed = `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`;
+        let mapInjected = false;
+        // Strategy 1: Replace MAP PLACEHOLDER text divs that Stitch generates
+        html = html.replace(/<div[^>]*>\s*MAP PLACEHOLDER[^<]*<\/div>/gi, mapsEmbed);
+        // Strategy 2: Find div with id/class containing map/location/directions that has no iframe yet
+        html = html.replace(/<div([^>]*(?:id|class)="[^"]*(?:map|location|directions|gmap)[^"]*"[^>]*)>([\s\S]*?)<\/div>/gi, (match: string, attrs: string, inner: string) => {
+          if (match.includes('iframe')) return match;
+          mapInjected = true;
+          return `<div${attrs}>${mapsEmbed}</div>`;
         });
+        // Strategy 3: inject before the closing of the contact section if no map found
+        if (!mapInjected && !html.includes('maps.google') && !html.includes('maps.embed')) {
+          html = html.replace(/(<section[^>]*(?:id|class)="[^"]*contact[^"]*"[^>]*>[\s\S]*?)(<\/section>)/gi, (match: string, body: string, close: string) => {
+            return body + mapsEmbed + close;
+          });
+        }
       }
 
       // ── FIX 4: Strip any fake booking widgets Claude may have snuck in ──
@@ -395,6 +431,34 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
       const adminUrl = `${base}/admin?secret=${secret}`;
       const cssContent = extractCSS(finalHtml);
 
+      // Build feature location checklist
+      const featureChecklist = [
+        { label: "Hero section", check: finalHtml.includes('id="hero') || finalHtml.includes("class=\"hero") || finalHtml.includes("viewport") },
+        { label: "Sticky nav + hamburger", check: finalHtml.includes('id="hamburger"') || finalHtml.includes("hamburger") },
+        { label: "Testimonials section", check: finalHtml.includes('id="testimonials"') },
+        { label: "FAQ accordion", check: finalHtml.includes('id="faq"') },
+        { label: "Contact form (id=contact)", check: finalHtml.includes('id="contact"') },
+        { label: "Real email injected", check: finalHtml.includes(clientEmail) },
+        { label: "Real phone injected", check: finalHtml.includes(clientPhone.replace(/\s/g, "")) || finalHtml.includes(clientPhone) },
+        { label: "Google Maps embedded", check: finalHtml.includes("maps.google") || finalHtml.includes("maps.embed") },
+        { label: "Booking widget (id=booking)", check: finalHtml.includes('id="booking"') && finalHtml.includes("BW_JOB_ID") },
+        { label: "Pricing section", check: userInput.hasPricing !== "Yes" || finalHtml.toLowerCase().includes("pricing") || finalHtml.toLowerCase().includes("plan") },
+        { label: "Photo gallery", check: !features.includes("Photo Gallery") || finalHtml.includes('id="gallery"') || finalHtml.toLowerCase().includes("gallery") },
+        { label: "Stats bar", check: finalHtml.toLowerCase().includes("years") || finalHtml.toLowerCase().includes("clients") },
+        { label: "Footer with copyright", check: finalHtml.includes("©") || finalHtml.includes("&copy;") },
+        { label: "Booking widget scripts executable", check: finalHtml.includes("BW_API_BASE") },
+      ].filter(f => {
+        // Only include booking/gallery/maps if relevant
+        if (f.label === "Booking widget (id=booking)" && !hasBookingFeature) return false;
+        if (f.label === "Booking widget scripts executable" && !hasBookingFeature) return false;
+        if (f.label === "Google Maps embedded" && !userInput.businessAddress) return false;
+        if (f.label === "Photo gallery" && !features.includes("Photo Gallery")) return false;
+        return true;
+      });
+      const checklistHtml = featureChecklist.map(f =>
+        `<tr><td style="padding:8px 16px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px;color:${f.check ? "#00c896" : "#ef4444"};">${f.check ? "✓" : "✗"}</td><td style="padding:8px 16px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px;color:${f.check ? "#e2e8f0" : "#f87171"};">${f.label}</td></tr>`
+      ).join("");
+
       await resend.emails.send({
         from: "WebGecko <hello@webgecko.au>",
         to: process.env.RESULT_TO_EMAIL!,
@@ -410,104 +474,4 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
   <tr><td style="padding:28px 32px;">
     <table width="100%" cellpadding="0" cellspacing="0" style="background:#080c14;border-radius:8px;margin-bottom:24px;">
       <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
-        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Client</span>
-        <p style="color:#e2e8f0;margin:2px 0 0;font-size:15px;font-weight:600;">${userInput.name || "—"} &lt;${clientEmail}&gt;</p>
-      </td></tr>
-      <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
-        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Business</span>
-        <p style="color:#e2e8f0;margin:2px 0 0;font-size:15px;font-weight:600;">${userInput.businessName}</p>
-      </td></tr>
-      <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
-        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Industry · Phone</span>
-        <p style="color:#e2e8f0;margin:2px 0 0;font-size:14px;">${userInput.industry} · ${clientPhone}</p>
-      </td></tr>
-      <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
-        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Pages</span>
-        <p style="color:#e2e8f0;margin:2px 0 0;font-size:14px;">${pageList}</p>
-      </td></tr>
-      <tr><td style="padding:12px 16px;">
-        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Features</span>
-        <p style="color:#e2e8f0;margin:2px 0 0;font-size:14px;">${features.join(", ") || "Contact form"}</p>
-      </td></tr>
-    </table>
-    ${previewUrl ? `<p style="margin:0 0 20px;"><a href="${previewUrl}" style="color:#00c896;font-size:15px;font-weight:600;">🌐 View Live Preview →</a></p>` : ""}
-    <table cellpadding="0" cellspacing="0"><tr>
-      <td style="padding-right:8px;padding-bottom:8px;"><a href="${releaseUrl}" style="background:#00c896;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📤 Release to Client</a></td>
-      <td style="padding-right:8px;padding-bottom:8px;"><a href="${processUrl}" style="background:#3b82f6;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">🔧 Fix This Site</a></td>
-      <td style="padding-right:8px;padding-bottom:8px;"><a href="${unlockUrl}" style="background:#8b5cf6;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">🔓 Unlock Payment</a></td>
-      ${hasBookingFeature ? `<td style="padding-right:8px;padding-bottom:8px;"><a href="${unlockBookingUrl}" style="background:#f59e0b;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📅 Unlock Booking</a></td>` : ""}
-    </tr></table>
-    <p style="margin:16px 0 0;"><a href="${adminUrl}" style="color:#475569;font-size:12px;">📊 Admin Dashboard</a></p>
-  </td></tr>
-  <tr><td style="padding:16px 32px;border-top:1px solid rgba(255,255,255,0.06);">
-    <p style="color:#334155;font-size:12px;margin:0;">3 files attached: final HTML, raw Stitch HTML (for comparison), and CSS stylesheet.</p>
-  </td></tr>
-</table>
-</td></tr></table>
-</body></html>`,
-        attachments: [
-          { filename: `${fileName}-FINAL.html`, content: Buffer.from(finalHtml).toString("base64") },
-          { filename: `${fileName}-STITCH-RAW.html`, content: Buffer.from(stitchHtml).toString("base64") },
-          { filename: `${fileName}-styles.css`, content: Buffer.from(cssContent).toString("base64") },
-        ],
-      });
-    });
-
-    console.log(`[Inngest] Build COMPLETE for jobId=${jobId}`);
-    return { success: true, jobId };
-  }
-);
-
-// ─── Monthly Analytics Reports ────────────────────────────────────────────────
-
-const monthlyReports = inngest.createFunction(
-  {
-    id: "monthly-analytics-reports",
-    name: "Send Monthly Analytics Reports",
-    triggers: [{ cron: "0 22 28-31 * *" }],
-  },
-  async ({ step }: { step: any }) => {
-    const now = new Date();
-    const tomorrow = new Date(now);
-    tomorrow.setUTCDate(now.getUTCDate() + 1);
-    if (tomorrow.getUTCDate() !== 1) {
-      return { skipped: true, reason: "Not the last day of the month" };
-    }
-
-    const clientKeys: string[] = await step.run("scan-clients", async () => {
-      let cursor = 0;
-      const keys: string[] = [];
-      do {
-        const [nextCursor, batch] = await redis.scan(cursor, { match: "client:*", count: 100 });
-        cursor = Number(nextCursor);
-        keys.push(...(batch as string[]));
-      } while (cursor !== 0);
-      return keys;
-    });
-
-    const base = process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au";
-    const secret = process.env.PROCESS_SECRET || "";
-
-    for (const key of clientKeys) {
-      const slug = key.replace("client:", "");
-      await step.run("send-report-" + slug, async () => {
-        const clientData = await redis.get<any>(key);
-        if (!clientData || !clientData.jobId) return { skipped: true };
-        const url = base + "/api/analytics/monthly?jobId=" + clientData.jobId + "&secret=" + encodeURIComponent(secret) + "&send=true";
-        const res = await fetch(url);
-        const json = await res.json().catch(() => ({}));
-        console.log("[MonthlyReport] " + slug + ":", json);
-        return json;
-      });
-    }
-
-    return { sent: clientKeys.length };
-  }
-);
-
-
-export const { GET, POST, PUT } = serve({
-  client: inngest,
-  functions: [buildWebsite, monthlyReports],
-  streaming: true,
-});
+        <span style="color:#64748b;font-size:1

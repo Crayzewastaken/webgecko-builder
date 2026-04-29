@@ -72,10 +72,11 @@ const FEATURE_BUNDLES = [
 // 8 - Assets (always)
 // 9 - Final Details (always)
 
-const InputField = ({ icon, label, value, onChange, placeholder, required, type = 'text' }: any) => (
+const InputField = ({ icon, label, value, onChange, placeholder, required, type = 'text', hint }: any) => (
   <div>
     <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">{icon} {label} {required && <span className="text-red-400">*</span>}</label>
     <input type={type} value={value} onChange={onChange} placeholder={placeholder} className="w-full h-14 rounded-2xl bg-slate-900/80 border border-white/10 px-5 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-all text-base" />
+    {hint && <p className="text-slate-500 text-xs mt-1.5">{hint}</p>}
   </div>
 );
 
@@ -143,6 +144,8 @@ export default function HomePage() {
   const [abn, setAbn] = useState("");
   const [domain, setDomain] = useState("");
   const [ga4Id, setGa4Id] = useState("");
+  const [businessAddress, setBusinessAddress] = useState("");
+  const [facebookPage, setFacebookPage] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [heroFile, setHeroFile] = useState<File | null>(null);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
@@ -214,12 +217,14 @@ export default function HomePage() {
     if (saved.phone) setPhone(saved.phone);
     if (saved.abn) setAbn(saved.abn);
     if (saved.domain) setDomain(saved.domain);
+    if (saved.businessAddress) setBusinessAddress(saved.businessAddress);
+    if (saved.facebookPage) setFacebookPage(saved.facebookPage);
     if (saved.step) setStep(saved.step);
   }, []);
 
   useEffect(() => {
-    saveToStorage({ businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, step });
-  }, [businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, step]);
+    saveToStorage({ businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, businessAddress, facebookPage, step });
+  }, [businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, businessAddress, facebookPage, step]);
 
   useEffect(() => {
     if (currentStepId !== 'contact') return;
@@ -287,7 +292,7 @@ export default function HomePage() {
     localStorage.removeItem(STORAGE_KEY);
 
     const formData = new FormData();
-    const fields: Record<string, string> = { businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, ga4Id, turnstileToken };
+    const fields: Record<string, string> = { businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, ga4Id, businessAddress, facebookPage, turnstileToken };
     Object.entries(fields).forEach(([k, v]) => formData.append(k, v));
     formData.append("pages", JSON.stringify(pages));
     formData.append("features", JSON.stringify(features));
@@ -562,6 +567,8 @@ export default function HomePage() {
                 <InputField icon="📱" label="Phone Number" value={phone} onChange={(e: any) => setPhone(e.target.value)} placeholder="04XX XXX XXX" required type="tel" />
                 <InputField icon="🔢" label="ABN" value={abn} onChange={(e: any) => setAbn(e.target.value)} placeholder="12 345 678 901" required hint="Required to register your .com.au domain." />
 		<InputField icon="🌐" label="Preferred Domain Name" value={domain} onChange={(e: any) => setDomain(e.target.value)} placeholder="e.g.mysalonbrisbane.com.au" required hint="Already have one? Enter it here. Don't have one? We'll register it for you." />
+                <InputField icon="📍" label="Business Address" value={businessAddress} onChange={(e: any) => setBusinessAddress(e.target.value)} placeholder="e.g. 123 Main St, Brisbane QLD 4000" hint="Used to embed a Google Map on your site so customers can find you." />
+                <InputField icon="📘" label="Facebook Page URL (optional)" value={facebookPage} onChange={(e: any) => setFacebookPage(e.target.value)} placeholder="e.g. facebook.com/yourbusiness" hint="We'll add a Facebook link to your site's social media section." />
                 <InputField icon="📊" label="Google Analytics ID (optional)" value={ga4Id} onChange={(e: any) => setGa4Id(e.target.value)} placeholder="G-XXXXXXXXXX" hint="If you have a GA4 property, we'll wire it into your site automatically." />
               </div>
               <div><div ref={turnstileRef} />{!turnstileToken && turnstileReady && <p className="text-slate-500 text-xs mt-2">Complete the security check above to submit</p>}</div>
@@ -618,23 +625,4 @@ export default function HomePage() {
             <div className="border-t border-white/8 pt-4 space-y-1 text-xs text-slate-600">
               {businessName && <p>🏢 {businessName}</p>}
               {industry && <p>🏭 {industry}</p>}
-              {goal && <p>🎯 {goal}</p>}
-              {siteType && <p>📄 {siteType === 'multi' ? 'Multi Page' : 'Single Page'}</p>}
-              {pages.length > 0 && <p className="truncate">📑 {pages.join(', ')}</p>}
-              {name && <p>👤 {name}</p>}
-            </div>
-            {quote && (
-              <div className="mt-4 border-t border-white/8 pt-4">
-                <p className="text-xs text-slate-500 uppercase tracking-widest mb-2">Live Quote</p>
-                <p className="text-2xl font-bold text-white">${quote.totalPrice.toLocaleString()}</p>
-                <p className="text-slate-500 text-xs">+ ${quote.monthlyPrice}/month</p>
-                <p className="text-emerald-400 text-xs mt-1 font-semibold">{quote.packageName} Package</p>
-                <p className="text-emerald-400 text-xs font-semibold">🎉 Saving ${quote.savings.toLocaleString()}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </main>
-  );
-}
+              {goal && 
