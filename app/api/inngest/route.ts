@@ -367,7 +367,8 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
       //   1. Creates the booking section DOM via document.createElement (not innerHTML)
       //   2. Replaces any existing #booking element, or appends before </body>
       //   3. Runs immediately at DOMContentLoaded
-      if (hasBookingFeature) {
+      const hasAiBookingPlaceholder = /(?:forge integration|booking system.*?recalibrat|advanced booking.*?recalibrat|calendly|acuity|setmore)/i.test(html);
+      if (hasBookingFeature || hasAiBookingPlaceholder) {
         try {
           const services = getServicesForIndustry(userInput.industry);
           // Extract accent color from Stitch HTML (CTA buttons are a reliable signal)
@@ -388,16 +389,23 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
             apiBase: process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au",
           });
 
-          // Remove any existing fake booking section (Stitch placeholder or prior injection)
-          // but preserve the id="booking" anchor so nav links still scroll to it
+          // Replace any section containing an AI-invented booking placeholder
+          html = html.replace(/<section([^>]*)>([\s\S]*?(?:forge integration|booking system.*?recalibrat|advanced booking.*?recalibrat)[\s\S]*?)<\/section>/gi,
+            (_m: string, attrs: string) => {
+              const newAttrs = /id=["'][^"']*["']/.test(attrs)
+                ? attrs.replace(/id=["'][^"']*["']/, 'id="booking"')
+                : ` id="booking"${attrs}`;
+              return `<section${newAttrs}></section>`;
+            }
+          );
+
+          // Remove any existing fake booking section, preserve id="booking" anchor
           html = html.replace(/<([a-z][a-z0-9]*)\b([^>]*)\bid="booking"[^>]*>[\s\S]*?<\/\1>/gi,
             '<div id="booking"></div>');
 
-          // Inject the real widget right after the now-empty #booking div
-          // The widget's own <section id="booking"> will replace or be adjacent to the placeholder
           if (html.includes('id="booking"')) {
             html = html.replace('<div id="booking"></div>', bookingWidgetHtml);
-            console.log("[Inngest] Booking widget replaced #booking placeholder");
+            console.log(`[Inngest] Booking widget replaced #booking (hasBooking=${hasBookingFeature}, hadAiPlaceholder=${hasAiBookingPlaceholder})`);
           } else {
             html = html.replace("</body>", bookingWidgetHtml + "\n</body>");
             console.log("[Inngest] Booking widget injected before </body>");
@@ -698,7 +706,7 @@ const monthlyReports = inngest.createFunction(
       const slug = key.replace("client:", "");
       await step.run("send-report-" + slug, async () => {
         const clientData = await redis.get<any>(key);
-        if (!clientData || !clientData.jobId) return { skipped: true };
+        if (!clientData || !clientData.jobId) return
         const url = base + "/api/analytics/monthly?jobId=" + clientData.jobId + "&secret=" + encodeURIComponent(secret) + "&send=true";
         const res = await fetch(url);
         const json = await res.json().catch(() => ({}));

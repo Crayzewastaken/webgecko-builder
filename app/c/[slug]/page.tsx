@@ -1042,48 +1042,29 @@ export default function ClientPortal() {
             {/* Plan tiers */}
             {!showSubModal && (
               <div style={S.card}>
-                <div style={S.label}>Update Plan</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
-                  {/* Essential */}
-                  <div style={{
-                    background: "#080c14", border: `2px solid ${(client.quote?.monthlyPrice || 0) < 149 ? "#00c896" : "#1e2531"}`,
-                    borderRadius: 12, padding: "16px 14px",
-                  }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Essential</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: "#e2e8f0", lineHeight: 1 }}>$99<span style={{ fontSize: 12, color: "#4a5568", fontWeight: 400 }}>/mo</span></div>
-                    <div style={{ height: 1, background: "#1e2531", margin: "12px 0" }} />
-                    {["Hosting & SSL", "5 site changes/month", "SEO updates", "Email support"].map(f => (
-                      <div key={f} style={{ fontSize: 12, color: "#64748b", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                        <span style={{ color: "#00c896", fontSize: 10 }}>✓</span>{f}
-                      </div>
-                    ))}
-                    <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Switch to Essential plan — " + client.businessName)}`}
-                      style={{ display: "block", textAlign: "center", marginTop: 12, background: "#1a2233", color: "#94a3b8", borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
-                      Switch to Essential
-                    </a>
+                <div style={S.label}>Your Hosting Plan</div>
+                <div style={{ background: "#080c14", border: "2px solid #00c89640", borderRadius: 12, padding: "20px 18px", marginTop: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#00c896", marginBottom: 4 }}>Standard Hosting</div>
+                      <div style={{ fontSize: 28, fontWeight: 800, color: "#e2e8f0", lineHeight: 1 }}>$109<span style={{ fontSize: 13, color: "#4a5568", fontWeight: 400 }}>/mo</span></div>
+                      <div style={{ fontSize: 11, color: "#4a5568", marginTop: 3 }}>Intro rate — first 3 months</div>
+                    </div>
+                    <div style={{ background: "#00c89615", border: "1px solid #00c89630", borderRadius: 20, padding: "4px 12px", fontSize: 11, fontWeight: 700, color: "#00c896" }}>ACTIVE</div>
                   </div>
-
-                  {/* Premium */}
-                  <div style={{
-                    background: "#0a1628", border: `2px solid ${(client.quote?.monthlyPrice || 0) >= 149 ? "#00c896" : "#0099ff40"}`,
-                    borderRadius: 12, padding: "16px 14px", position: "relative" as const,
-                  }}>
-                    {(client.quote?.monthlyPrice || 0) >= 149 && (
-                      <div style={{ position: "absolute", top: -10, right: 10, background: "#00c896", color: "#000", fontSize: 10, fontWeight: 800, padding: "2px 10px", borderRadius: 20 }}>CURRENT</div>
-                    )}
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Premium</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: "#e2e8f0", lineHeight: 1 }}>$149<span style={{ fontSize: 12, color: "#4a5568", fontWeight: 400 }}>/mo</span></div>
-                    <div style={{ height: 1, background: "#1e2531", margin: "12px 0" }} />
-                    {["Hosting & SSL", "10 site changes/month", "Monthly AI fix pass", "SEO & speed updates", "Priority support"].map(f => (
-                      <div key={f} style={{ fontSize: 12, color: "#64748b", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                        <span style={{ color: "#00c896", fontSize: 10 }}>✓</span>{f}
-                      </div>
-                    ))}
-                    <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Upgrade to Premium plan — " + client.businessName)}`}
-                      style={{ display: "block", textAlign: "center", marginTop: 12, background: "linear-gradient(135deg,#00c896,#0099ff)", color: "#000", borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
-                      Upgrade to Premium
-                    </a>
+                  <div style={{ height: 1, background: "#1e2531", margin: "12px 0" }} />
+                  {["Hosting & SSL", "Site changes on request", "Monthly AI fix pass", "SEO updates", "Email support"].map(f => (
+                    <div key={f} style={{ fontSize: 12, color: "#64748b", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                      <span style={{ color: "#00c896", fontSize: 10 }}>✓</span>{f}
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 14, background: "#0a1628", border: "1px solid #1e2531", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#475569" }}>
+                    After 3 months, plan renews at <span style={{ color: "#e2e8f0", fontWeight: 600 }}>$119/mo</span>. Email us anytime to discuss your plan.
                   </div>
+                  <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Plan query — " + client.businessName)}&body=${encodeURIComponent("Hi, I wanted to ask about my hosting plan.\n\nBusiness: " + client.businessName)}`}
+                    style={{ display: "block", textAlign: "center", marginTop: 12, background: "#1a2233", color: "#94a3b8", borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+                    Contact us about your plan
+                  </a>
                 </div>
                 <div style={{ fontSize: 11, color: "#334155", textAlign: "center", marginTop: 12 }}>Plan changes take effect after your current paid month ends.</div>
               </div>

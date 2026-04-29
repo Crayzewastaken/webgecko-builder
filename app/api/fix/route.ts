@@ -128,6 +128,10 @@ export async function GET(request: NextRequest) {
     html = html.replace(/<script[^>]*calendly[^>]*>[\s\S]*?<\/script>/gi, '');
     html = html.replace(/<link[^>]*calendly[^>]*/gi, '');
 
+    // FIX 5: Copyright year — replace any stale year with current year
+    const currentYear = new Date().getFullYear().toString();
+    html = html.replace(/(©\s*|&copy;\s*|copyright\s+)20\d\d\b/gi, (_m: string, prefix: string) => prefix + currentYear);
+
     // ── Re-inject essentials + images ─────────────────────────────────────────
     const { html: checkedHtml } = checkAndFixLinks(
       html,
@@ -138,7 +142,9 @@ export async function GET(request: NextRequest) {
     html = injectImages(html, logoUrl, heroUrl, photoUrls, productsWithPhotos);
 
     // ── Re-inject booking widget ───────────────────────────────────────────────
-    if (hasBookingFeature) {
+    // Detect if site has an AI-invented booking placeholder (e.g. "Forge Integration", "booking system being recalibrated", etc.)
+    const hasAiBookingPlaceholder = /(?:forge integration|booking system.*?recalibrat|advanced booking.*?recalibrat|calendly|acuity|setmore|booking\.com\/widget)/i.test(html);
+    if (hasBookingFeature || hasAiBookingPlaceholder) {
       try {
         const services = getServicesForIndustry(userInput?.industry || "");
         // Extract accent color from Stitch HTML
@@ -157,12 +163,23 @@ export async function GET(request: NextRequest) {
           primaryColor: accentColor,
           apiBase: process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au",
         });
+        // Replace any section that contains an AI booking placeholder text
+        html = html.replace(/<section([^>]*)>([\s\S]*?(?:forge integration|booking system.*?recalibrat|advanced booking.*?recalibrat)[\s\S]*?)<\/section>/gi,
+          (_m: string, attrs: string) => {
+            // Preserve id="booking" if it existed, otherwise add it
+            const hasId = /id=["'][^"']*["']/.test(attrs);
+            const newAttrs = hasId ? attrs.replace(/id=["'][^"']*["']/, 'id="booking"') : ` id="booking"${attrs}`;
+            return `<section${newAttrs}></section>`;
+          }
+        );
+        // Also replace any element with id="booking" wholesale
         html = html.replace(/<([a-z][a-z0-9]*)\b([^>]*)\bid="booking"[^>]*>[\s\S]*?<\/\1>/gi, '<div id="booking"></div>');
         if (html.includes('id="booking"')) {
           html = html.replace('<div id="booking"></div>', bookingWidgetHtml);
         } else {
           html = html.replace("</body>", bookingWidgetHtml + "\n</body>");
         }
+        console.log(`[Fix] Booking widget injected (hasBookingFeature=${hasBookingFeature}, hadAiPlaceholder=${hasAiBookingPlaceholder})`);
       } catch (e) {
         console.error("[Fix] Booking widget injection failed:", e);
       }
