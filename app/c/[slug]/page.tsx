@@ -57,6 +57,12 @@ interface PaymentStatus {
 
 type Tab = "overview" | "preview" | "bookings" | "quote" | "plan";
 
+// ─── Shared helpers ───────────────────────────────────────────────────────────
+function formatDate(dateStr: string) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" });
+}
+
 // ─── Subscription management cancel options ───────────────────────────────────
 // Research basis:
 // - "Offboard with transfer" (full help migrating, domain transfer, HTML export, final review): ~50% of original build price — mirrors what agencies charge for exit packages
@@ -520,11 +526,6 @@ export default function ClientPortal() {
     else if (f.includes("Booking System")) base += 2;
     if (pc >= 10) base += 2;
     return `${base}–${base + 2} business days`;
-  }
-
-  function formatDate(dateStr: string) {
-    const [y, m, d] = dateStr.split("-").map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" });
   }
 
   function signOut() { sessionStorage.removeItem(`wg_auth_${slug}`); router.replace("/c"); }
