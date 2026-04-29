@@ -116,12 +116,16 @@ ${imageSection}
 DESIGN REQUIREMENTS — include ALL in the stitchPrompt:
 1. HERO: Full viewport height, bold headline 60-80px, subheadline, CTA button, distinctive background (gradient/dark overlay/pattern — NOT plain white)
 2. NAV: Sticky, logo left, links right, CTA button, mobile hamburger id="hamburger" toggling id="mobile-menu", glassmorphism or solid dark background
-3. LAYOUTS: Mix — full-width sections, 50/50 splits, asymmetric grids, stat counters, testimonials with names and star ratings
+3. LAYOUTS: Mix — full-width sections, 50/50 splits, asymmetric grids, stat counters
 4. TYPOGRAPHY: Bold display font for headings, clean sans-serif body, generous spacing
 5. COLOUR: Use ${userInput.colorPrefs || "professional premium palette"}, dark backgrounds where appropriate, accent colour for CTAs
-6. TRUST: Star-rated testimonials with realistic Australian names, stats bar
-7. CONTACT: Use REAL email ${clientEmail} and REAL phone ${clientPhone}, working contact form
-8. FOOTER: Logo, links, contact, social, copyright
+6. TESTIMONIALS & REVIEWS: Large testimonials section with id="testimonials" — minimum 3 star-rated reviews from realistic Australian names (e.g. "Sarah M.", "James T."), 5-star ratings shown as filled stars ★★★★★, with job titles or context, card or quote layout
+7. FAQ SECTION: Accordion FAQ section with id="faq" — minimum 6 realistic Q&A pairs relevant to ${userInput.industry}, expandable/collapsible with smooth animation
+8. PHOTO GALLERY: ${features.includes("Photo Gallery") ? `Gallery section with id="gallery" — image grid showing work/products/space` : "Skip gallery section"}
+9. CONTACT: Use REAL email ${clientEmail} and REAL phone ${clientPhone}, working contact form with id="contact"
+10. FOOTER: Logo, links, contact, social icons, copyright ${new Date().getFullYear()}
+11. STATS BAR: Horizontal stats strip with 3-4 numbers (years experience, clients served, etc.)
+12. BUSINESS NAME: The site title, logo text, and all headings MUST use the EXACT business name: "${userInput.businessName}" — do NOT use placeholder names
 
 ${isMultiPage
   ? `CRITICAL — MULTI-PAGE SITE: Pages: ${pageList}.
@@ -174,145 +178,52 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
 
     console.log(`[Inngest] STEP 4 DONE. Length: ${stitchHtml.length}`);
 
-    // ── STEP 5: Claude fix pass ───────────────────────────────────────────────
-    const fixedHtml = await step.run("step5-claude-fix", async () => {
-      const businessAddress = userInput.businessAddress || "";
-      const googleMapsEmbed = businessAddress && process.env.GOOGLE_MAPS_API_KEY
-        ? `<iframe width="100%" height="350" style="border:0;border-radius:12px;" loading="lazy" allowfullscreen src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe>`
-        : "";
-
-      const existingIds = [...stitchHtml.matchAll(/\bid="([^"]+)"/g)].map((m: RegExpMatchArray) => m[1]);
-      const existingIdsStr = existingIds.join(", ");
-      const navigateCalls = [...new Set([...stitchHtml.matchAll(/navigateTo\(['"]([^'"]+)['"]\)/g)].map((m: RegExpMatchArray) => m[1]))];
-      const missingIds = navigateCalls.filter((id: string) => !existingIds.includes(id));
-
+    // ── STEP 5: Code-only fix pass (NO Claude — preserves Stitch design 100%) ──
+    const fixedHtml = await step.run("step5-code-fix", async () => {
+      let html = stitchHtml;
       const bookingNavTarget = hasBookingFeature ? "booking" : "contact";
 
-      const fixPrompt = `You are a STRICT HTML post-processor for a production web design system. Your job is surgical fixes only — do NOT redesign, restyle, or restructure anything.
+      // ── FIX 1: Contact details — replace fake/placeholder emails & phones ──
+      // Emails: replace anything that looks like a placeholder
+      html = html.replace(/\b[a-z]+@(example|company|business|yourcompany|yourbusiness|domain|email|test|sample)\.com\b/gi, clientEmail);
+      html = html.replace(/\binfo@[a-z-]+\.(com|com\.au|au)\b/gi, (m: string) => m.includes(clientEmail.split("@")[1]) ? m : clientEmail);
+      html = html.replace(/\bhello@[a-z-]+\.(com|com\.au|au)\b/gi, (m: string) => m.includes(clientEmail.split("@")[1]) ? m : clientEmail);
+      html = html.replace(/\bcontact@[a-z-]+\.(com|com\.au|au)\b/gi, (m: string) => m.includes(clientEmail.split("@")[1]) ? m : clientEmail);
+      // Phones: replace obvious fake AU numbers
+      html = html.replace(/\b0[0-9]{3}\s000\s000\b/g, clientPhone);
+      html = html.replace(/\b0400\s000\s000\b/g, clientPhone);
+      html = html.replace(/\+61\s0[0-9]{3}\s000\s000/g, clientPhone);
 
-════════════════════════════════════════
-SYSTEM ARCHITECTURE — READ FIRST
-════════════════════════════════════════
-This site uses a custom WebGecko backend. These APIs already exist and MUST be used:
-- Booking: POST /api/book  |  Availability: GET /api/availability?jobId=...&date=...
-- Forms: handled by inline JS (no external services)
-- Navigation: window.navigateTo(pageId) — already injected after this step
-- Hamburger: #hamburger toggles #mobile-menu — already handled after this step
-
-CRITICAL — BOOKING SYSTEM RULES:
-- ${hasBookingFeature ? "This site HAS a booking system. The booking widget will be injected AFTER this step by code — NOT by you." : "This site does NOT have a booking system."}
-- NEVER add Cal.com, Calendly, or any other external booking service
-- NEVER generate fake booking modals, calendars, or booking forms in the HTML
-- NEVER add any booking-related HTML at all — it is handled externally
-- ALL hero/CTA buttons with booking intent must use ONLY: onclick="window.navigateTo('${bookingNavTarget}')"
-- Do NOT add any other onclick or href to booking buttons
-
-════════════════════════════════════════
-HARD RULES — DO NOT BREAK ANY OF THESE
-════════════════════════════════════════
-1. DO NOT change layout, Tailwind classes, colors, fonts, or section structure
-2. DO NOT rename, move, or duplicate any id attribute
-3. DO NOT add onclick="navigateTo(...)" to elements that already have one
-4. DO NOT replace existing onclick="navigateTo(...)" with href links
-5. DO NOT invent sections, pages, or features not listed below
-6. DO NOT add external scripts (no CDN links, no third-party embeds except Google Maps if provided)
-7. NEVER nest id="X" inside another element that already has id="X"
-8. PRESERVE all Stitch-generated copy, images, testimonials, stats, and colors exactly
-
-════════════════════════════════════════
-EXISTING IDs IN THIS HTML
-════════════════════════════════════════
-These ids already exist — DO NOT add them anywhere else:
-${existingIdsStr}
-
-════════════════════════════════════════
-FIX 1 — MISSING navigateTo() TARGETS
-════════════════════════════════════════
-These navigateTo() calls have no matching id and MUST be resolved:
-${missingIds.length > 0 ? missingIds.map(id => `- navigateTo('${id}') → no element with id="${id}" exists`).join("\n") : "NONE — all navigation targets are present, skip this fix"}
-
-Resolution order (try each in sequence, stop when resolved):
-A. Find a <section>, <div>, <article>, or <main> whose class/data attribute CONTAINS "${missingIds[0] || "id"}" — add id="[missing_id]" to its opening tag if it has no id
-B. Find a section containing an <h1>, <h2>, or <h3> whose text matches the id name — add id="[missing_id]" to that section's opening tag if it has no id
-C. Find the first <div class="page-section"> that has no id — add id="[missing_id]" to it
-D. ONLY if A/B/C all fail: inject before </body>: <div class="page-section" id="[missing_id]" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;text-align:center;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:700;">[Section Name]</h2></div></div>
-
-════════════════════════════════════════
-FIX 2 — CTA BUTTONS
-════════════════════════════════════════
-Find hero/header CTA buttons with href="#" or no action. These are buttons with text like:
-"Book Now", "Book a Session", "Get Started", "Join Now", "Sign Up", "Free Trial", "Book Free", "Reserve", "Enquire Now", "Get a Quote", "Start Today"
-
-For each found:
-- Remove href="#" (or set href="javascript:void(0)")
-- Add: onclick="window.navigateTo('${bookingNavTarget}')"
-- DO NOT touch buttons that already have onclick="navigateTo(...)"
-- DO NOT touch nav links, footer links, or social buttons
-
-════════════════════════════════════════
-FIX 3 — CONTACT DETAILS
-════════════════════════════════════════
-Replace ALL placeholder contact info:
-- Emails matching: example@*, *@example.com, hello@company*, info@company*, contact@company* → ${clientEmail}
-- Phones matching: 555-*, (555)*, +1 555*, fake AU numbers like 0400 000 000 → ${clientPhone}
-- Keep the real client email/phone if already correct: ${clientEmail} / ${clientPhone}
-
-════════════════════════════════════════
-FIX 4 — PAGE/SECTION STRUCTURE (${userInput.siteType.toUpperCase()})
-════════════════════════════════════════
-${isMultiPage
-  ? `MULTI-PAGE SITE. Pages required: ${pageList}
-- Each page div must have class="page-section" and a unique lowercase id matching the page name
-- ONLY the first page div should be visible (style="display:block"), all others style="display:none"
-- All nav links must use onclick="navigateTo('pageid')" — NOT href
-- Keep all existing onclick="navigateTo(...)" exactly as-is`
-  : `SINGLE-PAGE SITE. All sections remain visible.
-- Nav links should use href="#sectionid" for smooth scroll
-- Do NOT add page-section classes or display:none to sections`}
-
-${googleMapsEmbed
-  ? `════════════════════════════════════════
-FIX 5 — GOOGLE MAPS
-════════════════════════════════════════
-Find the map/location/directions section in the HTML. Replace any placeholder map or map container's inner content with this embed:
-${googleMapsEmbed}`
-  : ""}
-
-
-════════════════════════════════════════
-VALIDATION CHECKLIST (run before output)
-════════════════════════════════════════
-Before returning, verify:
-[ ] All navigateTo('x') calls have a matching id="x" element
-[ ] No button has href="#" without an onclick (except anchors with real href targets)
-[ ] No duplicate id attributes exist anywhere
-[ ] Contact email is ${clientEmail} and phone is ${clientPhone}
-[ ] No Cal.com, Calendly, or external booking embeds added
-[ ] All Stitch layout/styling preserved exactly
-
-════════════════════════════════════════
-OUTPUT
-════════════════════════════════════════
-Return the COMPLETE HTML document with ONLY the fixes above applied.
-- No explanations, no markdown, no code fences, no backticks
-- Must start with <!DOCTYPE html> or <html>
-- Must include the complete <head>, all <style> blocks, all <script> blocks, and complete <body>
-
-HTML TO PROCESS:
-${stitchHtml.substring(0, 40000)}`;
-
-      const fixResponse = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 12000,
-        messages: [{ role: "user", content: fixPrompt }],
+      // ── FIX 2: CTA buttons — wire booking/enquiry CTAs ──
+      const ctaKeywords = ['Book Now','Book a Session','Get Started','Join Now','Sign Up','Free Trial','Book Free','Reserve','Enquire Now','Get a Quote','Start Today','Book Today','Schedule Now','Try Free','Get Free Quote','Book Consultation'];
+      const ctaPattern = new RegExp(`(<(?:a|button)[^>]*>\\s*(?:${ctaKeywords.join('|')})\\s*<\/(?:a|button)>)`, 'gi');
+      html = html.replace(/<a([^>]*href=["']#["'][^>]*)>([\s\S]*?)<\/a>/g, (match: string, attrs: string, inner: string) => {
+        const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
+        const isBooking = ctaKeywords.some(k => txt.includes(k.toLowerCase()));
+        if (isBooking && !attrs.includes('navigateTo') && !attrs.includes('onclick')) {
+          return `<a${attrs} onclick="event.preventDefault();var el=document.getElementById('${bookingNavTarget}');if(el){el.scrollIntoView({behavior:'smooth'});}else if(window.navigateTo){window.navigateTo('${bookingNavTarget}');}">${inner}</a>`;
+        }
+        return match;
       });
 
-      let html = fixResponse.content[0]?.type === "text" ? fixResponse.content[0].text : "";
-      html = html.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
-      if (!html || (!html.includes("<html") && !html.includes("<!DOCTYPE") && !html.includes("<body"))) {
-        console.log(`[Inngest] STEP 5: Fix response invalid, using original Stitch HTML`);
-        return stitchHtml;
+      // ── FIX 3: Google Maps injection ──
+      const businessAddress = userInput.businessAddress || "";
+      if (businessAddress && process.env.GOOGLE_MAPS_API_KEY) {
+        const mapsEmbed = `<iframe width="100%" height="350" style="border:0;border-radius:12px;" loading="lazy" allowfullscreen src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe>`;
+        // Find map placeholder sections and inject
+        html = html.replace(/<div[^>]*(?:id|class)="[^"]*(?:map|location|directions)[^"]*"[^>]*>[\s\S]*?<\/div>/i, (match: string) => {
+          if (!match.includes('iframe')) return match.replace(/<\/div>$/, mapsEmbed + '</div>');
+          return match;
+        });
       }
+
+      // ── FIX 4: Strip any fake booking widgets Claude may have snuck in ──
+      // Remove any Calendly/Cal.com embeds
+      html = html.replace(/<script[^>]*calendly[^>]*>[\s\S]*?<\/script>/gi, '');
+      html = html.replace(/<link[^>]*calendly[^>]*/gi, '');
+      html = html.replace(/<!--\s*Calendly[\s\S]*?-->/gi, '');
+
+      console.log(`[Inngest] STEP 5 (code-only) DONE. Length: ${html.length}`);
       return html;
     });
 
@@ -328,7 +239,12 @@ ${stitchHtml.substring(0, 40000)}`;
       let html = injectEssentials(checkedHtml, clientEmail, clientPhone, jobId, ga4Id);
       html = injectImages(html, logoUrl, heroUrl, photoUrls, productsWithPhotos);
 
-      // ── Booking widget injection (done by code, never by Claude) ────────────
+      // ── Booking widget injection ─────────────────────────────────────────────
+      // CRITICAL: Scripts injected via innerHTML don't execute.
+      // We inject the widget as a self-contained <script> that:
+      //   1. Creates the booking section DOM via document.createElement (not innerHTML)
+      //   2. Replaces any existing #booking element, or appends before </body>
+      //   3. Runs immediately at DOMContentLoaded
       if (hasBookingFeature) {
         try {
           const services = getServicesForIndustry(userInput.industry);
@@ -341,20 +257,19 @@ ${stitchHtml.substring(0, 40000)}`;
             apiBase: process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko-builder.vercel.app",
           });
 
-          // Strategy 1: replace inner content of existing id="booking" element
-          const bookingElMatch = html.match(/<([a-z][a-z0-9]*)[^>]*\sid="booking"[^>]*>([\s\S]*?)<\/\1>/i);
-          if (bookingElMatch) {
-            const fullMatch = bookingElMatch[0];
-            const tag = bookingElMatch[1];
-            const openTagEnd = fullMatch.indexOf(">") + 1;
-            const openTag = fullMatch.substring(0, openTagEnd);
-            const closeTag = `</${tag}>`;
-            html = html.replace(fullMatch, openTag + "\n" + bookingWidgetHtml + "\n" + closeTag);
-            console.log("[Inngest] Booking widget injected into existing #booking element");
+          // Remove any existing fake booking section (Stitch placeholder or prior injection)
+          // but preserve the id="booking" anchor so nav links still scroll to it
+          html = html.replace(/<([a-z][a-z0-9]*)\b([^>]*)\bid="booking"[^>]*>[\s\S]*?<\/\1>/gi,
+            '<div id="booking"></div>');
+
+          // Inject the real widget right after the now-empty #booking div
+          // The widget's own <section id="booking"> will replace or be adjacent to the placeholder
+          if (html.includes('id="booking"')) {
+            html = html.replace('<div id="booking"></div>', bookingWidgetHtml);
+            console.log("[Inngest] Booking widget replaced #booking placeholder");
           } else {
-            // Strategy 2: insert the full widget before </body>
             html = html.replace("</body>", bookingWidgetHtml + "\n</body>");
-            console.log("[Inngest] Booking widget injected before </body> (no #booking element found)");
+            console.log("[Inngest] Booking widget injected before </body>");
           }
         } catch (e) {
           console.error("[Inngest] Booking widget injection failed:", e);
@@ -422,33 +337,63 @@ ${stitchHtml.substring(0, 40000)}`;
       const processUrl = `${base}/api/fix?id=${jobId}&secret=${secret}`;
       const unlockUrl = `${base}/api/payment/unlock?jobId=${jobId}&secret=${secret}`;
       const releaseUrl = `${base}/api/unlock/release?jobId=${jobId}&secret=${secret}`;
+      const unlockBookingUrl = `${base}/api/unlock/booking?jobId=${jobId}&secret=${secret}`;
       const adminUrl = `${base}/admin?secret=${secret}`;
-      const cssContent = extractCSS(fixedHtml);
+      const cssContent = extractCSS(finalHtml);
 
       await resend.emails.send({
         from: "WebGecko <hello@webgecko.au>",
         to: process.env.RESULT_TO_EMAIL!,
-        subject: `✅ Build Complete — ${spec.projectTitle}`,
-        html: `
-          <h2>Website Built — ${spec.projectTitle}</h2>
-          <p><strong>Client:</strong> ${userInput.name} (${clientEmail})</p>
-          <p><strong>Business:</strong> ${userInput.businessName}</p>
-          <p><strong>Industry:</strong> ${userInput.industry}</p>
-          <p><strong>Pages:</strong> ${pageList}</p>
-          <p><strong>Features:</strong> ${features.join(", ") || "-"}</p>
-          ${previewUrl ? `<p><a href="${previewUrl}" style="color:#22c55e;">🌐 View Preview</a></p>` : ""}
-          <br/>
-          <div style="display:flex;gap:12px;flex-wrap:wrap;">
-            <a href="${releaseUrl}" style="background:#00c896;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">📤 Release to Client</a>
-            <a href="${processUrl}" style="background:#22c55e;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">🔧 Fix This Site</a>
-            <a href="${unlockUrl}" style="background:#8b5cf6;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">🔓 Unlock Final Payment</a>
-            <a href="${adminUrl}" style="background:#1e293b;color:white;padding:16px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;border:1px solid #334155;">📊 Admin Dashboard</a>
-          </div>
-          <p style="color:#94a3b8;font-size:12px;margin-top:12px;">Admin dashboard (bookmark this): <a href="${adminUrl}" style="color:#00c896;">${adminUrl}</a></p>
-          <p style="color:#94a3b8;font-size:12px;margin-top:4px;">HTML and CSS files attached below.</p>
-        `,
+        subject: `✅ Build Complete — ${userInput.businessName}`,
+        html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0a0f1a;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0f1a;padding:32px 16px;"><tr><td align="center">
+<table width="640" cellpadding="0" cellspacing="0" style="background:#0f1623;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);">
+  <tr><td style="background:linear-gradient(135deg,#00c896,#0099ff);padding:24px 32px;">
+    <h1 style="margin:0;color:#000;font-size:22px;font-weight:800;">✅ Build Complete</h1>
+    <p style="margin:4px 0 0;color:rgba(0,0,0,0.7);font-size:14px;">${userInput.businessName} — ${spec.projectTitle}</p>
+  </td></tr>
+  <tr><td style="padding:28px 32px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#080c14;border-radius:8px;margin-bottom:24px;">
+      <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
+        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Client</span>
+        <p style="color:#e2e8f0;margin:2px 0 0;font-size:15px;font-weight:600;">${userInput.name || "—"} &lt;${clientEmail}&gt;</p>
+      </td></tr>
+      <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
+        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Business</span>
+        <p style="color:#e2e8f0;margin:2px 0 0;font-size:15px;font-weight:600;">${userInput.businessName}</p>
+      </td></tr>
+      <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
+        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Industry · Phone</span>
+        <p style="color:#e2e8f0;margin:2px 0 0;font-size:14px;">${userInput.industry} · ${clientPhone}</p>
+      </td></tr>
+      <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
+        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Pages</span>
+        <p style="color:#e2e8f0;margin:2px 0 0;font-size:14px;">${pageList}</p>
+      </td></tr>
+      <tr><td style="padding:12px 16px;">
+        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Features</span>
+        <p style="color:#e2e8f0;margin:2px 0 0;font-size:14px;">${features.join(", ") || "Contact form"}</p>
+      </td></tr>
+    </table>
+    ${previewUrl ? `<p style="margin:0 0 20px;"><a href="${previewUrl}" style="color:#00c896;font-size:15px;font-weight:600;">🌐 View Live Preview →</a></p>` : ""}
+    <table cellpadding="0" cellspacing="0"><tr>
+      <td style="padding-right:8px;padding-bottom:8px;"><a href="${releaseUrl}" style="background:#00c896;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📤 Release to Client</a></td>
+      <td style="padding-right:8px;padding-bottom:8px;"><a href="${processUrl}" style="background:#3b82f6;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">🔧 Fix This Site</a></td>
+      <td style="padding-right:8px;padding-bottom:8px;"><a href="${unlockUrl}" style="background:#8b5cf6;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">🔓 Unlock Payment</a></td>
+      ${hasBookingFeature ? `<td style="padding-right:8px;padding-bottom:8px;"><a href="${unlockBookingUrl}" style="background:#f59e0b;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📅 Unlock Booking</a></td>` : ""}
+    </tr></table>
+    <p style="margin:16px 0 0;"><a href="${adminUrl}" style="color:#475569;font-size:12px;">📊 Admin Dashboard</a></p>
+  </td></tr>
+  <tr><td style="padding:16px 32px;border-top:1px solid rgba(255,255,255,0.06);">
+    <p style="color:#334155;font-size:12px;margin:0;">3 files attached: final HTML, raw Stitch HTML (for comparison), and CSS stylesheet.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`,
         attachments: [
-          { filename: `${fileName}.html`, content: Buffer.from(finalHtml).toString("base64") },
+          { filename: `${fileName}-FINAL.html`, content: Buffer.from(finalHtml).toString("base64") },
+          { filename: `${fileName}-STITCH-RAW.html`, content: Buffer.from(stitchHtml).toString("base64") },
           { filename: `${fileName}-styles.css`, content: Buffer.from(cssContent).toString("base64") },
         ],
       });

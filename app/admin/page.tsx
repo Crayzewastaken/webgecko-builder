@@ -26,7 +26,7 @@ interface ClientAnalytics {
   builtAt?: string;
 }
 
-type ActionKey = "release" | "fix" | "unlockPayment" | "unlockBooking" | "sendReport";
+type ActionKey = "release" | "fix" | "unlockPayment" | "unlockBooking" | "sendReport" | "delete";
 
 interface ActionState {
   confirming: ActionKey | null;
@@ -156,7 +156,6 @@ function ClientCard({ c, secret }: { c: ClientAnalytics; secret: string }) {
     if (contentType.includes("application/json")) {
       data = await res.json().catch(() => ({}));
     } else {
-      // HTML response endpoints (release, payment/unlock) — treat 2xx as success
       await res.text();
     }
     if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
@@ -171,12 +170,11 @@ function ClientCard({ c, secret }: { c: ClientAnalytics; secret: string }) {
       background: "#0f0f0f", border: "1px solid #1a1a1a", borderRadius: "14px",
       padding: "20px", marginBottom: "12px",
     }}>
-      {/* Header row */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px", gap: "8px", flexWrap: "wrap" }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: "16px", color: "#fff" }}>{c.businessName}</div>
           <div style={{ color: "#444", fontSize: "12px", marginTop: "2px" }}>
-            {c.industry} · /c/{c.slug} · job: {jid}
+            {c.industry} &middot; /c/{c.slug} &middot; job: {jid}
           </div>
         </div>
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
@@ -186,7 +184,6 @@ function ClientCard({ c, secret }: { c: ClientAnalytics; secret: string }) {
         </div>
       </div>
 
-      {/* Analytics grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(100px,1fr))", gap: "8px", marginBottom: "16px" }}>
         {[
           { label: "This Month Views", value: a?.thisMonth.views ?? 0, color: "#3b82f6" },
@@ -203,34 +200,31 @@ function ClientCard({ c, secret }: { c: ClientAnalytics; secret: string }) {
         ))}
       </div>
 
-      {/* Quick links */}
       <div style={{ display: "flex", gap: "8px", marginBottom: "14px", flexWrap: "wrap" }}>
         {c.previewUrl && (
           <a href={c.previewUrl} target="_blank" rel="noreferrer"
             style={{ background: "#111", border: "1px solid #222", color: "#00c896", borderRadius: "8px", padding: "7px 12px", fontSize: "12px", textDecoration: "none", fontWeight: 600 }}>
-            🌐 View Site
+            View Site
           </a>
         )}
         <a href={`/c/${c.slug}`} target="_blank" rel="noreferrer"
           style={{ background: "#111", border: "1px solid #222", color: "#888", borderRadius: "8px", padding: "7px 12px", fontSize: "12px", textDecoration: "none" }}>
-          👤 Client Portal
+          Client Portal
         </a>
         <a href={`/bookings?jobId=${jid}&secret=${secret}`} target="_blank" rel="noreferrer"
           style={{ background: "#111", border: "1px solid #222", color: "#888", borderRadius: "8px", padding: "7px 12px", fontSize: "12px", textDecoration: "none" }}>
-          📅 View Bookings
+          View Bookings
         </a>
       </div>
 
-      {/* Divider */}
       <div style={{ borderTop: "1px solid #1a1a1a", marginBottom: "14px" }} />
 
-      {/* Action buttons with confirm */}
       <div style={{ fontSize: "11px", color: "#333", marginBottom: "8px", textTransform: "uppercase", letterSpacing: ".06em", fontWeight: 600 }}>Actions</div>
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "flex-start" }}>
 
         <ConfirmButton
           actionKey="release"
-          label="🚀 Release Preview"
+          label="Release Preview"
           confirmLabel="Release"
           confirmMessage={`Release preview to ${c.businessName}? This emails the client their portal link.`}
           color="#00c896"
@@ -241,7 +235,7 @@ function ClientCard({ c, secret }: { c: ClientAnalytics; secret: string }) {
 
         <ConfirmButton
           actionKey="unlockBooking"
-          label="📅 Unlock Booking"
+          label="Unlock Booking"
           confirmLabel="Unlock"
           confirmMessage={`Enable booking system for ${c.businessName}?`}
           color="#8b5cf6"
@@ -252,7 +246,7 @@ function ClientCard({ c, secret }: { c: ClientAnalytics; secret: string }) {
 
         <ConfirmButton
           actionKey="unlockPayment"
-          label="💳 Unlock Final Payment"
+          label="Unlock Final Payment"
           confirmLabel="Unlock"
           confirmMessage="Unlock final payment for this client? They will be emailed to pay the remaining balance."
           color="#f59e0b"
@@ -263,9 +257,9 @@ function ClientCard({ c, secret }: { c: ClientAnalytics; secret: string }) {
 
         <ConfirmButton
           actionKey="fix"
-          label="🔧 Fix This Site"
+          label="Fix This Site"
           confirmLabel="Run Fix"
-          confirmMessage="Run Claude fix pass on this site? Takes 2-4 minutes and redeploys."
+          confirmMessage="Run a code fix pass on this site? Takes 1-2 minutes and redeploys."
           color="#3b82f6"
           state={actionState}
           setState={setActionState}
@@ -274,13 +268,29 @@ function ClientCard({ c, secret }: { c: ClientAnalytics; secret: string }) {
 
         <ConfirmButton
           actionKey="sendReport"
-          label="📧 Send Monthly Report"
+          label="Send Monthly Report"
           confirmLabel="Send"
           confirmMessage="Send this month's analytics report to this client?"
           color="#06b6d4"
           state={actionState}
           setState={setActionState}
           onConfirm={() => callApi(`/api/analytics/monthly?jobId=${jid}&secret=${sec}&send=true`)}
+        />
+
+        <ConfirmButton
+          actionKey="delete"
+          label="Delete Client"
+          confirmLabel="Delete Forever"
+          confirmMessage={`PERMANENTLY delete ${c.businessName} and all their data? This cannot be undone.`}
+          color="#ef4444"
+          state={actionState}
+          setState={setActionState}
+          onConfirm={async () => {
+            const res = await fetch(`/api/admin/delete-client?jobId=${jid}&slug=${c.slug}&secret=${sec}`, { method: "DELETE" });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error((data as any).error || `HTTP ${res.status}`);
+            window.location.reload();
+          }}
         />
       </div>
     </div>
@@ -349,10 +359,9 @@ function AdminDashboard() {
       <div style={{ maxWidth: "960px", margin: "0 auto" }}>
 
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "28px", flexWrap: "wrap" }}>
-          <span style={{ fontSize: "28px" }}>🦎</span>
           <div>
             <div style={{ fontSize: "22px", fontWeight: 800 }}>WebGecko Admin</div>
-            <div style={{ color: "#333", fontSize: "13px" }}>Client Management & Analytics</div>
+            <div style={{ color: "#555", fontSize: "13px" }}>Client Management &amp; Analytics</div>
           </div>
           <button onClick={loadDashboard} style={{ marginLeft: "auto", background: "#111", border: "1px solid #1a1a1a", color: "#555", borderRadius: "8px", padding: "8px 14px", fontSize: "13px", cursor: "pointer" }}>
             Refresh
