@@ -311,6 +311,8 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
       // ── FIX 3: Google Maps injection ──
       if (businessAddress && process.env.GOOGLE_MAPS_API_KEY) {
         const mapsEmbed = `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`;
+        // Skip if map already present
+        if (!html.includes('maps.google') && !html.includes('maps.embed') && !html.includes('google.com/maps')) {
         let mapInjected = false;
         // Strategy 1: Replace MAP PLACEHOLDER text divs that Stitch generates
         const beforeMapLen = html.length;
@@ -325,7 +327,7 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
           });
         }
         // Strategy 3: inject inside the contact section before its last closing </div>
-        if (!mapInjected && !html.includes('maps.google') && !html.includes('maps.embed')) {
+        if (!mapInjected) {
           html = html.replace(/(<section[^>]*(?:id|class)="[^"]*contact[^"]*"[^>]*>)([\s\S]*?)(<\/section>)/gi, (_match: string, open: string, body: string, close: string) => {
             const lastDiv = body.lastIndexOf('</div>');
             if (lastDiv !== -1) {
@@ -334,6 +336,7 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
             return open + body + mapsEmbed + close;
           });
         }
+        } // end: skip if map already present
       }
 
       // ── FIX 4: Strip any fake booking widgets Claude may have snuck in ──
@@ -567,7 +570,7 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
         { label: "Contact form (id=contact)", check: finalHtmlWithShop.includes('id="contact"') },
         { label: "Real email injected", check: finalHtmlWithShop.includes(clientEmail) },
         { label: "Real phone injected", check: finalHtmlWithShop.includes(clientPhone.replace(/\s/g, "")) || finalHtmlWithShop.includes(clientPhone) },
-        { label: "Google Maps embedded", check: finalHtmlWithShop.includes("maps.google") || finalHtmlWithShop.includes("maps.embed") },
+        { label: "Google Maps embedded", check: finalHtmlWithShop.includes("maps.google") || finalHtmlWithShop.includes("maps.embed") || finalHtmlWithShop.includes("google.com/maps") },
         { label: "Booking widget (id=booking)", check: finalHtmlWithShop.includes('id="booking"') && finalHtmlWithShop.includes("BW_JOB_ID") },
         { label: "Pricing section", check: userInput.hasPricing !== "Yes" || finalHtmlWithShop.toLowerCase().includes("pricing") || finalHtmlWithShop.toLowerCase().includes("plan") },
         { label: "Photo gallery", check: !features.includes("Photo Gallery") || finalHtmlWithShop.includes('id="gallery"') || finalHtmlWithShop.toLowerCase().includes("gallery") },

@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
     if (businessAddress && process.env.GOOGLE_MAPS_API_KEY) {
       const mapsEmbed = `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`;
       // Skip if map already present
-      if (!html.includes('maps.google') && !html.includes('maps.embed')) {
+      if (!html.includes('maps.google') && !html.includes('maps.embed') && !html.includes('google.com/maps')) {
         // Strategy 1: Replace MAP PLACEHOLDER divs Stitch generates
         let mapInjected = false;
         const beforeLen = html.length;
