@@ -56,6 +56,16 @@ const buildWebsite = inngest.createFunction(
 
     const fileName = job.fileName || safeFileName(userInput.businessName);
     const features: string[] = Array.isArray(userInput.features) ? userInput.features : [];
+
+    // Derive a stable domain slug from their desired domain, e.g. "ironcorefitness.com.au" → "ironcorefitness"
+    // This becomes the Vercel project name so the preview URL is always predictable
+    const rawDomain: string = (userInput.domain || "").trim().toLowerCase()
+      .replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+    const domainSlug: string = rawDomain
+      ? rawDomain.replace(/\.(com\.au|net\.au|org\.au|com|net|org|io|au)$/i, "").replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 40)
+      : fileName.slice(0, 40);
+    // Vercel project name: "wg-" prefix + slug, max 52 chars, must be stable across redeploys
+    const vercelProjectName = ("wg-" + domainSlug).slice(0, 52);
     const hasBookingFeature = hasBooking || features.includes("Booking System");
     const isMultiPage = userInput.siteType === "multi";
     const pageList = Array.isArray(userInput.pages) && userInput.pages.length > 0
@@ -280,8 +290,9 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
     });
 
     // ── STEP 8: Deploy to Vercel ──────────────────────────────────────────────
+    // Uses stable project name so the preview URL is always predictable:
+    //   wg-ironcorefitness.vercel.app (not a random hash URL)
     const previewUrl = await step.run("step8-deploy", async () => {
-      const safeName = fileName.slice(0, 40);
       const deployRes = await fetch("https://api.vercel.com/v13/deployments", {
         method: "POST",
         headers: {
@@ -289,18 +300,23 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: `${safeName}-${Date.now()}`,
-          teamId: process.env.VERCEL_TEAM_ID,
+          name: vercelProjectName,
+          teamId: process.env.VERCEL_TEAM_ID || undefined,
           files: [{ file: "index.html", data: finalHtml, encoding: "utf-8" }],
           projectSettings: { framework: null, outputDirectory: "./" },
         }),
       });
       if (!deployRes.ok) {
-        console.error("[Inngest] Deploy failed:", await deployRes.text());
+        const errText = await deployRes.text();
+        console.error("[Inngest] Deploy failed:", errText);
         return "";
       }
       const deployData = await deployRes.json();
-      return `https://${deployData.url}`;
+      // The deployment URL is unique per-deploy, but the project alias is stable.
+      // Vercel auto-aliases the latest deploy to <project-name>.vercel.app
+      const stableUrl = `https://${vercelProjectName}.vercel.app`;
+      console.log(`[Inngest] Deploy URL: https://${deployData.url} → Stable: ${stableUrl}`);
+      return stableUrl;
     });
 
     console.log(`[Inngest] STEP 8 DONE: ${previewUrl}`);
@@ -312,6 +328,8 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
         html: finalHtml,
         title: spec.projectTitle,
         fileName,
+        domainSlug,
+        vercelProjectName,
         status: "complete",
         previewUrl,
         builtAt: new Date().toISOString(),

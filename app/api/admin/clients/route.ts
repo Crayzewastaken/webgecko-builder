@@ -87,6 +87,10 @@ export async function GET(req: NextRequest) {
         buildStatus: clientData.buildStatus || job?.status || "pending",
         hasBooking: clientData.hasBooking || false,
         builtAt: clientData.builtAt || job?.builtAt || null,
+        domain: job?.userInput?.domain || clientData.domain || "",
+        liveDomain: job?.liveDomain || clientData.liveDomain || "",
+        liveUrl: job?.liveUrl || clientData.liveUrl || "",
+        vercelProjectName: job?.vercelProjectName || "",
         paymentState: {
           depositPaid: paymentState?.depositPaid || false,
           finalPaid: paymentState?.finalPaid || false,

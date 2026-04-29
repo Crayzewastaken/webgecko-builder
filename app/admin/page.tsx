@@ -11,6 +11,10 @@ interface ClientAnalytics {
   industry: string;
   previewUrl: string;
   buildStatus: string;
+  domain?: string;
+  liveDomain?: string;
+  liveUrl?: string;
+  vercelProjectName?: string;
   paymentState: {
     depositPaid: boolean;
     finalPaid: boolean;
@@ -128,6 +132,38 @@ function ConfirmButton({
   );
 }
 
+function GoLiveButton({ c, secret }: { c: ClientAnalytics; secret: string }) {
+  const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [msg, setMsg] = useState("");
+
+  async function assignDomain() {
+    setState("loading");
+    try {
+      const res = await fetch(`/api/admin/assign-domain?jobId=${c.jobId}&domain=${encodeURIComponent(c.domain!)}&secret=${encodeURIComponent(secret)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      setState("done");
+      setMsg(`Assigned! DNS: point ${c.domain} A record to 76.76.21.21`);
+    } catch (e) {
+      setState("error");
+      setMsg(e instanceof Error ? e.message : "Failed");
+    }
+  }
+
+  if (state === "done") return <div style={{ marginTop: "8px", color: "#00c896", fontSize: "11px" }}>Done — {msg}</div>;
+  if (state === "error") return <div style={{ marginTop: "8px", color: "#ef4444", fontSize: "11px" }}>{msg}</div>;
+
+  return (
+    <button
+      onClick={assignDomain}
+      disabled={state === "loading"}
+      style={{ marginTop: "8px", background: "#0a2a1a", border: "1px solid #00c89644", color: "#00c896", borderRadius: "6px", padding: "5px 12px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}
+    >
+      {state === "loading" ? "Assigning..." : `Assign ${c.domain} to Vercel`}
+    </button>
+  );
+}
+
 function ClientCard({ c, secret }: { c: ClientAnalytics; secret: string }) {
   const [actionState, setActionState] = useState<ActionState>({ confirming: null, loading: null, result: null });
 
@@ -200,11 +236,17 @@ function ClientCard({ c, secret }: { c: ClientAnalytics; secret: string }) {
         ))}
       </div>
 
-      <div style={{ display: "flex", gap: "8px", marginBottom: "14px", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: "8px", marginBottom: "14px", flexWrap: "wrap", alignItems: "center" }}>
         {c.previewUrl && (
           <a href={c.previewUrl} target="_blank" rel="noreferrer"
-            style={{ background: "#111", border: "1px solid #222", color: "#00c896", borderRadius: "8px", padding: "7px 12px", fontSize: "12px", textDecoration: "none", fontWeight: 600 }}>
-            View Site
+            style={{ background: "#111", border: "1px solid #00c89633", color: "#00c896", borderRadius: "8px", padding: "7px 12px", fontSize: "12px", textDecoration: "none", fontWeight: 600 }}>
+            Test Site
+          </a>
+        )}
+        {c.liveUrl && (
+          <a href={c.liveUrl} target="_blank" rel="noreferrer"
+            style={{ background: "#0a2a1a", border: "1px solid #00c89666", color: "#00c896", borderRadius: "8px", padding: "7px 12px", fontSize: "12px", textDecoration: "none", fontWeight: 700 }}>
+            Live Site
           </a>
         )}
         <a href={`/c/${c.slug}`} target="_blank" rel="noreferrer"
@@ -216,6 +258,35 @@ function ClientCard({ c, secret }: { c: ClientAnalytics; secret: string }) {
           View Bookings
         </a>
       </div>
+
+      {/* Domain info row */}
+      {(c.domain || c.liveDomain || c.previewUrl) && (
+        <div style={{ background: "#0a0a0a", border: "1px solid #1a1a1a", borderRadius: "8px", padding: "10px 14px", marginBottom: "14px", fontSize: "12px" }}>
+          <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+            {c.previewUrl && (
+              <div>
+                <div style={{ color: "#444", fontSize: "10px", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: "2px" }}>Test URL</div>
+                <span style={{ color: "#6b7280", fontFamily: "monospace" }}>{c.previewUrl.replace("https://", "")}</span>
+              </div>
+            )}
+            {c.domain && !c.liveDomain && (
+              <div>
+                <div style={{ color: "#444", fontSize: "10px", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: "2px" }}>Desired Domain</div>
+                <span style={{ color: "#f59e0b", fontFamily: "monospace" }}>{c.domain}</span>
+              </div>
+            )}
+            {c.liveDomain && (
+              <div>
+                <div style={{ color: "#444", fontSize: "10px", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: "2px" }}>Live Domain</div>
+                <span style={{ color: "#00c896", fontFamily: "monospace" }}>{c.liveDomain}</span>
+              </div>
+            )}
+          </div>
+          {c.domain && !c.liveDomain && c.vercelProjectName && (
+            <GoLiveButton c={c} secret={secret} />
+          )}
+        </div>
+      )}
 
       <div style={{ borderTop: "1px solid #1a1a1a", marginBottom: "14px" }} />
 
