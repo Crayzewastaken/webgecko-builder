@@ -1,4 +1,6 @@
 // app/api/inngest/route.ts
+export const maxDuration = 300; // max on Vercel Hobby; streaming keeps individual steps alive
+
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest";
 import { Redis } from "@upstash/redis";
@@ -419,7 +421,9 @@ const monthlyReports = inngest.createFunction(
   }
 );
 
+
 export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [buildWebsite, monthlyReports],
+  streaming: true,
 });
