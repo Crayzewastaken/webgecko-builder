@@ -166,15 +166,51 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
 
     // ── STEP 3: Stitch generate screen (slow — gets its own step) ─────────────
     const downloadUrl = await step.run("step3-stitch-generate", async () => {
-      const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", {
-        projectId,
-        prompt: spec.stitchPrompt,
-      });
-      const screens = stitchResult?.outputComponents?.find((x: any) => x.design)?.design?.screens || [];
-      if (!screens.length) throw new Error("Stitch: no screens returned");
-      const url = screens[0]?.htmlCode?.downloadUrl;
-      if (!url) throw new Error("Stitch: no downloadUrl");
-      return url;
+      const MAX_ATTEMPTS = 4;
+      const RETRY_DELAYS_MS = [15_000, 30_000, 60_000]; // wait between attempts
+
+      let lastError: Error = new Error("Stitch: unknown failure");
+
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          console.log(`[Inngest] STEP 3: Stitch generate attempt ${attempt}/${MAX_ATTEMPTS}`);
+          const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", {
+            projectId,
+            prompt: spec.stitchPrompt,
+          });
+
+          // Check for explicit error response
+          if (stitchResult?.code === "UNKNOWN_ERROR" || stitchResult?.suggestion === undefined && stitchResult?.recoverable === false) {
+            throw new Error(`Stitch service unavailable (attempt ${attempt}): ${JSON.stringify(stitchResult)}`);
+          }
+
+          const screens = stitchResult?.outputComponents?.find((x: any) => x.design)?.design?.screens || [];
+          if (!screens.length) throw new Error(`Stitch: no screens returned (attempt ${attempt})`);
+          const url = screens[0]?.htmlCode?.downloadUrl;
+          if (!url) throw new Error(`Stitch: no downloadUrl (attempt ${attempt})`);
+          console.log(`[Inngest] STEP 3: Stitch succeeded on attempt ${attempt}`);
+          return url;
+        } catch (err: any) {
+          lastError = err;
+          const isServiceUnavailable =
+            err?.message?.includes("unavailable") ||
+            err?.message?.includes("UNKNOWN_ERROR") ||
+            err?.code === "UNKNOWN_ERROR";
+
+          console.warn(`[Inngest] STEP 3 attempt ${attempt} failed: ${err?.message}`);
+
+          if (attempt < MAX_ATTEMPTS && isServiceUnavailable) {
+            const delay = RETRY_DELAYS_MS[attempt - 1] ?? 60_000;
+            console.log(`[Inngest] STEP 3: waiting ${delay / 1000}s before retry...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          } else {
+            // Non-recoverable error or out of retries — fail the step
+            break;
+          }
+        }
+      }
+
+      throw new Error(`Stitch generate_screen_from_text failed after ${MAX_ATTEMPTS} attempts. Last error: ${lastError.message}`);
     });
 
     console.log(`[Inngest] STEP 3 DONE`);
@@ -264,7 +300,7 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
             timezone: "Australia/Brisbane",
             services,
             primaryColor: "#10b981",
-            apiBase: process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko-builder.vercel.app",
+            apiBase: process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au",
           });
 
           // Remove any existing fake booking section (Stitch placeholder or prior injection)
@@ -350,7 +386,7 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
 
     // ── STEP 10: Email owner ──────────────────────────────────────────────────
     await step.run("step10-email", async () => {
-      const base = process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko-builder.vercel.app";
+      const base = process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au";
       const secret = encodeURIComponent(process.env.PROCESS_SECRET || "");
       const processUrl = `${base}/api/fix?id=${jobId}&secret=${secret}`;
       const unlockUrl = `${base}/api/payment/unlock?jobId=${jobId}&secret=${secret}`;
@@ -449,7 +485,7 @@ const monthlyReports = inngest.createFunction(
       return keys;
     });
 
-    const base = process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko-builder.vercel.app";
+    const base = process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au";
     const secret = process.env.PROCESS_SECRET || "";
 
     for (const key of clientKeys) {

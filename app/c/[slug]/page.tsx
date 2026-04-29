@@ -160,9 +160,10 @@ export default function ClientPortal() {
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [revisionSent, setRevisionSent] = useState(false);
 
-  // Fix My Site
-  const [fixLoading, setFixLoading] = useState(false);
-  const [fixDone, setFixDone] = useState(false);
+  // Report an Issue
+  const [reportText, setReportText] = useState("");
+  const [reportSending, setReportSending] = useState(false);
+  const [reportSent, setReportSent] = useState(false);
 
   // Subscription management
   const [showSubModal, setShowSubModal] = useState(false);
@@ -240,7 +241,7 @@ export default function ClientPortal() {
   }
 
   async function triggerRevision() {
-    if (!confirm("Submit all changes for revision? Claude will apply them and we'll review before releasing.")) return;
+    if (!confirm("Submit all changes for revision? Our team will review and apply them before releasing the updated site.")) return;
     setFeedbackSubmitting(true);
     try {
       const res = await fetch(`/api/preview/feedback?slug=${slug}`, { method: "DELETE" });
@@ -248,16 +249,26 @@ export default function ClientPortal() {
     } finally { setFeedbackSubmitting(false); }
   }
 
-  async function triggerFix() {
-    if (!client?.jobId) return;
-    if (!confirm("Run a Claude fix pass? This re-checks all links, nav, and layout. Takes 2–3 minutes.")) return;
-    setFixLoading(true);
+  async function submitReport() {
+    if (!reportText.trim() || !client) return;
+    setReportSending(true);
     try {
-      const res = await fetch(`/api/fix?jobId=${client.jobId}&secret=${encodeURIComponent(process.env.NEXT_PUBLIC_PROCESS_SECRET || "")}`);
-      setFixDone(res.ok);
-      if (!res.ok) alert("Fix failed — please contact hello@webgecko.au");
-    } catch { alert("Network error. Please try again."); }
-    finally { setFixLoading(false); }
+      await fetch("https://formspree.io/f/placeholder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          business: client.businessName,
+          slug,
+          issue: reportText.trim(),
+        }),
+      }).catch(() => null);
+      // Always send to support email via mailto fallback — actually fire a mailto
+      const subject = encodeURIComponent(`Site Issue — ${client.businessName}`);
+      const body = encodeURIComponent(`Business: ${client.businessName}\nSlug: ${slug}\n\nIssue:\n${reportText.trim()}`);
+      window.open(`mailto:hello@webgecko.au?subject=${subject}&body=${body}`);
+      setReportSent(true);
+      setReportText("");
+    } finally { setReportSending(false); }
   }
 
   async function handlePay(stage: "deposit" | "final" | "monthly") {
@@ -632,15 +643,31 @@ export default function ClientPortal() {
               </div>
             </div>
 
-            {/* Fix My Site */}
+            {/* Report an Issue */}
             {paymentStatus?.previewUnlocked && (
               <div style={S.card}>
-                <div style={S.label}>Site Tools</div>
-                <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 12 }}>Run a Claude fix pass to automatically repair broken links, layout issues, or JS errors.</div>
-                {fixDone
-                  ? <div style={{ color: "#00c896", fontSize: 13, fontWeight: 600 }}>✓ Fix applied — check your site preview.</div>
-                  : <button onClick={triggerFix} disabled={fixLoading} style={{ ...S.btn("secondary", fixLoading), width: "100%" }}>{fixLoading ? "Fixing… (2–3 min)" : "🔧 Fix My Site"}</button>
-                }
+                <div style={S.label}>Report an Issue</div>
+                <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 12 }}>Noticed something broken or not working right? Let us know and we'll fix it.</div>
+                {reportSent ? (
+                  <div style={{ color: "#00c896", fontSize: 13, fontWeight: 600 }}>✓ Report sent — we'll be in touch shortly.</div>
+                ) : (
+                  <>
+                    <textarea
+                      value={reportText}
+                      onChange={e => setReportText(e.target.value)}
+                      placeholder="Describe the issue you're experiencing…"
+                      rows={3}
+                      style={{ width: "100%", background: "#131c2e", border: "1px solid #1e2d42", borderRadius: 8, padding: "10px 14px", color: "#e2e8f0", fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" as const, marginBottom: 8 }}
+                    />
+                    <button
+                      onClick={submitReport}
+                      disabled={reportSending || !reportText.trim()}
+                      style={{ ...S.btn("secondary", reportSending || !reportText.trim()), width: "100%" }}
+                    >
+                      {reportSending ? "Sending…" : "Send Report"}
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
@@ -835,7 +862,7 @@ export default function ClientPortal() {
                 </div>
               </div>
               <div style={S.divider} />
-              {["Fast Australian hosting", "Monthly Claude AI improvements", "10 free site changes/month", "SEO & performance updates", "Priority email support"].map((item, i) => (
+              {["Fast Australian hosting", "Monthly AI improvements", "10 free site changes/month", "SEO & performance updates", "Priority email support"].map((item, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: "#94a3b8", marginBottom: 8 }}>
                   <span style={{ color: "#00c896", fontSize: 11 }}>✓</span>{item}
                 </div>
@@ -847,7 +874,7 @@ export default function ClientPortal() {
               <div style={S.label}>What You Get</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 10 }}>
                 {[
-                  { icon: "🔧", title: "Monthly AI Fix Pass", desc: "Claude reviews and improves your site every month automatically." },
+                  { icon: "🔧", title: "Monthly AI Fix Pass", desc: "Our system reviews and improves your site every month automatically." },
                   { icon: "📈", title: "SEO & Speed Updates", desc: "We keep your site fast, indexed, and discoverable." },
                   { icon: "✏️", title: "Site Change Requests", desc: "Request changes anytime from the Site Preview tab. First 10 are free each month." },
                 ].map(({ icon, title, desc }) => (

@@ -1,17 +1,16 @@
 // app/api/preview/feedback/route.ts
-// Client submits feedback comments on their preview. After 10 comments (or manual trigger),
-// the feedback is sent to Claude to revise the site HTML, then owner gets an email.
+// Client submits change requests. When they hit "Submit for Revision", we email the owner
+// with the full list — the owner applies them manually and re-releases.
+// We do NOT pass the HTML through an AI model (risks truncation and redesign).
 import { NextRequest, NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 import { Resend } from "resend";
-import Anthropic from "@anthropic-ai/sdk";
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 const resend = new Resend(process.env.RESEND_API_KEY!);
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
 export interface FeedbackItem {
   id: string;
@@ -20,7 +19,7 @@ export interface FeedbackItem {
   round: number;
 }
 
-// POST — submit feedback comment
+// POST — submit a single feedback comment
 export async function POST(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const slug = searchParams.get("slug");
@@ -65,75 +64,66 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ feedback, round });
 }
 
-// DELETE — trigger revision (owner or auto after 10 comments)
+// DELETE — client submits their change list for revision
+// This emails the owner with the full list. No AI touches the HTML.
+// The owner applies the changes manually and clicks "Release Preview" again.
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const slug = searchParams.get("slug");
-  const secret = searchParams.get("secret");
   if (!slug) return NextResponse.json({ error: "Missing slug" }, { status: 400 });
 
   const client = await redis.get<any>("client:" + slug);
   if (!client?.jobId) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const jobId = client.jobId;
-  const job = await redis.get<any>("job:" + jobId);
-  if (!job?.html) return NextResponse.json({ error: "No site HTML found" }, { status: 404 });
-
   const feedbackKey = "feedback:" + jobId;
   const feedback: FeedbackItem[] = (await redis.get<FeedbackItem[]>(feedbackKey)) || [];
-  if (feedback.length === 0) return NextResponse.json({ error: "No feedback to apply" }, { status: 400 });
+  if (feedback.length === 0) return NextResponse.json({ error: "No feedback to submit" }, { status: 400 });
 
-  const feedbackText = feedback.map((f, i) => (i + 1) + ". " + f.text).join("\n");
-
-  // Apply feedback with Claude Sonnet
-  const revisionPrompt = "You are a precise HTML editor. Apply the client feedback below to the website HTML. " +
-    "Make ONLY the changes described. Preserve all existing structure, styling, and Tailwind classes. " +
-    "Return the COMPLETE revised HTML document with no explanation, no markdown, no backticks.\n\n" +
-    "CLIENT FEEDBACK:\n" + feedbackText + "\n\n" +
-    "CURRENT HTML:\n" + job.html.substring(0, 80000);
-
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-5",
-    max_tokens: 16000,
-    messages: [{ role: "user", content: revisionPrompt }],
-  });
-
-  let revisedHtml = response.content[0]?.type === "text" ? response.content[0].text : "";
-  revisedHtml = revisedHtml.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
-  if (!revisedHtml || !revisedHtml.includes("<html") && !revisedHtml.includes("<!DOCTYPE")) {
-    return NextResponse.json({ error: "Revision failed — Claude returned invalid HTML" }, { status: 500 });
-  }
-
-  // Save revised HTML
+  // Increment round counter and clear the feedback list
   const round = ((await redis.get<number>("feedback:round:" + jobId)) || 1) + 1;
-  await redis.set("job:" + jobId, { ...job, html: revisedHtml, revisedAt: new Date().toISOString() }, { ex: 86400 * 30 });
   await redis.set("feedback:" + jobId, []);
   await redis.set("feedback:round:" + jobId, round);
 
-  // Email owner
-  const base = process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko-builder.vercel.app";
+  // Email owner with the change list so they can apply it manually
+  const base = process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au";
   const processSecret = process.env.PROCESS_SECRET || "";
-  const releaseUrl = base + "/api/unlock/release?jobId=" + jobId + "&secret=" + encodeURIComponent(processSecret);
-  const unlockUrl = base + "/api/payment/unlock?jobId=" + jobId + "&secret=" + encodeURIComponent(processSecret);
-  const adminUrl = base + "/admin?secret=" + encodeURIComponent(processSecret);
+  const releaseUrl = `${base}/api/unlock/release?jobId=${jobId}&secret=${encodeURIComponent(processSecret)}`;
+  const fixUrl = `${base}/api/fix?jobId=${jobId}&secret=${encodeURIComponent(processSecret)}`;
+  const adminUrl = `${base}/admin?secret=${encodeURIComponent(processSecret)}`;
+
+  const feedbackHtml = feedback
+    .map((f, i) => `<tr><td style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);color:#94a3b8;font-size:13px;vertical-align:top;width:24px;font-weight:700;">${i + 1}.</td><td style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);color:#e2e8f0;font-size:14px;">${f.text}</td></tr>`)
+    .join("");
 
   try {
     await resend.emails.send({
       from: "WebGecko <hello@webgecko.au>",
       to: process.env.RESULT_TO_EMAIL!,
-      subject: "🔄 Site Revised — " + (client.businessName || slug) + " (Round " + round + ")",
-      html: "<h2>Site Revision Complete — Round " + round + "</h2>" +
-        "<p><strong>Client:</strong> " + (client.businessName || slug) + "</p>" +
-        "<p><strong>Feedback applied:</strong></p><ol>" +
-        feedback.map(f => "<li>" + f.text + "</li>").join("") + "</ol>" +
-        "<p>Preview the revised site and release it to the client for another review round, or unlock final payment if it's ready.</p>" +
-        "<div style='display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;'>" +
-        "<a href='" + releaseUrl + "' style='background:#00c896;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;'>📤 Release to Client</a>" +
-        "<a href='" + unlockUrl + "' style='background:#8b5cf6;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;'>🔓 Unlock Final Payment</a>" +
-        "<a href='" + adminUrl + "' style='background:#1e293b;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;'>📊 Admin Dashboard</a>" +
-        "</div>",
+      subject: `✏️ Change Request — ${client.businessName || slug} (Round ${round - 1})`,
+      html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0a0f1a;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0f1a;padding:32px 16px;"><tr><td align="center">
+<table width="640" cellpadding="0" cellspacing="0" style="background:#0f1623;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);">
+  <tr><td style="background:linear-gradient(135deg,#3b82f6,#8b5cf6);padding:24px 32px;">
+    <h1 style="margin:0;color:#fff;font-size:20px;font-weight:800;">Client Change Request</h1>
+    <p style="margin:4px 0 0;color:rgba(255,255,255,0.7);font-size:14px;">${client.businessName || slug} — Round ${round - 1} feedback</p>
+  </td></tr>
+  <tr><td style="padding:28px 32px;">
+    <p style="color:#64748b;font-size:14px;margin:0 0 20px;">Apply these changes to the site HTML, then click <strong style="color:#00c896;">Release Preview</strong> to send the updated version to the client.</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#080c14;border-radius:8px;margin-bottom:24px;">
+      ${feedbackHtml}
+    </table>
+    <table cellpadding="0" cellspacing="0"><tr>
+      <td style="padding-right:8px;"><a href="${releaseUrl}" style="background:#00c896;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📤 Release Preview</a></td>
+      <td style="padding-right:8px;"><a href="${fixUrl}" style="background:#3b82f6;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">🔧 Re-run Fix Pass</a></td>
+      <td><a href="${adminUrl}" style="background:#1e293b;color:#94a3b8;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📊 Admin</a></td>
+    </tr></table>
+  </td></tr>
+</table></td></tr></table>
+</body></html>`,
     });
-  } catch (e) { console.error("Revision email failed:", e); }
+  } catch (e) { console.error("[Feedback] Email failed:", e); }
 
   return NextResponse.json({ success: true, round });
 }

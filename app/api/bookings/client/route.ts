@@ -18,11 +18,13 @@ interface BookingRecord {
 interface ClientData { jobId: string; slug: string; hasBooking: boolean; }
 
 async function verifyClientSession(request: NextRequest, slug: string): Promise<boolean> {
-  const cookie = request.cookies.get(`wg_session_${slug}`);
-  if (!cookie) return false;
-  const clientData = await redis.get<ClientData>(`client:${slug}`);
-  if (!clientData) return false;
-  return cookie.value === slug;
+  // Primary: wg_client_slug cookie set by the login route
+  const primaryCookie = request.cookies.get("wg_client_slug");
+  if (primaryCookie && primaryCookie.value === slug) return true;
+  // Legacy fallback: per-slug session cookie (older login flow)
+  const legacyCookie = request.cookies.get(`wg_session_${slug}`);
+  if (legacyCookie && legacyCookie.value === slug) return true;
+  return false;
 }
 
 async function sendStatusEmail(booking: BookingRecord, action: string, reason?: string) {

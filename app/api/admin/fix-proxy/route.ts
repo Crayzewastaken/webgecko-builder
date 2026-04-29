@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const base = process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko-builder.vercel.app";
+    const base = process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au";
     const res = await fetch(`${base}/api/fix?jobId=${encodeURIComponent(jobId)}&secret=${encodeURIComponent(secret)}`);
     if (!res.ok) {
       return NextResponse.json({ error: `Fix failed: HTTP ${res.status}` }, { status: 500 });

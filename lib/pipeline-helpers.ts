@@ -241,7 +241,7 @@ if (pages.length > 1) { var ha = false; pages.forEach(function(p) { if (p.classL
 </script>`;
 
   // WebGecko analytics tracker
-  const wgApiBase = (process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko-builder.vercel.app") + "/api/analytics/track";
+  const wgApiBase = (process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au") + "/api/analytics/track";
   const trackerScript = jobId ? [
     '<script>',
     '(function(){',
