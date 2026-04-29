@@ -1057,4 +1057,146 @@ export default function ClientPortal() {
                     borderRadius: 12, padding: "16px 14px", position: "relative" as const,
                   }}>
                     {(client.quote?.monthlyPrice || 0) >= 149 && (
-                      <div style={{ position: "absolute", top: -10, right: 10, background: "#00c896", color: "#000", fontSize: 10, fontWeight: 800, padding: "2px 
+                      <div style={{ position: "absolute", top: -10, right: 10, background: "#00c896", color: "#000", fontSize: 10, fontWeight: 800, padding: "2px 10px", borderRadius: 20 }}>CURRENT</div>
+                    )}
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 4 }}>Premium</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: "#e2e8f0", lineHeight: 1 }}>$149<span style={{ fontSize: 12, color: "#4a5568", fontWeight: 400 }}>/mo</span></div>
+                    <div style={{ height: 1, background: "#1e2531", margin: "12px 0" }} />
+                    {["Hosting & SSL", "10 site changes/month", "Monthly AI fix pass", "SEO & speed updates", "Priority support"].map(f => (
+                      <div key={f} style={{ fontSize: 12, color: "#64748b", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                        <span style={{ color: "#00c896", fontSize: 10 }}>✓</span>{f}
+                      </div>
+                    ))}
+                    <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Upgrade to Premium plan — " + client.businessName)}`}
+                      style={{ display: "block", textAlign: "center", marginTop: 12, background: "linear-gradient(135deg,#00c896,#0099ff)", color: "#000", borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
+                      Upgrade to Premium
+                    </a>
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: "#334155", textAlign: "center", marginTop: 12 }}>Plan changes take effect after your current paid month ends.</div>
+              </div>
+            )}
+
+            {/* Manage subscription */}
+            {!showSubModal ? (
+              <div style={{ ...S.card, background: "transparent", border: "1px solid #131b27" }}>
+                <div style={{ fontSize: 13, color: "#475569", marginBottom: 10 }}>Want to cancel or change something else?</div>
+                <button onClick={() => { setShowSubModal(true); setSubStep("reason"); setCancelOption(null); setCancelReason(""); }} style={{ ...S.btn("ghost"), fontSize: 13 }}>Manage subscription</button>
+              </div>
+            ) : (
+              <div style={S.card}>
+
+                {/* Step 1 — Reason */}
+                {subStep === "reason" && (
+                  <>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: "#e2e8f0", marginBottom: 4 }}>What's on your mind?</div>
+                    <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 16 }}>Tell us what's changed and we'll find the right option.</div>
+                    {[
+                      { r: "too-expensive", label: "💰 It's too expensive right now" },
+                      { r: "not-using", label: "😴 I'm not using it enough" },
+                      { r: "unhappy", label: "😕 I'm not happy with the site" },
+                      { r: "switching", label: "🔄 I'm moving to another provider" },
+                      { r: "closing", label: "🚪 My business is closing" },
+                      { r: "other", label: "💬 Something else" },
+                    ].map(({ r, label }) => (
+                      <button key={r} onClick={() => { setCancelReason(r); setSubStep("option"); }}
+                        style={{ display: "block", width: "100%", textAlign: "left", background: cancelReason === r ? "#0d1a2e" : "#080c14", border: "1px solid #1e2531", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#94a3b8", cursor: "pointer", marginBottom: 8 }}>
+                        {label}
+                      </button>
+                    ))}
+                    <button onClick={() => setShowSubModal(false)} style={{ ...S.btn("ghost"), marginTop: 4, fontSize: 13 }}>Never mind</button>
+                  </>
+                )}
+
+                {/* Step 2 — Options based on reason */}
+                {subStep === "option" && (
+                  <>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: "#e2e8f0", marginBottom: 4 }}>
+                      {cancelReason === "too-expensive" ? "Let's find something that works" :
+                       cancelReason === "not-using" ? "Want to pause instead?" :
+                       cancelReason === "unhappy" ? "Let us fix it first" :
+                       "Here are your options"}
+                    </div>
+                    <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 16 }}>
+                      {cancelReason === "too-expensive" ? "We can pause your plan or reduce your tier. Email us — we'd rather work something out than lose you." :
+                       cancelReason === "not-using" ? "You can pause for up to 2 months at no cost. Your site stays live, billing resumes after." :
+                       cancelReason === "unhappy" ? "We'll fix it at no extra cost — use the Site Preview tab to submit changes. If you're still not happy after, we'll sort it out." :
+                       "Choose how you'd like to leave. Each option has a different exit fee."}
+                    </div>
+
+                    {(cancelReason === "too-expensive" || cancelReason === "not-using" || cancelReason === "unhappy") && (
+                      <div style={{ marginBottom: 16 }}>
+                        {cancelReason === "unhappy" && (
+                          <button onClick={() => { setShowSubModal(false); setTab("preview"); }} style={{ ...S.btn("primary"), width: "100%", marginBottom: 10, fontSize: 13 }}>
+                            Request Changes Now
+                          </button>
+                        )}
+                        <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Plan query — " + client.businessName)}&body=${encodeURIComponent("Hi, I wanted to discuss my plan.\n\nBusiness: " + client.businessName)}`}
+                          style={{ ...S.btn("secondary"), textDecoration: "none", width: "100%", display: "flex", fontSize: 13, marginBottom: 10 }}>
+                          Talk to Us First
+                        </a>
+                      </div>
+                    )}
+
+                    <div style={{ ...S.label, marginTop: 8 }}>Or choose a cancellation option</div>
+                    {CANCEL_OPTIONS.map(opt => (
+                      <button key={opt.id} onClick={() => { setCancelOption(opt); setSubStep("confirm"); }}
+                        style={{ display: "block", width: "100%", textAlign: "left", background: "#080c14", border: "1px solid #1e2531", borderRadius: 10, padding: "14px 16px", fontSize: 13, color: "#94a3b8", cursor: "pointer", marginBottom: 10 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                          <div style={{ display: "flex", gap: 10 }}>
+                            <span style={{ fontSize: 20 }}>{opt.icon}</span>
+                            <div>
+                              <div style={{ fontWeight: 600, color: "#e2e8f0", marginBottom: 4 }}>{opt.label}</div>
+                              <div style={{ fontSize: 12, color: "#4a5568" }}>{opt.desc}</div>
+                            </div>
+                          </div>
+                          <div style={{ flexShrink: 0, textAlign: "right" }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: opt.id === "stop" ? "#94a3b8" : "#ffcc55", whiteSpace: "nowrap" }}>
+                              {opt.priceLabel(buildPrice)}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                    <button onClick={() => setSubStep("reason")} style={{ ...S.btn("ghost"), fontSize: 13 }}>Back</button>
+                  </>
+                )}
+
+                {/* Step 3 — Confirm */}
+                {subStep === "confirm" && cancelOption && (
+                  <>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: "#e2e8f0", marginBottom: 4 }}>Confirm your choice</div>
+                    <div style={{ background: "#080c14", border: "1px solid #1e2531", borderRadius: 10, padding: "16px", marginBottom: 16 }}>
+                      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
+                        <span style={{ fontSize: 24 }}>{cancelOption.icon}</span>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "#e2e8f0" }}>{cancelOption.label}</div>
+                      </div>
+                      <div style={{ fontSize: 13, color: "#4a5568", marginBottom: 8 }}>{cancelOption.desc}</div>
+                      <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid #1e2531" }}>
+                        <span style={{ fontSize: 13, color: "#4a5568" }}>Exit fee</span>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: cancelOption.id === "stop" ? "#94a3b8" : "#ffcc55" }}>
+                          {cancelOption.priceCalc(buildPrice) === 0 ? "Free" : `$${cancelOption.priceCalc(buildPrice).toLocaleString()}`}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#4a5568", marginBottom: 16 }}>
+                      Clicking below sends a cancellation request to our team. We'll confirm within 1 business day.
+                    </div>
+                    <a
+                      href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Cancellation — " + client.businessName + " — " + cancelOption.label)}&body=${encodeURIComponent("Hi WebGecko,\n\nI'd like to cancel.\n\nBusiness: " + client.businessName + "\nOption: " + cancelOption.label + "\nReason: " + cancelReason)}`}
+                      style={{ ...S.btn("danger"), textDecoration: "none", width: "100%", display: "flex", fontSize: 13, marginBottom: 10 }}>
+                      Send Cancellation Request
+                    </a>
+                    <button onClick={() => setShowSubModal(false)} style={{ ...S.btn("secondary"), width: "100%", fontSize: 13 }}>Keep my plan</button>
+                    <button onClick={() => setSubStep("option")} style={{ ...S.btn("ghost"), marginTop: 8, fontSize: 12 }}>Back</button>
+                  </>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+      </div>
+    </div>
+  );
+}

@@ -17,6 +17,7 @@ import {
   getServicesForIndustry,
 } from "@/lib/pipeline-helpers";
 import { generateBookingWidget } from "@/lib/booking-widget";
+import { createClientShopCatalogue } from "@/lib/square";
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -123,6 +124,7 @@ ${userInput.facebookPage ? `Facebook Page: ${userInput.facebookPage}` : ""}
 
 ${pricingSection}
 ${hasBookingFeature ? `BOOKING: Include a booking section with id="booking". The booking widget will be injected here.` : ""}
+${features.includes("Payments / Shop") && productsWithPhotos.length > 0 ? `SHOP SECTION REQUIRED (id="shop"): Display these products as premium cards — each card MUST have a <button class="wg-buy-btn" data-product-index="N" data-product-name="PRODUCT_NAME">Buy Now</button> where N is the zero-based product index. Products: ${productsWithPhotos.map((p: any, i: number) => `[${i}] ${p.name} ${p.price}${p.photoUrl ? ` (image: ${p.photoUrl})` : ""}`).join(", ")}. The buy buttons will be wired to Square checkout automatically — do not add href or onclick.` : ""}
 ${imageSection}
 
 DESIGN REQUIREMENTS — include ALL in the stitchPrompt:
@@ -361,6 +363,87 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
       return html;
     });
 
+    // ── STEP 7: Square shop catalogue + button injection ─────────────────────
+    const hasShopFeature = features.includes("Payments / Shop");
+    const shopProducts: { name: string; price: string; photoUrl?: string }[] =
+      productsWithPhotos.length > 0 ? productsWithPhotos : [];
+
+    const finalHtmlWithShop = await step.run("step7-shop", async () => {
+      if (!hasShopFeature || shopProducts.length === 0) {
+        console.log("[Inngest] STEP 7: No shop feature or no products — skipping");
+        return finalHtml;
+      }
+
+      let html = finalHtml;
+
+      try {
+        const base = process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au";
+        const siteUrl = `https://${vercelProjectName}.vercel.app`;
+
+        const catalogueItems = await createClientShopCatalogue({
+          jobId,
+          businessName: userInput.businessName,
+          products: shopProducts,
+          redirectUrl: siteUrl,
+        });
+
+        // Save catalogue to Redis for admin/portal access
+        await redis.set(`shop:${jobId}`, {
+          jobId,
+          businessName: userInput.businessName,
+          items: catalogueItems,
+          createdAt: new Date().toISOString(),
+        }, { ex: 86400 * 90 }); // 90 days
+
+        console.log(`[Inngest] STEP 7: Created ${catalogueItems.length} Square catalogue items`);
+
+        // Wire each product's "Buy Now" button to its Square payment link
+        // Stitch generates: <button class="wg-buy-btn" data-product-index="N" ...>Buy Now</button>
+        catalogueItems.forEach((item, i) => {
+          if (!item.paymentLinkUrl) return;
+          // Replace the button with an anchor styled as the same button
+          const btnPattern = new RegExp(
+            `<button([^>]*class="[^"]*wg-buy-btn[^"]*"[^>]*data-product-index="${i}"[^>]*)>[^<]*<\\/button>`,
+            "gi"
+          );
+          const anchorPattern = new RegExp(
+            `<button([^>]*data-product-index="${i}"[^>]*class="[^"]*wg-buy-btn[^"]*"[^>]*)>[^<]*<\\/button>`,
+            "gi"
+          );
+          const replacement = `<a href="${item.paymentLinkUrl}" target="_blank" rel="noopener" class="wg-buy-btn" data-product-index="${i}" style="display:inline-block;text-decoration:none;">Buy Now</a>`;
+          const beforeLen = html.length;
+          html = html.replace(btnPattern, replacement);
+          html = html.replace(anchorPattern, replacement);
+
+          if (html.length === beforeLen) {
+            // Fallback: Stitch may have used a different pattern — inject links by product name match
+            const escapedName = item.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            // Find product card sections containing this product name and inject a buy link
+            html = html.replace(
+              new RegExp(`(<(?:div|article|li)[^>]*>[\\s\\S]*?${escapedName}[\\s\\S]*?)(</(?:div|article|li)>)`, "gi"),
+              (match, body, close) => {
+                if (match.includes(item.paymentLinkUrl) || match.includes("wg-buy-btn")) return match;
+                return `${body}<div style="margin-top:12px;"><a href="${item.paymentLinkUrl}" target="_blank" rel="noopener" style="display:inline-block;background:#10b981;color:#fff;padding:10px 24px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;">Buy Now →</a></div>${close}`;
+              }
+            );
+          }
+        });
+
+        // Inject a small Square trust badge near the shop section
+        const squareBadge = `<div style="text-align:center;margin-top:16px;padding:8px;"><img src="https://images.squareup.com/content/en-au/images/marketing/square-logo-lockup-black.svg" alt="Secure checkout powered by Square" style="height:24px;opacity:0.5;" onerror="this.style.display='none';" /><p style="color:rgba(255,255,255,0.4);font-size:11px;margin:4px 0 0;">Secure checkout powered by Square</p></div>`;
+        html = html.replace(/(<section[^>]*(?:id|class)="[^"]*shop[^"]*"[^>]*>[\s\S]*?)(<\/section>)/gi,
+          (match, body, close) => body + squareBadge + close
+        );
+
+        console.log(`[Inngest] STEP 7: Shop buttons wired for ${catalogueItems.length} products`);
+      } catch (e) {
+        console.error("[Inngest] STEP 7: Shop catalogue failed:", e);
+        // Non-fatal — site still deploys, just without live checkout links
+      }
+
+      return html;
+    });
+
     // ── STEP 8: Deploy to Vercel ──────────────────────────────────────────────
     // Uses stable project name so the preview URL is always predictable:
     //   wg-ironcorefitness.vercel.app (not a random hash URL)
@@ -374,7 +457,7 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
         body: JSON.stringify({
           name: vercelProjectName,
           teamId: process.env.VERCEL_TEAM_ID || undefined,
-          files: [{ file: "index.html", data: finalHtml, encoding: "utf-8" }],
+          files: [{ file: "index.html", data: finalHtmlWithShop, encoding: "utf-8" }],
           projectSettings: { framework: null, outputDirectory: "./" },
         }),
       });
@@ -397,7 +480,7 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
     await step.run("step9-save", async () => {
       await redis.set(`job:${jobId}`, {
         ...job,
-        html: finalHtml,
+        html: finalHtmlWithShop,
         title: spec.projectTitle,
         fileName,
         domainSlug,
@@ -429,30 +512,34 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
       const releaseUrl = `${base}/api/unlock/release?jobId=${jobId}&secret=${secret}`;
       const unlockBookingUrl = `${base}/api/unlock/booking?jobId=${jobId}&secret=${secret}`;
       const adminUrl = `${base}/admin?secret=${secret}`;
-      const cssContent = extractCSS(finalHtml);
+      const cssContent = extractCSS(finalHtmlWithShop);
 
       // Build feature location checklist
       const featureChecklist = [
-        { label: "Hero section", check: finalHtml.includes('id="hero') || finalHtml.includes("class=\"hero") || finalHtml.includes("viewport") },
-        { label: "Sticky nav + hamburger", check: finalHtml.includes('id="hamburger"') || finalHtml.includes("hamburger") },
-        { label: "Testimonials section", check: finalHtml.includes('id="testimonials"') },
-        { label: "FAQ accordion", check: finalHtml.includes('id="faq"') },
-        { label: "Contact form (id=contact)", check: finalHtml.includes('id="contact"') },
-        { label: "Real email injected", check: finalHtml.includes(clientEmail) },
-        { label: "Real phone injected", check: finalHtml.includes(clientPhone.replace(/\s/g, "")) || finalHtml.includes(clientPhone) },
-        { label: "Google Maps embedded", check: finalHtml.includes("maps.google") || finalHtml.includes("maps.embed") },
-        { label: "Booking widget (id=booking)", check: finalHtml.includes('id="booking"') && finalHtml.includes("BW_JOB_ID") },
-        { label: "Pricing section", check: userInput.hasPricing !== "Yes" || finalHtml.toLowerCase().includes("pricing") || finalHtml.toLowerCase().includes("plan") },
-        { label: "Photo gallery", check: !features.includes("Photo Gallery") || finalHtml.includes('id="gallery"') || finalHtml.toLowerCase().includes("gallery") },
-        { label: "Stats bar", check: finalHtml.toLowerCase().includes("years") || finalHtml.toLowerCase().includes("clients") },
-        { label: "Footer with copyright", check: finalHtml.includes("©") || finalHtml.includes("&copy;") },
-        { label: "Booking widget scripts executable", check: finalHtml.includes("BW_API_BASE") },
+        { label: "Hero section", check: finalHtmlWithShop.includes('id="hero') || finalHtmlWithShop.includes("class=\"hero") || finalHtmlWithShop.includes("viewport") },
+        { label: "Sticky nav + hamburger", check: finalHtmlWithShop.includes('id="hamburger"') || finalHtmlWithShop.includes("hamburger") },
+        { label: "Testimonials section", check: finalHtmlWithShop.includes('id="testimonials"') },
+        { label: "FAQ accordion", check: finalHtmlWithShop.includes('id="faq"') },
+        { label: "Contact form (id=contact)", check: finalHtmlWithShop.includes('id="contact"') },
+        { label: "Real email injected", check: finalHtmlWithShop.includes(clientEmail) },
+        { label: "Real phone injected", check: finalHtmlWithShop.includes(clientPhone.replace(/\s/g, "")) || finalHtmlWithShop.includes(clientPhone) },
+        { label: "Google Maps embedded", check: finalHtmlWithShop.includes("maps.google") || finalHtmlWithShop.includes("maps.embed") },
+        { label: "Booking widget (id=booking)", check: finalHtmlWithShop.includes('id="booking"') && finalHtmlWithShop.includes("BW_JOB_ID") },
+        { label: "Pricing section", check: userInput.hasPricing !== "Yes" || finalHtmlWithShop.toLowerCase().includes("pricing") || finalHtmlWithShop.toLowerCase().includes("plan") },
+        { label: "Photo gallery", check: !features.includes("Photo Gallery") || finalHtmlWithShop.includes('id="gallery"') || finalHtmlWithShop.toLowerCase().includes("gallery") },
+        { label: "Stats bar", check: finalHtmlWithShop.toLowerCase().includes("years") || finalHtmlWithShop.toLowerCase().includes("clients") },
+        { label: "Footer with copyright", check: finalHtmlWithShop.includes("©") || finalHtmlWithShop.includes("&copy;") },
+        { label: "Booking widget scripts executable", check: finalHtmlWithShop.includes("BW_API_BASE") },
+        { label: "Shop section (id=shop)", check: !hasShopFeature || finalHtmlWithShop.includes('id="shop"') },
+        { label: "Square buy buttons wired", check: !hasShopFeature || finalHtmlWithShop.includes("squareup.com") || finalHtmlWithShop.includes("square.link") },
       ].filter(f => {
         // Only include booking/gallery/maps if relevant
         if (f.label === "Booking widget (id=booking)" && !hasBookingFeature) return false;
         if (f.label === "Booking widget scripts executable" && !hasBookingFeature) return false;
         if (f.label === "Google Maps embedded" && !userInput.businessAddress) return false;
         if (f.label === "Photo gallery" && !features.includes("Photo Gallery")) return false;
+        if (f.label === "Shop section (id=shop)" && !hasShopFeature) return false;
+        if (f.label === "Square buy buttons wired" && !hasShopFeature) return false;
         return true;
       });
       const checklistHtml = featureChecklist.map(f =>
@@ -474,4 +561,112 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
   <tr><td style="padding:28px 32px;">
     <table width="100%" cellpadding="0" cellspacing="0" style="background:#080c14;border-radius:8px;margin-bottom:24px;">
       <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
-        <span style="color:#64748b;font-size:1
+        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Client</span>
+        <p style="color:#e2e8f0;margin:2px 0 0;font-size:15px;font-weight:600;">${userInput.name || "—"} &lt;${clientEmail}&gt;</p>
+      </td></tr>
+      <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
+        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Business</span>
+        <p style="color:#e2e8f0;margin:2px 0 0;font-size:15px;font-weight:600;">${userInput.businessName}</p>
+      </td></tr>
+      <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
+        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Industry · Phone</span>
+        <p style="color:#e2e8f0;margin:2px 0 0;font-size:14px;">${userInput.industry} · ${clientPhone}</p>
+      </td></tr>
+      <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
+        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Pages</span>
+        <p style="color:#e2e8f0;margin:2px 0 0;font-size:14px;">${pageList}</p>
+      </td></tr>
+      <tr><td style="padding:12px 16px;">
+        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Features</span>
+        <p style="color:#e2e8f0;margin:2px 0 0;font-size:14px;">${features.join(", ") || "Contact form"}</p>
+      </td></tr>
+    </table>
+    ${previewUrl ? `<p style="margin:0 0 20px;"><a href="${previewUrl}" style="color:#00c896;font-size:15px;font-weight:600;">🌐 View Live Preview →</a></p>` : ""}
+
+    <div style="margin-bottom:24px;">
+      <p style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 10px;">Feature Checklist</p>
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#080c14;border-radius:8px;">
+        ${checklistHtml}
+      </table>
+    </div>
+
+    <table cellpadding="0" cellspacing="0"><tr>
+      <td style="padding-right:8px;padding-bottom:8px;"><a href="${releaseUrl}" style="background:#00c896;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📤 Release to Client</a></td>
+      <td style="padding-right:8px;padding-bottom:8px;"><a href="${processUrl}" style="background:#3b82f6;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">🔧 Fix This Site</a></td>
+      <td style="padding-right:8px;padding-bottom:8px;"><a href="${unlockUrl}" style="background:#8b5cf6;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">🔓 Unlock Payment</a></td>
+      ${hasBookingFeature ? `<td style="padding-right:8px;padding-bottom:8px;"><a href="${unlockBookingUrl}" style="background:#f59e0b;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📅 Unlock Booking</a></td>` : ""}
+    </tr></table>
+    <p style="margin:16px 0 0;"><a href="${adminUrl}" style="color:#475569;font-size:12px;">📊 Admin Dashboard</a></p>
+  </td></tr>
+  <tr><td style="padding:16px 32px;border-top:1px solid rgba(255,255,255,0.06);">
+    <p style="color:#334155;font-size:12px;margin:0;">3 files attached: final HTML, raw Stitch HTML (for comparison), and CSS stylesheet.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`,
+        attachments: [
+          { filename: `${fileName}-FINAL.html`, content: Buffer.from(finalHtmlWithShop).toString("base64") },
+          { filename: `${fileName}-STITCH-RAW.html`, content: Buffer.from(stitchHtml).toString("base64") },
+          { filename: `${fileName}-styles.css`, content: Buffer.from(cssContent).toString("base64") },
+        ],
+      });
+    });
+
+    console.log(`[Inngest] Build COMPLETE for jobId=${jobId}`);
+    return { success: true, jobId };
+  }
+);
+
+// ─── Monthly Analytics Reports ────────────────────────────────────────────────
+
+const monthlyReports = inngest.createFunction(
+  {
+    id: "monthly-analytics-reports",
+    name: "Send Monthly Analytics Reports",
+    triggers: [{ cron: "0 22 28-31 * *" }],
+  },
+  async ({ step }: { step: any }) => {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setUTCDate(now.getUTCDate() + 1);
+    if (tomorrow.getUTCDate() !== 1) {
+      return { skipped: true, reason: "Not the last day of the month" };
+    }
+
+    const clientKeys: string[] = await step.run("scan-clients", async () => {
+      let cursor = 0;
+      const keys: string[] = [];
+      do {
+        const [nextCursor, batch] = await redis.scan(cursor, { match: "client:*", count: 100 });
+        cursor = Number(nextCursor);
+        keys.push(...(batch as string[]));
+      } while (cursor !== 0);
+      return keys;
+    });
+
+    const base = process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au";
+    const secret = process.env.PROCESS_SECRET || "";
+
+    for (const key of clientKeys) {
+      const slug = key.replace("client:", "");
+      await step.run("send-report-" + slug, async () => {
+        const clientData = await redis.get<any>(key);
+        if (!clientData || !clientData.jobId) return { skipped: true };
+        const url = base + "/api/analytics/monthly?jobId=" + clientData.jobId + "&secret=" + encodeURIComponent(secret) + "&send=true";
+        const res = await fetch(url);
+        const json = await res.json().catch(() => ({}));
+        console.log("[MonthlyReport] " + slug + ":", json);
+        return json;
+      });
+    }
+
+    return { sent: clientKeys.length };
+  }
+);
+
+
+export const { GET, POST, PUT } = serve({
+  client: inngest,
+  functions: [buildWebsite, monthlyReports],
+  streaming: true,
+});

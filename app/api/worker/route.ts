@@ -346,4 +346,6 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error("INTAKE FAILED:", error.message);
-    return NextResponse.json({ su
+    return NextResponse.json({ success: false, message: error.message });
+  }
+}

@@ -50,22 +50,22 @@ function saveToStorage(data: any) { try { localStorage.setItem(STORAGE_KEY, JSON
 function loadFromStorage() { try { const d = localStorage.getItem(STORAGE_KEY); return d ? JSON.parse(d) : null; } catch { return null; } }
 
 const FEATURE_BUNDLES = [
-  { id: 'contact', icon: '📬', label: 'Contact & Enquiries', desc: 'Contact form, social media links', features: ['Contact Form', 'Social Media Links'] },
-  { id: 'trust', icon: '⭐', label: 'Trust & Reviews', desc: 'Customer reviews, testimonials, FAQ section', features: ['Reviews & Testimonials', 'FAQ Section'] },
-  { id: 'location', icon: '📍', label: 'Location & Maps', desc: 'Google Maps, directions to your business', features: ['Google Maps'] },
-  { id: 'booking', icon: '📅', label: 'Bookings & Appointments', desc: 'Online booking system for appointments or classes', features: ['Booking System'] },
-  { id: 'shop', icon: '🛒', label: 'Online Shop & Payments', desc: 'Sell products or services and accept payments', features: ['Payments / Shop'] },
-  { id: 'content', icon: '📰', label: 'Blog & Content', desc: 'Blog posts, news, articles and updates', features: ['Blog'] },
-  { id: 'gallery', icon: '🖼️', label: 'Photo Gallery', desc: 'Showcase your work, products or portfolio', features: ['Photo Gallery'] },
-  { id: 'growth', icon: '📈', label: 'Growth & Marketing', desc: 'Newsletter signup, live chat, pop-up forms', features: ['Newsletter Signup', 'Live Chat', 'Pop-up Form'] },
-  { id: 'video', icon: '🎥', label: 'Video Background', desc: 'Cinematic video hero section', features: ['Video Background'] },
+  { id: 'contact', icon: '📬', label: 'Contact & Enquiries', desc: 'Contact form, social media links', features: ['Contact Form', 'Social Media Links'], exclusiveGroup: null, requiresPage: null },
+  { id: 'trust', icon: '⭐', label: 'Trust & Reviews', desc: 'Customer reviews, testimonials, FAQ section', features: ['Reviews & Testimonials', 'FAQ Section'], exclusiveGroup: null, requiresPage: null },
+  { id: 'location', icon: '📍', label: 'Location & Maps', desc: 'Google Maps, directions to your business', features: ['Google Maps'], exclusiveGroup: null, requiresPage: null },
+  { id: 'booking', icon: '📅', label: 'Bookings & Appointments', desc: 'Online booking system for appointments or classes', features: ['Booking System'], exclusiveGroup: 'commerce', requiresPage: 'Booking' },
+  { id: 'shop', icon: '🛒', label: 'Online Shop & Payments', desc: 'Sell products online and accept payments via Square', features: ['Payments / Shop'], exclusiveGroup: 'commerce', requiresPage: 'Shop' },
+  { id: 'content', icon: '📰', label: 'Blog & Content', desc: 'Blog posts, news, articles and updates', features: ['Blog'], exclusiveGroup: null, requiresPage: 'Blog' },
+  { id: 'gallery', icon: '🖼️', label: 'Photo Gallery', desc: 'Showcase your work, products or portfolio', features: ['Photo Gallery'], exclusiveGroup: null, requiresPage: 'Gallery' },
+  { id: 'growth', icon: '📈', label: 'Growth & Marketing', desc: 'Newsletter signup, live chat, pop-up forms', features: ['Newsletter Signup', 'Live Chat', 'Pop-up Form'], exclusiveGroup: null, requiresPage: null },
+  { id: 'video', icon: '🎥', label: 'Video Background', desc: 'Cinematic video hero section', features: ['Video Background'], exclusiveGroup: null, requiresPage: null },
 ];
 
 // Steps:
 // 1 - Business
 // 2 - Goals
-// 3 - Pages
-// 4 - Features
+// 3 - Features  ← moved before pages so page auto-highlights work
+// 4 - Pages     ← auto-populated from features; locked pages require confirm to remove
 // 5 - Pricing (yes/no + type)
 // 6 - Pricing Details (ONLY if hasPricing=Yes)
 // 7 - Design (always)
@@ -146,6 +146,7 @@ export default function HomePage() {
   const [ga4Id, setGa4Id] = useState("");
   const [businessAddress, setBusinessAddress] = useState("");
   const [facebookPage, setFacebookPage] = useState("");
+  const [confirmRemovePage, setConfirmRemovePage] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [heroFile, setHeroFile] = useState<File | null>(null);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
@@ -161,8 +162,8 @@ export default function HomePage() {
     const base = [
       { id: 'business', label: 'Your Business' },
       { id: 'goals', label: 'Website Goals' },
-      { id: 'pages', label: 'Pages' },
       { id: 'features', label: 'Features' },
+      { id: 'pages', label: 'Pages' },
       { id: 'pricing', label: 'Pricing' },
     ];
     if (hasPricing === 'Yes') base.push({ id: 'pricing_details', label: 'Pricing Details' });
@@ -171,6 +172,16 @@ export default function HomePage() {
     base.push({ id: 'contact', label: 'Final Details' });
     return base;
   }, [hasPricing]);
+
+  // Pages that are required by currently selected feature bundles
+  const requiredPages = useMemo(() => {
+    const req: string[] = [];
+    selectedBundles.forEach(id => {
+      const bundle = FEATURE_BUNDLES.find(b => b.id === id);
+      if (bundle?.requiresPage) req.push(bundle.requiresPage);
+    });
+    return req;
+  }, [selectedBundles]);
 
   const totalSteps = steps.length;
   const currentStepId = steps[step - 1]?.id;
@@ -248,7 +259,42 @@ export default function HomePage() {
     document.head.appendChild(script);
   }, [currentStepId]);
 
-  function toggleBundle(id: string) { setSelectedBundles(prev => prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]); }
+  function toggleBundle(id: string) {
+    const bundle = FEATURE_BUNDLES.find(b => b.id === id);
+    if (!bundle) return;
+    setSelectedBundles(prev => {
+      const isSelected = prev.includes(id);
+      if (isSelected) {
+        // Deselecting — remove this bundle
+        const next = prev.filter(b => b !== id);
+        // Remove the required page if no other bundle needs it
+        if (bundle.requiresPage) {
+          const stillNeeded = next.some(bid => {
+            const b2 = FEATURE_BUNDLES.find(b => b.id === bid);
+            return b2?.requiresPage === bundle.requiresPage;
+          });
+          if (!stillNeeded) setPages(p => p.filter(pg => pg !== bundle.requiresPage));
+        }
+        return next;
+      } else {
+        // Selecting — enforce exclusivity within same group
+        let next = [...prev];
+        if (bundle.exclusiveGroup) {
+          // Remove any other bundle in the same exclusive group
+          const conflicting = FEATURE_BUNDLES.filter(b => b.exclusiveGroup === bundle.exclusiveGroup && b.id !== id);
+          conflicting.forEach(c => {
+            next = next.filter(bid => bid !== c.id);
+            // Also remove the conflicting bundle's required page
+            if (c.requiresPage) setPages(p => p.filter(pg => pg !== c.requiresPage));
+          });
+        }
+        next.push(id);
+        // Auto-add the required page
+        if (bundle.requiresPage) setPages(p => p.includes(bundle.requiresPage!) ? p : [...p, bundle.requiresPage!]);
+        return next;
+      }
+    });
+  }
   function toggleItem(arr: string[], value: string, setFn: any) { setFn(arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value]); }
   function addProduct() { if (products.length < 12) setProducts(p => [...p, { name: "", price: "", photo: null }]); }
   function removeProduct(i: number) { setProducts(p => p.filter((_, idx) => idx !== i)); }
@@ -407,12 +453,50 @@ export default function HomePage() {
           {/* STEP: pages */}
           {currentStepId === 'pages' && (
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">📑 Select Pages <span className="text-red-400">*</span></label>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">📑 Select Pages <span className="text-red-400">*</span></label>
+              {requiredPages.length > 0 && (
+                <p className="text-slate-500 text-xs mb-4">🔒 Locked pages are required by your selected features. Tap to remove them if needed.</p>
+              )}
+              {!requiredPages.length && <div className="mb-4" />}
+
+              {/* Confirm remove dialog */}
+              {confirmRemovePage && (
+                <div className="mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl">
+                  <p className="text-amber-400 font-semibold text-sm mb-1">Remove "{confirmRemovePage}" page?</p>
+                  <p className="text-slate-400 text-xs mb-3">This page is required by a feature you selected. Removing it may affect functionality.</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setPages(p => p.filter(pg => pg !== confirmRemovePage)); setConfirmRemovePage(null); }}
+                      className="flex-1 h-9 rounded-xl bg-amber-500 text-black text-xs font-bold">Yes, remove it</button>
+                    <button onClick={() => setConfirmRemovePage(null)}
+                      className="flex-1 h-9 rounded-xl border border-white/10 text-slate-400 text-xs">Keep it</button>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-2">
-                {["Home", "About", "Services", "Contact", "Shop", "Gallery", "Blog", "Booking", "FAQ", "Testimonials", "Pricing", "Portfolio", "Team", "Menu"].map(p => (
-                  <CheckCard key={p} checked={pages.includes(p)} onClick={() => toggleItem(pages, p, setPages)} label={p} />
-                ))}
+                {["Home", "About", "Services", "Contact", "Shop", "Gallery", "Blog", "Booking", "FAQ", "Testimonials", "Pricing", "Portfolio", "Team", "Menu"].map(p => {
+                  const isRequired = requiredPages.includes(p);
+                  const isChecked = pages.includes(p);
+                  return (
+                    <div key={p} onClick={() => {
+                      if (isRequired && isChecked) { setConfirmRemovePage(p); return; }
+                      toggleItem(pages, p, setPages);
+                    }}
+                      className={`cursor-pointer rounded-xl p-3 border transition-all flex items-center gap-3 active:scale-98 ${isChecked ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}>
+                      <div className={`w-5 h-5 rounded flex-shrink-0 flex items-center justify-center border-2 transition-all ${isChecked ? 'border-emerald-500 bg-emerald-500' : 'border-white/30'}`}>
+                        {isChecked && <span className="text-white text-xs font-bold">{isRequired ? '🔒' : '✓'}</span>}
+                      </div>
+                      <span className="text-sm text-white">{p}</span>
+                    </div>
+                  );
+                })}
               </div>
+
+              {requiredPages.length > 0 && (
+                <div className="mt-3 p-3 bg-slate-900/80 rounded-xl border border-white/10">
+                  <p className="text-xs text-slate-500">🔒 Required: {requiredPages.join(', ')}</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -421,19 +505,57 @@ export default function HomePage() {
             <div>
               <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">⚙️ Website Features</label>
               <p className="text-slate-500 text-sm mb-4">Select the bundles that suit your business.</p>
-              <div className="grid gap-3">
-                {FEATURE_BUNDLES.map(bundle => (
-                  <div key={bundle.id} onClick={() => toggleBundle(bundle.id)} className={`cursor-pointer rounded-2xl p-4 border-2 transition-all ${selectedBundles.includes(bundle.id) ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center ${selectedBundles.includes(bundle.id) ? 'border-emerald-500 bg-emerald-500' : 'border-white/30'}`}>
-                        {selectedBundles.includes(bundle.id) && <span className="text-white text-xs font-bold">✓</span>}
+
+              {/* Commerce exclusive group — Booking OR Shop */}
+              <div className="mb-4">
+                <p className="text-xs font-semibold text-amber-400 uppercase tracking-widest mb-2">⚡ Choose one — Bookings or Shop</p>
+                <div className="grid gap-3">
+                  {FEATURE_BUNDLES.filter(b => b.exclusiveGroup === 'commerce').map(bundle => {
+                    const isSelected = selectedBundles.includes(bundle.id);
+                    const conflictSelected = FEATURE_BUNDLES.filter(b2 => b2.exclusiveGroup === 'commerce' && b2.id !== bundle.id).some(b2 => selectedBundles.includes(b2.id));
+                    return (
+                      <div key={bundle.id} onClick={() => toggleBundle(bundle.id)}
+                        className={`cursor-pointer rounded-2xl p-4 border-2 transition-all ${isSelected ? 'border-emerald-500 bg-emerald-500/10' : conflictSelected ? 'border-white/5 bg-slate-900/20 opacity-40' : 'border-white/10 bg-slate-900/50'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${isSelected ? 'border-emerald-500 bg-emerald-500' : 'border-white/30'}`}>
+                            {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                          </div>
+                          <span className="text-lg">{bundle.icon}</span>
+                          <div>
+                            <p className="font-semibold text-white text-sm">{bundle.label}</p>
+                            <p className="text-slate-400 text-xs">{bundle.desc}</p>
+                            {isSelected && bundle.requiresPage && <p className="text-emerald-400 text-xs mt-0.5">✓ "{bundle.requiresPage}" page added automatically</p>}
+                          </div>
+                        </div>
                       </div>
-                      <span className="text-lg">{bundle.icon}</span>
-                      <div><p className="font-semibold text-white text-sm">{bundle.label}</p><p className="text-slate-400 text-xs">{bundle.desc}</p></div>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })}
+                </div>
               </div>
+
+              {/* Independent features */}
+              <div className="grid gap-3">
+                {FEATURE_BUNDLES.filter(b => !b.exclusiveGroup).map(bundle => {
+                  const isSelected = selectedBundles.includes(bundle.id);
+                  return (
+                    <div key={bundle.id} onClick={() => toggleBundle(bundle.id)}
+                      className={`cursor-pointer rounded-2xl p-4 border-2 transition-all ${isSelected ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center ${isSelected ? 'border-emerald-500 bg-emerald-500' : 'border-white/30'}`}>
+                          {isSelected && <span className="text-white text-xs font-bold">✓</span>}
+                        </div>
+                        <span className="text-lg">{bundle.icon}</span>
+                        <div>
+                          <p className="font-semibold text-white text-sm">{bundle.label}</p>
+                          <p className="text-slate-400 text-xs">{bundle.desc}</p>
+                          {isSelected && bundle.requiresPage && <p className="text-emerald-400 text-xs mt-0.5">✓ "{bundle.requiresPage}" page added automatically</p>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
               {selectedBundles.length > 0 && (
                 <div className="mt-4 p-3 bg-slate-900/80 rounded-xl border border-white/10">
                   <p className="text-xs text-emerald-400">{features.join(', ')}</p>
@@ -625,4 +747,23 @@ export default function HomePage() {
             <div className="border-t border-white/8 pt-4 space-y-1 text-xs text-slate-600">
               {businessName && <p>🏢 {businessName}</p>}
               {industry && <p>🏭 {industry}</p>}
-              {goal && 
+              {goal && <p>🎯 {goal}</p>}
+              {siteType && <p>📄 {siteType === 'multi' ? 'Multi Page' : 'Single Page'}</p>}
+              {pages.length > 0 && <p className="truncate">📑 {pages.join(', ')}</p>}
+              {name && <p>👤 {name}</p>}
+            </div>
+            {quote && (
+              <div className="mt-4 border-t border-white/8 pt-4">
+                <p className="text-xs text-slate-500 uppercase tracking-widest mb-2">Live Quote</p>
+                <p className="text-2xl font-bold text-white">${quote.totalPrice.toLocaleString()}</p>
+                <p className="text-slate-500 text-xs">+ ${quote.monthlyPrice}/month</p>
+                <p className="text-emerald-400 text-xs mt-1 font-semibold">{quote.packageName} Package</p>
+                <p className="text-emerald-400 text-xs font-semibold">🎉 Saving ${quote.savings.toLocaleString()}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
