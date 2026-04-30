@@ -258,23 +258,20 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
         html = html.replace(/<title>[^<]*<\/title>/i, `<title>${businessName}</title>`);
       }
 
-      // ── FIX 1: Contact details — replace ALL placeholder emails & phones ──
+      // ── FIX 1: Contact details — replace ONLY clearly fake/placeholder emails ──
       const clientDomain = clientEmail.split("@")[1] || "";
-      // Placeholder email patterns — anything that isn't the real client domain
+      const businessSlugFix = (userInput.businessName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      // Known fake TLD/domain patterns
       html = html.replace(/\b[\w.+-]+@(example|company|business|yourcompany|yourbusiness|domain|email|test|sample|placeholder|site|gym|studio|salon|clinic|law|dental|realty|auto|cafe|restaurant|johnsgymsydney|johnsrestaurant|acmeconstruction|smithplumbing|greenthumb|brightsmile|eliteperformance|performancegym|purestrength|ironcore|elitefit|fitnesspro|peakperformance|urbanfit|alphaperformance)\.(com|com\.au|au|net|org)\b/gi, clientEmail);
-      // Generic prefix patterns (info@, hello@, contact@, train@, admin@, support@) pointing to non-client domains
-      html = html.replace(/\b(info|hello|contact|train|admin|support|enquiries|enquiry|bookings|mail|office|team|reception|noreply|no-reply)@(?!webgecko\.au)[\w.-]+\.(com|com\.au|au|net|org)\b/gi, (m: string) => {
-        if (clientDomain && m.endsWith(clientDomain)) return m; // already correct
-        return clientEmail;
-      });
-      // Catch anything that still looks like a placeholder (has the business name slug in it but isn't real)
-      if (clientEmail) {
-        // Replace any email that's clearly not the client's
-        html = html.replace(/\b[\w.+-]+@[\w.-]+\.(com\.au|au)\b/g, (m: string) => {
+      // Generic prefixes — only replace if domain matches business name slug, leave real domains alone
+      if (clientDomain && businessSlugFix) {
+        html = html.replace(/\b(info|hello|contact|admin|support|enquiries|enquiry|mail|office|reception|noreply|no-reply)@([\w-]+)\.(com|com\.au|au|net|org)\b/gi, (m: string, _prefix: string, domain: string) => {
           if (m === clientEmail) return m;
           if (m.includes("webgecko")) return m;
-          if (clientDomain && m.endsWith(clientDomain)) return m;
-          return clientEmail;
+          if (clientDomain && m.toLowerCase().endsWith(clientDomain.toLowerCase())) return m;
+          const domainStripped = domain.toLowerCase().replace(/[^a-z0-9]/g, "");
+          if (domainStripped.includes(businessSlugFix.slice(0, 6)) || businessSlugFix.includes(domainStripped.slice(0, 6))) return clientEmail;
+          return m; // leave real-looking domains alone
         });
       }
       // Phones: replace ONLY obvious fake/placeholder AU numbers — do NOT replace real ones
@@ -554,6 +551,33 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
             buildStatus: "complete",
             builtAt: new Date().toISOString(),
           });
+        }
+      }
+
+      // Auto-create availability config if booking is enabled
+      if (hasBookingFeature) {
+        const existingAvailability = await redis.get(`availability:${jobId}`);
+        if (!existingAvailability) {
+          const slotDurationMap: Record<string, number> = {
+            medical: 30, dental: 30, physio: 45, beauty: 45, hair: 45, massage: 60,
+            legal: 60, accounting: 60, financial: 60, fitness: 60, gym: 60, personal: 60,
+          };
+          const industryLower = (userInput.industry || "").toLowerCase();
+          const slotDuration = Object.entries(slotDurationMap).find(([k]) => industryLower.includes(k))?.[1] ?? 60;
+          await redis.set(`availability:${jobId}`, {
+            jobId,
+            businessName: userInput.businessName,
+            clientEmail,
+            timezone: "Australia/Brisbane",
+            days: [1, 2, 3, 4, 5],
+            startHour: 9,
+            endHour: 17,
+            slotDurationMinutes: slotDuration,
+            bufferMinutes: 15,
+            maxDaysAhead: 30,
+            services: getServicesForIndustry(userInput.industry),
+          });
+          console.log(`[Inngest] Auto-created availability config for ${jobId}`);
         }
       }
     });

@@ -71,11 +71,20 @@ export async function GET(request: NextRequest) {
     // ── Code-only fix pass (mirrors Step 5 of the build pipeline) ────────────
     const bookingNavTarget = hasBookingFeature ? "booking" : "contact";
 
-    // FIX 1: Contact details
-    html = html.replace(/\b[a-z]+@(example|company|business|yourcompany|yourbusiness|domain|email|test|sample)\.com\b/gi, clientEmail);
-    html = html.replace(/\binfo@[a-z-]+\.(com|com\.au|au)\b/gi, (m: string) => m.includes(clientEmail.split("@")[1]) ? m : clientEmail);
-    html = html.replace(/\bhello@[a-z-]+\.(com|com\.au|au)\b/gi, (m: string) => m.includes(clientEmail.split("@")[1]) ? m : clientEmail);
-    html = html.replace(/\bcontact@[a-z-]+\.(com|com\.au|au)\b/gi, (m: string) => m.includes(clientEmail.split("@")[1]) ? m : clientEmail);
+    // FIX 1: Contact details — replace ONLY clearly fake/placeholder emails
+    const clientDomain = clientEmail.split("@")[1] || "";
+    const businessSlug = (userInput?.businessName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    html = html.replace(/\b[\w.+-]+@(example|company|business|yourcompany|yourbusiness|domain|email|test|sample|placeholder|site|gym|studio|salon|clinic|law|dental|realty|auto|cafe|restaurant|johnsgymsydney|acmeconstruction|smithplumbing|greenthumb|eliteperformance|performancegym|purestrength|ironcore|urbanfit)\.(com|com\.au|au|net|org)\b/gi, clientEmail);
+    if (clientDomain && businessSlug) {
+      html = html.replace(/\b(info|hello|contact|admin|support|enquiries|enquiry|mail|office|reception|noreply|no-reply)@([\w-]+)\.(com|com\.au|au|net|org)\b/gi, (m: string, _prefix: string, domain: string) => {
+        if (m === clientEmail) return m;
+        if (m.includes("webgecko")) return m;
+        if (m.toLowerCase().endsWith(clientDomain.toLowerCase())) return m;
+        const ds = domain.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (ds.includes(businessSlug.slice(0,6)) || businessSlug.includes(ds.slice(0,6))) return clientEmail;
+        return m;
+      });
+    }
     html = html.replace(/\b0[0-9]{3}\s000\s000\b/g, clientPhone);
     html = html.replace(/\b0400\s000\s000\b/g, clientPhone);
     html = html.replace(/\+61\s0[0-9]{3}\s000\s000/g, clientPhone);
@@ -196,6 +205,24 @@ export async function GET(request: NextRequest) {
       const existingClient = await redis.get<any>(`client:${clientSlug}`);
       if (existingClient) {
         await redis.set(`client:${clientSlug}`, { ...existingClient, previewUrl: stableUrl });
+      }
+    }
+
+    // Auto-create availability config so booking widget works immediately
+    if (hasBookingFeature || hasAiBookingPlaceholder) {
+      const existingAvail = await redis.get(`availability:${jobId}`);
+      if (!existingAvail) {
+        const slotMap: Record<string, number> = { medical:30,dental:30,physio:45,beauty:45,hair:45,massage:60,legal:60,accounting:60,financial:60,fitness:60,gym:60,personal:60 };
+        const ind = (userInput?.industry || "").toLowerCase();
+        const slotMins = Object.entries(slotMap).find(([k]) => ind.includes(k))?.[1] ?? 60;
+        await redis.set(`availability:${jobId}`, {
+          jobId, businessName: userInput?.businessName || "", clientEmail,
+          timezone: "Australia/Brisbane", days: [1,2,3,4,5],
+          startHour: 9, endHour: 17, slotDurationMinutes: slotMins,
+          bufferMinutes: 15, maxDaysAhead: 30,
+          services: getServicesForIndustry(userInput?.industry || ""),
+        });
+        console.log(`[Fix] Auto-created availability config for ${jobId}`);
       }
     }
 
