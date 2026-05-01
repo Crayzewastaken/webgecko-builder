@@ -500,11 +500,16 @@ export default function ClientPortal() {
     setPayLoading(stage);
     try {
       const res = await fetch(`/api/payment/create?slug=${slug}&stage=${stage}`);
-      const data = await res.json();
+      let data: any = {};
+      try { data = await res.json(); } catch { data = {}; }
+      if (!res.ok) {
+        alert(`Error ${res.status}: ${data.error || res.statusText}`);
+        return;
+      }
       if (data.url) window.location.href = data.url;
       else if (data.alreadyPaid) await loadPaymentStatus();
       else alert(data.error || "Could not create payment link.");
-    } catch { alert("Network error. Please try again."); }
+    } catch (err: any) { alert("Network error: " + (err?.message || String(err))); }
     finally { setPayLoading(null); }
   }
 

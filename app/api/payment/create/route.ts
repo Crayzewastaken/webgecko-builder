@@ -94,6 +94,8 @@ export async function GET(req: NextRequest) {
   const referenceId = `${jobId}-${stage}`;
   let result: { url: string; paymentLinkId: string; orderId: string };
 
+  console.log(`[Payment] Creating ${stage} link for ${businessName} (${jobId}) — SQUARE_ENV=${process.env.SQUARE_ENVIRONMENT} HAS_TOKEN=${!!process.env.SQUARE_ACCESS_TOKEN} HAS_LOC=${!!process.env.SQUARE_LOCATION_ID}`);
+
   try {
     if (stage === "monthly") {
       result = await createMonthlyPaymentLink({ monthlyDollars: monthlyPrice, businessName, referenceId, redirectUrl, buyerEmail: email });
