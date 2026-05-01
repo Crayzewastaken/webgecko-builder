@@ -5,40 +5,67 @@ import { useRouter, useParams } from "next/navigation";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface ClientData {
-  businessName: string;
-  name: string;
-  email: string;
-  phone?: string;
+interface ClientMetadata {
+  name?: string;
   abn?: string;
-  industry: string;
   goal?: string;
   targetAudience?: string;
-  target_audience?: string;
-  siteType: string;
-  site_type?: string;
-  pages: string | string[];
-  features: string[];
+  siteType?: string;
+  pages?: string[];
+  features?: string[];
   style?: string;
   colorPrefs?: string;
-  color_prefs?: string;
   references?: string;
   additionalNotes?: string;
-  additional_notes?: string;
   pricingMethod?: string;
-  pricing_method?: string;
   pricingDetails?: string;
-  pricing_details?: string;
   businessAddress?: string;
-  business_address?: string;
   facebookPage?: string;
-  facebook_page?: string;
+  hasBooking?: boolean;
+  quote?: {
+    package: string;
+    price: number;
+    monthlyPrice: number;
+    monthlyOngoing?: number;
+    savings: number;
+    competitorPrice: number;
+    breakdown: string[];
+  };
+}
+
+interface ClientData {
+  // Raw DB fields
+  business_name?: string;
+  job_id?: string;
+  preview_url?: string;
+  has_booking?: boolean;
+  launch_ready?: boolean;
+  metadata?: ClientMetadata;
+  // Normalised fields (set by normalizeClient)
+  businessName: string;
+  jobId: string;
+  email: string;
+  phone?: string;
+  industry: string;
   domain?: string;
   previewUrl?: string;
   hasBooking?: boolean;
-  has_booking?: boolean;
-  jobId: string;
   launchReady?: boolean;
+  name?: string;
+  abn?: string;
+  goal?: string;
+  targetAudience?: string;
+  siteType?: string;
+  pages?: string | string[];
+  features?: string[];
+  style?: string;
+  colorPrefs?: string;
+  references?: string;
+  additionalNotes?: string;
+  pricingMethod?: string;
+  pricingDetails?: string;
+  businessAddress?: string;
+  facebookPage?: string;
   quote?: {
     package: string;
     price: number;
@@ -438,11 +465,42 @@ export default function ClientPortal() {
     }
   }, []);
 
+  function normalizeClient(raw: any): ClientData {
+    // Support both new metadata jsonb format and legacy flat columns
+    const m = raw.metadata || {};
+    return {
+      ...raw,
+      // Normalise to consistent camelCase fields used throughout the component
+      businessName: raw.business_name || raw.businessName || "",
+      jobId: raw.job_id || raw.jobId || "",
+      previewUrl: raw.preview_url || raw.previewUrl || null,
+      launchReady: raw.launch_ready || raw.launchReady || false,
+      hasBooking: m.hasBooking ?? raw.has_booking ?? raw.hasBooking ?? false,
+      name: m.name || raw.name || "",
+      abn: m.abn || raw.abn || "",
+      goal: m.goal || raw.goal || "",
+      targetAudience: m.targetAudience || raw.target_audience || raw.targetAudience || "",
+      siteType: m.siteType || raw.site_type || raw.siteType || "",
+      pages: m.pages || raw.pages || [],
+      features: m.features || raw.features || [],
+      style: m.style || raw.style || "",
+      colorPrefs: m.colorPrefs || raw.color_prefs || raw.colorPrefs || "",
+      references: m.references || raw.references || "",
+      additionalNotes: m.additionalNotes || raw.additional_notes || raw.additionalNotes || "",
+      pricingMethod: m.pricingMethod || raw.pricing_method || raw.pricingMethod || "",
+      pricingDetails: m.pricingDetails || raw.pricing_details || raw.pricingDetails || "",
+      businessAddress: m.businessAddress || raw.business_address || raw.businessAddress || "",
+      facebookPage: m.facebookPage || raw.facebook_page || raw.facebookPage || "",
+      quote: m.quote || raw.quote || null,
+    };
+  }
+
   async function loadClient() {
     try {
       const res = await fetch(`/api/client-login?slug=${slug}`);
       if (!res.ok) { sessionStorage.removeItem(`wg_auth_${slug}`); router.replace("/c"); return; }
-      setClient(await res.json());
+      const raw = await res.json();
+      setClient(normalizeClient(raw));
     } catch { setError("Failed to load your project. Please refresh."); }
     finally { setLoading(false); }
   }
@@ -794,31 +852,21 @@ export default function ClientPortal() {
               <div style={S.label}>Your Project</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "10px 0 14px" }}>
                 <span style={S.pill("#0099ff")}>{client.industry}</span>
-                <span style={S.pill("#00c896")}>{(client.site_type || client.siteType) === "multi" ? "Multi-page" : "Single page"}</span>
+                <span style={S.pill("#00c896")}>{client.siteType === "multi" ? "Multi-page" : "Single page"}</span>
                 {features.map(f => <span key={f} style={S.pill("#8b5cf6")}>{f}</span>)}
               </div>
 
               {(() => {
                 const rows: { label: string; value: string }[] = [];
-                const audience = client.target_audience || client.targetAudience;
-                const goal = client.goal;
-                const style = client.style;
-                const colorPrefs = client.color_prefs || client.colorPrefs;
-                const notes = client.additional_notes || client.additionalNotes;
-                const refs = client.references;
-                const pricing = client.pricing_method || client.pricingMethod || client.pricing_details || client.pricingDetails;
-                const address = client.business_address || client.businessAddress;
-                const fb = client.facebook_page || client.facebookPage;
-
-                if (audience) rows.push({ label: "Audience", value: audience });
-                if (goal) rows.push({ label: "Goal", value: goal });
-                if (style) rows.push({ label: "Style", value: style });
-                if (colorPrefs) rows.push({ label: "Colours", value: colorPrefs });
-                if (pricing) rows.push({ label: "Pricing", value: pricing });
-                if (refs) rows.push({ label: "References", value: refs });
-                if (notes) rows.push({ label: "Notes", value: notes });
-                if (address) rows.push({ label: "Address", value: address });
-                if (fb) rows.push({ label: "Facebook", value: fb });
+                if (client.targetAudience) rows.push({ label: "Audience", value: client.targetAudience });
+                if (client.goal) rows.push({ label: "Goal", value: client.goal });
+                if (client.style) rows.push({ label: "Style", value: client.style });
+                if (client.colorPrefs) rows.push({ label: "Colours", value: client.colorPrefs });
+                if (client.pricingMethod) rows.push({ label: "Pricing", value: client.pricingMethod });
+                if (client.references) rows.push({ label: "References", value: client.references });
+                if (client.additionalNotes) rows.push({ label: "Notes", value: client.additionalNotes });
+                if (client.businessAddress) rows.push({ label: "Address", value: client.businessAddress });
+                if (client.facebookPage) rows.push({ label: "Facebook", value: client.facebookPage });
                 if (client.abn) rows.push({ label: "ABN", value: client.abn });
 
                 return rows.length > 0 ? (
@@ -833,11 +881,11 @@ export default function ClientPortal() {
                 ) : null;
               })()}
 
-              {Array.isArray(client.pages) && client.pages.length > 0 && (
+              {Array.isArray(client.pages) && (client.pages as string[]).length > 0 && (
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ ...S.label, marginBottom: 6 }}>Pages</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {client.pages.map(p => <span key={p} style={{ fontSize: 12, color: "#94a3b8", background: "#1a2233", borderRadius: 6, padding: "3px 9px" }}>{p}</span>)}
+                    {(client.pages as string[]).map(p => <span key={p} style={{ fontSize: 12, color: "#94a3b8", background: "#1a2233", borderRadius: 6, padding: "3px 9px" }}>{p}</span>)}
                   </div>
                 </div>
               )}

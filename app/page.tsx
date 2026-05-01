@@ -204,12 +204,12 @@ export default function HomePage() {
       { id: 'pages', label: isMultiPage ? 'Pages' : siteType === 'single' ? 'Sections' : 'Pages / Sections' },
       { id: 'pricing', label: 'Pricing' },
     ];
-    if (hasPricing === 'Yes') base.push({ id: 'pricing_details', label: 'Pricing Details' });
+    if (hasPricing === 'Yes' && pricingType !== 'quote') base.push({ id: 'pricing_details', label: 'Pricing Details' });
     base.push({ id: 'design', label: 'Design' });
     base.push({ id: 'assets', label: 'Assets' });
     base.push({ id: 'contact', label: 'Final Details' });
     return base;
-  }, [hasPricing, siteType]);
+  }, [hasPricing, pricingType, siteType]);
 
   // Pages that are required by currently selected feature bundles
   const requiredPages = useMemo(() => {
