@@ -123,9 +123,12 @@ const buildWebsite = inngest.createFunction(
 
     // ── STEP 2: Create Stitch project ─────────────────────────────────────────
     const projectId = await step.run("step2-stitch-create", async () => {
+      console.log(`[Inngest] STEP 2 START: creating Stitch project "${spec.projectTitle}"`);
       const project: any = await stitchClient.callTool("create_project", { title: spec.projectTitle });
+      console.log(`[Inngest] STEP 2: Stitch response keys=${Object.keys(project||{}).join(",")}`);
       const pid = project?.name?.split("/")[1];
-      if (!pid) throw new Error("Stitch: no projectId returned");
+      if (!pid) throw new Error("Stitch: no projectId returned. Response: " + JSON.stringify(project)?.slice(0, 200));
+      console.log(`[Inngest] STEP 2 DONE: projectId=${pid}`);
       return pid;
     });
 
@@ -137,10 +140,12 @@ const buildWebsite = inngest.createFunction(
 
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         try {
+          console.log(`[Inngest] STEP 3 attempt ${attempt}/${MAX_ATTEMPTS}: Stitch generate (prompt: ${spec.stitchPrompt?.length} chars)`);
           const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", {
             projectId,
             prompt: spec.stitchPrompt,
           });
+          console.log(`[Inngest] STEP 3 attempt ${attempt}: keys=${Object.keys(stitchResult||{}).join(",")}, code=${stitchResult?.code}`);
           if (stitchResult?.code === "UNKNOWN_ERROR" || stitchResult?.suggestion === undefined && stitchResult?.recoverable === false) {
             throw new Error(`Stitch service unavailable (attempt ${attempt})`);
           }
