@@ -244,15 +244,34 @@ export async function POST(req: Request) {
       subject: `🆕 New Lead — ${userInput.businessName} (awaiting deposit)`,
       html: `
         <h2>New Website Lead</h2>
+        <p><strong>Status:</strong> Awaiting deposit — build will trigger automatically on payment</p>
         <p><strong>Business:</strong> ${userInput.businessName}</p>
-        <p><strong>Client:</strong> ${userInput.name} — ${clientEmail} — ${clientPhone}</p>
+        <p><strong>Client:</strong> ${userInput.name}</p>
+        <p><strong>Email:</strong> ${clientEmail}</p>
+        <p><strong>Phone:</strong> ${clientPhone}</p>
+        <p><strong>ABN:</strong> ${userInput.abn || "-"}</p>
+        <p><strong>Domain:</strong> ${userInput.domain || "-"}</p>
         <p><strong>Industry:</strong> ${userInput.industry}</p>
+        <p><strong>Audience:</strong> ${userInput.targetAudience || "-"}</p>
+        <p><strong>Goal:</strong> ${userInput.goal || "-"}</p>
+        <p><strong>Type:</strong> ${userInput.siteType || "-"}</p>
         <p><strong>Pages:</strong> ${pageList}</p>
         <p><strong>Features:</strong> ${features.join(", ") || "-"}</p>
-        <p><strong>Domain:</strong> ${userInput.domain || "-"}</p>
+        <p><strong>Pricing:</strong> ${userInput.pricingMethod || userInput.pricingDetails || "-"}</p>
+        <p><strong>Products:</strong> ${productsWithPhotos.length > 0 ? productsWithPhotos.map(p => `${p.name} - ${p.price}`).join(", ") : "-"}</p>
+        <p><strong>Style:</strong> ${userInput.style || "-"}</p>
+        <p><strong>References:</strong> ${userInput.references || "-"}</p>
+        <p><strong>Notes:</strong> ${userInput.additionalNotes || "-"}</p>
+        <p><strong>Address:</strong> ${userInput.businessAddress || "-"}</p>
+        <p><strong>Facebook:</strong> ${userInput.facebookPage || "-"}</p>
+        <hr/>
         <p><strong>Quote:</strong> ${quote.package} — $${quote.price.toLocaleString()} + $${quote.monthlyPrice}/month</p>
+        <ul>${quote.breakdown.map(line => `<li>${line}</li>`).join("")}</ul>
+        <hr/>
         ${logoUrl ? `<p><strong>Logo:</strong> <a href="${logoUrl}">View</a></p>` : ""}
         ${heroUrl ? `<p><strong>Hero:</strong> <a href="${heroUrl}">View</a></p>` : ""}
+        ${photoUrls.length > 0 ? `<p><strong>Photos:</strong> ${photoUrls.map((u, i) => `<a href="${u}">Photo ${i + 1}</a>`).join(" | ")}</p>` : ""}
+        <p><strong>Client Portal:</strong> <a href="${clientPortalUrl}">${clientPortalUrl}</a> (slug: ${clientSlug})</p>
       `,
     });
 
