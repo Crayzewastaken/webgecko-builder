@@ -1,8 +1,8 @@
 // lib/gemini.ts
-// Gemini 2.5 Flash — Brain 1: Site Blueprint Architect
+// Gemini 2.0 Flash — Brain 1: Site Blueprint Architect
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-2.0-flash";
 const GEMINI_BASE = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 export interface SiteBlueprint {

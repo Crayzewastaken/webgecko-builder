@@ -536,3 +536,28 @@ export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [buildWebsite, monthlyReports],
 });
+ll([
+            getAnalyticsCount(jobId, "page_view", "monthly", month),
+            getAnalyticsCount(jobId, "booking_click", "monthly", month),
+            getBookingsForJob(jobId),
+          ]);
+          const bookingCount = allBookings.filter((b: any) => b.status !== "cancelled").length;
+
+          await resend.emails.send({
+            from: "WebGecko <hello@webgecko.au>",
+            to: client.email,
+            subject: "Your Monthly Website Report - " + client.business_name,
+            html: "<div style=\"font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;background:#0a0f1a;color:#e2e8f0;\"><h1 style=\"color:#10b981;\">Monthly Report — " + client.business_name + "</h1><p style=\"color:#94a3b8;\">" + month + "</p><div style=\"background:#0f1623;border-radius:12px;padding:24px;margin:24px 0;\"><p>Page Views: " + monthViews + "</p><p>Booking Clicks: " + monthBookingClicks + "</p><p>Total Bookings: " + bookingCount + "</p></div></div>",
+          });
+        } catch (e) {
+          console.error("[Monthly] Failed for " + client.business_name + ":", e);
+        }
+      }
+    });
+  }
+);
+
+export const { GET, POST, PUT } = serve({
+  client: inngest,
+  functions: [buildWebsite, monthlyReports],
+});
