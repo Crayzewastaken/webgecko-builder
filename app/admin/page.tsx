@@ -496,22 +496,12 @@ function AdminDashboard() {
           <ClientCard key={c.slug} c={c} secret={secret} />
         ))}
 
-        {!loading && filtered.length === 0 && !error && (
-          <div style={{ textAlign: "center", color: "#333", padding: "60px" }}>No clients found.</div>
+        {!loading && filtered.length === 0 && (
+          <div style={{ color: "#333", textAlign: "center", padding: "60px 0", fontSize: "14px" }}>
+            No clients found.
+          </div>
         )}
       </div>
     </div>
-  );
-}
-
-export default function AdminPage() {
-  return (
-    <Suspense fallback={
-      <div style={{ background: "#080808", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#333" }}>
-        Loading...
-      </div>
-    }>
-      <AdminDashboard />
-    </Suspense>
   );
 }

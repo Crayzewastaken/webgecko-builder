@@ -153,11 +153,16 @@ Return this exact JSON structure:
   const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!raw) throw new Error("Gemini returned no content");
 
-  // Parse JSON — strip markdown fences and sanitize control characters
-  let clean = raw.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
-  // Remove control characters that break JSON.parse (except \n \r \t which are valid in JSON strings when escaped)
+  // Parse JSON — extract from { to }, strip fences, sanitize
+  console.log("[Gemini] Raw response (first 300):", raw.slice(0, 300));
+  let clean = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/, "").trim();
+  // Extract from first { to last } in case Gemini adds preamble text
+  const firstBrace = clean.indexOf("{");
+  const lastBrace = clean.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1) clean = clean.slice(firstBrace, lastBrace + 1);
+  // Remove control characters
   clean = clean.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-  // Fix unescaped newlines/tabs — replace literal newlines and tabs outside quoted strings
+  // Fix unescaped newlines/tabs inside JSON string values
   clean = clean.replace(/("(?:[^"\\]|\\.)*")|(\n)/g, (_m: string, str: string, nl: string) => str ? str : "\\n");
   clean = clean.replace(/("(?:[^"\\]|\\.)*")|(\t)/g, (_m: string, str: string, tab: string) => str ? str : "\\t");
 
@@ -165,10 +170,9 @@ Return this exact JSON structure:
   try {
     blueprint = JSON.parse(clean);
   } catch (e: any) {
-    // Last resort: extract fields individually
     console.error("[Gemini] JSON parse failed, using regex fallback:", e.message);
     const title = clean.match(/"projectTitle"\s*:\s*"([^"]+)"/)?.[1] || "Website Project";
-    const stitchMatch = clean.match(/"stitchPrompt"\s*:\s*"([\s\S]+?)"\s*[,}]/);
+    const stitchMatch = clean.match(/"stitchPrompt"\s*:\s*"([\s\S]+?)(?:"\s*[,}]|$)/);
     const stitchPrompt = stitchMatch?.[1]?.replace(/\\n/g, "\n") || clean.slice(0, 4000);
     blueprint = {
       projectTitle: title,
