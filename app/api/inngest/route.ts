@@ -43,7 +43,7 @@ const buildWebsite = inngest.createFunction(
       const j = await getJob(jobId);
       if (!j) throw new Error("Job not found: " + jobId);
       if (j.status === "building") throw new Error("Already building");
-      if (j.status === "complete") throw new Error("Already complete");
+      // Allow rebuild of completed jobs — reset status to building
       await saveJob(jobId, { ...j, status: "building" });
       return j;
     });
