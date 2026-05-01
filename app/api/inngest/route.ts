@@ -91,8 +91,8 @@ const buildWebsite = inngest.createFunction(
       ? `CLIENT IMAGES — use these exact URLs: ${logoUrl ? `Logo: ${logoUrl}` : ""} ${heroUrl ? `Hero: ${heroUrl}` : ""} ${photoUrls && photoUrls.length > 0 ? `Photos: ${photoUrls.join(", ")}` : ""}`
       : "No client images provided — use relevant stock image placeholders.";
 
-    // ── STEP 1: Gemini — Site Blueprint (Brain 1: Architect) ─────────────────
-    const spec = await step.run("step1-gemini-blueprint", async () => {
+    // ── STEP 1: Claude Haiku — Site Blueprint (Brain 1: Architect) ──────────
+    const spec = await step.run("step1-blueprint", async () => {
       const blueprint = await generateSiteBlueprint({
         businessName: userInput.businessName,
         industry: userInput.industry,
@@ -118,7 +118,7 @@ const buildWebsite = inngest.createFunction(
       return blueprint;
     });
 
-    console.log(`[Inngest] STEP 1 DONE (Gemini): ${spec.projectTitle} — palette: ${spec.palette?.primary}`);
+    console.log(`[Inngest] STEP 1 DONE (Blueprint): ${spec.projectTitle} — palette: ${spec.palette?.primary}`);
 
 
     // ── STEP 2: Create Stitch project ─────────────────────────────────────────

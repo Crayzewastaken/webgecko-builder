@@ -30,7 +30,7 @@ interface ClientAnalytics {
   builtAt?: string;
 }
 
-type ActionKey = "release" | "fix" | "unlockPayment" | "unlockBooking" | "sendReport" | "delete" | "rebuild";
+type ActionKey = "release" | "fix" | "unlockPayment" | "unlockBooking" | "sendReport" | "delete" | "rebuild" | "resetPassword";
 
 interface ActionState {
   confirming: ActionKey | null;
@@ -357,6 +357,26 @@ function ClientCard({ c, secret }: { c: ClientAnalytics; secret: string }) {
           state={actionState}
           setState={setActionState}
           onConfirm={() => callApi(`/api/analytics/monthly?jobId=${jid}&secret=${sec}&send=true`)}
+        />
+
+        <ConfirmButton
+          actionKey="resetPassword"
+          label="🔑 Reset Password"
+          confirmLabel="Reset"
+          confirmMessage={`Generate a new login password for ${c.businessName}? The new password will be shown once.`}
+          color="#8b5cf6"
+          state={actionState}
+          setState={setActionState}
+          onConfirm={async () => {
+            const res = await fetch(`/api/admin/reset-password?secret=${sec}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ slug: c.slug }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error((data as any).error || `HTTP ${res.status}`);
+            alert(`New password for ${c.businessName}:\n\n${(data as any).password}\n\nShare this with the client.`);
+          }}
         />
 
         <ConfirmButton
