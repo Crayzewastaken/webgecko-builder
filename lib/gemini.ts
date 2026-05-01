@@ -131,25 +131,42 @@ Return this exact JSON structure:
   "stitchPrompt": "full detailed prompt minimum 800 words..."
 }`;
 
-  const res = await fetch(`${GEMINI_BASE}?key=${GEMINI_API_KEY}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 8192,
-        responseMimeType: "application/json",
-      },
-    }),
+  const body = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 8192,
+      responseMimeType: "application/json",
+    },
   });
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Gemini API error ${res.status}: ${err}`);
-  }
+  // Retry up to 4 times on 429/503 with exponential backoff
+  let data: any;
+  const maxAttempts = 4;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const res = await fetch(`${GEMINI_BASE}?key=${GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+    });
 
-  const data = await res.json();
+    if (res.ok) {
+      data = await res.json();
+      break;
+    }
+
+    const errText = await res.text();
+
+    // Retryable: 429 rate limit or 503 overload
+    if ((res.status === 429 || res.status === 503) && attempt < maxAttempts) {
+      const delay = Math.pow(2, attempt) * 3000; // 6s, 12s, 24s
+      console.warn(`[Gemini] ${res.status} on attempt ${attempt}/${maxAttempts}, retrying in ${delay / 1000}s...`);
+      await new Promise(r => setTimeout(r, delay));
+      continue;
+    }
+
+    throw new Error(`Gemini API error ${res.status}: ${errText}`);
+  }
   const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!raw) throw new Error("Gemini returned no content");
 
