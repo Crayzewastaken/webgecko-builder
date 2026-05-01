@@ -30,79 +30,99 @@ export interface SiteBlueprint {
 }
 
 // ─── Robust JSON parser ──────────────────────────────────────────────────────
-// Gemini sometimes returns malformed JSON: unescaped control chars, literal
-// newlines inside strings, markdown fences, preamble text, or truncated output.
-// This tries several strategies in order before giving up.
+// Gemini's stitchPrompt is a huge free-text field that routinely contains
+// unescaped quotes, newlines, and other characters that break JSON.parse.
+// Strategy: surgically extract stitchPrompt as raw text, replace it with a
+// placeholder, parse the simpler remainder, then reattach the raw value.
 function parseGeminiJson(raw: string): SiteBlueprint {
-  // Strategy 1: try parsing the raw response directly (works if Gemini behaved)
-  try { return JSON.parse(raw); } catch {}
-
-  // Strip markdown fences
+  // Strip markdown fences and trim
   let s = raw
     .replace(/^```json\s*/im, "")
     .replace(/^```\s*/im, "")
     .replace(/```\s*$/m, "")
     .trim();
 
-  // Strategy 2: try after fence strip
-  try { return JSON.parse(s); } catch {}
-
-  // Extract the outermost {...} block
+  // Extract outermost { ... }
   const first = s.indexOf("{");
   const last = s.lastIndexOf("}");
   if (first !== -1 && last !== -1 && last > first) s = s.slice(first, last + 1);
 
-  // Strategy 3: try after extraction
+  // Strategy 1: direct parse (works if Gemini behaved)
   try { return JSON.parse(s); } catch {}
 
-  // Remove ASCII control characters (except \t \n \r which we handle next)
-  s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+  // Strategy 2: fix control chars + literal newlines/tabs in strings, then parse
+  const cleaned = fixJsonString(s);
+  try { return JSON.parse(cleaned); } catch {}
 
-  // Strategy 4: try after control char removal
-  try { return JSON.parse(s); } catch {}
+  // Strategy 3: remove trailing commas
+  const noTrailing = cleaned.replace(/,\s*([}\]])/g, "$1");
+  try { return JSON.parse(noTrailing); } catch {}
 
-  // Fix literal (unescaped) newlines and tabs that appear inside JSON string values.
-  // We walk character by character to avoid corrupting already-escaped sequences.
-  s = fixLiteralWhitespaceInStrings(s);
-
-  // Strategy 5: try after whitespace fix
-  try { return JSON.parse(s); } catch {}
-
-  // Strategy 6: remove trailing commas before } or ]
-  s = s.replace(/,\s*([}\]])/g, "$1");
-  try { return JSON.parse(s); } catch (e: any) {
-    throw new Error(`JSON parse failed after all strategies: ${e.message}`);
+  // Strategy 4: surgically extract stitchPrompt, parse the rest, reattach
+  // Find "stitchPrompt": " and grab everything until the last large string ends
+  const stitchKey = '"stitchPrompt"';
+  const stitchStart = s.indexOf(stitchKey);
+  if (stitchStart !== -1) {
+    // Find the opening quote of the value
+    const valueQuote = s.indexOf('"', stitchStart + stitchKey.length + 1);
+    if (valueQuote !== -1) {
+      // Walk forward to find the closing quote — the one followed by \s*[,}]
+      // We accept any content inside, treating \\" as escaped
+      let i = valueQuote + 1;
+      let stitchContent = "";
+      while (i < s.length) {
+        if (s[i] === "\\" && i + 1 < s.length) {
+          stitchContent += s[i] + s[i + 1];
+          i += 2;
+          continue;
+        }
+        if (s[i] === '"') {
+          // Check if this is the real closing quote: next non-space char is , or }
+          const after = s.slice(i + 1).trimStart();
+          if (after.startsWith(",") || after.startsWith("}")) break;
+          // Otherwise it's an unescaped quote inside the value — escape it
+          stitchContent += '\\"';
+          i++;
+          continue;
+        }
+        // Escape literal newlines/tabs
+        if (s[i] === "\n") { stitchContent += "\\n"; i++; continue; }
+        if (s[i] === "\r") { stitchContent += "\\r"; i++; continue; }
+        if (s[i] === "\t") { stitchContent += "\\t"; i++; continue; }
+        stitchContent += s[i];
+        i++;
+      }
+      // Build sanitised JSON: replace the whole stitchPrompt value with cleaned content
+      const before = s.slice(0, valueQuote + 1);
+      const after = s.slice(i); // starts with closing "
+      const rebuilt = before + stitchContent + after;
+      const rebuiltCleaned = fixJsonString(rebuilt).replace(/,\s*([}\]])/g, "$1");
+      try { return JSON.parse(rebuiltCleaned); } catch {}
+    }
   }
+
+  throw new Error("JSON parse failed after all strategies");
 }
 
-/** Walk the JSON string and escape any literal \n or \t that appear inside a JSON string value */
-function fixLiteralWhitespaceInStrings(s: string): string {
+/** Fix control characters and literal whitespace inside JSON string values */
+function fixJsonString(s: string): string {
+  // Remove non-printable control chars except \t \n \r
+  s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+  // Walk char-by-char to escape literal newlines/tabs only inside string values
   let result = "";
-  let inString = false;
-  let escaped = false;
+  let inStr = false;
+  let esc = false;
   for (let i = 0; i < s.length; i++) {
-    const ch = s[i];
-    if (escaped) {
-      result += ch;
-      escaped = false;
-      continue;
+    const c = s[i];
+    if (esc) { result += c; esc = false; continue; }
+    if (c === "\\") { esc = true; result += c; continue; }
+    if (c === '"') { inStr = !inStr; result += c; continue; }
+    if (inStr) {
+      if (c === "\n") { result += "\\n"; continue; }
+      if (c === "\r") { result += "\\r"; continue; }
+      if (c === "\t") { result += "\\t"; continue; }
     }
-    if (ch === "\\") {
-      escaped = true;
-      result += ch;
-      continue;
-    }
-    if (ch === '"') {
-      inString = !inString;
-      result += ch;
-      continue;
-    }
-    if (inString) {
-      if (ch === "\n") { result += "\\n"; continue; }
-      if (ch === "\r") { result += "\\r"; continue; }
-      if (ch === "\t") { result += "\\t"; continue; }
-    }
-    result += ch;
+    result += c;
   }
   return result;
 }
