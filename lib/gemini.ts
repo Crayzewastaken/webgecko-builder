@@ -1,9 +1,10 @@
 // lib/gemini.ts
-// Gemini 2.0 Flash — Brain 1: Site Blueprint Architect
+// Brain 1: Site Blueprint Architect — now powered by Claude (Gemini free tier too limited)
+// Same interface as before — drop-in replacement, nothing else in the pipeline changes.
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
-const GEMINI_MODEL = "gemini-2.0-flash";
-const GEMINI_BASE = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+import Anthropic from "@anthropic-ai/sdk";
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
 export interface SiteBlueprint {
   projectTitle: string;
@@ -28,84 +29,13 @@ export interface SiteBlueprint {
   stitchPrompt: string;
 }
 
-// ─── JSON helpers ─────────────────────────────────────────────────────────────
-
-function fixJsonString(s: string): string {
-  s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-  let result = "";
-  let inStr = false;
-  let esc = false;
-  for (let i = 0; i < s.length; i++) {
-    const c = s[i];
-    if (esc) { result += c; esc = false; continue; }
-    if (c === "\\") { esc = true; result += c; continue; }
-    if (c === '"') { inStr = !inStr; result += c; continue; }
-    if (inStr) {
-      if (c === "\n") { result += "\\n"; continue; }
-      if (c === "\r") { result += "\\r"; continue; }
-      if (c === "\t") { result += "\\t"; continue; }
-    }
-    result += c;
-  }
-  return result;
-}
-
-function extractAndRebuild(s: string): SiteBlueprint {
-  const key = '"stitchPrompt"';
-  const keyIdx = s.indexOf(key);
-  if (keyIdx === -1) throw new Error("No stitchPrompt key");
-  const colonIdx = s.indexOf(":", keyIdx + key.length);
-  const openQuote = s.indexOf('"', colonIdx + 1);
-  if (openQuote === -1) throw new Error("No opening quote");
-  const lastBrace = s.lastIndexOf("}");
-  if (lastBrace === -1) throw new Error("No closing brace");
-  let closeQuote = -1;
-  for (let i = lastBrace - 1; i > openQuote; i--) {
-    if (s[i] === '"') { closeQuote = i; break; }
-  }
-  if (closeQuote <= openQuote) throw new Error("No closing quote");
-  const rawStitch = s.slice(openQuote + 1, closeQuote);
-  const safeStitch = rawStitch
-    .replace(/\\/g, "\\\\")
-    .replace(/"/g, '\\"')
-    .replace(/\r\n/g, "\\n")
-    .replace(/\n/g, "\\n")
-    .replace(/\r/g, "\\r")
-    .replace(/\t/g, "\\t")
-    .replace(/[\x00-\x1F\x7F]/g, "");
-  const rebuilt = s.slice(0, openQuote + 1) + safeStitch + s.slice(closeQuote);
-  const shell = fixJsonString(rebuilt).replace(/,\s*([}\]])/g, "$1");
-  const parsed = JSON.parse(shell) as SiteBlueprint;
-  parsed.stitchPrompt = rawStitch.replace(/\r\n/g, "\n").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-  return parsed;
-}
-
-function parseGeminiJson(raw: string): SiteBlueprint {
-  let s = raw
-    .replace(/^```json\s*/im, "")
-    .replace(/^```\s*/im, "")
-    .replace(/```\s*$/m, "")
-    .trim();
+function parseJson(raw: string): SiteBlueprint {
+  let s = raw.replace(/^```json\s*/im, "").replace(/^```\s*/im, "").replace(/```\s*$/m, "").trim();
   const first = s.indexOf("{");
   const last = s.lastIndexOf("}");
   if (first !== -1 && last !== -1 && last > first) s = s.slice(first, last + 1);
-  try { return JSON.parse(s); } catch {}
-  const cleaned = fixJsonString(s);
-  try { return JSON.parse(cleaned); } catch {}
-  const noTrailing = cleaned.replace(/,\s*([}\]])/g, "$1");
-  try { return JSON.parse(noTrailing); } catch {}
-  try { return extractAndRebuild(s); } catch (e: any) {
-    try {
-      JSON.parse(cleaned);
-    } catch (d: any) {
-      const pos = parseInt((d.message.match(/position (\d+)/) || [])[1] ?? "0");
-      if (pos > 0) console.error(`[Gemini] Error at pos ${pos}:`, JSON.stringify(cleaned.slice(Math.max(0, pos-100), pos+100)));
-    }
-    throw new Error(`JSON parse failed: ${e.message}`);
-  }
+  return JSON.parse(s) as SiteBlueprint;
 }
-
-// ─── Main export ──────────────────────────────────────────────────────────────
 
 export async function generateSiteBlueprint(context: {
   businessName: string;
@@ -184,7 +114,7 @@ CRITICAL RULES:
    ${features.includes("Photo Gallery") ? "- Gallery id=gallery" : ""}
    ${features.includes("Payments / Shop") && productsWithPhotos.length > 0 ? "- Shop id=shop with class=wg-buy-btn on product cards" : ""}
 
-Return exactly:
+Return exactly this JSON shape (no other text):
 {
   "projectTitle": "...",
   "palette": {"primary":"#hex","accent":"#hex","background":"#hex","surface":"#hex","text":"#hex"},
@@ -198,40 +128,23 @@ Return exactly:
   "stitchPrompt": "minimum 800 words, single quotes only inside"
 }`;
 
-  const body = JSON.stringify({
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.7, maxOutputTokens: 8192, responseMimeType: "application/json" },
+  const response = await anthropic.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 8000,
+    messages: [{ role: "user", content: prompt }],
   });
 
-  let data: any;
-  const maxAttempts = 4;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const res = await fetch(`${GEMINI_BASE}?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body,
-    });
-    if (res.ok) { data = await res.json(); break; }
-    const errText = await res.text();
-    if ((res.status === 429 || res.status === 503) && attempt < maxAttempts) {
-      const delay = Math.pow(2, attempt) * 3000;
-      console.warn(`[Gemini] ${res.status} attempt ${attempt}/${maxAttempts}, retrying in ${delay / 1000}s...`);
-      await new Promise(r => setTimeout(r, delay));
-      continue;
-    }
-    throw new Error(`Gemini API error ${res.status}: ${errText}`);
-  }
-
-  const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!raw) throw new Error("Gemini returned no content");
-  console.log("[Gemini] Raw length:", raw.length, "| first 300:", raw.slice(0, 300));
+  const raw = response.content[0]?.type === "text" ? response.content[0].text : "";
+  if (!raw) throw new Error("Blueprint: no content returned");
+  console.log("[Blueprint] Raw length:", raw.length, "| first 200:", raw.slice(0, 200));
 
   let blueprint: SiteBlueprint;
   try {
-    blueprint = parseGeminiJson(raw);
+    blueprint = parseJson(raw);
   } catch (e: any) {
-    console.error("[Gemini] All parse attempts failed:", e.message);
-    const title = (raw.match(/"projectTitle"\s*:\s*"([^"]+)"/) || [])[1] || "Website Project";
+    console.error("[Blueprint] JSON parse failed:", e.message);
+    // Regex fallback — extract what we can
+    const title = (raw.match(/"projectTitle"\s*:\s*"([^"]+)"/) || [])[1] || businessName + " Website";
     const stitchIdx = raw.indexOf('"stitchPrompt"');
     const stitchOpen = stitchIdx !== -1 ? raw.indexOf('"', raw.indexOf(":", stitchIdx) + 1) : -1;
     const stitchClose = stitchOpen !== -1 ? raw.lastIndexOf('"', raw.lastIndexOf("}") - 1) : -1;
@@ -249,13 +162,14 @@ Return exactly:
       ctaText: "Get Started",
       uniqueDesignIdea: "Clean modern design with bold typography",
       stitchPrompt,
-    } as SiteBlueprint;
+    };
   }
 
   if (!blueprint.stitchPrompt || blueprint.stitchPrompt.length < 200) {
-    throw new Error(`Gemini stitchPrompt too short (${blueprint.stitchPrompt?.length ?? 0} chars)`);
+    throw new Error(`Blueprint stitchPrompt too short (${blueprint.stitchPrompt?.length ?? 0} chars)`);
   }
-  if (!blueprint.projectTitle) throw new Error("Gemini blueprint missing projectTitle");
+  if (!blueprint.projectTitle) throw new Error("Blueprint missing projectTitle");
 
+  console.log(`[Blueprint] Done: "${blueprint.projectTitle}" — stitch prompt ${blueprint.stitchPrompt.length} chars`);
   return blueprint;
 }
