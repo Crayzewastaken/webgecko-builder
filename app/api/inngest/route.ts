@@ -17,8 +17,11 @@ import {
 } from "@/lib/pipeline-helpers";
 import { generateBookingWidget } from "@/lib/booking-widget";
 import { createClientShopCatalogue } from "@/lib/square";
-import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailability } from "@/lib/db";
+import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailability, getAnalyticsCount, getBookingsForJob } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
+import { createTawktoProperty } from "@/lib/tawkto";
+import { generateSiteBlueprint } from "@/lib/gemini";
+import { auditAndFixSite } from "@/lib/auditor";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 const resend = new Resend(process.env.RESEND_API_KEY!);
@@ -88,72 +91,35 @@ const buildWebsite = inngest.createFunction(
       ? `CLIENT IMAGES — use these exact URLs: ${logoUrl ? `Logo: ${logoUrl}` : ""} ${heroUrl ? `Hero: ${heroUrl}` : ""} ${photoUrls && photoUrls.length > 0 ? `Photos: ${photoUrls.join(", ")}` : ""}`
       : "No client images provided — use relevant stock image placeholders.";
 
-    // ── STEP 1: Claude spec ───────────────────────────────────────────────────
-    const spec = await step.run("step1-claude-spec", async () => {
-      const promptResponse = await anthropic.messages.create({
-        model: "claude-sonnet-4-5",
-        max_tokens: 8000,
-        messages: [{
-          role: "user",
-          content: `Your response must be ONLY a JSON object. Start with { and end with }. No text before or after. No markdown. No backticks.
-
-The JSON must have exactly two keys: "projectTitle" (short string) and "stitchPrompt" (detailed design brief string).
-
-You are a senior UI designer. Design a premium, distinctive website for the business below. Research the ${userInput.industry} industry. Think about top-tier websites in this space. Create something better than average — distinctive, conversion-focused, and premium.
-
-CRITICAL — BUSINESS NAME: The ONLY permitted business name in ALL text, headings, logo, nav, footer, title tag, and copyright is: "${userInput.businessName}". Do NOT invent, shorten, or rename it. Every instance must say exactly "${userInput.businessName}".
-
-BUSINESS CONTEXT:
-Business: ${userInput.businessName}
-Industry: ${userInput.industry}
-Target Audience: ${userInput.targetAudience || "general public"}
-USP: ${userInput.usp || "quality service"}
-Goal: ${userInput.goal}
-Style: ${userInput.style || "modern premium"}
-Colours: ${userInput.colorPrefs || "professional palette"}
-References: ${userInput.references || "none"}
-Features: ${features.join(", ") || "contact form"}
-Notes: ${userInput.additionalNotes || "none"}
-Contact Email: ${clientEmail}
-Contact Phone: ${clientPhone}
-${userInput.businessAddress ? `Business Address: ${userInput.businessAddress}` : ""}
-${userInput.facebookPage ? `Facebook Page: ${userInput.facebookPage}` : ""}
-
-${pricingSection}
-${hasBookingFeature ? `BOOKING: Include a booking section with id="booking". The booking widget will be injected here.` : ""}
-${features.includes("Payments / Shop") && productsWithPhotos.length > 0 ? `SHOP SECTION REQUIRED (id="shop"): Display these products as premium cards — each card MUST have a <button class="wg-buy-btn" data-product-index="N" data-product-name="PRODUCT_NAME">Buy Now</button> where N is the zero-based product index. Products: ${productsWithPhotos.map((p: any, i: number) => `[${i}] ${p.name} ${p.price}${p.photoUrl ? ` (image: ${p.photoUrl})` : ""}`).join(", ")}. The buy buttons will be wired to Square checkout automatically — do not add href or onclick.` : ""}
-${imageSection}
-
-DESIGN REQUIREMENTS — include ALL in the stitchPrompt:
-1. HERO: Full viewport height, bold headline 60-80px, subheadline, CTA button, distinctive background (gradient/dark overlay/pattern — NOT plain white)
-2. NAV: Sticky, logo left, links right, CTA button, mobile hamburger id="hamburger" toggling id="mobile-menu", glassmorphism or solid dark background
-3. LAYOUTS: Mix — full-width sections, 50/50 splits, asymmetric grids, stat counters
-4. TYPOGRAPHY: Bold display font for headings, clean sans-serif body, generous spacing
-5. COLOUR: Use ${userInput.colorPrefs || "professional premium palette"}, dark backgrounds where appropriate, accent colour for CTAs
-6. TESTIMONIALS & REVIEWS: Large testimonials section with id="testimonials" — minimum 3 star-rated reviews from realistic Australian names (e.g. "Sarah M.", "James T."), 5-star ratings shown as filled stars ★★★★★, with job titles or context, card or quote layout
-7. FAQ SECTION: Accordion FAQ section with id="faq" — minimum 6 realistic Q&A pairs relevant to ${userInput.industry}, expandable/collapsible with smooth animation
-8. PHOTO GALLERY: ${features.includes("Photo Gallery") ? `Gallery section with id="gallery" — image grid showing work/products/space` : "Skip gallery section"}
-9. CONTACT: Use REAL email ${clientEmail} and REAL phone ${clientPhone}${userInput.businessAddress ? `, address: ${userInput.businessAddress}` : ""}, working contact form with id="contact"
-10. FOOTER: Logo, links, contact, social icons (${userInput.facebookPage ? `Facebook: ${userInput.facebookPage}` : "use # for Facebook icon"}), copyright ${new Date().getFullYear()}
-11. STATS BAR: Horizontal stats strip with 3-4 numbers (years experience, clients served, etc.)
-12. BUSINESS NAME: The site title, logo text, and all headings MUST use the EXACT business name: "${userInput.businessName}" — do NOT use placeholder names
-
-${isMultiPage
-  ? `CRITICAL — MULTI-PAGE SITE: Pages: ${pageList}.
-- Each page MUST be a div with class="page-section" and unique lowercase id (e.g. id="home", id="services")
-- ONLY the first page div visible (style="display:block"), ALL others MUST have style="display:none"
-- ALL nav links MUST use onclick="navigateTo('pageid')" — NOT href links
-- Add id="hamburger" button toggling id="mobile-menu"`
-  : `SINGLE PAGE SITE: Sections: ${pageList}. Each section has unique lowercase id. Nav links use href="#sectionid". Smooth scroll.`}
-
-Make it premium, unique and conversion-focused for: ${userInput.businessName}`
-        }]
+    // ── STEP 1: Gemini — Site Blueprint (Brain 1: Architect) ─────────────────
+    const spec = await step.run("step1-gemini-blueprint", async () => {
+      const blueprint = await generateSiteBlueprint({
+        businessName: userInput.businessName,
+        industry: userInput.industry,
+        targetAudience: userInput.targetAudience || "general public",
+        usp: userInput.usp || "quality service",
+        goal: userInput.goal,
+        style: userInput.style || "modern premium",
+        colorPrefs: userInput.colorPrefs || "professional palette",
+        references: userInput.references || "none",
+        features,
+        clientEmail,
+        clientPhone,
+        businessAddress: userInput.businessAddress || "",
+        facebookPage: userInput.facebookPage || "",
+        additionalNotes: userInput.additionalNotes || "none",
+        pages: Array.isArray(userInput.pages) && userInput.pages.length > 0 ? userInput.pages : ["Home"],
+        isMultiPage,
+        hasBooking: hasBookingFeature,
+        pricingSection,
+        imageSection,
+        productsWithPhotos,
       });
-      const promptText = promptResponse.content[0]?.type === "text" ? promptResponse.content[0].text : "{}";
-      return extractJson(promptText);
+      return blueprint;
     });
 
-    console.log(`[Inngest] STEP 1 DONE: ${spec.projectTitle}`);
+    console.log(`[Inngest] STEP 1 DONE (Gemini): ${spec.projectTitle} — palette: ${spec.palette?.primary}`);
+
 
     // ── STEP 2: Create Stitch project ─────────────────────────────────────────
     const projectId = await step.run("step2-stitch-create", async () => {
@@ -293,7 +259,13 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
     const finalHtml = await step.run("step6-inject", async () => {
       const { html: checkedHtml } = checkAndFixLinks(fixedHtml, Array.isArray(userInput.pages) ? userInput.pages : []);
       const ga4Id = job.ga4Id || userInput.ga4Id || "";
-      let html = injectEssentials(checkedHtml, clientEmail, clientPhone, jobId, ga4Id);
+      // Create Tawk.to property for live chat clients
+      let tawktoPropertyId: string | undefined;
+      if (features.includes("Live Chat")) {
+        tawktoPropertyId = await createTawktoProperty(userInput.businessName || "Client") || undefined;
+        if (tawktoPropertyId) await saveJob(jobId, { ...job, tawktoPropertyId });
+      }
+      let html = injectEssentials(checkedHtml, clientEmail, clientPhone, jobId, ga4Id, tawktoPropertyId);
       html = injectImages(html, logoUrl, heroUrl, photoUrls, productsWithPhotos);
 
       const hasAiBookingPlaceholder = /(?:forge integration|booking system.*?recalibrat|advanced booking.*?recalibrat|calendly|acuity|setmore)/i.test(html);
@@ -333,13 +305,31 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
       return html;
     });
 
+    // ── STEP 6b: Claude Opus audit + fix (Brain 3: Auditor) ──────────────────
+    const auditedHtml = await step.run("step6b-opus-audit", async () => {
+      const result = await auditAndFixSite(finalHtml, {
+        businessName: userInput.businessName,
+        clientEmail,
+        clientPhone,
+        businessAddress: userInput.businessAddress || "",
+        hasBooking: hasBookingFeature,
+        isMultiPage,
+        pages: Array.isArray(userInput.pages) ? userInput.pages : ["Home"],
+        features,
+      });
+      if (!result.passed) {
+        console.log(`[Auditor] Fixed ${result.issues.length} issues:`, result.issues);
+      }
+      return result.fixedHtml;
+    });
+
     // ── STEP 7: Square shop ───────────────────────────────────────────────────
     const hasShopFeature = features.includes("Payments / Shop");
     const shopProducts: { name: string; price: string; photoUrl?: string }[] = productsWithPhotos.length > 0 ? productsWithPhotos : [];
 
     const finalHtmlWithShop = await step.run("step7-shop", async () => {
-      if (!hasShopFeature || shopProducts.length === 0) return finalHtml;
-      let html = finalHtml;
+      if (!hasShopFeature || shopProducts.length === 0) return auditedHtml;
+      let html = auditedHtml;
       try {
         const siteUrl = `https://${vercelProjectName}.vercel.app`;
         const catalogueItems = await createClientShopCatalogue({ jobId, businessName: userInput.businessName, products: shopProducts, redirectUrl: siteUrl });
@@ -510,30 +500,41 @@ const monthlyReports = inngest.createFunction(
       return { skipped: true, reason: "Not the last day of the month" };
     }
 
-    const clientSlugs: string[] = await step.run("scan-clients", async () => {
-      const { data } = await supabase.from("clients").select("slug, job_id");
-      return (data || []).map((c: any) => c.slug);
+    const month = now.toISOString().slice(0, 7);
+
+    await step.run("send-monthly-reports", async () => {
+      const { data: clients } = await supabase
+        .from("clients")
+        .select("job_id, business_name, email")
+        .not("email", "is", null);
+      if (!clients || clients.length === 0) return;
+
+      for (const client of clients) {
+        try {
+          const jobId = client.job_id;
+          if (!jobId) continue;
+          const [monthViews, monthBookingClicks, allBookings] = await Promise.all([
+            getAnalyticsCount(jobId, "page_view", "monthly", month),
+            getAnalyticsCount(jobId, "booking_click", "monthly", month),
+            getBookingsForJob(jobId),
+          ]);
+          const bookingCount = allBookings.filter((b: any) => b.status !== "cancelled").length;
+
+          await resend.emails.send({
+            from: "WebGecko <hello@webgecko.au>",
+            to: client.email,
+            subject: "Your Monthly Website Report - " + client.business_name,
+            html: "<div style=\"font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;background:#0a0f1a;color:#e2e8f0;\"><h1 style=\"color:#10b981;\">Monthly Report — " + client.business_name + "</h1><p style=\"color:#94a3b8;\">" + month + "</p><div style=\"background:#0f1623;border-radius:12px;padding:24px;margin:24px 0;\"><p>Page Views: " + monthViews + "</p><p>Booking Clicks: " + monthBookingClicks + "</p><p>Total Bookings: " + bookingCount + "</p></div></div>",
+          });
+        } catch (e) {
+          console.error("[Monthly] Failed for " + client.business_name + ":", e);
+        }
+      }
     });
-
-    const base = "https://webgecko-builder.vercel.app";
-    const secret = process.env.PROCESS_SECRET || "";
-
-    for (const slug of clientSlugs) {
-      await step.run("send-report-" + slug, async () => {
-        const { data: client } = await supabase.from("clients").select("job_id").eq("slug", slug).single();
-        if (!client?.job_id) return;
-        const url = `${base}/api/analytics/monthly?jobId=${client.job_id}&secret=${encodeURIComponent(secret)}&send=true`;
-        const res = await fetch(url);
-        return res.json().catch(() => ({}));
-      });
-    }
-
-    return { sent: clientSlugs.length };
   }
 );
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [buildWebsite, monthlyReports],
-  streaming: true,
 });

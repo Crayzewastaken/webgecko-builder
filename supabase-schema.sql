@@ -1,6 +1,9 @@
 -- WebGecko Supabase Schema
 -- Run this in Supabase Dashboard → SQL Editor
 
+-- If clients table already exists, run this to add missing column:
+-- alter table clients add column if not exists password text;
+
 -- ============================================================
 -- JOBS — website build jobs (was job:{jobId} in Redis)
 -- ============================================================
@@ -18,6 +21,7 @@ create table if not exists jobs (
   photo_urls jsonb default '[]',
   products_with_photos jsonb default '[]',
   has_booking boolean default false,
+  tawkto_property_id text,
   user_input jsonb,
   fixed_at timestamptz,
   created_at timestamptz default now(),
@@ -33,6 +37,7 @@ create table if not exists clients (
   business_name text,
   email text,
   phone text,
+  password text,
   plan text default 'starter',
   preview_url text,
   domain text,

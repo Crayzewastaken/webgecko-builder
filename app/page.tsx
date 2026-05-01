@@ -342,7 +342,7 @@ export default function HomePage() {
     if (currentStepId === 'contact') {
       if (!name.trim()) errs.push("Full name is required");
       if (!email.trim() || !email.includes('@')) errs.push("A valid email address is required");
-      if (!phone.trim()) errs.push("Phone number is required");
+      if (!businessAddress.trim()) errs.push("Business address is required");
       if (!abn.trim()) errs.push("ABN is required");
       if (abn.trim() && abn.replace(/\s/g, '').length !== 11) errs.push("ABN must be 11 digits");
       if (!domain.trim()) errs.push("Preferred domain name is required");
@@ -715,10 +715,10 @@ export default function HomePage() {
                 <p className="text-white font-semibold">📬 Your Contact Details</p>
                 <InputField icon="👤" label="Full Name" value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Your full name" required />
                 <InputField icon="📧" label="Email Address" value={email} onChange={(e: any) => setEmail(e.target.value)} placeholder="your@email.com.au" required type="email" />
-                <InputField icon="📱" label="Phone Number" value={phone} onChange={(e: any) => setPhone(e.target.value)} placeholder="04XX XXX XXX" required type="tel" />
+                <InputField icon="📱" label="Phone Number" value={phone} onChange={(e: any) => setPhone(e.target.value)} placeholder="04XX XXX XXX" type="tel" />
                 <InputField icon="🔢" label="ABN" value={abn} onChange={(e: any) => setAbn(e.target.value)} placeholder="12 345 678 901" required hint="Required to register your .com.au domain." />
 		<InputField icon="🌐" label="Preferred Domain Name" value={domain} onChange={(e: any) => setDomain(e.target.value)} placeholder="e.g.mysalonbrisbane.com.au" required hint="Already have one? Enter it here. Don't have one? We'll register it for you." />
-                <InputField icon="📍" label="Business Address" value={businessAddress} onChange={(e: any) => setBusinessAddress(e.target.value)} placeholder="e.g. 123 Main St, Brisbane QLD 4000" hint="Used to embed a Google Map on your site so customers can find you." />
+                <InputField icon="📍" label="Business Address" value={businessAddress} onChange={(e: any) => setBusinessAddress(e.target.value)} placeholder="e.g. 123 Main St, Brisbane QLD 4000" required hint="Used to embed a Google Map on your site so customers can find you." />
                 <InputField icon="📘" label="Facebook Page URL (optional)" value={facebookPage} onChange={(e: any) => setFacebookPage(e.target.value)} placeholder="e.g. facebook.com/yourbusiness" hint="We'll add a Facebook link to your site's social media section." />
                 <InputField icon="📊" label="Google Analytics ID (optional)" value={ga4Id} onChange={(e: any) => setGa4Id(e.target.value)} placeholder="G-XXXXXXXXXX" hint="If you have a GA4 property, we'll wire it into your site automatically." />
               </div>
