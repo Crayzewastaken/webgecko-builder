@@ -82,10 +82,10 @@ const FEATURE_BUNDLES = [
 // 8 - Assets (always)
 // 9 - Final Details (always)
 
-const InputField = ({ icon, label, value, onChange, placeholder, required, type = 'text', hint }: any) => (
+const InputField = ({ icon, label, value, onChange, placeholder, required, type = 'text', hint, maxLength, inputMode, pattern }: any) => (
   <div>
     <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">{icon} {label} {required && <span className="text-red-400">*</span>}</label>
-    <input type={type} value={value} onChange={onChange} placeholder={placeholder} className="w-full h-14 rounded-2xl bg-slate-900/80 border border-white/10 px-5 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-all text-base" />
+    <input type={type} value={value} onChange={onChange} placeholder={placeholder} maxLength={maxLength} inputMode={inputMode} pattern={pattern} className="w-full h-14 rounded-2xl bg-slate-900/80 border border-white/10 px-5 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-all text-base" />
     {hint && <p className="text-slate-500 text-xs mt-1.5">{hint}</p>}
   </div>
 );
@@ -715,7 +715,7 @@ export default function HomePage() {
                 <p className="text-white font-semibold">📬 Your Contact Details</p>
                 <InputField icon="👤" label="Full Name" value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Your full name" required />
                 <InputField icon="📧" label="Email Address" value={email} onChange={(e: any) => setEmail(e.target.value)} placeholder="your@email.com.au" required type="email" />
-                <InputField icon="📱" label="Phone Number" value={phone} onChange={(e: any) => setPhone(e.target.value)} placeholder="04XX XXX XXX" type="tel" />
+                <InputField icon="📱" label="Phone Number" value={phone} onChange={(e: any) => { const digits = e.target.value.replace(/\D/g, "").slice(0, 10); setPhone(digits); }} placeholder="0412345678" type="tel" inputMode="numeric" maxLength={10} />
                 <InputField icon="🔢" label="ABN" value={abn} onChange={(e: any) => setAbn(e.target.value)} placeholder="12 345 678 901" required hint="Required to register your .com.au domain." />
 		<InputField icon="🌐" label="Preferred Domain Name" value={domain} onChange={(e: any) => setDomain(e.target.value)} placeholder="e.g.mysalonbrisbane.com.au" required hint="Already have one? Enter it here. Don't have one? We'll register it for you." />
                 <InputField icon="📍" label="Business Address" value={businessAddress} onChange={(e: any) => setBusinessAddress(e.target.value)} placeholder="e.g. 123 Main St, Brisbane QLD 4000" required hint="Used to embed a Google Map on your site so customers can find you." />

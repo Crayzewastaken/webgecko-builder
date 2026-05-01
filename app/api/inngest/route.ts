@@ -229,8 +229,11 @@ const buildWebsite = inngest.createFunction(
         return match;
       });
 
-      if (businessAddress && process.env.GOOGLE_MAPS_API_KEY) {
-        const mapsEmbed = `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`;
+      if (businessAddress) {
+        // Use Embed API with key if available, otherwise fall back to the free maps?q= iframe (no key needed)
+        const mapsEmbed = process.env.GOOGLE_MAPS_API_KEY
+          ? `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`
+          : `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?q=${encodeURIComponent(businessAddress)}&output=embed"></iframe></div>`;
         if (!html.includes('maps.google') && !html.includes('maps.embed') && !html.includes('google.com/maps')) {
           let mapInjected = false;
           const beforeMapLen = html.length;
@@ -244,11 +247,18 @@ const buildWebsite = inngest.createFunction(
             });
           }
           if (!mapInjected) {
-            html = html.replace(/(<section[^>]*(?:id|class)="[^"]*contact[^"]*"[^>]*>)([\s\S]*?)(<\/section>)/gi, (_match: string, open: string, body: string, close: string) => {
+            // Try id="contact" section (auditor ensures this exists)
+            html = html.replace(/(<(?:section|div)[^>]*id="contact"[^>]*>)([\s\S]*?)(<\/(?:section|div)>)/i, (_match: string, open: string, body: string, close: string) => {
+              if (_match.includes('iframe')) return _match;
+              mapInjected = true;
               const lastDiv = body.lastIndexOf('</div>');
               if (lastDiv !== -1) return open + body.slice(0, lastDiv) + mapsEmbed + body.slice(lastDiv) + close;
               return open + body + mapsEmbed + close;
             });
+          }
+          if (!mapInjected) {
+            // Last resort: inject map block before </body>
+            html = html.replace("</body>", `<div style="padding:40px 24px;background:#0a0f1a;">${mapsEmbed}</div>\n</body>`);
           }
         }
       }
