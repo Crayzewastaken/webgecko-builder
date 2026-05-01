@@ -3,7 +3,7 @@
 // Produces a structured SiteBlueprint JSON that drives the entire build.
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
-const GEMINI_MODEL = "gemini-1.5-pro";
+const GEMINI_MODEL = "gemini-1.5-pro-latest";
 const GEMINI_BASE = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 export interface SiteBlueprint {
