@@ -153,9 +153,37 @@ Return this exact JSON structure:
   const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!raw) throw new Error("Gemini returned no content");
 
-  // Parse JSON — strip any accidental markdown fences
-  const clean = raw.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
-  const blueprint: SiteBlueprint = JSON.parse(clean);
+  // Parse JSON — strip markdown fences and sanitize control characters
+  let clean = raw.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
+  // Remove control characters that break JSON.parse (except \n \r \t which are valid in JSON strings when escaped)
+  clean = clean.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+  // Fix unescaped newlines/tabs inside JSON string values
+  // Replace literal newlines inside strings with \n
+  clean = clean.replace(/("(?:[^"\\]|\\.)*")|(\n)/g, (match, str, nl) => str ? str : "\\n");
+  clean = clean.replace(/("(?:[^"\\]|\\.)*")|(\t)/g, (match, str, tab) => str ? str : "\\t");
+
+  let blueprint: SiteBlueprint;
+  try {
+    blueprint = JSON.parse(clean);
+  } catch (e: any) {
+    // Last resort: extract fields individually
+    console.error("[Gemini] JSON parse failed, using regex fallback:", e.message);
+    const title = clean.match(/"projectTitle"\s*:\s*"([^"]+)"/)?.[1] || "Website Project";
+    const stitchMatch = clean.match(/"stitchPrompt"\s*:\s*"([\s\S]+?)"\s*[,}]/);
+    const stitchPrompt = stitchMatch?.[1]?.replace(/\\n/g, "\n") || clean.slice(0, 4000);
+    blueprint = {
+      projectTitle: title,
+      palette: { primary: "#1a1a2e", accent: "#00c896", background: "#0a0f1a", surface: "#0f1623", text: "#e2e8f0" },
+      typography: { headingFont: "Inter", bodyFont: "Inter", heroSize: "72px" },
+      sections: ["hero", "about", "services", "testimonials", "faq", "contact"],
+      tone: "professional and modern",
+      heroHeadline: title,
+      heroSubheadline: "Premium quality service",
+      ctaText: "Get Started",
+      uniqueDesignIdea: "Clean modern design with bold typography",
+      stitchPrompt,
+    } as SiteBlueprint;
+  }
 
   if (!blueprint.stitchPrompt || blueprint.stitchPrompt.length < 200) {
     throw new Error(`Gemini blueprint stitchPrompt too short (${blueprint.stitchPrompt?.length ?? 0} chars)`);
