@@ -157,10 +157,9 @@ Return this exact JSON structure:
   let clean = raw.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
   // Remove control characters that break JSON.parse (except \n \r \t which are valid in JSON strings when escaped)
   clean = clean.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-  // Fix unescaped newlines/tabs inside JSON string values
-  // Replace literal newlines inside strings with \n
-  clean = clean.replace(/("(?:[^"\\]|\\.)*")|(\n)/g, (match, str, nl) => str ? str : "\\n");
-  clean = clean.replace(/("(?:[^"\\]|\\.)*")|(\t)/g, (match, str, tab) => str ? str : "\\t");
+  // Fix unescaped newlines/tabs — replace literal newlines and tabs outside quoted strings
+  clean = clean.replace(/("(?:[^"\\]|\\.)*")|(\n)/g, (_m: string, str: string, nl: string) => str ? str : "\\n");
+  clean = clean.replace(/("(?:[^"\\]|\\.)*")|(\t)/g, (_m: string, str: string, tab: string) => str ? str : "\\t");
 
   let blueprint: SiteBlueprint;
   try {
