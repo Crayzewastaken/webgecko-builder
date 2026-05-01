@@ -191,9 +191,15 @@ export function injectEssentials(html: string, email: string, phone: string, job
 <script>
 (function() {
 window.navigateTo = function(pageId) {
-  document.querySelectorAll(".page,.page-section").forEach(function(p) { p.style.display = "none"; p.classList.remove("active"); });
   var t = document.getElementById(pageId) || document.getElementById("page-" + pageId) || document.querySelector('[data-page="' + pageId + '"]');
-  if (t) { t.style.display = "block"; t.classList.add("active"); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  // Only use hide/show if there are real page wrappers with data-page; otherwise scroll
+  var realPages = document.querySelectorAll("[data-page],.page[id]");
+  if (realPages.length > 1) {
+    document.querySelectorAll(".page,.page-section[data-page],.page[id]").forEach(function(p) { p.style.display = "none"; p.classList.remove("active"); });
+    if (t) { t.style.display = "block"; t.classList.add("active"); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  } else {
+    if (t) { t.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  }
   // Close any open mobile drawer/menu
   var mm = document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.getElementById("side-drawer");
   if (mm) { mm.classList.add("hidden"); mm.style.display = "none"; mm.classList.remove("translate-x-0"); mm.classList.add("translate-x-full"); }
@@ -247,13 +253,14 @@ var cart = [];
 function showToast(msg) { var t = document.getElementById("wg-toast"); if (!t) { t = document.createElement("div"); t.id = "wg-toast"; t.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:99999;transition:opacity 0.3s;pointer-events:none;"; document.body.appendChild(t); } t.textContent = msg; t.style.opacity = "1"; setTimeout(function() { t.style.opacity = "0"; }, 2500); }
 document.querySelectorAll("button,a").forEach(function(btn) { var txt = (btn.textContent || "").toLowerCase().trim(); if (txt.includes("add to cart") || txt.includes("buy now") || txt.includes("add to bag")) { btn.addEventListener("click", function(e) { e.preventDefault(); e.stopPropagation(); var card = this.closest("article") || this.closest("[class*='product']") || this.parentElement; var nm = card && card.querySelector("h1,h2,h3,h4"); var n = nm ? nm.textContent.trim() : "Item"; var ex = cart.find(function(i) { return i.name === n; }); if (ex) ex.qty++; else cart.push({ name: n, qty: 1 }); showToast(n + " added"); var total = cart.reduce(function(a, b) { return a + b.qty; }, 0); document.querySelectorAll("#cart-count,#cart-badge,[class*='cart-count']").forEach(function(b) { b.textContent = total; }); }); } });
 document.querySelectorAll("form").forEach(function(form) { form.addEventListener("submit", function(e) { e.preventDefault(); if (form.querySelector(".wg-success")) return; var s = document.createElement("div"); s.className = "wg-success"; s.style.cssText = "background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;font-family:sans-serif;"; s.textContent = "Thank you! We will be in touch within 24 hours."; form.appendChild(s); form.querySelectorAll("input,textarea,select,button[type='submit']").forEach(function(el) { el.setAttribute("disabled", "true"); }); }); });
-// Multi-page init: ONLY hide sections if navigateTo() is actually used in the HTML.
-// Single-page Stitch sites use class="page-section" as a styling class on every section —
-// running the multi-page logic on them would hide everything below the first section.
-var isMultiPageSite = !!(document.querySelector("[onclick*='navigateTo']") || document.querySelector("[data-nav]") || document.querySelector("[data-page]"));
-if (isMultiPageSite) {
-  var pages = document.querySelectorAll(".page,.page-section");
-  if (pages.length > 1) { var ha = false; pages.forEach(function(p) { if (p.classList.contains("active")) ha = true; }); if (!ha) { pages.forEach(function(p, i) { if (i === 0) { p.style.display = "block"; p.classList.add("active"); } else { p.style.display = "none"; } }); } }
+// Multi-page init: ONLY hide/show elements that explicitly have data-page or .page[id].
+// Stitch often uses class="page-section" as a visual styling class on every section —
+// hiding those would blank the entire site. We only activate hide/show for real page wrappers.
+var realPageWrappers = document.querySelectorAll("[data-page],.page[id]");
+if (realPageWrappers.length > 1) {
+  var ha = false;
+  realPageWrappers.forEach(function(p) { if (p.classList.contains("active")) ha = true; });
+  if (!ha) { realPageWrappers.forEach(function(p, i) { if (i === 0) { p.style.display = "block"; p.classList.add("active"); } else { p.style.display = "none"; } }); }
 }
 })();
 </script>`;
