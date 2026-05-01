@@ -128,6 +128,31 @@ export default function HomePage() {
 
   const [businessName, setBusinessName] = useState("");
   const [industry, setIndustry] = useState("");
+  const [industryOther, setIndustryOther] = useState("");
+  const INDUSTRY_OPTIONS = [
+    "Food & Hospitality",
+    "Health & Wellness",
+    "Hospitals & Doctors",
+    "Dental & Allied Health",
+    "Beauty & Hair Salons",
+    "Fitness & Gym",
+    "Real Estate",
+    "Legal & Law",
+    "Accounting & Finance",
+    "Construction & Trades",
+    "Automotive",
+    "Retail & E-commerce",
+    "Education & Tutoring",
+    "Childcare & Family",
+    "Pet Services",
+    "Photography & Creative",
+    "IT & Technology",
+    "Cleaning & Home Services",
+    "Landscaping & Garden",
+    "Events & Entertainment",
+    "Non-Profit & Community",
+    "Other",
+  ];
   const [usp, setUsp] = useState("");
   const [existingWebsite, setExistingWebsite] = useState("");
   const [targetAudience, setTargetAudience] = useState("");
@@ -330,6 +355,7 @@ export default function HomePage() {
     if (currentStepId === 'business') {
       if (!businessName.trim()) errs.push("Business name is required");
       if (!industry.trim()) errs.push("Industry is required");
+      if (industry === "Other" && !industryOther.trim()) errs.push("Please describe your industry");
       if (!targetAudience.trim()) errs.push("Target audience is required");
       if (!usp.trim()) errs.push("Please describe what makes your business unique");
     }
@@ -358,7 +384,8 @@ export default function HomePage() {
     localStorage.removeItem(STORAGE_KEY);
 
     const formData = new FormData();
-    const fields: Record<string, string> = { businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, ga4Id, businessAddress, facebookPage, turnstileToken };
+    const industryValue = industry === "Other" ? (industryOther.trim() || "Other") : industry;
+    const fields: Record<string, string> = { businessName, industry: industryValue, usp, existingWebsite, targetAudience, goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, ga4Id, businessAddress, facebookPage, turnstileToken };
     Object.entries(fields).forEach(([k, v]) => formData.append(k, v));
     formData.append("pages", JSON.stringify(pages));
     formData.append("features", JSON.stringify(features));
@@ -442,7 +469,29 @@ export default function HomePage() {
           {currentStepId === 'business' && (
             <div className="space-y-4 md:space-y-5">
               <InputField icon="🏢" label="Business Name" value={businessName} onChange={(e: any) => setBusinessName(e.target.value)} placeholder="e.g. Sunrise Bakery" required />
-              <InputField icon="🏭" label="Industry" value={industry} onChange={(e: any) => setIndustry(e.target.value)} placeholder="e.g. Food & Hospitality, Real Estate, Fitness" required />
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">🏭 Industry <span className="text-red-400">*</span></label>
+                <select
+                  value={industry}
+                  onChange={(e: any) => { setIndustry(e.target.value); if (e.target.value !== "Other") setIndustryOther(""); }}
+                  className="w-full bg-slate-900/80 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30 appearance-none"
+                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 14px center" }}
+                >
+                  <option value="" disabled>Select your industry…</option>
+                  {INDUSTRY_OPTIONS.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+                {industry === "Other" && (
+                  <input
+                    type="text"
+                    value={industryOther}
+                    onChange={(e: any) => setIndustryOther(e.target.value)}
+                    placeholder="Please describe your industry…"
+                    className="mt-2 w-full bg-slate-900/80 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30"
+                  />
+                )}
+              </div>
               <InputField icon="🎯" label="Target Audience" value={targetAudience} onChange={(e: any) => setTargetAudience(e.target.value)} placeholder="e.g. Homeowners in Brisbane aged 30-55" required />
               <TextAreaField icon="⭐" label="What makes you unique?" value={usp} onChange={(e: any) => setUsp(e.target.value)} placeholder="What do you offer that competitors don't?" required />
               <InputField icon="🌐" label="Existing Website (optional)" value={existingWebsite} onChange={(e: any) => setExistingWebsite(e.target.value)} placeholder="https://yourwebsite.com.au" />

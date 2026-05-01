@@ -10,16 +10,33 @@ interface ClientData {
   name: string;
   email: string;
   phone?: string;
+  abn?: string;
   industry: string;
   goal?: string;
+  targetAudience?: string;
+  target_audience?: string;
   siteType: string;
+  site_type?: string;
   pages: string | string[];
   features: string[];
   style?: string;
-  abn?: string;
+  colorPrefs?: string;
+  color_prefs?: string;
+  references?: string;
+  additionalNotes?: string;
+  additional_notes?: string;
+  pricingMethod?: string;
+  pricing_method?: string;
+  pricingDetails?: string;
+  pricing_details?: string;
+  businessAddress?: string;
+  business_address?: string;
+  facebookPage?: string;
+  facebook_page?: string;
   domain?: string;
   previewUrl?: string;
   hasBooking?: boolean;
+  has_booking?: boolean;
   jobId: string;
   launchReady?: boolean;
   quote?: {
@@ -774,20 +791,59 @@ export default function ClientPortal() {
 
             {/* Project details */}
             <div style={S.card}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+              <div style={S.label}>Your Project</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "10px 0 14px" }}>
                 <span style={S.pill("#0099ff")}>{client.industry}</span>
-                <span style={S.pill("#00c896")}>{client.siteType === "multi" ? "Multi-page" : "Single page"}</span>
-                {features.slice(0, 4).map(f => <span key={f} style={S.pill("#8b5cf6")}>{f}</span>)}
+                <span style={S.pill("#00c896")}>{(client.site_type || client.siteType) === "multi" ? "Multi-page" : "Single page"}</span>
+                {features.map(f => <span key={f} style={S.pill("#8b5cf6")}>{f}</span>)}
               </div>
+
+              {(() => {
+                const rows: { label: string; value: string }[] = [];
+                const audience = client.target_audience || client.targetAudience;
+                const goal = client.goal;
+                const style = client.style;
+                const colorPrefs = client.color_prefs || client.colorPrefs;
+                const notes = client.additional_notes || client.additionalNotes;
+                const refs = client.references;
+                const pricing = client.pricing_method || client.pricingMethod || client.pricing_details || client.pricingDetails;
+                const address = client.business_address || client.businessAddress;
+                const fb = client.facebook_page || client.facebookPage;
+
+                if (audience) rows.push({ label: "Audience", value: audience });
+                if (goal) rows.push({ label: "Goal", value: goal });
+                if (style) rows.push({ label: "Style", value: style });
+                if (colorPrefs) rows.push({ label: "Colours", value: colorPrefs });
+                if (pricing) rows.push({ label: "Pricing", value: pricing });
+                if (refs) rows.push({ label: "References", value: refs });
+                if (notes) rows.push({ label: "Notes", value: notes });
+                if (address) rows.push({ label: "Address", value: address });
+                if (fb) rows.push({ label: "Facebook", value: fb });
+                if (client.abn) rows.push({ label: "ABN", value: client.abn });
+
+                return rows.length > 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+                    {rows.map(r => (
+                      <div key={r.label} style={{ display: "flex", gap: 10, fontSize: 13 }}>
+                        <span style={{ color: "#4a5568", minWidth: 80, flexShrink: 0 }}>{r.label}</span>
+                        <span style={{ color: "#94a3b8" }}>{r.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
+
               {Array.isArray(client.pages) && client.pages.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <div style={S.label}>Pages</div>
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ ...S.label, marginBottom: 6 }}>Pages</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                     {client.pages.map(p => <span key={p} style={{ fontSize: 12, color: "#94a3b8", background: "#1a2233", borderRadius: 6, padding: "3px 9px" }}>{p}</span>)}
                   </div>
                 </div>
               )}
+
               <div style={S.divider} />
+
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 8 }}>
                 <span style={{ color: "#4a5568" }}>Timeline</span>
                 <span style={{ color: "#94a3b8" }}>{getTimeline()}</span>
