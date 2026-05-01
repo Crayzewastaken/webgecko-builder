@@ -29,6 +29,84 @@ export interface SiteBlueprint {
   stitchPrompt: string;  // full detailed prompt for Stitch (Brain 2) to generate the HTML
 }
 
+// ─── Robust JSON parser ──────────────────────────────────────────────────────
+// Gemini sometimes returns malformed JSON: unescaped control chars, literal
+// newlines inside strings, markdown fences, preamble text, or truncated output.
+// This tries several strategies in order before giving up.
+function parseGeminiJson(raw: string): SiteBlueprint {
+  // Strategy 1: try parsing the raw response directly (works if Gemini behaved)
+  try { return JSON.parse(raw); } catch {}
+
+  // Strip markdown fences
+  let s = raw
+    .replace(/^```json\s*/im, "")
+    .replace(/^```\s*/im, "")
+    .replace(/```\s*$/m, "")
+    .trim();
+
+  // Strategy 2: try after fence strip
+  try { return JSON.parse(s); } catch {}
+
+  // Extract the outermost {...} block
+  const first = s.indexOf("{");
+  const last = s.lastIndexOf("}");
+  if (first !== -1 && last !== -1 && last > first) s = s.slice(first, last + 1);
+
+  // Strategy 3: try after extraction
+  try { return JSON.parse(s); } catch {}
+
+  // Remove ASCII control characters (except \t \n \r which we handle next)
+  s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+
+  // Strategy 4: try after control char removal
+  try { return JSON.parse(s); } catch {}
+
+  // Fix literal (unescaped) newlines and tabs that appear inside JSON string values.
+  // We walk character by character to avoid corrupting already-escaped sequences.
+  s = fixLiteralWhitespaceInStrings(s);
+
+  // Strategy 5: try after whitespace fix
+  try { return JSON.parse(s); } catch {}
+
+  // Strategy 6: remove trailing commas before } or ]
+  s = s.replace(/,\s*([}\]])/g, "$1");
+  try { return JSON.parse(s); } catch (e: any) {
+    throw new Error(`JSON parse failed after all strategies: ${e.message}`);
+  }
+}
+
+/** Walk the JSON string and escape any literal \n or \t that appear inside a JSON string value */
+function fixLiteralWhitespaceInStrings(s: string): string {
+  let result = "";
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (escaped) {
+      result += ch;
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escaped = true;
+      result += ch;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      result += ch;
+      continue;
+    }
+    if (inString) {
+      if (ch === "\n") { result += "\\n"; continue; }
+      if (ch === "\r") { result += "\\r"; continue; }
+      if (ch === "\t") { result += "\\t"; continue; }
+    }
+    result += ch;
+  }
+  return result;
+}
+
 export async function generateSiteBlueprint(context: {
   businessName: string;
   industry: string;
@@ -170,27 +248,17 @@ Return this exact JSON structure:
   const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!raw) throw new Error("Gemini returned no content");
 
-  // Parse JSON — extract from { to }, strip fences, sanitize
-  console.log("[Gemini] Raw response (first 300):", raw.slice(0, 300));
-  let clean = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/, "").trim();
-  // Extract from first { to last } in case Gemini adds preamble text
-  const firstBrace = clean.indexOf("{");
-  const lastBrace = clean.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1) clean = clean.slice(firstBrace, lastBrace + 1);
-  // Remove control characters
-  clean = clean.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-  // Fix unescaped newlines/tabs inside JSON string values
-  clean = clean.replace(/("(?:[^"\\]|\\.)*")|(\n)/g, (_m: string, str: string, nl: string) => str ? str : "\\n");
-  clean = clean.replace(/("(?:[^"\\]|\\.)*")|(\t)/g, (_m: string, str: string, tab: string) => str ? str : "\\t");
+  console.log("[Gemini] Raw response length:", raw.length, "| first 500:", raw.slice(0, 500));
 
   let blueprint: SiteBlueprint;
   try {
-    blueprint = JSON.parse(clean);
+    blueprint = parseGeminiJson(raw);
   } catch (e: any) {
-    console.error("[Gemini] JSON parse failed, using regex fallback:", e.message);
-    const title = clean.match(/"projectTitle"\s*:\s*"([^"]+)"/)?.[1] || "Website Project";
-    const stitchMatch = clean.match(/"stitchPrompt"\s*:\s*"([\s\S]+?)(?:"\s*[,}]|$)/);
-    const stitchPrompt = stitchMatch?.[1]?.replace(/\\n/g, "\n") || clean.slice(0, 4000);
+    console.error("[Gemini] All parse attempts failed:", e.message);
+    // Last-resort fallback — extract just title and stitchPrompt via regex
+    const title = raw.match(/"projectTitle"\s*:\s*"([^"]+)"/)?.[1] || "Website Project";
+    const stitchMatch = raw.match(/"stitchPrompt"\s*:\s*"([\s\S]{200,}?)"\s*[,}]/);
+    const stitchPrompt = stitchMatch?.[1]?.replace(/\\n/g, "\n").replace(/\\t/g, "\t") || raw.slice(0, 4000);
     blueprint = {
       projectTitle: title,
       palette: { primary: "#1a1a2e", accent: "#00c896", background: "#0a0f1a", surface: "#0f1623", text: "#e2e8f0" },
