@@ -30,7 +30,7 @@ interface ClientAnalytics {
   builtAt?: string;
 }
 
-type ActionKey = "release" | "fix" | "unlockPayment" | "unlockBooking" | "sendReport" | "delete";
+type ActionKey = "release" | "fix" | "unlockPayment" | "unlockBooking" | "sendReport" | "delete" | "rebuild";
 
 interface ActionState {
   confirming: ActionKey | null;
@@ -335,6 +335,17 @@ function ClientCard({ c, secret }: { c: ClientAnalytics; secret: string }) {
           state={actionState}
           setState={setActionState}
           onConfirm={() => callApi(`/api/admin/fix-proxy?jobId=${jid}&secret=${sec}`)}
+        />
+
+        <ConfirmButton
+          actionKey="rebuild"
+          label="🔄 Rebuild Site"
+          confirmLabel="Rebuild"
+          confirmMessage={`Rerun the full build pipeline for ${c.businessName}? This re-generates the site from scratch using all three brains. Takes 5-10 min.`}
+          color="#f97316"
+          state={actionState}
+          setState={setActionState}
+          onConfirm={() => callApi(`/api/pipeline/run?jobId=${jid}&secret=${sec}`)}
         />
 
         <ConfirmButton
