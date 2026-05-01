@@ -505,3 +505,11 @@ function AdminDashboard() {
     </div>
   );
 }
+
+export default function AdminPage() {
+  return (
+    <Suspense fallback={<div style={{ color: "#333", padding: 40 }}>Loading...</div>}>
+      <AdminDashboard />
+    </Suspense>
+  );
+}
