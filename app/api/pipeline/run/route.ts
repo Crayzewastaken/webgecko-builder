@@ -6,20 +6,12 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { inngest } from "@/lib/inngest";
-import { Redis } from "@upstash/redis";
+import { getJob } from "@/lib/db";
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
-
-// Keep runPipeline export for any legacy callers (no-op redirect to Inngest)
 export async function runPipeline(jobId: string): Promise<{ success: boolean; error?: string }> {
   await inngest.send({ name: "build/website", data: { jobId } });
   return { success: true };
 }
-
-// ─── GET — manual trigger by owner ───────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -30,7 +22,7 @@ export async function GET(req: NextRequest) {
     return new Response("Forbidden", { status: 403 });
   }
 
-  const job = await redis.get<any>(`job:${jobId}`);
+  const job = await getJob(jobId);
   if (!job) {
     return new Response(
       `<!DOCTYPE html><html><body style="font-family:sans-serif;background:#0f172a;color:white;padding:40px;text-align:center;">
@@ -52,8 +44,6 @@ export async function GET(req: NextRequest) {
     { headers: { "Content-Type": "text/html" } }
   );
 }
-
-// ─── POST — triggered by webhook ─────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));

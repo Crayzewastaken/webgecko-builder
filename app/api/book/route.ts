@@ -1,10 +1,5 @@
-import { Redis } from "@upstash/redis";
 import { Resend } from "resend";
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+import { getAvailability, getBookingsForJob, saveBooking } from "@/lib/db";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -18,43 +13,12 @@ export async function OPTIONS() {
   return new Response(null, { status: 200, headers: CORS_HEADERS });
 }
 
-interface AvailabilityConfig {
-  jobId: string;
-  businessName: string;
-  clientEmail: string;
-  timezone: string;
-  days: number[];
-  startHour: number;
-  endHour: number;
-  slotDurationMinutes: number;
-  bufferMinutes: number;
-  maxDaysAhead: number;
-  services: { name: string; duration: number }[];
-}
-
-interface BookingRecord {
-  bookingId: string;
-  jobId: string;
-  businessName: string;
-  clientEmail: string;
-  visitorName: string;
-  visitorEmail: string;
-  visitorPhone: string;
-  service: string;
-  date: string;
-  time: string;
-  timezone: string;
-  message: string;
-  status: "confirmed";
-  createdAt: string;
-}
-
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
   return h * 60 + m;
 }
 
-function buildVisitorEmail(booking: BookingRecord): string {
+function buildVisitorEmail(b: any): string {
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><title>Booking Confirmed</title></head>
@@ -66,31 +30,26 @@ function buildVisitorEmail(booking: BookingRecord): string {
           <h1 style="margin:0;color:#ffffff;font-size:24px;">Booking Confirmed ✓</h1>
         </td></tr>
         <tr><td style="padding:32px;">
-          <p style="color:#94a3b8;margin:0 0 8px;">Hi ${booking.visitorName},</p>
-          <p style="color:#e2e8f0;margin:0 0 24px;">Your booking with <strong style="color:#10b981;">${booking.businessName}</strong> has been confirmed.</p>
+          <p style="color:#94a3b8;margin:0 0 8px;">Hi ${b.visitorName},</p>
+          <p style="color:#e2e8f0;margin:0 0 24px;">Your booking with <strong style="color:#10b981;">${b.businessName}</strong> has been confirmed.</p>
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0f1a;border-radius:8px;overflow:hidden;margin-bottom:24px;">
             <tr><td style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.06);">
               <span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Service</span>
-              <p style="color:#e2e8f0;margin:4px 0 0;font-size:16px;font-weight:600;">${booking.service}</p>
+              <p style="color:#e2e8f0;margin:4px 0 0;font-size:16px;font-weight:600;">${b.service}</p>
             </td></tr>
             <tr><td style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.06);">
-              <span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Date</span>
-              <p style="color:#e2e8f0;margin:4px 0 0;font-size:16px;font-weight:600;">${booking.date}</p>
+              <span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Date &amp; Time</span>
+              <p style="color:#e2e8f0;margin:4px 0 0;font-size:16px;font-weight:600;">${b.date} at ${b.time} (${b.timezone})</p>
             </td></tr>
-            <tr><td style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.06);">
-              <span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Time</span>
-              <p style="color:#e2e8f0;margin:4px 0 0;font-size:16px;font-weight:600;">${booking.time} (${booking.timezone})</p>
-            </td></tr>
-            ${booking.message ? `<tr><td style="padding:16px 20px;">
+            ${b.message ? `<tr><td style="padding:16px 20px;">
               <span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Your Message</span>
-              <p style="color:#94a3b8;margin:4px 0 0;font-size:14px;">${booking.message}</p>
+              <p style="color:#94a3b8;margin:4px 0 0;font-size:14px;">${b.message}</p>
             </td></tr>` : ""}
           </table>
-          <p style="color:#e2e8f0;margin:0 0 8px;">We look forward to seeing you!</p>
           <p style="color:#64748b;font-size:13px;margin:0;">If you need to make changes, please contact us directly.</p>
         </td></tr>
         <tr><td style="padding:20px 32px;border-top:1px solid rgba(255,255,255,0.06);">
-          <p style="color:#475569;font-size:12px;margin:0;">This confirmation was sent automatically. Please do not reply to this email.</p>
+          <p style="color:#475569;font-size:12px;margin:0;">Sent by WebGecko Booking System</p>
         </td></tr>
       </table>
     </td></tr>
@@ -99,7 +58,7 @@ function buildVisitorEmail(booking: BookingRecord): string {
 </html>`;
 }
 
-function buildClientNotificationEmail(booking: BookingRecord): string {
+function buildClientNotificationEmail(b: any): string {
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><title>New Booking</title></head>
@@ -114,35 +73,30 @@ function buildClientNotificationEmail(booking: BookingRecord): string {
           <p style="color:#94a3b8;margin:0 0 24px;">You have a new booking on your website.</p>
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0f1a;border-radius:8px;overflow:hidden;margin-bottom:24px;">
             <tr><td style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.06);">
-              <span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Customer Name</span>
-              <p style="color:#e2e8f0;margin:4px 0 0;font-size:16px;font-weight:600;">${booking.visitorName}</p>
+              <span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Customer</span>
+              <p style="color:#e2e8f0;margin:4px 0 0;font-size:16px;font-weight:600;">${b.visitorName}</p>
             </td></tr>
             <tr><td style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.06);">
               <span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Email</span>
-              <p style="color:#10b981;margin:4px 0 0;font-size:15px;">${booking.visitorEmail}</p>
+              <p style="color:#10b981;margin:4px 0 0;font-size:15px;">${b.visitorEmail}</p>
             </td></tr>
             <tr><td style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.06);">
               <span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Phone</span>
-              <p style="color:#e2e8f0;margin:4px 0 0;font-size:15px;">${booking.visitorPhone}</p>
+              <p style="color:#e2e8f0;margin:4px 0 0;font-size:15px;">${b.visitorPhone}</p>
             </td></tr>
             <tr><td style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.06);">
-              <span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Service Requested</span>
-              <p style="color:#e2e8f0;margin:4px 0 0;font-size:16px;font-weight:600;">${booking.service}</p>
+              <span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Service</span>
+              <p style="color:#e2e8f0;margin:4px 0 0;font-size:16px;font-weight:600;">${b.service}</p>
             </td></tr>
-            <tr><td style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.06);">
-              <span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Date</span>
-              <p style="color:#e2e8f0;margin:4px 0 0;font-size:16px;font-weight:600;">${booking.date}</p>
+            <tr><td style="padding:16px 20px;${b.message ? "border-bottom:1px solid rgba(255,255,255,0.06);" : ""}">
+              <span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Date &amp; Time</span>
+              <p style="color:#e2e8f0;margin:4px 0 0;font-size:16px;font-weight:600;">${b.date} at ${b.time} (${b.timezone})</p>
             </td></tr>
-            <tr><td style="padding:16px 20px;border-bottom:${booking.message ? "1px solid rgba(255,255,255,0.06)" : "none"};">
-              <span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Time</span>
-              <p style="color:#e2e8f0;margin:4px 0 0;font-size:16px;font-weight:600;">${booking.time} (${booking.timezone})</p>
-            </td></tr>
-            ${booking.message ? `<tr><td style="padding:16px 20px;">
-              <span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Message from Customer</span>
-              <p style="color:#94a3b8;margin:4px 0 0;font-size:14px;">${booking.message}</p>
+            ${b.message ? `<tr><td style="padding:16px 20px;">
+              <span style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Message</span>
+              <p style="color:#94a3b8;margin:4px 0 0;font-size:14px;">${b.message}</p>
             </td></tr>` : ""}
           </table>
-          <p style="color:#64748b;font-size:13px;margin:0;">Booking ID: <code style="color:#475569;">${booking.bookingId}</code></p>
         </td></tr>
         <tr><td style="padding:20px 32px;border-top:1px solid rgba(255,255,255,0.06);">
           <p style="color:#475569;font-size:12px;margin:0;">Sent by WebGecko Booking System</p>
@@ -157,7 +111,6 @@ function buildClientNotificationEmail(booking: BookingRecord): string {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-
     const { jobId, visitorName, visitorEmail, visitorPhone, service, date, time, message = "" } = body;
 
     const requiredFields: Record<string, string> = { jobId, visitorName, visitorEmail, visitorPhone, service, date, time };
@@ -167,13 +120,12 @@ export async function POST(request: Request) {
       }
     }
 
-    // Load availability config
-    const config = await redis.get<AvailabilityConfig>(`availability:${jobId}`);
+    const config = await getAvailability(jobId);
     if (!config) {
       return Response.json({ error: "Booking system not found for this site" }, { status: 404, headers: CORS_HEADERS });
     }
 
-    // Check day of week is available
+    // Check day of week
     const [year, month, day] = date.split("-").map(Number);
     const requestedDate = new Date(year, month - 1, day);
     const dayOfWeek = requestedDate.getDay();
@@ -181,93 +133,67 @@ export async function POST(request: Request) {
       return Response.json({ error: "This day is not available for bookings" }, { status: 409, headers: CORS_HEADERS });
     }
 
-    // Load existing bookings for this date
-    const indexKey = `bookings:index:${jobId}`;
-    const allBookingIds = (await redis.get<string[]>(indexKey)) ?? [];
-
-    const bookingsForDate: BookingRecord[] = [];
-    for (const bid of allBookingIds) {
-      const b = await redis.get<BookingRecord>(`booking:${jobId}:${bid}`);
-      if (b && b.date === date) {
-        bookingsForDate.push(b);
-      }
-    }
-
     // Conflict detection
+    const allBookings = await getBookingsForJob(jobId);
+    const bookingsForDate = allBookings.filter((b: any) => {
+      if (!b.slot_start || b.status === "cancelled") return false;
+      return new Date(b.slot_start).toISOString().startsWith(date);
+    });
+
     const slotStart = timeToMinutes(time);
-    const serviceDuration = config.slotDurationMinutes;
-    const slotEnd = slotStart + serviceDuration;
+    const slotEnd = slotStart + config.slotDurationMinutes;
 
     for (const existing of bookingsForDate) {
-      const bookedStart = timeToMinutes(existing.time);
-      const bookedEnd = bookedStart + serviceDuration + config.bufferMinutes;
+      const bookedTime = new Date(existing.slot_start).toTimeString().slice(0, 5);
+      const bookedStart = timeToMinutes(bookedTime);
+      const bookedEnd = bookedStart + config.slotDurationMinutes + config.bufferMinutes;
       if (slotStart < bookedEnd && slotEnd > bookedStart) {
         return Response.json({ error: "This time slot is no longer available" }, { status: 409, headers: CORS_HEADERS });
       }
     }
 
-    // Create booking
-    const bookingId = crypto.randomUUID();
-    const booking: BookingRecord = {
-      bookingId,
+    // Build slot timestamps
+    const slotStartISO = `${date}T${time}:00`;
+    const endHour = Math.floor((slotStart + config.slotDurationMinutes) / 60);
+    const endMin = (slotStart + config.slotDurationMinutes) % 60;
+    const slotEndISO = `${date}T${String(endHour).padStart(2, "0")}:${String(endMin).padStart(2, "0")}:00`;
+
+    // Save to Supabase
+    const saved = await saveBooking({
       jobId,
-      businessName: config.businessName,
-      clientEmail: config.clientEmail,
-      visitorName,
-      visitorEmail,
-      visitorPhone,
+      customerName: visitorName,
+      customerEmail: visitorEmail,
+      customerPhone: visitorPhone,
       service,
-      date,
-      time,
-      timezone: config.timezone,
-      message,
-      status: "confirmed",
-      createdAt: new Date().toISOString(),
-    };
+      slotStart: slotStartISO,
+      slotEnd: slotEndISO,
+      notes: message,
+    });
 
-    const ttl = 60 * 60 * 24 * 365; // 1 year
-    await redis.set(`booking:${jobId}:${bookingId}`, booking, { ex: ttl });
+    const emailData = { visitorName, visitorEmail, visitorPhone, service, date, time, timezone: config.timezone, message, businessName: config.businessName };
 
-    // Update index
-    const updatedIndex = [...allBookingIds, bookingId];
-    await redis.set(indexKey, updatedIndex);
-
-    // Send visitor confirmation email
+    // Send visitor confirmation
     try {
       await resend.emails.send({
         from: "WebGecko Bookings <bookings@webgecko.au>",
         to: visitorEmail,
         subject: `Booking Confirmed — ${config.businessName}`,
-        html: buildVisitorEmail(booking),
+        html: buildVisitorEmail(emailData),
       });
-    } catch (emailErr) {
-      console.error("Failed to send visitor confirmation email:", emailErr);
-    }
+    } catch (e) { console.error("Visitor email failed:", e); }
 
-    // Send client notification email
+    // Send client notification
     try {
       await resend.emails.send({
         from: "WebGecko Bookings <bookings@webgecko.au>",
         to: config.clientEmail,
         subject: `New Booking — ${visitorName} on ${date}`,
-        html: buildClientNotificationEmail(booking),
+        html: buildClientNotificationEmail(emailData),
       });
-    } catch (emailErr) {
-      console.error("Failed to send client notification email:", emailErr);
-    }
+    } catch (e) { console.error("Client notification email failed:", e); }
 
     return Response.json(
-      {
-        success: true,
-        bookingId,
-        message: "Booking confirmed",
-        booking: {
-          date: booking.date,
-          time: booking.time,
-          service: booking.service,
-          timezone: booking.timezone,
-        },
-      },
+      { success: true, bookingId: saved.id, message: "Booking confirmed", booking: { date, time, service, timezone: config.timezone } },
       { status: 200, headers: CORS_HEADERS }
     );
   } catch (err) {

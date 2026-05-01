@@ -1,12 +1,6 @@
 // app/api/analytics/track/route.ts
-// Receives events from injected site snippet: page_view, booking_click, contact_click, form_submit
-import { Redis } from "@upstash/redis";
 import { NextRequest } from "next/server";
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+import { trackAnalyticsEvent } from "@/lib/db";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -26,24 +20,7 @@ export async function POST(req: NextRequest) {
     const validEvents = ["page_view", "booking_click", "contact_click", "form_submit"];
     if (!validEvents.includes(event)) return Response.json({ ok: false }, { status: 400, headers: CORS });
 
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-    const month = today.slice(0, 7); // YYYY-MM
-
-    // Increment daily counter: analytics:{jobId}:daily:{date}:{event}
-    await redis.incr(`analytics:${jobId}:daily:${today}:${event}`);
-    // Increment monthly counter: analytics:{jobId}:monthly:{month}:{event}
-    await redis.incr(`analytics:${jobId}:monthly:${month}:${event}`);
-    // Increment all-time: analytics:{jobId}:total:{event}
-    await redis.incr(`analytics:${jobId}:total:${event}`);
-
-    // Track unique pages viewed (keep last 30 days rolling)
-    if (event === "page_view" && page) {
-      await redis.zincrby(`analytics:${jobId}:pages`, 1, page);
-      await redis.expire(`analytics:${jobId}:pages`, 60 * 60 * 24 * 30);
-    }
-
-    // Set TTL on daily keys (keep 90 days)
-    await redis.expire(`analytics:${jobId}:daily:${today}:${event}`, 60 * 60 * 24 * 90);
+    await trackAnalyticsEvent(jobId, event, page);
 
     return Response.json({ ok: true }, { headers: CORS });
   } catch (e) {

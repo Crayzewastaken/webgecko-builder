@@ -1,17 +1,6 @@
 // app/api/admin/clients/route.ts
-// Returns all clients with their analytics + booking counts for the admin dashboard.
-import { Redis } from "@upstash/redis";
 import { NextRequest } from "next/server";
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
-
-async function getCounter(key: string): Promise<number> {
-  const val = await redis.get<number>(key);
-  return typeof val === "number" ? val : 0;
-}
+import { supabase } from "@/lib/supabase";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -21,91 +10,51 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Scan for all client:* keys
-  let cursor = 0;
-  const clientKeys: string[] = [];
-  do {
-    const [nextCursor, keys] = await redis.scan(cursor, { match: "client:*", count: 100 });
-    cursor = Number(nextCursor);
-    clientKeys.push(...(keys as string[]));
-  } while (cursor !== 0);
+  // Fetch all clients joined with jobs
+  const { data: clientRows, error } = await supabase
+    .from("clients")
+    .select("*, jobs(*)")
+    .order("created_at", { ascending: false });
 
-  const month = new Date().toISOString().slice(0, 7);
-  const today = new Date().toISOString().split("T")[0];
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
 
-  const clients = await Promise.all(
-    clientKeys.map(async (key) => {
-      const clientData = await redis.get<any>(key);
-      if (!clientData) return null;
+  // Get booking counts per job
+  const { data: bookingCounts } = await supabase
+    .from("bookings")
+    .select("job_id")
+    .neq("status", "cancelled");
 
-      const slug = key.replace("client:", "");
-      const jobId = clientData.jobId || "";
+  const bookingsByJob: Record<string, number> = {};
+  for (const b of bookingCounts || []) {
+    bookingsByJob[b.job_id] = (bookingsByJob[b.job_id] || 0) + 1;
+  }
 
-      // Get payment state
-      const paymentState = jobId ? await redis.get<any>(`payment:${jobId}`) : null;
+  const clients = (clientRows || []).map((c: any) => {
+    const job = c.jobs || {};
+    const userInput = job.user_input || {};
+    return {
+      slug: c.slug,
+      jobId: c.job_id || "",
+      businessName: c.business_name || userInput.businessName || c.slug,
+      industry: c.industry || userInput.industry || "",
+      previewUrl: c.preview_url || job.preview_url || "",
+      buildStatus: job.status || "pending",
+      hasBooking: job.has_booking || false,
+      builtAt: job.created_at || c.created_at || null,
+      domain: c.domain || userInput.domain || "",
+      liveDomain: userInput.domain || "",
+      liveUrl: c.preview_url || job.preview_url || "",
+      vercelProjectName: job.vercel_project_name || "",
+      paymentState: {
+        depositPaid: false,
+        finalPaid: false,
+        monthlyActive: !!c.square_subscription_id,
+      },
+      bookingCount: bookingsByJob[c.job_id] || 0,
+    };
+  });
 
-      // Get job data for business info
-      const job = jobId ? await redis.get<any>(`job:${jobId}`) : null;
-
-      // Get analytics
-      let analytics = null;
-      if (jobId) {
-        const [
-          monthViews, monthBookingClicks, monthContactClicks,
-          todayViews, todayBookingClicks,
-          totalViews, totalBookingClicks, totalFormSubmits,
-        ] = await Promise.all([
-          getCounter(`analytics:${jobId}:monthly:${month}:page_view`),
-          getCounter(`analytics:${jobId}:monthly:${month}:booking_click`),
-          getCounter(`analytics:${jobId}:monthly:${month}:contact_click`),
-          getCounter(`analytics:${jobId}:daily:${today}:page_view`),
-          getCounter(`analytics:${jobId}:daily:${today}:booking_click`),
-          getCounter(`analytics:${jobId}:total:page_view`),
-          getCounter(`analytics:${jobId}:total:booking_click`),
-          getCounter(`analytics:${jobId}:total:form_submit`),
-        ]);
-        analytics = {
-          thisMonth: { views: monthViews, bookingClicks: monthBookingClicks, contactClicks: monthContactClicks },
-          today: { views: todayViews, bookingClicks: todayBookingClicks },
-          totals: { views: totalViews, bookingClicks: totalBookingClicks, formSubmits: totalFormSubmits },
-        };
-      }
-
-      // Get booking count
-      let bookingCount = 0;
-      if (jobId) {
-        const index = await redis.get<string[]>(`bookings:index:${jobId}`);
-        bookingCount = index?.length || 0;
-      }
-
-      return {
-        slug,
-        jobId,
-        businessName: clientData.businessName || job?.userInput?.businessName || slug,
-        industry: job?.userInput?.industry || "",
-        previewUrl: clientData.previewUrl || job?.previewUrl || "",
-        buildStatus: clientData.buildStatus || job?.status || "pending",
-        hasBooking: clientData.hasBooking || false,
-        builtAt: clientData.builtAt || job?.builtAt || null,
-        domain: job?.userInput?.domain || clientData.domain || "",
-        liveDomain: job?.liveDomain || clientData.liveDomain || "",
-        liveUrl: job?.liveUrl || clientData.liveUrl || "",
-        vercelProjectName: job?.vercelProjectName || "",
-        paymentState: {
-          depositPaid: paymentState?.depositPaid || false,
-          finalPaid: paymentState?.finalPaid || false,
-          monthlyActive: paymentState?.monthlyActive || false,
-        },
-        analytics,
-        bookingCount,
-      };
-    })
-  );
-
-  // Filter nulls, sort by builtAt desc
-  const valid = clients
-    .filter(Boolean)
-    .sort((a: any, b: any) => (a!.builtAt > b!.builtAt ? -1 : 1));
-
-  return Response.json({ clients: valid });
+  return Response.json({ clients });
 }

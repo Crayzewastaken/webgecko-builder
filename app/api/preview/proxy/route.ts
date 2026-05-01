@@ -1,12 +1,7 @@
 // app/api/preview/proxy/route.ts
 // Serves stored site HTML directly — bypasses X-Frame-Options on Vercel deployments.
 import { NextRequest } from "next/server";
-import { Redis } from "@upstash/redis";
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+import { getJob, getClient } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -16,12 +11,12 @@ export async function GET(req: NextRequest) {
 
   let html = "";
   if (jobId) {
-    const job = await redis.get<any>("job:" + jobId);
+    const job = await getJob(jobId);
     html = job?.html || "";
   } else if (slug) {
-    const client = await redis.get<any>("client:" + slug);
-    if (client?.jobId) {
-      const job = await redis.get<any>("job:" + client.jobId);
+    const client = await getClient(slug!);
+    if (client?.job_id) {
+      const job = await getJob(client.job_id);
       html = job?.html || "";
     }
   }

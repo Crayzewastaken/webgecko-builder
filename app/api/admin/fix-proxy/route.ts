@@ -1,7 +1,6 @@
 // app/api/admin/fix-proxy/route.ts
 // Inline fix pass — does NOT call itself via HTTP (avoids timeout/base URL issues)
 import { NextRequest, NextResponse } from "next/server";
-import { Redis } from "@upstash/redis";
 import { Resend } from "resend";
 import {
   checkAndFixLinks,
@@ -10,13 +9,10 @@ import {
   getServicesForIndustry,
 } from "@/lib/pipeline-helpers";
 import { generateBookingWidget } from "@/lib/booking-widget";
+import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailability } from "@/lib/db";
 
 export const maxDuration = 300;
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
 async function deployToVercel(html: string, projectName: string): Promise<string> {
@@ -48,12 +44,12 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const job = await redis.get<any>(`job:${jobId}`) || await redis.get<any>(jobId);
+    const job = await getJob(jobId);
     if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
     const { userInput, logoUrl, heroUrl, photoUrls = [], productsWithPhotos = [], hasBooking, clientSlug } = job;
-    const clientEmail = job.email || "";
-    const clientPhone = job.phone || "";
+    const clientEmail = userInput?.email || "";
+    const clientPhone = userInput?.phone || "";
     const features: string[] = Array.isArray(userInput?.features) ? userInput.features : [];
     const hasBookingFeature = hasBooking || features.includes("Booking System");
 
@@ -173,25 +169,30 @@ export async function GET(req: NextRequest) {
     const vercelProjectName = job.vercelProjectName || ("wg-" + (job.domainSlug || jobId.slice(0, 40))).slice(0, 52);
     const stableUrl = await deployToVercel(html, vercelProjectName);
 
-    // Save
-    await redis.set(`job:${jobId}`, { ...job, html, previewUrl: stableUrl, fixedAt: new Date().toISOString() }, { ex: 86400 * 30 });
+    // Save to Supabase
+    await saveJob(jobId, { ...job, html, previewUrl: stableUrl, fixedAt: new Date().toISOString() });
     if (clientSlug) {
-      const existingClient = await redis.get<any>(`client:${clientSlug}`);
-      if (existingClient) await redis.set(`client:${clientSlug}`, { ...existingClient, previewUrl: stableUrl });
+      const existingClient = await getClient(clientSlug);
+      if (existingClient) await saveClient(clientSlug, { ...existingClient, preview_url: stableUrl });
     }
 
-    // Auto-create availability config
+    // Auto-create availability config if missing
     if (hasBookingFeature || hasAiBookingPlaceholder) {
-      const existingAvail = await redis.get(`availability:${jobId}`);
+      const existingAvail = await getAvailability(jobId);
       if (!existingAvail) {
         const slotMap: Record<string, number> = { medical:30,dental:30,physio:45,beauty:45,hair:45,massage:60,legal:60,accounting:60,financial:60,fitness:60,gym:60,personal:60 };
         const ind = (userInput?.industry || "").toLowerCase();
         const slotMins = Object.entries(slotMap).find(([k]) => ind.includes(k))?.[1] ?? 60;
-        await redis.set(`availability:${jobId}`, {
-          jobId, businessName: userInput?.businessName || "", clientEmail,
-          timezone: "Australia/Brisbane", days: [1,2,3,4,5],
-          startHour: 9, endHour: 17, slotDurationMinutes: slotMins,
-          bufferMinutes: 15, maxDaysAhead: 30,
+        await saveAvailability(jobId, {
+          businessName: userInput?.businessName || "",
+          clientEmail,
+          timezone: "Australia/Brisbane",
+          days: [1,2,3,4,5],
+          startHour: 9,
+          endHour: 17,
+          slotDurationMinutes: slotMins,
+          bufferMinutes: 15,
+          maxDaysAhead: 30,
           services: getServicesForIndustry(userInput?.industry || ""),
         });
       }

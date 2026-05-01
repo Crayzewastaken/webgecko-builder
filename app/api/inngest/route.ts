@@ -1,9 +1,8 @@
 // app/api/inngest/route.ts
-export const maxDuration = 300; // max on Vercel Hobby; streaming keeps individual steps alive
+export const maxDuration = 300;
 
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest";
-import { Redis } from "@upstash/redis";
 import { stitchClient } from "@/lib/stitch";
 import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
@@ -18,15 +17,13 @@ import {
 } from "@/lib/pipeline-helpers";
 import { generateBookingWidget } from "@/lib/booking-widget";
 import { createClientShopCatalogue } from "@/lib/square";
+import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailability } from "@/lib/db";
+import { supabase } from "@/lib/supabase";
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
-// ─── Build Website (step-by-step, no global timeout) ──────────────────────────
+// ─── Build Website ─────────────────────────────────────────────────────────────
 
 const buildWebsite = inngest.createFunction(
   {
@@ -40,11 +37,11 @@ const buildWebsite = inngest.createFunction(
 
     // ── Load job ──────────────────────────────────────────────────────────────
     const job = await step.run("load-job", async () => {
-      const j = await redis.get<any>(`job:${jobId}`) || await redis.get<any>(jobId);
+      const j = await getJob(jobId);
       if (!j) throw new Error("Job not found: " + jobId);
       if (j.status === "building") throw new Error("Already building");
       if (j.status === "complete") throw new Error("Already complete");
-      await redis.set(`job:${jobId}`, { ...j, status: "building" }, { ex: 86400 * 30 });
+      await saveJob(jobId, { ...j, status: "building" });
       return j;
     });
 
@@ -52,20 +49,18 @@ const buildWebsite = inngest.createFunction(
       userInput, logoUrl, heroUrl,
       photoUrls = [], productsWithPhotos = [],
       hasBooking, clientSlug,
-      email: clientEmail, phone: clientPhone,
     } = job;
 
+    const clientEmail = userInput?.email || "";
+    const clientPhone = userInput?.phone || "";
     const fileName = job.fileName || safeFileName(userInput.businessName);
     const features: string[] = Array.isArray(userInput.features) ? userInput.features : [];
 
-    // Derive a stable domain slug from their desired domain, e.g. "ironcorefitness.com.au" → "ironcorefitness"
-    // This becomes the Vercel project name so the preview URL is always predictable
     const rawDomain: string = (userInput.domain || "").trim().toLowerCase()
       .replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
     const domainSlug: string = rawDomain
       ? rawDomain.replace(/\.(com\.au|net\.au|org\.au|com|net|org|io|au)$/i, "").replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 40)
       : fileName.slice(0, 40);
-    // Vercel project name: "wg-" prefix + slug, max 52 chars, must be stable across redeploys
     const vercelProjectName = ("wg-" + domainSlug).slice(0, 52);
     const hasBookingFeature = hasBooking || features.includes("Booking System");
     const isMultiPage = userInput.siteType === "multi";
@@ -168,102 +163,66 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
       return pid;
     });
 
-    console.log(`[Inngest] STEP 2 DONE: ${projectId}`);
-
-    // ── STEP 3: Stitch generate screen (slow — gets its own step) ─────────────
+    // ── STEP 3: Stitch generate ───────────────────────────────────────────────
     const downloadUrl = await step.run("step3-stitch-generate", async () => {
       const MAX_ATTEMPTS = 5;
       const RETRY_DELAYS_MS = [15_000, 30_000, 45_000, 60_000];
-
       let lastError: Error = new Error("Stitch: unknown failure");
 
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         try {
-          console.log(`[Inngest] STEP 3: Stitch generate attempt ${attempt}/${MAX_ATTEMPTS}`);
           const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", {
             projectId,
             prompt: spec.stitchPrompt,
           });
-
-          // Check for explicit error response
           if (stitchResult?.code === "UNKNOWN_ERROR" || stitchResult?.suggestion === undefined && stitchResult?.recoverable === false) {
-            throw new Error(`Stitch service unavailable (attempt ${attempt}): ${JSON.stringify(stitchResult)}`);
+            throw new Error(`Stitch service unavailable (attempt ${attempt})`);
           }
-
           const screens = stitchResult?.outputComponents?.find((x: any) => x.design)?.design?.screens || [];
           if (!screens.length) throw new Error(`Stitch: no screens returned (attempt ${attempt})`);
           const url = screens[0]?.htmlCode?.downloadUrl;
           if (!url) throw new Error(`Stitch: no downloadUrl (attempt ${attempt})`);
-
-          // Pre-validate the HTML before accepting — reject skeleton placeholders
           const preCheck = await fetch(url).then(r => r.text()).catch(() => "");
-          if (preCheck.length < 5000) throw new Error(`Stitch HTML too short (${preCheck.length} chars) on attempt ${attempt}`);
-          if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(preCheck)) throw new Error(`Stitch returned skeleton placeholder on attempt ${attempt}`);
+          if (preCheck.length < 5000) throw new Error(`Stitch HTML too short (${preCheck.length} chars)`);
+          if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(preCheck)) throw new Error(`Stitch returned skeleton`);
           const styleLen = (preCheck.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
-          if (styleLen < 500) throw new Error(`Stitch HTML has no real CSS on attempt ${attempt}`);
-
-          console.log(`[Inngest] STEP 3: Stitch succeeded on attempt ${attempt} — HTML ${preCheck.length} chars, CSS ${styleLen} chars`);
+          if (styleLen < 500) throw new Error(`Stitch HTML has no real CSS`);
           return url;
         } catch (err: any) {
           lastError = err;
-          console.warn(`[Inngest] STEP 3 attempt ${attempt} failed: ${err?.message}`);
-
           if (attempt < MAX_ATTEMPTS) {
-            const delay = RETRY_DELAYS_MS[attempt - 1] ?? 60_000;
-            console.log(`[Inngest] STEP 3: waiting ${delay / 1000}s before retry...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          } else {
-            break;
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAYS_MS[attempt - 1] ?? 60_000));
           }
         }
       }
-
-      throw new Error(`Stitch generate_screen_from_text failed after ${MAX_ATTEMPTS} attempts. Last error: ${lastError.message}`);
+      throw new Error(`Stitch failed after ${MAX_ATTEMPTS} attempts. Last: ${lastError.message}`);
     });
-
-    console.log(`[Inngest] STEP 3 DONE`);
 
     // ── STEP 4: Fetch HTML ────────────────────────────────────────────────────
     const stitchHtml = await step.run("step4-fetch-html", async () => {
       const html = await fetch(downloadUrl).then(r => r.text());
-      if (!html || html.length < 5000) throw new Error(`Stitch HTML too short (${html?.length ?? 0} chars) — likely a skeleton/placeholder`);
-
-      // Reject obvious skeleton outputs — Stitch sometimes returns bare placeholder HTML
-      const skeletonPatterns = [
-        /<h1>\s*(HOME PAGE|ABOUT PAGE|SERVICES PAGE|CONTACT PAGE|PAGE CONTENT)\s*<\/h1>/i,
-        /const BOOKING_URL = "https:\/\/cal\.com\/your-link"/i,
-        /<h1>HOME PAGE<\/h1>/i,
-      ];
+      if (!html || html.length < 5000) throw new Error(`Stitch HTML too short (${html?.length ?? 0} chars)`);
+      const skeletonPatterns = [/<h1>\s*(HOME PAGE|ABOUT PAGE|SERVICES PAGE|CONTACT PAGE|PAGE CONTENT)\s*<\/h1>/i, /const BOOKING_URL = "https:\/\/cal\.com\/your-link"/i];
       for (const pattern of skeletonPatterns) {
-        if (pattern.test(html)) throw new Error("Stitch returned a skeleton placeholder — regenerating");
+        if (pattern.test(html)) throw new Error("Stitch returned a skeleton placeholder");
       }
-
-      // Reject if it has barely any CSS (real Stitch output has thousands of chars of styles)
       const styleContent = (html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || []).join("");
-      if (styleContent.length < 500) throw new Error(`Stitch HTML has no real CSS (${styleContent.length} chars) — likely a skeleton`);
-
+      if (styleContent.length < 500) throw new Error(`Stitch HTML has no real CSS`);
       return html;
     });
 
-    console.log(`[Inngest] STEP 4 DONE. Length: ${stitchHtml.length}`);
-
-    // ── STEP 5: Code-only fix pass (NO Claude — preserves Stitch design 100%) ──
+    // ── STEP 5: Code-only fix pass ────────────────────────────────────────────
     const fixedHtml = await step.run("step5-code-fix", async () => {
       let html = stitchHtml;
       const bookingNavTarget = hasBookingFeature ? "booking" : "contact";
-      const businessName = userInput.businessName || "";
 
-      // ── FIX 0: Fix <title> tag to include real business name ──
-      if (businessName) {
-        html = html.replace(/<title>[^<]*<\/title>/i, `<title>${businessName}</title>`);
+      if (userInput.businessName) {
+        html = html.replace(/<title>[^<]*<\/title>/i, `<title>${userInput.businessName}</title>`);
       }
 
-      // ── FIX 1: Contact details — replace ONLY clearly fake/placeholder emails ──
       const clientDomain = clientEmail.split("@")[1] || "";
       const businessSlugFix = (userInput.businessName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      // Known fake TLD/domain patterns
       html = html.replace(/\b[\w.+-]+@(example|company|business|yourcompany|yourbusiness|domain|email|test|sample|placeholder|site|gym|studio|salon|clinic|law|dental|realty|auto|cafe|restaurant|johnsgymsydney|johnsrestaurant|acmeconstruction|smithplumbing|greenthumb|brightsmile|eliteperformance|performancegym|purestrength|ironcore|elitefit|fitnesspro|peakperformance|urbanfit|alphaperformance)\.(com|com\.au|au|net|org)\b/gi, clientEmail);
-      // Generic prefixes — only replace if domain matches business name slug, leave real domains alone
       if (clientDomain && businessSlugFix) {
         html = html.replace(/\b(info|hello|contact|admin|support|enquiries|enquiry|mail|office|reception|noreply|no-reply)@([\w-]+)\.(com|com\.au|au|net|org)\b/gi, (m: string, _prefix: string, domain: string) => {
           if (m === clientEmail) return m;
@@ -271,31 +230,25 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
           if (clientDomain && m.toLowerCase().endsWith(clientDomain.toLowerCase())) return m;
           const domainStripped = domain.toLowerCase().replace(/[^a-z0-9]/g, "");
           if (domainStripped.includes(businessSlugFix.slice(0, 6)) || businessSlugFix.includes(domainStripped.slice(0, 6))) return clientEmail;
-          return m; // leave real-looking domains alone
+          return m;
         });
       }
-      // Phones: replace ONLY obvious fake/placeholder AU numbers — do NOT replace real ones
       const clientPhoneDigits = clientPhone.replace(/\D/g, "");
       html = html.replace(/\b(0[0-9]{3}\s?[0-9]{3}\s?[0-9]{3,4})\b/g, (m: string) => {
         const digits = m.replace(/\D/g, "");
-        if (digits === clientPhoneDigits) return m; // already correct — leave it
-        // Only replace if clearly fake: all-zeros suffix, repeating pattern, or placeholder
+        if (digits === clientPhoneDigits) return m;
         if (/0{4,}/.test(digits) || /(\d)\1{4,}/.test(digits)) return clientPhone;
-        return m; // unknown real-looking number — leave it alone
+        return m;
       });
       html = html.replace(/\(\d{2}\)\s?\d{4}\s?\d{4}/g, clientPhone);
       html = html.replace(/\+61\s?[2-9]\s?\d{4}\s?\d{4}/g, clientPhone);
-      // Also replace text-only address placeholders
       const businessAddress = userInput.businessAddress || "";
       if (businessAddress) {
         html = html.replace(/\b123\s+[\w\s]+(?:Street|St|Avenue|Ave|Road|Rd|Lane|Ln|Drive|Dr|Way|Place|Pl|Court|Ct)[,\s]+(?:Sydney|Melbourne|Brisbane|Perth|Adelaide|Gold Coast|Canberra|Darwin|Hobart)[,\s]+(?:NSW|VIC|QLD|WA|SA|ACT|NT|TAS)\s+\d{4}\b/gi, businessAddress);
-        // Also replace "MAP PLACEHOLDER: ..." text with the real address
         html = html.replace(/MAP PLACEHOLDER[:\s]*[A-Z\s]+/gi, businessAddress);
       }
 
-      // ── FIX 2: CTA buttons — wire booking/enquiry CTAs ──
       const ctaKeywords = ['Book Now','Book a Session','Get Started','Join Now','Sign Up','Free Trial','Book Free','Reserve','Enquire Now','Get a Quote','Start Today','Book Today','Schedule Now','Try Free','Get Free Quote','Book Consultation'];
-      const ctaPattern = new RegExp(`(<(?:a|button)[^>]*>\\s*(?:${ctaKeywords.join('|')})\\s*<\/(?:a|button)>)`, 'gi');
       html = html.replace(/<a([^>]*href=["']#["'][^>]*)>([\s\S]*?)<\/a>/g, (match: string, attrs: string, inner: string) => {
         const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
         const isBooking = ctaKeywords.some(k => txt.includes(k.toLowerCase()));
@@ -305,107 +258,72 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
         return match;
       });
 
-      // ── FIX 3: Google Maps injection ──
       if (businessAddress && process.env.GOOGLE_MAPS_API_KEY) {
         const mapsEmbed = `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`;
-        // Skip if map already present
         if (!html.includes('maps.google') && !html.includes('maps.embed') && !html.includes('google.com/maps')) {
-        let mapInjected = false;
-        // Strategy 1: Replace MAP PLACEHOLDER text divs that Stitch generates
-        const beforeMapLen = html.length;
-        html = html.replace(/<div[^>]*>\s*MAP PLACEHOLDER[^<]*<\/div>/gi, mapsEmbed);
-        if (html.length !== beforeMapLen) mapInjected = true;
-        // Strategy 2: Find div with id/class containing map/location/directions that has no iframe yet
-        if (!mapInjected) {
-          html = html.replace(/<div([^>]*(?:id|class)="[^"]*(?:map|location|directions|gmap)[^"]*"[^>]*)>([\s\S]*?)<\/div>/gi, (match: string, attrs: string) => {
-            if (match.includes('iframe')) return match;
-            mapInjected = true;
-            return `<div${attrs}>${mapsEmbed}</div>`;
-          });
+          let mapInjected = false;
+          const beforeMapLen = html.length;
+          html = html.replace(/<div[^>]*>\s*MAP PLACEHOLDER[^<]*<\/div>/gi, mapsEmbed);
+          if (html.length !== beforeMapLen) mapInjected = true;
+          if (!mapInjected) {
+            html = html.replace(/<div([^>]*(?:id|class)="[^"]*(?:map|location|directions|gmap)[^"]*"[^>]*)>([\s\S]*?)<\/div>/gi, (match: string, attrs: string) => {
+              if (match.includes('iframe')) return match;
+              mapInjected = true;
+              return `<div${attrs}>${mapsEmbed}</div>`;
+            });
+          }
+          if (!mapInjected) {
+            html = html.replace(/(<section[^>]*(?:id|class)="[^"]*contact[^"]*"[^>]*>)([\s\S]*?)(<\/section>)/gi, (_match: string, open: string, body: string, close: string) => {
+              const lastDiv = body.lastIndexOf('</div>');
+              if (lastDiv !== -1) return open + body.slice(0, lastDiv) + mapsEmbed + body.slice(lastDiv) + close;
+              return open + body + mapsEmbed + close;
+            });
+          }
         }
-        // Strategy 3: inject inside the contact section before its last closing </div>
-        if (!mapInjected) {
-          html = html.replace(/(<section[^>]*(?:id|class)="[^"]*contact[^"]*"[^>]*>)([\s\S]*?)(<\/section>)/gi, (_match: string, open: string, body: string, close: string) => {
-            const lastDiv = body.lastIndexOf('</div>');
-            if (lastDiv !== -1) {
-              return open + body.slice(0, lastDiv) + mapsEmbed + body.slice(lastDiv) + close;
-            }
-            return open + body + mapsEmbed + close;
-          });
-        }
-        } // end: skip if map already present
       }
 
-      // ── FIX 4: Strip any fake booking widgets Claude may have snuck in ──
-      // Remove any Calendly/Cal.com embeds
       html = html.replace(/<script[^>]*calendly[^>]*>[\s\S]*?<\/script>/gi, '');
       html = html.replace(/<link[^>]*calendly[^>]*/gi, '');
       html = html.replace(/<!--\s*Calendly[\s\S]*?-->/gi, '');
 
-      console.log(`[Inngest] STEP 5 (code-only) DONE. Length: ${html.length}`);
       return html;
     });
 
-    console.log(`[Inngest] STEP 5 DONE. Length: ${fixedHtml.length}`);
-
-    // ── STEP 6: Link check + inject essentials + booking widget ──────────────
+    // ── STEP 6: Inject essentials + booking widget ────────────────────────────
     const finalHtml = await step.run("step6-inject", async () => {
-      const { html: checkedHtml } = checkAndFixLinks(
-        fixedHtml,
-        Array.isArray(userInput.pages) ? userInput.pages : []
-      );
+      const { html: checkedHtml } = checkAndFixLinks(fixedHtml, Array.isArray(userInput.pages) ? userInput.pages : []);
       const ga4Id = job.ga4Id || userInput.ga4Id || "";
       let html = injectEssentials(checkedHtml, clientEmail, clientPhone, jobId, ga4Id);
       html = injectImages(html, logoUrl, heroUrl, photoUrls, productsWithPhotos);
 
-      // ── Booking widget injection ─────────────────────────────────────────────
-      // CRITICAL: Scripts injected via innerHTML don't execute.
-      // We inject the widget as a self-contained <script> that:
-      //   1. Creates the booking section DOM via document.createElement (not innerHTML)
-      //   2. Replaces any existing #booking element, or appends before </body>
-      //   3. Runs immediately at DOMContentLoaded
       const hasAiBookingPlaceholder = /(?:forge integration|booking system.*?recalibrat|advanced booking.*?recalibrat|calendly|acuity|setmore)/i.test(html);
       if (hasBookingFeature || hasAiBookingPlaceholder) {
         try {
           const services = getServicesForIndustry(userInput.industry);
-          // Extract accent color from Stitch HTML (CTA buttons are a reliable signal)
-          let accentColor = "#D4AF37"; // fallback gold — common in Stitch premium designs
+          let accentColor = "#D4AF37";
           const ctaBgMatch = html.match(/(?:class="[^"]*(?:btn|button|cta)[^"]*"[^>]*|id="[^"]*(?:cta|btn)[^"]*"[^>]*)style="[^"]*background(?:-color)?:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
           if (ctaBgMatch?.[1]) accentColor = ctaBgMatch[1];
           else {
-            // Try --primary or --accent CSS variable
             const cssVarMatch = html.match(/--(?:primary|accent|brand|color-primary)[^:]*:\s*(#[0-9a-fA-F]{3,8})/);
             if (cssVarMatch?.[1]) accentColor = cssVarMatch[1];
           }
           const bookingWidgetHtml = generateBookingWidget({
-            jobId,
-            businessName: userInput.businessName,
-            timezone: "Australia/Brisbane",
-            services,
+            jobId, businessName: userInput.businessName,
+            timezone: "Australia/Brisbane", services,
             primaryColor: accentColor,
-            apiBase: process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au",
+            apiBase: "https://webgecko-builder.vercel.app",
           });
-
-          // Replace any section containing an AI-invented booking placeholder
           html = html.replace(/<section([^>]*)>([\s\S]*?(?:forge integration|booking system.*?recalibrat|advanced booking.*?recalibrat)[\s\S]*?)<\/section>/gi,
             (_m: string, attrs: string) => {
-              const newAttrs = /id=["'][^"']*["']/.test(attrs)
-                ? attrs.replace(/id=["'][^"']*["']/, 'id="booking"')
-                : ` id="booking"${attrs}`;
+              const newAttrs = /id=["'][^"']*["']/.test(attrs) ? attrs.replace(/id=["'][^"']*["']/, 'id="booking"') : ` id="booking"${attrs}`;
               return `<section${newAttrs}></section>`;
             }
           );
-
-          // Remove any existing fake booking section, preserve id="booking" anchor
-          html = html.replace(/<([a-z][a-z0-9]*)\b([^>]*)\bid="booking"[^>]*>[\s\S]*?<\/\1>/gi,
-            '<div id="booking"></div>');
-
+          html = html.replace(/<([a-z][a-z0-9]*)\b([^>]*)\bid="booking"[^>]*>[\s\S]*?<\/\1>/gi, '<div id="booking"></div>');
           if (html.includes('id="booking"')) {
             html = html.replace('<div id="booking"></div>', bookingWidgetHtml);
-            console.log(`[Inngest] Booking widget replaced #booking (hasBooking=${hasBookingFeature}, hadAiPlaceholder=${hasAiBookingPlaceholder})`);
           } else {
             html = html.replace("</body>", bookingWidgetHtml + "\n</body>");
-            console.log("[Inngest] Booking widget injected before </body>");
           }
         } catch (e) {
           console.error("[Inngest] Booking widget injection failed:", e);
@@ -415,97 +333,41 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
       return html;
     });
 
-    // ── STEP 7: Square shop catalogue + button injection ─────────────────────
+    // ── STEP 7: Square shop ───────────────────────────────────────────────────
     const hasShopFeature = features.includes("Payments / Shop");
-    const shopProducts: { name: string; price: string; photoUrl?: string }[] =
-      productsWithPhotos.length > 0 ? productsWithPhotos : [];
+    const shopProducts: { name: string; price: string; photoUrl?: string }[] = productsWithPhotos.length > 0 ? productsWithPhotos : [];
 
     const finalHtmlWithShop = await step.run("step7-shop", async () => {
-      if (!hasShopFeature || shopProducts.length === 0) {
-        console.log("[Inngest] STEP 7: No shop feature or no products — skipping");
-        return finalHtml;
-      }
-
+      if (!hasShopFeature || shopProducts.length === 0) return finalHtml;
       let html = finalHtml;
-
       try {
-        const base = process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au";
         const siteUrl = `https://${vercelProjectName}.vercel.app`;
+        const catalogueItems = await createClientShopCatalogue({ jobId, businessName: userInput.businessName, products: shopProducts, redirectUrl: siteUrl });
 
-        const catalogueItems = await createClientShopCatalogue({
-          jobId,
-          businessName: userInput.businessName,
-          products: shopProducts,
-          redirectUrl: siteUrl,
-        });
+        // Save to Supabase (in a simple JSON column on the job — no separate table needed)
+        await supabase.from("jobs").update({ user_input: { ...userInput, shopCatalogue: catalogueItems } }).eq("id", jobId);
 
-        // Save catalogue to Redis for admin/portal access
-        await redis.set(`shop:${jobId}`, {
-          jobId,
-          businessName: userInput.businessName,
-          items: catalogueItems,
-          createdAt: new Date().toISOString(),
-        }, { ex: 86400 * 90 }); // 90 days
-
-        console.log(`[Inngest] STEP 7: Created ${catalogueItems.length} Square catalogue items`);
-
-        // Wire each product's "Buy Now" button to its Square payment link
-        // Stitch generates: <button class="wg-buy-btn" data-product-index="N" ...>Buy Now</button>
-        catalogueItems.forEach((item, i) => {
+        catalogueItems.forEach((item: any, i: number) => {
           if (!item.paymentLinkUrl) return;
-          // Replace the button with an anchor styled as the same button
-          const btnPattern = new RegExp(
-            `<button([^>]*class="[^"]*wg-buy-btn[^"]*"[^>]*data-product-index="${i}"[^>]*)>[^<]*<\\/button>`,
-            "gi"
-          );
-          const anchorPattern = new RegExp(
-            `<button([^>]*data-product-index="${i}"[^>]*class="[^"]*wg-buy-btn[^"]*"[^>]*)>[^<]*<\\/button>`,
-            "gi"
-          );
+          const btnPattern = new RegExp(`<button([^>]*class="[^"]*wg-buy-btn[^"]*"[^>]*data-product-index="${i}"[^>]*)>[^<]*<\\/button>`, "gi");
+          const anchorPattern = new RegExp(`<button([^>]*data-product-index="${i}"[^>]*class="[^"]*wg-buy-btn[^"]*"[^>]*)>[^<]*<\\/button>`, "gi");
           const replacement = `<a href="${item.paymentLinkUrl}" target="_blank" rel="noopener" class="wg-buy-btn" data-product-index="${i}" style="display:inline-block;text-decoration:none;">Buy Now</a>`;
-          const beforeLen = html.length;
-          html = html.replace(btnPattern, replacement);
-          html = html.replace(anchorPattern, replacement);
-
-          if (html.length === beforeLen) {
-            // Fallback: Stitch may have used a different pattern — inject links by product name match
-            const escapedName = item.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-            // Find product card sections containing this product name and inject a buy link
-            html = html.replace(
-              new RegExp(`(<(?:div|article|li)[^>]*>[\\s\\S]*?${escapedName}[\\s\\S]*?)(</(?:div|article|li)>)`, "gi"),
-              (match: string, body: string, close: string) => {
-                if (match.includes(item.paymentLinkUrl) || match.includes("wg-buy-btn")) return match;
-                return `${body}<div style="margin-top:12px;"><a href="${item.paymentLinkUrl}" target="_blank" rel="noopener" style="display:inline-block;background:#10b981;color:#fff;padding:10px 24px;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;">Buy Now →</a></div>${close}`;
-              }
-            );
-          }
+          html = html.replace(btnPattern, replacement).replace(anchorPattern, replacement);
         });
 
-        // Inject a small Square trust badge near the shop section
-        const squareBadge = `<div style="text-align:center;margin-top:16px;padding:8px;"><img src="https://images.squareup.com/content/en-au/images/marketing/square-logo-lockup-black.svg" alt="Secure checkout powered by Square" style="height:24px;opacity:0.5;" onerror="this.style.display='none';" /><p style="color:rgba(255,255,255,0.4);font-size:11px;margin:4px 0 0;">Secure checkout powered by Square</p></div>`;
-        html = html.replace(/(<section[^>]*(?:id|class)="[^"]*shop[^"]*"[^>]*>[\s\S]*?)(<\/section>)/gi,
-          (_match: string, body: string, close: string) => body + squareBadge + close
-        );
-
-        console.log(`[Inngest] STEP 7: Shop buttons wired for ${catalogueItems.length} products`);
+        const squareBadge = `<div style="text-align:center;margin-top:16px;padding:8px;"><p style="color:rgba(255,255,255,0.4);font-size:11px;margin:0;">Secure checkout powered by Square</p></div>`;
+        html = html.replace(/(<section[^>]*(?:id|class)="[^"]*shop[^"]*"[^>]*>[\s\S]*?)(<\/section>)/gi, (_m: string, body: string, close: string) => body + squareBadge + close);
       } catch (e) {
         console.error("[Inngest] STEP 7: Shop catalogue failed:", e);
-        // Non-fatal — site still deploys, just without live checkout links
       }
-
       return html;
     });
 
     // ── STEP 8: Deploy to Vercel ──────────────────────────────────────────────
-    // Uses stable project name so the preview URL is always predictable:
-    //   wg-ironcorefitness.vercel.app (not a random hash URL)
     const previewUrl = await step.run("step8-deploy", async () => {
       const deployRes = await fetch("https://api.vercel.com/v13/deployments", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.VERCEL_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${process.env.VERCEL_API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           name: vercelProjectName,
           teamId: process.env.VERCEL_TEAM_ID || undefined,
@@ -513,24 +375,13 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
           projectSettings: { framework: null, outputDirectory: "./" },
         }),
       });
-      if (!deployRes.ok) {
-        const errText = await deployRes.text();
-        console.error("[Inngest] Deploy failed:", errText);
-        return "";
-      }
-      const deployData = await deployRes.json();
-      // The deployment URL is unique per-deploy, but the project alias is stable.
-      // Vercel auto-aliases the latest deploy to <project-name>.vercel.app
-      const stableUrl = `https://${vercelProjectName}.vercel.app`;
-      console.log(`[Inngest] Deploy URL: https://${deployData.url} → Stable: ${stableUrl}`);
-      return stableUrl;
+      if (!deployRes.ok) { console.error("[Inngest] Deploy failed:", await deployRes.text()); return ""; }
+      return `https://${vercelProjectName}.vercel.app`;
     });
 
-    console.log(`[Inngest] STEP 8 DONE: ${previewUrl}`);
-
-    // ── STEP 9: Save to Redis ─────────────────────────────────────────────────
+    // ── STEP 9: Save to Supabase ──────────────────────────────────────────────
     await step.run("step9-save", async () => {
-      await redis.set(`job:${jobId}`, {
+      await saveJob(jobId, {
         ...job,
         html: finalHtmlWithShop,
         title: spec.projectTitle,
@@ -540,87 +391,66 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
         status: "complete",
         previewUrl,
         builtAt: new Date().toISOString(),
-      }, { ex: 86400 * 30 });
+      });
 
       if (clientSlug) {
-        const existingClient = await redis.get<any>(`client:${clientSlug}`);
+        const existingClient = await getClient(clientSlug);
         if (existingClient) {
-          await redis.set(`client:${clientSlug}`, {
-            ...existingClient,
-            previewUrl,
-            buildStatus: "complete",
-            builtAt: new Date().toISOString(),
-          });
+          await saveClient(clientSlug, { ...existingClient, preview_url: previewUrl, build_status: "complete" });
         }
       }
 
       // Auto-create availability config if booking is enabled
       if (hasBookingFeature) {
-        const existingAvailability = await redis.get(`availability:${jobId}`);
-        if (!existingAvailability) {
+        const existingAvail = await getAvailability(jobId);
+        if (!existingAvail) {
           const slotDurationMap: Record<string, number> = {
             medical: 30, dental: 30, physio: 45, beauty: 45, hair: 45, massage: 60,
             legal: 60, accounting: 60, financial: 60, fitness: 60, gym: 60, personal: 60,
           };
           const industryLower = (userInput.industry || "").toLowerCase();
           const slotDuration = Object.entries(slotDurationMap).find(([k]) => industryLower.includes(k))?.[1] ?? 60;
-          await redis.set(`availability:${jobId}`, {
-            jobId,
+          await saveAvailability(jobId, {
             businessName: userInput.businessName,
             clientEmail,
             timezone: "Australia/Brisbane",
             days: [1, 2, 3, 4, 5],
-            startHour: 9,
-            endHour: 17,
+            startHour: 9, endHour: 17,
             slotDurationMinutes: slotDuration,
-            bufferMinutes: 15,
-            maxDaysAhead: 30,
+            bufferMinutes: 15, maxDaysAhead: 30,
             services: getServicesForIndustry(userInput.industry),
           });
-          console.log(`[Inngest] Auto-created availability config for ${jobId}`);
         }
       }
     });
 
     // ── STEP 10: Email owner ──────────────────────────────────────────────────
     await step.run("step10-email", async () => {
-      const base = process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au";
+      const base = "https://webgecko-builder.vercel.app";
       const secret = encodeURIComponent(process.env.PROCESS_SECRET || "");
-      const processUrl = `${base}/api/fix?id=${jobId}&secret=${secret}`;
-      const unlockUrl = `${base}/api/payment/unlock?jobId=${jobId}&secret=${secret}`;
       const releaseUrl = `${base}/api/unlock/release?jobId=${jobId}&secret=${secret}`;
+      const fixUrl = `${base}/api/admin/fix-proxy?jobId=${jobId}&secret=${secret}`;
       const unlockBookingUrl = `${base}/api/unlock/booking?jobId=${jobId}&secret=${secret}`;
       const adminUrl = `${base}/admin?secret=${secret}`;
       const cssContent = extractCSS(finalHtmlWithShop);
 
-      // Build feature location checklist
       const featureChecklist = [
-        { label: "Hero section", check: finalHtmlWithShop.includes('id="hero') || finalHtmlWithShop.includes("class=\"hero") || finalHtmlWithShop.includes("viewport") },
-        { label: "Sticky nav + hamburger", check: finalHtmlWithShop.includes('id="hamburger"') || finalHtmlWithShop.includes("hamburger") },
+        { label: "Hero section", check: finalHtmlWithShop.includes('id="hero') || finalHtmlWithShop.includes('viewport') },
+        { label: "Sticky nav + hamburger", check: finalHtmlWithShop.includes('id="hamburger"') },
         { label: "Testimonials section", check: finalHtmlWithShop.includes('id="testimonials"') },
         { label: "FAQ accordion", check: finalHtmlWithShop.includes('id="faq"') },
-        { label: "Contact form (id=contact)", check: finalHtmlWithShop.includes('id="contact"') },
+        { label: "Contact form", check: finalHtmlWithShop.includes('id="contact"') },
         { label: "Real email injected", check: finalHtmlWithShop.includes(clientEmail) },
         { label: "Real phone injected", check: finalHtmlWithShop.includes(clientPhone.replace(/\s/g, "")) || finalHtmlWithShop.includes(clientPhone) },
-        { label: "Google Maps embedded", check: finalHtmlWithShop.includes("maps.google") || finalHtmlWithShop.includes("maps.embed") || finalHtmlWithShop.includes("google.com/maps") },
-        { label: "Booking widget (id=booking)", check: finalHtmlWithShop.includes('id="booking"') && finalHtmlWithShop.includes("BW_JOB_ID") },
-        { label: "Pricing section", check: userInput.hasPricing !== "Yes" || finalHtmlWithShop.toLowerCase().includes("pricing") || finalHtmlWithShop.toLowerCase().includes("plan") },
-        { label: "Photo gallery", check: !features.includes("Photo Gallery") || finalHtmlWithShop.includes('id="gallery"') || finalHtmlWithShop.toLowerCase().includes("gallery") },
-        { label: "Stats bar", check: finalHtmlWithShop.toLowerCase().includes("years") || finalHtmlWithShop.toLowerCase().includes("clients") },
+        { label: "Google Maps embedded", check: finalHtmlWithShop.includes("google.com/maps") },
+        { label: "Booking widget", check: hasBookingFeature && finalHtmlWithShop.includes("BW_JOB_ID") },
         { label: "Footer with copyright", check: finalHtmlWithShop.includes("©") || finalHtmlWithShop.includes("&copy;") },
-        { label: "Booking widget scripts executable", check: finalHtmlWithShop.includes("BW_API_BASE") },
-        { label: "Shop section (id=shop)", check: !hasShopFeature || finalHtmlWithShop.includes('id="shop"') },
-        { label: "Square buy buttons wired", check: !hasShopFeature || finalHtmlWithShop.includes("squareup.com") || finalHtmlWithShop.includes("square.link") },
       ].filter(f => {
-        // Only include booking/gallery/maps if relevant
-        if (f.label === "Booking widget (id=booking)" && !hasBookingFeature) return false;
-        if (f.label === "Booking widget scripts executable" && !hasBookingFeature) return false;
+        if (f.label === "Booking widget" && !hasBookingFeature) return false;
         if (f.label === "Google Maps embedded" && !userInput.businessAddress) return false;
-        if (f.label === "Photo gallery" && !features.includes("Photo Gallery")) return false;
-        if (f.label === "Shop section (id=shop)" && !hasShopFeature) return false;
-        if (f.label === "Square buy buttons wired" && !hasShopFeature) return false;
         return true;
       });
+
       const checklistHtml = featureChecklist.map(f =>
         `<tr><td style="padding:8px 16px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px;color:${f.check ? "#00c896" : "#ef4444"};">${f.check ? "✓" : "✗"}</td><td style="padding:8px 16px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px;color:${f.check ? "#e2e8f0" : "#f87171"};">${f.label}</td></tr>`
       ).join("");
@@ -638,50 +468,18 @@ Make it premium, unique and conversion-focused for: ${userInput.businessName}`
     <p style="margin:4px 0 0;color:rgba(0,0,0,0.7);font-size:14px;">${userInput.businessName} — ${spec.projectTitle}</p>
   </td></tr>
   <tr><td style="padding:28px 32px;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#080c14;border-radius:8px;margin-bottom:24px;">
-      <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
-        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Client</span>
-        <p style="color:#e2e8f0;margin:2px 0 0;font-size:15px;font-weight:600;">${userInput.name || "—"} &lt;${clientEmail}&gt;</p>
-      </td></tr>
-      <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
-        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Business</span>
-        <p style="color:#e2e8f0;margin:2px 0 0;font-size:15px;font-weight:600;">${userInput.businessName}</p>
-      </td></tr>
-      <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
-        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Industry · Phone</span>
-        <p style="color:#e2e8f0;margin:2px 0 0;font-size:14px;">${userInput.industry} · ${clientPhone}</p>
-      </td></tr>
-      <tr><td style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
-        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Pages</span>
-        <p style="color:#e2e8f0;margin:2px 0 0;font-size:14px;">${pageList}</p>
-      </td></tr>
-      <tr><td style="padding:12px 16px;">
-        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Features</span>
-        <p style="color:#e2e8f0;margin:2px 0 0;font-size:14px;">${features.join(", ") || "Contact form"}</p>
-      </td></tr>
-    </table>
     ${previewUrl ? `<p style="margin:0 0 20px;"><a href="${previewUrl}" style="color:#00c896;font-size:15px;font-weight:600;">🌐 View Live Preview →</a></p>` : ""}
-
     <div style="margin-bottom:24px;">
-      <p style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0 0 10px;">Feature Checklist</p>
-      <table width="100%" cellpadding="0" cellspacing="0" style="background:#080c14;border-radius:8px;">
-        ${checklistHtml}
-      </table>
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#080c14;border-radius:8px;">${checklistHtml}</table>
     </div>
-
     <table cellpadding="0" cellspacing="0"><tr>
       <td style="padding-right:8px;padding-bottom:8px;"><a href="${releaseUrl}" style="background:#00c896;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📤 Release to Client</a></td>
-      <td style="padding-right:8px;padding-bottom:8px;"><a href="${processUrl}" style="background:#3b82f6;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">🔧 Fix This Site</a></td>
-      <td style="padding-right:8px;padding-bottom:8px;"><a href="${unlockUrl}" style="background:#8b5cf6;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">🔓 Unlock Payment</a></td>
+      <td style="padding-right:8px;padding-bottom:8px;"><a href="${fixUrl}" style="background:#3b82f6;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">🔧 Fix This Site</a></td>
       ${hasBookingFeature ? `<td style="padding-right:8px;padding-bottom:8px;"><a href="${unlockBookingUrl}" style="background:#f59e0b;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📅 Unlock Booking</a></td>` : ""}
     </tr></table>
     <p style="margin:16px 0 0;"><a href="${adminUrl}" style="color:#475569;font-size:12px;">📊 Admin Dashboard</a></p>
   </td></tr>
-  <tr><td style="padding:16px 32px;border-top:1px solid rgba(255,255,255,0.06);">
-    <p style="color:#334155;font-size:12px;margin:0;">3 files attached: final HTML, raw Stitch HTML (for comparison), and CSS stylesheet.</p>
-  </td></tr>
-</table>
-</td></tr></table>
+</table></td></tr></table>
 </body></html>`,
         attachments: [
           { filename: `${fileName}-FINAL.html`, content: Buffer.from(finalHtmlWithShop).toString("base64") },
@@ -712,37 +510,27 @@ const monthlyReports = inngest.createFunction(
       return { skipped: true, reason: "Not the last day of the month" };
     }
 
-    const clientKeys: string[] = await step.run("scan-clients", async () => {
-      let cursor = 0;
-      const keys: string[] = [];
-      do {
-        const [nextCursor, batch] = await redis.scan(cursor, { match: "client:*", count: 100 });
-        cursor = Number(nextCursor);
-        keys.push(...(batch as string[]));
-      } while (cursor !== 0);
-      return keys;
+    const clientSlugs: string[] = await step.run("scan-clients", async () => {
+      const { data } = await supabase.from("clients").select("slug, job_id");
+      return (data || []).map((c: any) => c.slug);
     });
 
-    const base = process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au";
+    const base = "https://webgecko-builder.vercel.app";
     const secret = process.env.PROCESS_SECRET || "";
 
-    for (const key of clientKeys) {
-      const slug = key.replace("client:", "");
+    for (const slug of clientSlugs) {
       await step.run("send-report-" + slug, async () => {
-        const clientData = await redis.get<any>(key);
-        if (!clientData || !clientData.jobId) return
-        const url = base + "/api/analytics/monthly?jobId=" + clientData.jobId + "&secret=" + encodeURIComponent(secret) + "&send=true";
+        const { data: client } = await supabase.from("clients").select("job_id").eq("slug", slug).single();
+        if (!client?.job_id) return;
+        const url = `${base}/api/analytics/monthly?jobId=${client.job_id}&secret=${encodeURIComponent(secret)}&send=true`;
         const res = await fetch(url);
-        const json = await res.json().catch(() => ({}));
-        console.log("[MonthlyReport] " + slug + ":", json);
-        return json;
+        return res.json().catch(() => ({}));
       });
     }
 
-    return { sent: clientKeys.length };
+    return { sent: clientSlugs.length };
   }
 );
-
 
 export const { GET, POST, PUT } = serve({
   client: inngest,

@@ -3,14 +3,10 @@ export const runtime = "nodejs";
 
 import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
-import { Redis } from "@upstash/redis";
+import { getJob } from "@/lib/db";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 const resend = new Resend(process.env.RESEND_API_KEY!);
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
 
 function extractHtml(text: string) {
   const start = text.indexOf("<!DOCTYPE");
@@ -23,7 +19,7 @@ function extractHtml(text: string) {
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
+    const id = searchParams.get("id") || searchParams.get("jobId");
     const secret = searchParams.get("secret");
 
     if (secret !== process.env.PROCESS_SECRET) {
@@ -34,18 +30,18 @@ export async function GET(req: Request) {
       return new Response("Missing id", { status: 400 });
     }
 
-    console.log("PROCESS: Fetching from Redis, id:", id);
-    const stored: any = await redis.get(id);
-
+    const stored = await getJob(id);
     if (!stored) {
-      return new Response("Job not found or expired", { status: 404 });
+      return new Response("Job not found", { status: 404 });
     }
 
-    const { html, title, fileName, userInput } = stored;
-    const fixedFileName = `${fileName || 'website'}-fixed`;
-    console.log("PROCESS: Got HTML, length:", html.length);
+    const { html, userInput } = stored;
+    const fileName = (stored as any).fileName || "website";
+    const title = (stored as any).title || userInput?.businessName || "Website";
+    const fixedFileName = `${fileName}-fixed`;
 
-    console.log("PROCESS: Claude fixing interactions...");
+    if (!html) return new Response("No HTML stored for this job", { status: 400 });
+
     const fixResponse = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 16000,
@@ -71,7 +67,6 @@ ${html}`
 
     const fixText = fixResponse.content[0]?.type === "text" ? fixResponse.content[0].text : html;
     const finalHtml = extractHtml(fixText);
-    console.log("PROCESS: Fixed. Length:", finalHtml.length);
 
     const pageList = Array.isArray(userInput?.pages) && userInput.pages.length > 0
       ? userInput.pages.join(", ") : "Home";
@@ -80,22 +75,15 @@ ${html}`
       from: "WebGecko <hello@webgecko.au>",
       to: process.env.RESULT_TO_EMAIL!,
       subject: `FIXED - ${title}`,
-      html: `
-        <h2>Fixed Website — ${title}</h2>
+      html: `<h2>Fixed Website — ${title}</h2>
         <p><strong>Client:</strong> ${userInput?.name}</p>
         <p><strong>Email:</strong> ${userInput?.email}</p>
-        <p><strong>Phone:</strong> ${userInput?.phone}</p>
-        <p><strong>Pages:</strong> ${pageList}</p>
-        <p>This version has working buttons, FAQ dropdowns and interactions.</p>
-      `,
+        <p><strong>Pages:</strong> ${pageList}</p>`,
       attachments: [{
         filename: `${fixedFileName}.html`,
         content: Buffer.from(finalHtml).toString("base64"),
       }],
     });
-
-    await redis.del(id);
-    console.log("PROCESS: Done. Email sent.");
 
     return new Response(`
       <html>
@@ -107,8 +95,8 @@ ${html}`
       </html>
     `, { headers: { "Content-Type": "text/html" } });
 
-  } catch (error: any) {
-    console.error("PROCESS FAILED:", error.message);
-    return new Response(`Error: ${error.message}`, { status: 500 });
+  } catch (err: any) {
+    console.error("PROCESS error:", err);
+    return new Response("Error: " + err.message, { status: 500 });
   }
 }

@@ -1,16 +1,10 @@
 // app/api/payment/create/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { Redis } from "@upstash/redis";
 import { createPaymentLink, createMonthlyPaymentLink } from "@/lib/square";
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+import { getClient, saveClient, getJob, getPaymentState, savePaymentState } from "@/lib/db";
 
 export type PaymentStage = "deposit" | "final" | "monthly";
 
-// Inline quote calculation — mirrors worker/route.ts calculateQuote()
 function calculatePrice(userInput: any): { totalPrice: number; monthlyPrice: number; monthlyOngoing: number } {
   const features: string[] = Array.isArray(userInput?.features) ? userInput.features : [];
   const pageCount = Array.isArray(userInput?.pages) ? userInput.pages.length : 1;
@@ -18,13 +12,9 @@ function calculatePrice(userInput: any): { totalPrice: number; monthlyPrice: num
   const hasBooking = features.includes("Booking System");
   const isMultiPage = userInput?.siteType === "multi";
 
-  // Package by page count — features are add-ons, not package triggers
   let totalPrice = 1500;
-  if (pageCount >= 7 || (isMultiPage && pageCount >= 5)) {
-    totalPrice = 3800;
-  } else if (pageCount >= 4 || isMultiPage) {
-    totalPrice = 2400;
-  }
+  if (pageCount >= 7 || (isMultiPage && pageCount >= 5)) totalPrice = 3800;
+  else if (pageCount >= 4 || isMultiPage) totalPrice = 2400;
 
   if (hasBooking) totalPrice += 400;
   if (hasEcommerce) totalPrice += 600;
@@ -37,11 +27,9 @@ function calculatePrice(userInput: any): { totalPrice: number; monthlyPrice: num
     if (f === "Video Background") totalPrice += 200;
   });
 
-  // Monthly: $109/month intro for first 3 months, then $119/month ongoing
   return { totalPrice, monthlyPrice: 109, monthlyOngoing: 119 };
 }
 
-// GET /api/payment/create?slug=iron-core-fitness&stage=deposit
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const slug = searchParams.get("slug");
@@ -51,95 +39,64 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Invalid params" }, { status: 400 });
   }
 
-  // Verify session cookie
   const sessionCookie = req.cookies.get("wg_client_slug")?.value;
   if (!sessionCookie || sessionCookie !== slug) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Load client data
-  const clientData = await redis.get<any>(`client:${slug}`);
-  if (!clientData) {
-    return NextResponse.json({ error: "Client not found" }, { status: 404 });
-  }
+  const clientData = await getClient(slug);
+  if (!clientData) return NextResponse.json({ error: "Client not found" }, { status: 404 });
 
-  const { jobId, businessName, email } = clientData;
+  const jobId = clientData.job_id;
+  const businessName = clientData.business_name || "";
+  const email = clientData.email || "";
 
-  // ── Resolve amounts ──────────────────────────────────────────────────────────
-  // Priority: stored quote → recalculate from job userInput → recalculate from clientData fields
-  let totalPrice: number = Number(clientData.quote?.price) || 0;
-  let monthlyPrice: number = 109; // intro rate — always $109 for first 3 months
-  const monthlyOngoing: number = 119; // ongoing rate after 3 months
+  let totalPrice = 0;
+  const monthlyPrice = 109;
+  const monthlyOngoing = 119;
 
-  if (!totalPrice) {
-    // Try job record
-    const jobData = await redis.get<any>(`job:${jobId}`) || await redis.get<any>(jobId);
-    const inputSource = jobData?.userInput || clientData; // clientData itself has features/pages/siteType
-    const calc = calculatePrice(inputSource);
+  const job = await getJob(jobId);
+  if (job?.userInput) {
+    const calc = calculatePrice(job.userInput);
     totalPrice = calc.totalPrice;
-    monthlyPrice = calc.monthlyPrice;
-
-    // Persist so we don't recalculate every time
-    await redis.set(`client:${slug}`, {
-      ...clientData,
-      quote: {
-        price: totalPrice,
-        monthlyPrice,
-        monthlyOngoing,
-        package: totalPrice >= 5500 ? "Premium" : totalPrice >= 3200 ? "Business" : "Starter",
-        savings: totalPrice,
-        competitorPrice: totalPrice * 2,
-        breakdown: [`Base package: $${totalPrice}`, `Hosting: $${monthlyPrice}/month (first 3 months), then $${monthlyOngoing}/month`],
-      },
-    });
   }
 
-  if (!totalPrice || totalPrice <= 0) {
-    return NextResponse.json(
-      { error: "Could not determine quote amount. Please contact hello@webgecko.au" },
-      { status: 422 }
-    );
-  }
+  if (!totalPrice) return NextResponse.json({ error: "Could not determine quote" }, { status: 422 });
 
   const depositAmount = Math.round(totalPrice * 0.5 * 100) / 100;
-  // Final payment = remaining balance + first month hosting
   const remainingBalance = Math.round((totalPrice - depositAmount) * 100) / 100;
   const finalAmount = Math.round((remainingBalance + monthlyPrice) * 100) / 100;
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
-  const redirectUrl = `${baseUrl}/c/${slug}?payment=done`;
-  const paymentStateKey = `payment:${jobId}`;
+  const redirectUrl = `https://webgecko-builder.vercel.app/c/${slug}?payment=done`;
 
-  // Load payment state
-  const paymentState = await redis.get<any>(paymentStateKey) || {
+  const paymentState = await getPaymentState(jobId) || {
     depositPaid: false, finalUnlocked: false, finalPaid: false, monthlyActive: false, payments: {},
   };
 
-  // Guards
-  if (stage === "deposit" && paymentState.depositPaid) return NextResponse.json({ alreadyPaid: true, stage });
-  if (stage === "final" && paymentState.finalPaid) return NextResponse.json({ alreadyPaid: true, stage });
-  if (stage === "final" && !paymentState.finalUnlocked) return NextResponse.json({ error: "Final payment not yet unlocked" }, { status: 403 });
-  if (stage === "monthly" && !paymentState.finalPaid) return NextResponse.json({ error: "Final payment required first" }, { status: 403 });
+  const ps = {
+    depositPaid: paymentState.deposit_paid ?? false,
+    finalUnlocked: paymentState.final_unlocked ?? false,
+    finalPaid: paymentState.final_paid ?? false,
+    monthlyActive: paymentState.monthly_active ?? false,
+    payments: paymentState.payments || {},
+  };
 
-  // Return existing pending link if still valid
-  const existing = paymentState.payments?.[stage];
+  if (stage === "deposit" && ps.depositPaid) return NextResponse.json({ alreadyPaid: true, stage });
+  if (stage === "final" && ps.finalPaid) return NextResponse.json({ alreadyPaid: true, stage });
+  if (stage === "final" && !ps.finalUnlocked) return NextResponse.json({ error: "Final payment not yet unlocked" }, { status: 403 });
+  if (stage === "monthly" && !ps.finalPaid) return NextResponse.json({ error: "Final payment required first" }, { status: 403 });
+
+  const existing = ps.payments?.[stage];
   if (existing?.status === "pending" && existing?.paymentLinkUrl) {
     return NextResponse.json({ url: existing.paymentLinkUrl, stage, existing: true });
   }
 
-  // Create Square payment link
   const referenceId = `${jobId}-${stage}`;
   let result: { url: string; paymentLinkId: string; orderId: string };
 
   try {
     if (stage === "monthly") {
-      result = await createMonthlyPaymentLink({
-        monthlyDollars: monthlyPrice,
-        businessName,
-        referenceId,
-        redirectUrl,
-        buyerEmail: email,
-      });
+      result = await createMonthlyPaymentLink({ monthlyDollars: monthlyPrice, businessName, referenceId, redirectUrl, buyerEmail: email });
     } else {
       const amount = stage === "deposit" ? depositAmount : finalAmount;
       const label = stage === "deposit" ? "50% Deposit" : "Final Payment + First Month";
@@ -147,37 +104,25 @@ export async function GET(req: NextRequest) {
         amountDollars: amount,
         title: `${businessName} — ${label}`,
         description: stage === "deposit"
-          ? "Deposit to begin your website build. Balance due after final revision."
-          : `Final payment to launch your website ($${remainingBalance.toFixed(0)}) plus your first month of hosting ($${monthlyPrice}/month). After 3 months, hosting continues at $${monthlyOngoing}/month.`,
-        referenceId,
-        redirectUrl,
-        buyerEmail: email,
+          ? "Deposit to begin your website build."
+          : `Final payment ($${remainingBalance.toFixed(0)}) + first month hosting ($${monthlyPrice}/mo). After 3 months: $${monthlyOngoing}/mo.`,
+        referenceId, redirectUrl, buyerEmail: email,
       });
     }
   } catch (err: any) {
-    console.error("Square createPaymentLink error:", err?.message);
-    return NextResponse.json(
-      { error: `Payment setup failed: ${err?.message || "Unknown error"}` },
-      { status: 502 }
-    );
+    return NextResponse.json({ error: `Payment setup failed: ${err?.message || "Unknown error"}` }, { status: 502 });
   }
 
-  // Save link to Redis
   const record = {
     stage,
     amountDollars: stage === "deposit" ? depositAmount : stage === "final" ? finalAmount : monthlyPrice,
-    // For "final": includes first month hosting
-    includesFirstMonth: stage === "final" ? true : undefined,
     paymentLinkId: result.paymentLinkId,
     paymentLinkUrl: result.url,
     orderId: result.orderId,
     status: "pending",
   };
 
-  await redis.set(paymentStateKey, {
-    ...paymentState,
-    payments: { ...paymentState.payments, [stage]: record },
-  });
+  await savePaymentState(jobId, { ...ps, payments: { ...ps.payments, [stage]: record } });
 
   return NextResponse.json({ url: result.url, stage, existing: false });
 }

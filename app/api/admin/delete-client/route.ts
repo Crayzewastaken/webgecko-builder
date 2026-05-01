@@ -1,12 +1,7 @@
 // app/api/admin/delete-client/route.ts
-// Permanently deletes a client and all their associated data from Redis.
+// Permanently deletes a client and all their associated data from Supabase.
 import { NextRequest, NextResponse } from "next/server";
-import { Redis } from "@upstash/redis";
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+import { supabase } from "@/lib/supabase";
 
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -24,45 +19,35 @@ export async function DELETE(req: NextRequest) {
   try {
     const deleted: string[] = [];
 
-    // Delete job
     if (jobId) {
-      await redis.del(`job:${jobId}`);
-      deleted.push(`job:${jobId}`);
+      // Delete bookings
+      await supabase.from("bookings").delete().eq("job_id", jobId);
+      deleted.push(`bookings for ${jobId}`);
 
-      // Delete payment state
-      await redis.del(`payment:${jobId}`);
-      deleted.push(`payment:${jobId}`);
-
-      // Delete availability config
-      await redis.del(`availability:${jobId}`);
+      // Delete availability
+      await supabase.from("availability").delete().eq("job_id", jobId);
       deleted.push(`availability:${jobId}`);
 
-      // Delete all bookings
-      const indexKey = `bookings:index:${jobId}`;
-      const bookingIds = await redis.get<string[]>(indexKey) ?? [];
-      for (const bid of bookingIds) {
-        await redis.del(`booking:${jobId}:${bid}`);
-        deleted.push(`booking:${jobId}:${bid}`);
-      }
-      await redis.del(indexKey);
-      deleted.push(indexKey);
+      // Delete payments
+      await supabase.from("payments").delete().eq("job_id", jobId);
+      deleted.push(`payments for ${jobId}`);
 
-      // Delete analytics
-      await redis.del(`analytics:${jobId}`);
-      deleted.push(`analytics:${jobId}`);
+      // Delete feedback
+      await supabase.from("feedback").delete().eq("job_id", jobId);
+      deleted.push(`feedback for ${jobId}`);
+
+      // Delete client linked to job
+      await supabase.from("clients").delete().eq("job_id", jobId);
+      deleted.push(`client for job ${jobId}`);
+
+      // Delete job
+      await supabase.from("jobs").delete().eq("id", jobId);
+      deleted.push(`job:${jobId}`);
     }
 
-    // Delete client record
-    if (slug) {
-      await redis.del(`client:${slug}`);
+    if (slug && !jobId) {
+      await supabase.from("clients").delete().eq("slug", slug);
       deleted.push(`client:${slug}`);
-    } else if (jobId) {
-      // Try to find client slug from job
-      const job = await redis.get<any>(`job:${jobId}`);
-      if (job?.clientSlug) {
-        await redis.del(`client:${job.clientSlug}`);
-        deleted.push(`client:${job.clientSlug}`);
-      }
     }
 
     return NextResponse.json({ ok: true, deleted });

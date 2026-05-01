@@ -4,12 +4,8 @@
 // GET /api/admin/assign-domain?jobId=job_xxx&domain=ironcorefitness.com.au&secret=xxx
 
 import { NextRequest, NextResponse } from "next/server";
-import { Redis } from "@upstash/redis";
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+import { getJob, saveJob } from "@/lib/db";
+import { getClient, saveClient } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -24,7 +20,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "jobId and domain required" }, { status: 400 });
   }
 
-  const job = await redis.get<any>(`job:${jobId}`);
+  const job = await getJob(jobId);
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
   const vercelProjectName = job.vercelProjectName;
@@ -35,7 +31,6 @@ export async function GET(req: NextRequest) {
   const token = process.env.VERCEL_API_TOKEN!;
   const teamId = process.env.VERCEL_TEAM_ID;
 
-  // 1. Add domain alias to the Vercel project
   const aliasRes = await fetch(
     `https://api.vercel.com/v10/projects/${vercelProjectName}/domains${teamId ? `?teamId=${teamId}` : ""}`,
     {
@@ -50,21 +45,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: aliasData?.error?.message || "Failed to add domain", detail: aliasData }, { status: 500 });
   }
 
-  // 2. Update Redis with the live domain
-  await redis.set(`job:${jobId}`, {
-    ...job,
-    liveDomain: domain,
-    liveUrl: `https://${domain}`,
-  }, { ex: 86400 * 30 });
+  // Update job with live domain
+  await saveJob(jobId, { ...job, liveDomain: domain, liveUrl: `https://${domain}` });
 
   if (job.clientSlug) {
-    const client = await redis.get<any>(`client:${job.clientSlug}`);
+    const client = await getClient(job.clientSlug);
     if (client) {
-      await redis.set(`client:${job.clientSlug}`, {
-        ...client,
-        liveDomain: domain,
-        liveUrl: `https://${domain}`,
-      });
+      await saveClient(job.clientSlug, { ...client, domain, preview_url: `https://${domain}` });
     }
   }
 
