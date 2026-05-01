@@ -121,50 +121,60 @@ const buildWebsite = inngest.createFunction(
     console.log(`[Inngest] STEP 1 DONE (Gemini): ${spec.projectTitle} — palette: ${spec.palette?.primary}`);
 
 
-    // ── STEP 2+3+4: Claude generates full HTML directly ──────────────────────
-    const stitchHtml = await step.run("step3-claude-build", async () => {
-      const currentYear = new Date().getFullYear();
-      const buildPrompt = `${spec.stitchPrompt}
+    // ── STEP 2: Create Stitch project ─────────────────────────────────────────
+    const projectId = await step.run("step2-stitch-create", async () => {
+      const project: any = await stitchClient.callTool("create_project", { title: spec.projectTitle });
+      const pid = project?.name?.split("/")[1];
+      if (!pid) throw new Error("Stitch: no projectId returned");
+      return pid;
+    });
 
-ABSOLUTE REQUIREMENTS — you MUST include ALL of these exactly:
-- Business name: ${userInput.businessName} — used in nav logo, hero, footer, title tag
-- Email: ${clientEmail} — in contact section AND footer AND mailto links
-- Phone: ${clientPhone} — in contact section AND footer AND tel links
-- Address: ${userInput.businessAddress || ""}
-- Footer copyright: © ${currentYear} ${userInput.businessName}. All rights reserved.
-- id="hamburger" on the mobile menu toggle button
-- id="mobile-menu" on the mobile nav dropdown
-- id="faq" on the FAQ section
-- id="testimonials" on the testimonials section
-- id="contact" on the contact section
-${hasBookingFeature ? `- id="booking" on the booking section` : ""}
-${isMultiPage ? `- Each page is a <div class="page-section" id="..."> — only first visible on load
-- Nav links use onclick="navigateTo('sectionId')"
-- Include navigateTo() JS function` : "- Smooth scroll nav links using href='#sectionid'"}
+    // ── STEP 3: Stitch generate ───────────────────────────────────────────────
+    const downloadUrl = await step.run("step3-stitch-generate", async () => {
+      const MAX_ATTEMPTS = 3;
+      const RETRY_DELAYS_MS = [10_000, 20_000];
+      let lastError: Error = new Error("Stitch: unknown failure");
 
-OUTPUT: A single complete HTML file. Start with <!DOCTYPE html> and end with </html>. No markdown, no explanation, no code fences. Pure HTML only.`;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", {
+            projectId,
+            prompt: spec.stitchPrompt,
+          });
+          if (stitchResult?.code === "UNKNOWN_ERROR" || stitchResult?.suggestion === undefined && stitchResult?.recoverable === false) {
+            throw new Error(`Stitch service unavailable (attempt ${attempt})`);
+          }
+          const screens = stitchResult?.outputComponents?.find((x: any) => x.design)?.design?.screens || [];
+          if (!screens.length) throw new Error(`Stitch: no screens returned (attempt ${attempt})`);
+          const url = screens[0]?.htmlCode?.downloadUrl;
+          if (!url) throw new Error(`Stitch: no downloadUrl (attempt ${attempt})`);
+          const preCheck = await fetch(url).then(r => r.text()).catch(() => "");
+          if (preCheck.length < 5000) throw new Error(`Stitch HTML too short (${preCheck.length} chars)`);
+          if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(preCheck)) throw new Error(`Stitch returned skeleton`);
+          const styleLen = (preCheck.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
+          if (styleLen < 500) throw new Error(`Stitch HTML has no real CSS`);
+          return url;
+        } catch (err: any) {
+          lastError = err;
+          if (attempt < MAX_ATTEMPTS) {
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAYS_MS[attempt - 1] ?? 60_000));
+          }
+        }
+      }
+      throw new Error(`Stitch failed after ${MAX_ATTEMPTS} attempts. Last: ${lastError.message}`);
+    });
 
-      const response = await anthropic.messages.create({
-        model: "claude-sonnet-4-5",
-        max_tokens: 16000,
-        messages: [{ role: "user", content: buildPrompt }],
-      });
-
-      const html = (response.content[0] as any).text as string;
-
-      // Strip any accidental markdown fences
-      const clean = html
-        .replace(/^```html\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/```\s*$/i, "")
-        .trim();
-
-      if (clean.length < 8000) throw new Error(`Claude HTML too short (${clean.length} chars)`);
-      if (!clean.includes("<html")) throw new Error("Claude output missing <html> tag");
-      if (!/<style[\s>]/i.test(clean) && !clean.includes("tailwind")) throw new Error("Claude output has no CSS");
-
-      console.log(`[Inngest] STEP 3 DONE (Claude build): ${clean.length} chars`);
-      return clean;
+    // ── STEP 4: Fetch HTML ────────────────────────────────────────────────────
+    const stitchHtml = await step.run("step4-fetch-html", async () => {
+      const html = await fetch(downloadUrl).then(r => r.text());
+      if (!html || html.length < 5000) throw new Error(`Stitch HTML too short (${html?.length ?? 0} chars)`);
+      const skeletonPatterns = [/<h1>\s*(HOME PAGE|ABOUT PAGE|SERVICES PAGE|CONTACT PAGE|PAGE CONTENT)\s*<\/h1>/i, /const BOOKING_URL = "https:\/\/cal\.com\/your-link"/i];
+      for (const pattern of skeletonPatterns) {
+        if (pattern.test(html)) throw new Error("Stitch returned a skeleton placeholder");
+      }
+      const styleContent = (html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || []).join("");
+      if (styleContent.length < 500) throw new Error(`Stitch HTML has no real CSS`);
+      return html;
     });
 
     // ── STEP 5: Code-only fix pass ────────────────────────────────────────────
