@@ -259,12 +259,10 @@ const buildWebsite = inngest.createFunction(
     const finalHtml = await step.run("step6-inject", async () => {
       const { html: checkedHtml } = checkAndFixLinks(fixedHtml, Array.isArray(userInput.pages) ? userInput.pages : []);
       const ga4Id = job.ga4Id || userInput.ga4Id || "";
-      // Create Tawk.to property for live chat clients
-      let tawktoPropertyId: string | undefined;
-      if (features.includes("Live Chat")) {
-        tawktoPropertyId = await createTawktoProperty(userInput.businessName || "Client") || undefined;
-        if (tawktoPropertyId) await saveJob(jobId, { ...job, tawktoPropertyId });
-      }
+      // Tawk.to: use a single shared property ID from env (per-client creation not supported by their API)
+      const tawktoPropertyId = features.includes("Live Chat")
+        ? (process.env.TAWKTO_PROPERTY_ID || undefined)
+        : undefined;
       let html = injectEssentials(checkedHtml, clientEmail, clientPhone, jobId, ga4Id, tawktoPropertyId);
       html = injectImages(html, logoUrl, heroUrl, photoUrls, productsWithPhotos);
 
