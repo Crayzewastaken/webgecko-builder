@@ -48,11 +48,11 @@ export async function auditAndFixSite(
     return { passed: true, issues: [], fixedHtml: html };
   }
 
-  console.log(`[Auditor] Found ${issues.length} issues — running Claude Opus fix pass`);
+  console.log(`[Auditor] Found ${issues.length} issues — running Claude Sonnet fix pass`);
 
   const fixResponse = await anthropic.messages.create({
-    model: "claude-opus-4-5",
-    max_tokens: 16000,
+    model: "claude-sonnet-4-5",
+    max_tokens: 8000,
     messages: [{
       role: "user",
       content: `You are a senior web developer auditing and fixing a generated website.

@@ -1,5 +1,5 @@
 // app/api/inngest/route.ts
-export const maxDuration = 300;
+export const maxDuration = 800;
 
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest";
@@ -131,8 +131,8 @@ const buildWebsite = inngest.createFunction(
 
     // ── STEP 3: Stitch generate ───────────────────────────────────────────────
     const downloadUrl = await step.run("step3-stitch-generate", async () => {
-      const MAX_ATTEMPTS = 5;
-      const RETRY_DELAYS_MS = [15_000, 30_000, 45_000, 60_000];
+      const MAX_ATTEMPTS = 3;
+      const RETRY_DELAYS_MS = [10_000, 20_000];
       let lastError: Error = new Error("Stitch: unknown failure");
 
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
