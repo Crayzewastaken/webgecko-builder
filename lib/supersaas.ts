@@ -7,10 +7,17 @@ const SS_API_KEY  = process.env.SUPERSAAS_API_KEY!;
 const SS_BASE     = "https://www.supersaas.com/api";
 
 async function ssRequest(path: string, method = "GET", body?: Record<string, any>) {
+  // SuperSaas accepts credentials via HTTP Basic auth (account:api_key) OR URL params.
+  // Send both to be safe across API versions.
   const url = `${SS_BASE}${path}.json?account=${encodeURIComponent(SS_ACCOUNT)}&api_key=${encodeURIComponent(SS_API_KEY)}`;
+  const basicAuth = Buffer.from(`${SS_ACCOUNT}:${SS_API_KEY}`).toString("base64");
   const res = await fetch(url, {
     method,
-    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "Authorization": `Basic ${basicAuth}`,
+    },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const text = await res.text();
@@ -84,7 +91,7 @@ export async function createSuperSaasSchedule(params: {
 }
 
 /**
- * Generates the HTML to inject into id="booking" — either a SuperSaas iframe
+ * Generates the HTML to inject into id="booking" — a SuperSaas iframe
  * or a styled button linking to the client's own booking URL.
  */
 export function generateBookingEmbed(params: {
@@ -94,25 +101,16 @@ export function generateBookingEmbed(params: {
 }): string {
   const { bookingUrl, businessName, primaryColor = "#10b981" } = params;
 
-  return `<section id="booking" style="padding:80px 24px;background:#0a0f1a;">
-  <div style="max-width:900px;margin:0 auto;text-align:center;">
-    <h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;margin-bottom:8px;">Book an Appointment</h2>
-    <p style="color:#94a3b8;margin-bottom:32px;">Schedule your appointment with ${businessName} online — fast and easy.</p>
-    <div style="border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);">
-      <iframe
-        src="${bookingUrl}"
-        width="100%"
-        height="700"
-        frameborder="0"
-        scrolling="auto"
-        style="display:block;background:#fff;"
-        title="Book an Appointment"
-        loading="lazy"
-      ></iframe>
-    </div>
-    <p style="color:#475569;font-size:12px;margin-top:16px;">
-      Prefer to call? <a href="tel:" style="color:${primaryColor};">Phone us directly</a>
-    </p>
-  </div>
-</section>`;
+  return [
+    '<section id="booking" style="padding:80px 24px;background:#0a0f1a;">',
+    '  <div style="max-width:900px;margin:0 auto;text-align:center;">',
+    '    <h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;margin-bottom:8px;">Book an Appointment</h2>',
+    `    <p style="color:#94a3b8;margin-bottom:32px;">Schedule your appointment with ${businessName} online.</p>`,
+    '    <div style="border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);">',
+    `      <iframe src="${bookingUrl}" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;" title="Book an Appointment" loading="lazy"></iframe>`,
+    '    </div>',
+    `    <p style="color:#475569;font-size:12px;margin-top:16px;">Prefer to call? <a href="tel:" style="color:${primaryColor};">Phone us directly</a></p>`,
+    '  </div>',
+    '</section>',
+  ].join("\n");
 }

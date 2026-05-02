@@ -410,7 +410,7 @@ const buildWebsite = inngest.createFunction(
           // pos now points to just after the closing tag
           const fullElement = html.slice(startIdx, pos);
           html = html.slice(0, startIdx) + bookingWidgetHtml + html.slice(pos);
-          console.log(`[Step6c] Replaced element (${fullElement.length} chars). Widget present: ${html.includes("BW_JOB_ID")}`);
+          console.log(`[Step6c] Replaced element (${fullElement.length} chars). SuperSaas injected: ${html.includes("supersaas.com")}, has booking section: ${html.includes('id="booking"')}`);
         } else {
           // No section/div with id="booking" — check for any element with that id
           const anyBookingEl = /<[a-z][^>]*\bid="booking"[^>]*>/i.exec(html);
