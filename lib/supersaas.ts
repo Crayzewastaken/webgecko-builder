@@ -1,5 +1,7 @@
 // lib/supersaas.ts
-// SuperSaas API helper - auto-creates a booking schedule under the master WebGecko account.
+// SuperSaas API helper — master account owns all schedules.
+// Each client gets their own sub-user so they can log in and manage their schedule
+// without seeing or touching other clients' bookings.
 
 const SS_ACCOUNT = process.env.SUPERSAAS_ACCOUNT_NAME!;
 const SS_API_KEY  = process.env.SUPERSAAS_API_KEY!;
@@ -27,8 +29,18 @@ export interface SuperSaasSchedule {
   name: string;
   embedUrl: string;
   bookUrl: string;
+  // Sub-user credentials — give these to the client so they can log into SuperSaas
+  // and manage their own bookings without seeing the master account
+  subUserId?: number;
+  subUserEmail?: string;
+  subUserPassword?: string;
 }
 
+/**
+ * Creates a SuperSaas schedule + a sub-user for the client.
+ * The sub-user can log into supersaas.com with their own email/password
+ * and only sees their own schedule — not the master WebGecko account.
+ */
 export async function createSuperSaasSchedule(params: {
   businessName: string;
   clientEmail: string;
@@ -46,6 +58,7 @@ export async function createSuperSaasSchedule(params: {
     .slice(0, 40);
 
   try {
+    // ── Step 1: Create the schedule ──────────────────────────────────────────
     const result = await ssRequest("/schedules", "POST", {
       schedule: {
         name: slugName,
@@ -56,28 +69,70 @@ export async function createSuperSaasSchedule(params: {
         start_time: "09:00",
         end_time: "17:00",
         durations: [60],
-        // SuperSaas uses "notification" as a comma-separated list of emails to notify on new booking
+        // Email client when a new booking is made
         notification: params.clientEmail,
-        // "confirm" sends a confirmation email to the booker
+        // Send confirmation email to the customer who booked
         confirm: true,
-        // "created_email" is sent to the schedule owner (client) when a reservation is made
+        // Send created email to client (schedule owner)
         created_email: params.clientEmail,
       },
     });
 
-    // SuperSaas returns an array: [{ id, name, ... }]
     const schedule = Array.isArray(result) ? result[0] : (result?.schedule || result);
     const id = schedule?.id;
     if (!id) throw new Error("No schedule ID in response: " + JSON.stringify(result).slice(0, 200));
     const actualName = schedule?.name || slugName;
-
     console.log(`[SuperSaas] Created schedule "${actualName}" id=${id} for "${params.businessName}"`);
+
+    // ── Step 2: Create sub-user for the client ───────────────────────────────
+    // Generate a secure random password for the sub-user
+    const subPassword = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6).toUpperCase() + "!2";
+    let subUserId: number | undefined;
+    let subUserEmail: string | undefined;
+    let subUserPassword: string | undefined;
+
+    try {
+      const userResult = await ssRequest("/users", "POST", {
+        user: {
+          name: params.businessName,
+          email: params.clientEmail,
+          password: subPassword,
+          password_confirmation: subPassword,
+          // role "user" = client/supervisor — can manage their own bookings
+          // SuperSaas roles: "superadmin" | "admin" | "user" | "viewer"
+          role: "user",
+          schedules: [actualName],   // restrict to only their schedule
+        },
+      });
+      const user = Array.isArray(userResult) ? userResult[0] : (userResult?.user || userResult);
+      subUserId = user?.id;
+      subUserEmail = params.clientEmail;
+      subUserPassword = subPassword;
+      console.log(`[SuperSaas] Created sub-user id=${subUserId} email=${params.clientEmail} for schedule "${actualName}"`);
+    } catch (userErr) {
+      // Sub-user creation is non-fatal — schedule still works without it
+      // (client just won't have their own login; they use the embed iframe)
+      console.warn("[SuperSaas] Sub-user creation failed (non-fatal):", (userErr as Error).message);
+    }
+
+    // Base schedule URL (master account owns the schedule)
+    const baseUrl = `https://www.supersaas.com/schedule/${encodeURIComponent(SS_ACCOUNT)}/${encodeURIComponent(actualName)}`;
+
+    // If we created a sub-user, embed with their credentials so the iframe auto-logs-in
+    // as THEM — they see only their schedule, not the master webgecko account view.
+    // ?user=email&password=xxx is SuperSaas's SSO/auto-login mechanism for embeds.
+    const embedUrl = (subUserEmail && subUserPassword)
+      ? `${baseUrl}?user=${encodeURIComponent(subUserEmail)}&password=${encodeURIComponent(subUserPassword)}`
+      : baseUrl;
 
     return {
       id,
       name: actualName,
-      embedUrl: `https://www.supersaas.com/schedule/${encodeURIComponent(SS_ACCOUNT)}/${encodeURIComponent(actualName)}`,
-      bookUrl:  `https://www.supersaas.com/schedule/${encodeURIComponent(SS_ACCOUNT)}/${encodeURIComponent(actualName)}`,
+      embedUrl,
+      bookUrl: baseUrl,   // plain URL for direct link (no credentials in address bar)
+      subUserId,
+      subUserEmail,
+      subUserPassword,
     };
   } catch (err) {
     console.error("[SuperSaas] Failed to create schedule:", err);
@@ -142,10 +197,6 @@ export async function listAppointments(scheduleId: number, params?: {
 }): Promise<SuperSaasAppointment[]> {
   if (!SS_ACCOUNT || !SS_API_KEY) return [];
   try {
-    let path = `/appointments?schedule_id=${scheduleId}`;
-    if (params?.start) path += `&start=${params.start}`;
-    if (params?.limit) path += `&limit=${params.limit}`;
-    // ssRequest appends .json but appointments endpoint doesn't use path like others
     const url = `${SS_BASE}/appointments.json?account=${encodeURIComponent(SS_ACCOUNT)}&api_key=${encodeURIComponent(SS_API_KEY)}&schedule_id=${scheduleId}${params?.start ? "&start=" + params.start : ""}${params?.limit ? "&limit=" + params.limit : ""}`;
     const basicAuth = Buffer.from(`${SS_ACCOUNT}:${SS_API_KEY}`).toString("base64");
     const res = await fetch(url, {

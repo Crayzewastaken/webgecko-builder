@@ -250,6 +250,36 @@ document.querySelectorAll("#close-drawer,#close-menu,#menu-close,#nav-close,[ari
     if (drawer) { drawer.classList.remove("translate-x-0"); drawer.classList.add("translate-x-full"); drawer.style.transform = "translateX(100%)"; drawer.style.display = "none"; }
   });
 });
+// Fallback: Stitch-generated buttons with data-icon="menu" (Material Icons pattern)
+(function() {
+  function wgToggleDrawer(forceClose) {
+    var drawer = document.getElementById("side-drawer") || document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.querySelector("[class*='side-drawer'],[class*='mobile-menu'],[class*='mobile-nav'],[class*='nav-drawer']");
+    if (!drawer) return;
+    var isOpen = drawer.style.transform === "translateX(0px)" || drawer.style.transform === "translateX(0)" || drawer.style.display === "flex" || drawer.style.display === "block";
+    if (forceClose || isOpen) {
+      drawer.classList.remove("translate-x-0"); drawer.classList.add("translate-x-full"); drawer.style.transform = "translateX(100%)"; drawer.style.display = "none";
+    } else {
+      drawer.classList.remove("translate-x-full"); drawer.classList.add("translate-x-0"); drawer.style.transform = "translateX(0)"; drawer.style.display = "flex";
+    }
+  }
+  document.querySelectorAll("button,a").forEach(function(btn) {
+    if (btn.getAttribute("data-wg-wired")) return;
+    var ic = btn.querySelector("[data-icon='menu'],[data-icon='menu_open']");
+    var txt = (btn.textContent || "").trim().toLowerCase();
+    if (ic || txt === "menu") {
+      btn.setAttribute("data-wg-wired", "1");
+      btn.addEventListener("click", function(e) { e.stopPropagation(); wgToggleDrawer(); });
+    }
+  });
+  // Wire data-icon="close" inside drawers
+  document.querySelectorAll("[class*='side-drawer'],[class*='mobile-menu'],[class*='mobile-nav'],[class*='nav-drawer']").forEach(function(drawer) {
+    drawer.querySelectorAll("button,a").forEach(function(btn) {
+      if (btn.getAttribute("data-wg-wired")) return;
+      var ic = btn.querySelector("[data-icon='close']");
+      if (ic) { btn.setAttribute("data-wg-wired", "1"); btn.addEventListener("click", function() { wgToggleDrawer(true); }); }
+    });
+  });
+})();
 // Newsletter popup / modal close — catches any floating popup with a close button
 // Stitch generates these with no onclick — we wire them up here
 (function() {

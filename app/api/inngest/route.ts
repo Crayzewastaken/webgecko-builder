@@ -115,7 +115,20 @@ const buildWebsite = inngest.createFunction(
         timezone: "Australia/Brisbane",
       });
       if (schedule) {
-        await saveJob(jobId, { ...job, supersaasUrl: schedule.embedUrl, supersaasId: schedule.id });
+        // Save schedule + sub-user credentials so the welcome email can include them
+        await saveJob(jobId, {
+          ...job,
+          supersaasUrl: schedule.embedUrl,
+          supersaasId: schedule.id,
+          metadata: {
+            ...(job.userInput || {}),
+            supersaasSubEmail: schedule.subUserEmail,
+            supersaasSubPassword: schedule.subUserPassword,
+          },
+        });
+        if (schedule.subUserEmail) {
+          console.log(`[Step0] SuperSaas sub-user created: ${schedule.subUserEmail} (password saved to job metadata)`);
+        }
         console.log(`[Step0] SuperSaas schedule ready: ${schedule.embedUrl}`);
         return schedule.embedUrl;
       }
@@ -803,6 +816,7 @@ const buildWebsite = inngest.createFunction(
       <p style="color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 8px;">Build Checklist (HTML)</p>
       <table width="100%" cellpadding="0" cellspacing="0" style="background:#080c14;border-radius:8px;">${checklistHtml}</table>
     </div>
+    ${hasBookingFeature && job.metadata?.supersaasSubEmail ? `<div style="background:#0a1628;border:1px solid rgba(0,200,150,0.2);border-radius:8px;padding:16px 20px;margin-bottom:20px;"><p style="color:#00c896;font-size:12px;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 8px;">📅 SuperSaas Sub-Account (client login)</p><p style="color:#94a3b8;font-size:13px;margin:0;">Login: <strong style="color:#e2e8f0;">${job.metadata.supersaasSubEmail}</strong> — Password: <strong style="color:#e2e8f0;">${job.metadata.supersaasSubPassword}</strong><br><span style="color:#475569;font-size:12px;">Client can log in at supersaas.com and manage only their own schedule</span></p></div>` : ""}
     <table cellpadding="0" cellspacing="0"><tr>
       <td style="padding-right:8px;padding-bottom:8px;"><a href="${releaseUrl}" style="background:#00c896;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📤 Release to Client</a></td>
       <td style="padding-right:8px;padding-bottom:8px;"><a href="${fixUrl}" style="background:#3b82f6;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">🔧 Fix This Site</a></td>

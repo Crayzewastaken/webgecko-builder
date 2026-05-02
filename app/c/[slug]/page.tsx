@@ -325,6 +325,20 @@ function BookingManager({ slug, client, paymentStatus }: { slug: string; client:
 
   return (
     <>
+      {/* SuperSaas management banner */}
+      {useSuperSaas && client.supersaasUrl && (
+        <div style={{ background: "#0a1628", border: "1px solid rgba(0,200,150,0.2)", borderRadius: 10, padding: "12px 16px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" as const }}>
+          <div>
+            <div style={{ color: "#00c896", fontSize: 12, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: 2 }}>📅 Your Booking System</div>
+            <div style={{ color: "#475569", fontSize: 12 }}>Customers book directly on your website. You can also manage your schedule at SuperSaas.</div>
+          </div>
+          <a href="https://www.supersaas.com/account/login" target="_blank" rel="noopener noreferrer"
+            style={{ background: "#0f2a4a", color: "#38bdf8", border: "1px solid #1e3a5f", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" as const, flexShrink: 0 }}>
+            Open SuperSaas →
+          </a>
+        </div>
+      )}
+
       {/* Stats */}
       <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" as const }}>
         {[{ label: "Total", value: bookings.length, color: "#e2e8f0" }, { label: "Upcoming", value: upcoming, color: "#00c896" }, { label: "Past/Cancelled", value: bookings.length - upcoming, color: "#4a5568" }].map(st => (
@@ -333,7 +347,9 @@ function BookingManager({ slug, client, paymentStatus }: { slug: string; client:
             <div style={{ fontSize: 11, color: "#4a5568", marginTop: 2 }}>{st.label}</div>
           </div>
         ))}
-        <button onClick={() => setModal("add")} style={{ background: "linear-gradient(135deg,#00c896,#0099ff)", border: "none", color: "#000", borderRadius: 10, padding: "14px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" as const }}>+ Add</button>
+        {!useSuperSaas && (
+          <button onClick={() => setModal("add")} style={{ background: "linear-gradient(135deg,#00c896,#0099ff)", border: "none", color: "#000", borderRadius: 10, padding: "14px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" as const }}>+ Add</button>
+        )}
       </div>
 
       {/* Search + filters */}

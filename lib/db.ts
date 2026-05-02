@@ -256,6 +256,13 @@ function jobToDbJob(id: string, job: Record<string, any>) {
     has_booking: job.hasBooking || false,
     user_input: job.userInput || null,
     fixed_at: job.fixedAt || null,
+    // SuperSaas — stored on jobs table
+    supersaas_url: job.supersaasUrl || null,
+    supersaas_id: job.supersaasId || null,
+    // Tawk.to
+    tawkto_property_id: job.tawktoPropertyId || null,
+    // Metadata jsonb — stores sub-user creds, extra intake fields, etc.
+    ...(job.metadata !== undefined ? { metadata: job.metadata } : {}),
   };
 }
 
@@ -280,6 +287,7 @@ function dbJobToJob(row: Record<string, any>) {
     supersaasUrl: row.supersaas_url,
     supersaasId: row.supersaas_id,
     tawktoPropertyId: row.tawkto_property_id,
+    metadata: row.metadata || null,
   };
 }
 

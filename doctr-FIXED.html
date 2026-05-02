@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>doctr</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed": "#ffdbcb",
+                    "on-surface-variant": "#3d4949",
+                    "surface-bright": "#f6faf9",
+                    "secondary-fixed": "#79f6ed",
+                    "error": "#ba1a1a",
+                    "surface-container-highest": "#dfe3e3",
+                    "inverse-surface": "#2c3131",
+                    "on-tertiary": "#ffffff",
+                    "error-container": "#ffdad6",
+                    "on-error": "#ffffff",
+                    "inverse-primary": "#6fd7d6",
+                    "surface-tint": "#006a6a",
+                    "on-primary-container": "#f3fffe",
+                    "background": "#f6faf9",
+                    "on-primary": "#ffffff",
+                    "on-primary-fixed-variant": "#004f4f",
+                    "primary-fixed": "#8cf3f3",
+                    "secondary": "#006a65",
+                    "on-tertiary-container": "#fffbff",
+                    "on-surface": "#171d1c",
+                    "tertiary": "#8f4922",
+                    "surface-container": "#eaefee",
+                    "primary-container": "#008282",
+                    "surface-variant": "#dfe3e3",
+                    "on-error-container": "#93000a",
+                    "tertiary-container": "#ad6038",
+                    "on-primary-fixed": "#002020",
+                    "surface-container-high": "#e4e9e8",
+                    "on-secondary-fixed": "#00201e",
+                    "tertiary-fixed-dim": "#ffb693",
+                    "surface": "#f6faf9",
+                    "on-secondary-fixed-variant": "#00504c",
+                    "outline-variant": "#bcc9c8",
+                    "surface-container-low": "#f0f4f4",
+                    "primary-fixed-dim": "#6fd7d6",
+                    "primary": "#006767",
+                    "secondary-fixed-dim": "#59dad1",
+                    "on-tertiary-fixed": "#341000",
+                    "on-secondary": "#ffffff",
+                    "inverse-on-surface": "#edf2f1",
+                    "secondary-container": "#76f3ea",
+                    "on-tertiary-fixed-variant": "#74340f",
+                    "on-background": "#171d1c",
+                    "surface-dim": "#d6dbda",
+                    "on-secondary-container": "#006f69",
+                    "outline": "#6d7979",
+                    "surface-container-lowest": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "8px",
+                    "gutter": "24px",
+                    "lg": "48px",
+                    "md": "24px",
+                    "xs": "4px",
+                    "xl": "80px",
+                    "sm": "12px",
+                    "container-max": "1280px"
+            },
+            "fontFamily": {
+                    "headline-md": ["manrope"],
+                    "body-lg": ["inter"],
+                    "label-sm": ["inter"],
+                    "display-xl": ["manrope"],
+                    "headline-lg": ["manrope"],
+                    "caption": ["inter"],
+                    "body-md": ["inter"]
+            },
+            "fontSize": {
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-sm": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                    "display-xl": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "caption": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .page-section { display: none; min-height: 100vh; }
+        .page-section.active { display: block; }
+        .ambient-shadow { shadow-[0_4px_20px_rgba(0,139,139,0.08)]; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-teal-50/50 dark:border-teal-900/30 shadow-[0_4px_20px_rgba(0,139,139,0.08)]">
+<div class="flex justify-between items-center max-w-7xl mx-auto px-6 h-20">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-teal-600 dark:text-teal-400 text-2xl">medical_services</span>
+<span class="text-2xl font-bold text-teal-700 dark:text-teal-300 tracking-tighter font-headline-lg">doctr</span>
+</div>
+<nav class="hidden md:flex items-center gap-8 font-manrope font-semibold tracking-tight">
+<button class="text-teal-600 dark:text-teal-400 border-b-2 border-teal-600 pb-1" onclick="navigateTo('home')">Home</button>
+<button class="text-slate-600 dark:text-slate-400 hover:text-teal-600 transition-all duration-300" onclick="navigateTo('booking')">Booking</button>
+<button class="text-slate-600 dark:text-slate-400 hover:text-teal-600 transition-all duration-300" onclick="navigateTo('blog')">Blog</button>
+<button class="text-slate-600 dark:text-slate-400 hover:text-teal-600 transition-all duration-300" onclick="navigateTo('about')">About</button>
+<button class="text-slate-600 dark:text-slate-400 hover:text-teal-600 transition-all duration-300" onclick="navigateTo('contact')">Contact</button>
+</nav>
+<div class="flex items-center gap-4">
+<button class="hidden sm:block bg-primary-container text-on-primary-container px-6 py-2.5 rounded-lg font-manrope font-semibold hover:bg-primary transition-all duration-300" onclick="navigateTo('booking')">Book Now</button>
+<button class="p-2 text-on-surface hover:bg-teal-50/50 rounded-full" id="menuToggle" onclick="(function(){var d=document.getElementById('drawer'),ov=document.getElementById('overlay');if(d){d.classList.remove('translate-x-full');d.classList.add('translate-x-0');d.style.transform='translateX(0)';if(ov){ov.classList.remove('hidden');ov.style.display='block';ov.style.opacity='1';}}})()">
+<span class="material-symbols-outlined">menu</span>
+</button>
+</div>
+</div>
+</header>
+<!-- NavigationDrawer -->
+<div class="fixed inset-y-0 right-0 z-[60] flex flex-col p-8 bg-white dark:bg-slate-950 h-full w-80 shadow-2xl translate-x-full transition-transform duration-300 ease-in-out border-l border-teal-50 dark:border-teal-900/20" id="drawer">
+<div class="flex justify-between items-center mb-12">
+<span class="text-3xl font-black text-teal-700 font-headline-lg">doctr</span>
+<button class="p-2" id="closeDrawer" onclick="(function(){var d=document.getElementById('drawer'),ov=document.getElementById('overlay');if(d){d.classList.add('translate-x-full');d.classList.remove('translate-x-0');d.style.transform='translateX(100%)';}if(ov){ov.classList.add('hidden');ov.style.display='none';}})()" ><span class="material-symbols-outlined">close</span></button>
+</div>
+<nav class="flex flex-col gap-2 divide-y divide-teal-50 dark:divide-teal-900/20">
+<button class="flex items-center gap-4 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 font-bold px-4 py-3 rounded-lg font-manrope text-lg hover:translate-x-2 transition-transform duration-200" onclick="navigateTo('home')">
+<span class="material-symbols-outlined">home</span> Home
+            </button>
+<button class="flex items-center gap-4 text-slate-500 dark:text-slate-400 px-4 py-3 font-manrope text-lg hover:translate-x-2 transition-transform duration-200" onclick="navigateTo('booking')">
+<span class="material-symbols-outlined">event</span> Booking
+            </button>
+<button class="flex items-center gap-4 text-slate-500 dark:text-slate-400 px-4 py-3 font-manrope text-lg hover:translate-x-2 transition-transform duration-200" onclick="navigateTo('blog')">
+<span class="material-symbols-outlined">article</span> Blog
+            </button>
+<button class="flex items-center gap-4 text-slate-500 dark:text-slate-400 px-4 py-3 font-manrope text-lg hover:translate-x-2 transition-transform duration-200" onclick="navigateTo('about')">
+<span class="material-symbols-outlined">info</span> About
+            </button>
+<button class="flex items-center gap-4 text-slate-500 dark:text-slate-400 px-4 py-3 font-manrope text-lg hover:translate-x-2 transition-transform duration-200" onclick="navigateTo('contact')">
+<span class="material-symbols-outlined">mail</span> Contact
+            </button>
+</nav>
+</div>
+<div class="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity duration-300" id="overlay" onclick="(function(){var d=document.getElementById('drawer'),ov=document.getElementById('overlay');if(d){d.classList.add('translate-x-full');d.classList.remove('translate-x-0');d.style.transform='translateX(100)%';}if(ov){ov.classList.add('hidden');ov.style.display='none';}})()" style="cursor:pointer;"></div>
+<main class="pt-20">
+<!-- Section 1: Home -->
+<div class="page-section active" id="home">
+<!-- Hero -->
+<section class="relative h-[795px] flex items-center overflow-hidden">
+<div class="absolute inset-0 z-0">
+<img class="w-full h-full object-cover opacity-60" data-alt="A clean, professional medical office setting with a blurred doctor in the background holding a digital tablet. The scene is bathed in soft, high-key teal and white lighting, creating a high-end corporate clinical aesthetic. The composition is spacious and minimalist, emphasizing reliability and technological sophistication with a modern healthcare focus." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCpw-TdB21p_6rMpfX8x93WJmawwmRLebq2SePyXx7dA3jLOhZXVJbc90m0HPaFeYFh569QR0XaUNMuF1p3vA_fNQ4_E9XCFr6d72r81v6378aDa6yM_RqPpdBVWVT8MZi-2tMyxq9iOpceMtrct_v1xd2JHBu-m0KqtEDLCi0zNaSocPm_CrmQ0GdKndgH0ynRr1q5wvKZhGTlzztN9eUcGwB_CQ1lFMB-UJvX1AHJPJ3HBRWnA6m3uMJupY1iLReWb2-eO89tp4Y"/>
+<div class="absolute inset-0 bg-gradient-to-r from-background/70 via-background/40 to-transparent"></div>
+</div>
+<div class="container-max mx-auto px-6 relative z-10">
+<div class="max-w-3xl">
+<h1 class="font-display-xl text-on-surface mb-6 leading-tight">Connect with qualified doctors 24/7 - Medical support when you need it most</h1>
+<p class="font-body-lg text-on-surface-variant mb-10 max-w-xl">Injured or unwell? Get instant online consultations with certified healthcare professionals from the comfort of your home.</p>
+<button class="bg-primary-container text-on-primary-container px-10 py-5 rounded-lg font-headline-md shadow-lg hover:bg-primary transition-all duration-300 hover:scale-[1.02]" onclick="navigateTo('booking')">
+                            Book Your Appointment Now
+                        </button>
+</div>
+</div>
+</section>
+<!-- Stats Bar -->
+<section class="bg-surface-container py-12 border-y border-outline-variant/30">
+<div class="container-max mx-auto px-6">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+<div>
+<div class="text-headline-lg text-primary font-bold">5000+</div>
+<div class="text-label-sm text-on-surface-variant">Patients Served</div>
+</div>
+<div>
+<div class="text-headline-lg text-primary font-bold">98%</div>
+<div class="text-label-sm text-on-surface-variant">Satisfaction Rate</div>
+</div>
+<div>
+<div class="text-headline-lg text-primary font-bold">&lt;15m</div>
+<div class="text-label-sm text-on-surface-variant">Response Time</div>
+</div>
+<div>
+<div class="text-headline-lg text-primary font-bold">24/7</div>
+<div class="text-label-sm text-on-surface-variant">Availability</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Services Bento Grid -->
+<section class="py-xl bg-white">
+<div class="container-max mx-auto px-6">
+<h2 class="text-headline-lg font-display-xl mb-12 text-center">Our Specialized Services</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<div class="md:col-span-2 relative h-80 rounded-xl overflow-hidden group shadow-[0_4px_20px_rgba(0,139,139,0.08)]">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="A professional doctor wearing a white coat and stethoscope calmly speaking to a patient via a high-definition laptop screen. The environment is a clean, bright, and modern home office with soft teal accents. The lighting is bright and airy, conveying professional accessibility and clinical excellence." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCds_FbWoDAWahpgeFsjJjcpo1HV1Va0kucdQwFmuKBHKWDdxnhYnwCaXrv_hW-9-cokrjrrOZFdwhg9P-8Vu5WfHVeLUFITsB_3LLcGgGA6mjXAK1wDS4K4hugeNwHEpJuqiWZZh6rxITZ-3UqFDjsG4_ySbXyKnJEtVBMk4UJPF2twHZiXhkImfI1s0E2KozAZWO2f9BxgehppCWODRnZsbSG551KcQrLH98g1h8TQtTyLi0WGlmNcufU1GzANt_Q3Myc6R0Q3HA"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end p-8">
+<h3 class="text-white font-headline-md mb-2">Emergency consultations</h3>
+<p class="text-teal-50 font-body-md opacity-90">Immediate access to critical care advice when time is of the essence.</p>
+</div>
+</div>
+<div class="bg-surface-container-low p-8 rounded-xl flex flex-col justify-between border border-teal-50">
+<div class="bg-teal-100 w-16 h-16 rounded-full flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-teal-700 text-3xl">prescriptions</span>
+</div>
+<div>
+<h3 class="text-headline-md text-on-surface mb-3">Prescriptions</h3>
+<p class="text-on-surface-variant font-body-md">Seamless digital prescriptions sent directly to your preferred pharmacy.</p>
+</div>
+</div>
+<div class="bg-primary p-8 rounded-xl text-on-primary shadow-xl">
+<div class="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-white text-3xl">medical_information</span>
+</div>
+<h3 class="text-headline-md mb-3">Follow-up care</h3>
+<p class="text-white/80 font-body-md">Continuous monitoring and personalized care plans after your initial consult.</p>
+</div>
+<div class="md:col-span-2 relative h-80 rounded-xl overflow-hidden group shadow-[0_4px_20px_rgba(0,139,139,0.08)]">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="A close up shot of a healthcare professional’s hands typing on a sleek keyboard with medical documents and a stethoscope nearby on a bright white desk. Soft teal light reflects off the surfaces. The style is clinical, modern, and efficient, emphasizing the digital aspect of specialist referrals." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAI5yOxPwDMHyENg6w-4cKcsoqzEEBbgbjfLxaLW60lmiJYjWycBQBVKypTA9Xm-ZhzgBogAvQqyFa7C-nrTctJ_PlYfGWgG193QR3cQAJ-ug4RPcpaKSCGU_dT-5IBSFT-K9WsTiEeCxwKcbeQS_lthb6lfZvQUP11mzLwQTGnc9sD7CNkoXWhscwXZLadywg8nClHGvjIRm5Xu3w7GXgsp2gy_4_b5444_FRxSuP-G9C3-KY3w-OoCzWV7DsRiRg_jPcMXHPZHrk"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end p-8">
+<h3 class="text-white font-headline-md mb-2">Specialist referrals</h3>
+<p class="text-teal-50 font-body-md opacity-90">Direct connection to Australia's leading medical experts and clinics.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Testimonials -->
+<section class="py-xl bg-surface-container-lowest" id="testimonials">
+<div class="container-max mx-auto px-6">
+<h2 class="text-headline-lg font-display-xl mb-16 text-center">Trusted by Australians</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<div class="bg-white p-8 rounded-xl shadow-[0_4px_20px_rgba(0,139,139,0.08)] border border-teal-50/50">
+<div class="flex text-primary mb-4">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="font-body-md italic mb-6 text-on-surface-variant">"The speed of response was incredible. I was worried about a sudden rash late at night and had a doctor on screen within 10 minutes. Exceptional service."</p>
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center font-bold text-teal-700">JM</div>
+<div>
+<div class="font-bold text-on-surface">James Mitchell</div>
+<div class="text-caption text-on-surface-variant">Sydney, NSW</div>
+</div>
+</div>
+</div>
+<div class="bg-white p-8 rounded-xl shadow-[0_4px_20px_rgba(0,139,139,0.08)] border border-teal-50/50">
+<div class="flex text-primary mb-4">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="font-body-md italic mb-6 text-on-surface-variant">"As a busy mum, getting a script without leaving the house is a game-changer. Doctr is professional, safe, and incredibly convenient."</p>
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center font-bold text-teal-700">SH</div>
+<div>
+<div class="font-bold text-on-surface">Sarah Henderson</div>
+<div class="text-caption text-on-surface-variant">Melbourne, VIC</div>
+</div>
+</div>
+</div>
+<div class="bg-white p-8 rounded-xl shadow-[0_4px_20px_rgba(0,139,139,0.08)] border border-teal-50/50">
+<div class="flex text-primary mb-4">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="font-body-md italic mb-6 text-on-surface-variant">"I needed a specialist referral and didn't want to wait 2 weeks for my local GP. Doctr handled everything professionally in one session."</p>
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center font-bold text-teal-700">MC</div>
+<div>
+<div class="font-bold text-on-surface">Michael Chen</div>
+<div class="text-caption text-on-surface-variant">Brisbane, QLD</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- FAQ -->
+<section class="py-xl bg-white" id="faq">
+<div class="container-max mx-auto px-6 max-w-3xl">
+<h2 class="text-headline-lg font-display-xl mb-12 text-center">Frequently Asked Questions</h2>
+<div class="space-y-4">
+<details class="group bg-surface-container-low rounded-lg p-6 border border-transparent open:border-teal-100 open:bg-white transition-all">
+<summary class="list-none flex justify-between items-center cursor-pointer font-headline-md text-on-surface">
+                                How do online consultations work?
+                                <span class="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+</summary>
+<p class="mt-4 text-on-surface-variant font-body-md">Our platform connects you via encrypted video link to a certified doctor. You can discuss symptoms, share photos, and receive medical advice just like an in-person visit.</p>
+</details>
+<details class="group bg-surface-container-low rounded-lg p-6 border border-transparent open:border-teal-100 open:bg-white transition-all">
+<summary class="list-none flex justify-between items-center cursor-pointer font-headline-md text-on-surface">
+                                Can I get a prescription online?
+                                <span class="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+</summary>
+<p class="mt-4 text-on-surface-variant font-body-md">Yes. If clinically appropriate, our doctors can issue digital prescriptions (eScripts) which are sent via SMS or email to you or your pharmacy.</p>
+</details>
+<details class="group bg-surface-container-low rounded-lg p-6 border border-transparent open:border-teal-100 open:bg-white transition-all">
+<summary class="list-none flex justify-between items-center cursor-pointer font-headline-md text-on-surface">
+                                Is my medical data private?
+                                <span class="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+</summary>
+<p class="mt-4 text-on-surface-variant font-body-md">Absolutely. We use end-to-end encryption for all video calls and adhere to strict Australian medical privacy standards (APP) and digital security protocols.</p>
+</details>
+<details class="group bg-surface-container-low rounded-lg p-6 border border-transparent open:border-teal-100 open:bg-white transition-all">
+<summary class="list-none flex justify-between items-center cursor-pointer font-headline-md text-on-surface">
+                                How do I book an appointment?
+                                <span class="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+</summary>
+<p class="mt-4 text-on-surface-variant font-body-md">Simply click any 'Book Now' button, select a suitable time, and fill in your details. You'll receive a confirmation email with your session link immediately.</p>
+</details>
+<details class="group bg-surface-container-low rounded-lg p-6 border border-transparent open:border-teal-100 open:bg-white transition-all">
+<summary class="list-none flex justify-between items-center cursor-pointer font-headline-md text-on-surface">
+                                What are the payment options?
+                                <span class="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+</summary>
+<p class="mt-4 text-on-surface-variant font-body-md">We accept all major credit cards, Apple Pay, and Google Pay. Some consultations may be eligible for private health insurance rebates.</p>
+</details>
+<details class="group bg-surface-container-low rounded-lg p-6 border border-transparent open:border-teal-100 open:bg-white transition-all">
+<summary class="list-none flex justify-between items-center cursor-pointer font-headline-md text-on-surface">
+                                Can I cancel my appointment?
+                                <span class="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+</summary>
+<p class="mt-4 text-on-surface-variant font-body-md">Yes, cancellations are permitted up to 4 hours before the appointment for a full refund. Late cancellations may incur a small fee.</p>
+</details>
+</div>
+</div>
+</section>
+</div>
+<!-- Section 2: Booking -->
+<section id="booking" class="page-section" style="display:none;padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">
+  <div style="max-width:900px;margin:0 auto;text-align:center;">
+    <h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;margin:0 0 8px;">Book an Appointment</h2>
+    <p style="color:#94a3b8;margin:0 0 32px;">Schedule your appointment with doctr online.</p>
+    <div style="border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);">
+      <iframe src="https://www.supersaas.com/schedule/webgecko/template" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;" title="Book an Appointment" loading="lazy"></iframe>
+    </div>
+    <p style="color:#475569;font-size:12px;margin-top:16px;">Prefer to call? <a href="tel:0100000000" style="color:#20B2AA;">0100000000</a></p>
+  </div>
+</section>
+<!-- Section 3: Blog -->
+<div class="page-section py-xl bg-background" id="blog">
+<div class="container-max mx-auto px-6">
+<h2 class="text-headline-lg font-display-xl mb-12">Clinical Insights &amp; Wellness</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+<article class="bg-white rounded-xl overflow-hidden shadow-[0_4px_20px_rgba(0,139,139,0.08)] group">
+<div class="h-56 overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A top-down view of a modern wellness setup: a high-end water bottle, a fresh green smoothie in a glass, and a sleek fitness tracker on a minimalist white table. The lighting is natural and bright, with soft teal accents in the background. The visual style is clean, corporate wellness focused, and aspirational." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBTzg3ZUzpvg3PBXLPtAxkOW5cad2r6xkAnB5qVblBFuet3t7zC2wQnCMpKFnXAA6IuSup1hw7FhyU7hqpJ5oYPZHOp_95K6887XBKsE9xXCItCkT0wavxjvnJGUyd35KpYvSG9hd_2lBMuAn8La-_Dkxb1n1-K6k_8OqWvZK8R6doBND7DkUjhQb-DGWQ8Jnn3FFIyr-ZOtzMLzbZi0bCR_KuK4NmngdoX24JVGaiE3qd7YSPZw-kbWN0aOBCr35-FgdUjopI8xYU"/>
+</div>
+<div class="p-8">
+<span class="inline-block bg-teal-50 text-teal-700 px-3 py-1 rounded-full text-caption font-bold mb-4">Wellness</span>
+<h3 class="text-headline-md mb-4 group-hover:text-primary transition-colors">10 Tips for Maintaining Peak Immunity</h3>
+<p class="text-on-surface-variant font-body-md mb-6">Expert advice on nutrition, sleep, and stress management to keep your body resilient year-round.</p>
+<a class="text-primary font-bold inline-flex items-center gap-2" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Read Article <span class="material-symbols-outlined">arrow_forward</span></a>
+</div>
+</article>
+<article class="bg-white rounded-xl overflow-hidden shadow-[0_4px_20px_rgba(0,139,139,0.08)] group">
+<div class="h-56 overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A macro shot of a sleek, white stethescope lying on a high-tech medical tablet showing health data visualizations. The lighting is a cool clinical white with subtle deep teal shadows. The mood is highly professional, technical, and precise, representing modern digital healthcare excellence." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlR4tkTliFfSaVKD_aWX8zumb87IcLZ_dMTrRYib9GiaVOvreuazgiBhAl_k4dkZT5GwiepRs4Yxqgf_cq08Q1-lQyy6gLYOyA_wmDWz0bMtu6l8TIEjlg4zWZuwe4kV5YSX2cRPwUDNfxm-U1xmRZz3_HgS0bs366Db8oI58pdC-WxzZzDprSQU_fvcFHGjH47ycdDxnSztCgjFy3T9s9l1I5BCtdqFH9ZZe-tN2PFvgw5SMb4FlJ9VmwRnybV-fugR4ZlS0c0-c"/>
+</div>
+<div class="p-8">
+<span class="inline-block bg-teal-50 text-teal-700 px-3 py-1 rounded-full text-caption font-bold mb-4">Healthcare</span>
+<h3 class="text-headline-md mb-4 group-hover:text-primary transition-colors">The Future of Telehealth in 2026</h3>
+<p class="text-on-surface-variant font-body-md mb-6">How digital consultations are revolutionizing access to specialist care across rural Australia.</p>
+<a class="text-primary font-bold inline-flex items-center gap-2" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Read Article <span class="material-symbols-outlined">arrow_forward</span></a>
+</div>
+</article>
+<article class="bg-white rounded-xl overflow-hidden shadow-[0_4px_20px_rgba(0,139,139,0.08)] group">
+<div class="h-56 overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A serene image of a woman practicing yoga in a bright, modern room with minimalist decor and large windows. The lighting is soft and golden, with high-key whites and subtle teal-toned shadows. The overall feel is one of calm, reliability, and human-centric healthcare focus." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA7hUBPmW33K7_BOLbAfImspz4y39x8fNZ0YbddHyRqoZKHSdPhzpkZhTNrZBt2-GmcnfrkIU1fZb5vTyHaTTqR2ojGCPGNJrBr5wSLT_JOumaTK4Pgj42Kxn-aSWqxHSvVonCCqilE7TCcplVxMQJwewTvVsuJMrC4GXR6Q1Vtjl9Dzfq59dTP-1A3bd7_tP2U-KXcAGSO6GCtO1u-9O-3Qizy4UyQDvso3dt2ZsOWjtWrjN4tVRdd49zxnyAdlYcrCtPaT-RNWdU"/>
+</div>
+<div class="p-8">
+<span class="inline-block bg-teal-50 text-teal-700 px-3 py-1 rounded-full text-caption font-bold mb-4">Mental Health</span>
+<h3 class="text-headline-md mb-4 group-hover:text-primary transition-colors">Managing Anxiety in a Digital World</h3>
+<p class="text-on-surface-variant font-body-md mb-6">Simple clinical techniques to maintain mental equilibrium in an increasingly connected era.</p>
+<a class="text-primary font-bold inline-flex items-center gap-2" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Read Article <span class="material-symbols-outlined">arrow_forward</span></a>
+</div>
+</article>
+</div>
+</div>
+</div>
+<!-- Section 4: About -->
+<div class="page-section py-xl" id="about">
+<div class="container-max mx-auto px-6">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-xl items-center">
+<div>
+<h2 class="text-headline-lg font-display-xl mb-8">Clinical Excellence, Human Connection.</h2>
+<p class="font-body-lg text-on-surface-variant mb-8 leading-relaxed">
+                            At doctr, we believe that high-quality medical care should never be more than a few clicks away. Founded in 2024, our mission is to bridge the gap between patient needs and expert medical advice using cutting-edge technology.
+                        </p>
+<p class="font-body-lg text-on-surface-variant mb-12 leading-relaxed">
+                            We pride ourselves on an approachable yet professional tone, ensuring that every patient feels heard, respected, and expertly cared for. Our network includes over 200 of Australia's finest certified medical professionals.
+                        </p>
+<div class="flex gap-8">
+<div>
+<div class="text-headline-md text-primary font-bold">200+</div>
+<div class="text-label-sm">Certified Doctors</div>
+</div>
+<div class="w-px h-12 bg-outline-variant"></div>
+<div>
+<div class="text-headline-md text-primary font-bold">150k+</div>
+<div class="text-label-sm">Consultations</div>
+</div>
+</div>
+</div>
+<div class="relative">
+<img class="rounded-xl shadow-2xl relative z-10" data-alt="A wide-angle shot of a sleek, ultra-modern medical clinic interior. The design is minimalist corporate with white walls, glass partitions, and soft teal LED accent lighting. The space is uncluttered and breathes professional luxury and organized calm, representing the doctr physical-digital standard." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAqWWkfZoAT9hMnrTOBrfu8NcGkscwro2TNVk_WIdGMxwOl3H1z_2iTdLF3wPuZ27wIDlz6kVa6i9ZA_QPt4BQvpNbpywpJ3oQllYWuiihTlPx75dDnOgmxQhgRcQ0PBZ6KHamujrH60P-RlIny-DAa7i6KKPhye3bCrIKFsDdvUOvkVvcJNlMJWYaHmf280k8exhlu1bd_kAz1Bj6ZM6N9mG1ZvP2lD59Xp8Ik8Jvrkuo-rV4zb6R5KxhJZnZlvctnKEmoWwF2VcQ"/>
+<div class="absolute -top-10 -right-10 w-64 h-64 bg-teal-50 rounded-full -z-0"></div>
+<div class="absolute -bottom-10 -left-10 w-32 h-32 bg-primary/10 rounded-full -z-0"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Section 5: Contact -->
+<div class="page-section py-xl bg-surface-container-low" id="contact">
+<div class="container-max mx-auto px-6">
+<div class="max-w-5xl mx-auto bg-white rounded-xl overflow-hidden shadow-2xl grid grid-cols-1 md:grid-cols-2">
+<div class="p-12 bg-primary text-on-primary">
+<h2 class="text-headline-lg font-display-xl mb-8">Get in Touch</h2>
+<p class="font-body-lg mb-12 opacity-80">Our support team is available 24/7 to assist with your medical inquiries or technical questions.</p>
+<div class="space-y-8">
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-teal-200">mail</span>
+<div>
+<div class="font-bold">Email Us</div>
+<div class="opacity-80">crayzewastaken@gmail.com</div>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-teal-200">call</span>
+<div>
+<div class="font-bold">Call Us</div>
+<div class="opacity-80">0100000000</div>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-teal-200">location_on</span>
+<div>
+<div class="font-bold">Our HQ</div>
+<div class="opacity-80">9 kondalilla parade forest alek</div>
+</div>
+</div>
+<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:32px;">
+  <iframe width="100%" height="220" style="border:0;border-radius:12px;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=AIzaSyD-_pLdY2Da3BE5O5AivqTl8CnEvvEJMcQ&q=9%20kondalilla%20parade%20forest%20alek"></iframe>
+</div>
+</div>
+</div>
+</div>
+<div class="p-12">
+<form class="space-y-6">
+<div>
+<label class="block text-label-sm text-on-surface-variant mb-2">Full Name</label>
+<input class="w-full bg-surface-container border-none rounded-lg p-4 focus:ring-2 focus:ring-primary focus:bg-white transition-all" placeholder="John Doe" type="text"/>
+</div>
+<div>
+<label class="block text-label-sm text-on-surface-variant mb-2">Email Address</label>
+<input class="w-full bg-surface-container border-none rounded-lg p-4 focus:ring-2 focus:ring-primary focus:bg-white transition-all" placeholder="crayzewastaken@gmail.com" type="email"/>
+</div>
+<div>
+<label class="block text-label-sm text-on-surface-variant mb-2">Phone Number</label>
+<input class="w-full bg-surface-container border-none rounded-lg p-4 focus:ring-2 focus:ring-primary focus:bg-white transition-all" placeholder="010 000 0000" type="tel"/>
+</div>
+<div>
+<label class="block text-label-sm text-on-surface-variant mb-2">Your Message</label>
+<textarea class="w-full bg-surface-container border-none rounded-lg p-4 focus:ring-2 focus:ring-primary focus:bg-white transition-all" placeholder="How can we help you today?" rows="4"></textarea>
+</div>
+<button class="w-full bg-primary-container text-on-primary-container py-4 rounded-lg font-bold hover:bg-primary transition-all shadow-lg" type="submit">Send Message</button>
+</form>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-slate-50 dark:bg-slate-950 w-full py-12 mt-20 border-t border-slate-200 dark:border-slate-800">
+<div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
+<div class="flex flex-col items-center md:items-start gap-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-teal-600">medical_services</span>
+<span class="font-bold text-teal-800 dark:text-teal-200 text-xl font-headline-lg">doctr</span>
+</div>
+<p class="font-manrope text-sm text-slate-500">© 2026 doctr. Clinical Excellence.</p>
+</div>
+<div class="flex flex-wrap justify-center gap-8 font-manrope text-sm text-slate-500">
+<a class="hover:text-teal-600 transition-colors" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Privacy Policy</a>
+<a class="hover:text-teal-600 transition-colors" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Terms of Service</a>
+<a class="hover:text-teal-600 transition-colors" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Accessibility</a>
+<a class="hover:text-teal-600 transition-colors" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Support</a>
+</div>
+<div class="flex gap-4">
+<a class="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center text-teal-700 hover:bg-primary hover:text-white transition-all" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">
+<span class="material-symbols-outlined">share</span>
+</a>
+<a class="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center text-teal-700 hover:bg-primary hover:text-white transition-all" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">
+<span class="material-symbols-outlined">hub</span>
+</a>
+</div>
+</div>
+</footer>
+<!-- Newsletter Popup (Simulated) -->
+<div class="fixed bottom-8 left-8 z-40 max-w-sm bg-white p-6 rounded-xl shadow-2xl border border-teal-50 transform translate-y-[200%] transition-transform duration-500" id="newsletter">
+<button class="absolute top-2 right-2 text-slate-400" onclick="document.getElementById('newsletter').classList.add('translate-y-[200%]')"><span class="material-symbols-outlined">close</span></button>
+<h4 class="font-headline-md mb-2">Stay Healthy</h4>
+<p class="text-caption text-on-surface-variant mb-4">Join 10k+ Australians receiving weekly wellness tips and healthcare updates.</p>
+<div class="flex gap-2">
+<input class="flex-1 bg-surface-container border-none rounded-lg px-4 py-2 text-sm" placeholder="Email" type="email"/>
+<button class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold">Join</button>
+</div>
+</div>
+<!-- Live Chat Widget -->
+<div class="fixed bottom-8 right-8 z-50">
+<button class="w-16 h-16 bg-primary-container text-on-primary-container rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">chat_bubble</span>
+</button>
+</div>
+
+
+<script>
+(function() {
+window.navigateTo = function(pageId) {
+  // Close any open mobile drawer/menu
+  var mm = document.getElementById("drawer") || document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.getElementById("side-drawer");
+  if (mm) { mm.classList.add("translate-x-full"); mm.classList.remove("translate-x-0"); mm.style.transform = "translateX(100%)"; }
+  var ov = document.getElementById("overlay"); if (ov) { ov.classList.add("hidden"); ov.style.display = "none"; }
+
+  // page-section mode — this site uses .page-section with display:none/.active
+  var pageSects = document.querySelectorAll(".page-section[id]");
+  if (pageSects.length > 1) {
+    if (pageId === "home" || pageId === "top") {
+      pageSects.forEach(function(p) { p.style.display = "none"; p.classList.remove("active"); });
+      pageSects[0].style.display = "block"; pageSects[0].classList.add("active");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    var tgt = document.getElementById(pageId);
+    if (tgt && tgt.classList.contains("page-section")) {
+      pageSects.forEach(function(p) { p.style.display = "none"; p.classList.remove("active"); });
+      tgt.style.display = "block"; tgt.classList.add("active");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    // booking/contact etc outside page-sections — scroll to it and show it
+    if (tgt) { tgt.style.display = "block"; tgt.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+  }
+
+  if (pageId === "home" || pageId === "top") { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+  var t = document.getElementById(pageId) || document.getElementById("page-" + pageId);
+  if (t) { t.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  else { window.scrollTo({ top: 0, behavior: "smooth" }); }
+};
+document.querySelectorAll("a,button").forEach(function(el) {
+  var oc = el.getAttribute("onclick") || "", hr = el.getAttribute("href") || "", dn = el.getAttribute("data-nav") || "", dp = el.getAttribute("data-page") || "";
+  if (oc.includes("navigateTo")) return;
+  if (dn) { el.addEventListener("click", function(e) { e.preventDefault(); window.navigateTo(dn); }); return; }
+  if (dp) { el.addEventListener("click", function(e) { e.preventDefault(); window.navigateTo(dp); }); return; }
+  if (hr.startsWith("#") && hr.length > 1) { el.addEventListener("click", function(e) { var t = document.querySelector(hr); if (t) { e.preventDefault(); t.scrollIntoView({ behavior: "smooth" }); } }); }
+});
+// Hamburger — catches id="hamburger", id="menu-toggle", class*=hamburger, aria-label patterns
+document.querySelectorAll("#hamburger,#hamburger-btn,#menu-toggle,[class*='hamburger'],[aria-label='Open menu'],[aria-label='Menu'],[aria-label='Toggle menu']").forEach(function(btn) {
+  if (btn.getAttribute("onclick")) return;
+  btn.addEventListener("click", function() {
+    // Find the drawer/menu — catches id="side-drawer", id="mobile-menu", id="mobile-nav", class patterns
+    var drawer = document.getElementById("side-drawer") || document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.querySelector("[class*='side-drawer'],[class*='mobile-menu'],[class*='mobile-nav']");
+    if (!drawer) return;
+    var isOpen = drawer.style.transform === "translateX(0px)" || drawer.style.transform === "translateX(0)" || !drawer.classList.contains("translate-x-full") && drawer.getBoundingClientRect().right > 0 && drawer.getBoundingClientRect().left < window.innerWidth;
+    // For Tailwind translate-based drawers (translate-x-full = closed)
+    if (drawer.classList.contains("translate-x-full") || drawer.style.transform === "translateX(100%)") {
+      drawer.classList.remove("translate-x-full"); drawer.classList.add("translate-x-0"); drawer.style.transform = "translateX(0)";
+    } else if (drawer.classList.contains("translate-x-0") || drawer.style.transform === "translateX(0px)" || drawer.style.transform === "translateX(0)") {
+      drawer.classList.remove("translate-x-0"); drawer.classList.add("translate-x-full"); drawer.style.transform = "translateX(100%)";
+    } else {
+      // Fallback: toggle display
+      var h = getComputedStyle(drawer).display === "none";
+      drawer.style.display = h ? "flex" : "none";
+    }
+  });
+});
+// Close drawer button
+document.querySelectorAll("#close-drawer,#close-menu,#menu-close,#nav-close,[aria-label='Close menu'],[aria-label='Close'],[aria-label='Close navigation']").forEach(function(btn) {
+  btn.addEventListener("click", function() {
+    var drawer = document.getElementById("side-drawer") || document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.querySelector("[class*='side-drawer'],[class*='mobile-menu'],[class*='mobile-nav']");
+    if (drawer) { drawer.classList.remove("translate-x-0"); drawer.classList.add("translate-x-full"); drawer.style.transform = "translateX(100%)"; drawer.style.display = "none"; }
+  });
+});
+// Newsletter popup / modal close — catches any floating popup with a close button
+// Stitch generates these with no onclick — we wire them up here
+(function() {
+  function closePopup(popup) {
+    popup.style.display = "none";
+    popup.style.opacity = "0";
+    popup.style.visibility = "hidden";
+    popup.style.pointerEvents = "none";
+  }
+  // Find all fixed/absolute positioned containers that look like popups
+  var popups = document.querySelectorAll("[class*='popup'],[class*='modal'],[id*='popup'],[id*='modal'],[class*='newsletter'],[id*='newsletter'],[class*='promo'],[id*='promo'],[class*='offer'],[id*='offer']");
+  popups.forEach(function(popup) {
+    // Wire up any close/dismiss button inside the popup
+    var closeBtns = popup.querySelectorAll("button,[aria-label*='close' i],[aria-label*='dismiss' i],[class*='close'],[id*='close'],[class*='dismiss']");
+    closeBtns.forEach(function(btn) {
+      if (btn.getAttribute("data-wg-popup-wired")) return;
+      btn.setAttribute("data-wg-popup-wired", "1");
+      btn.addEventListener("click", function(e) { e.stopPropagation(); closePopup(popup); });
+    });
+    // Also wire ✕ / × / x text-only buttons inside the popup
+    popup.querySelectorAll("button,span,div").forEach(function(el) {
+      if (el.getAttribute("data-wg-popup-wired")) return;
+      var txt = (el.textContent || "").trim();
+      if (txt === "×" || txt === "✕" || txt === "✖" || txt === "x" || txt === "X" || txt === "close" || txt === "Close") {
+        el.setAttribute("data-wg-popup-wired", "1");
+        el.style.cursor = "pointer";
+        el.addEventListener("click", function(e) { e.stopPropagation(); closePopup(popup); });
+      }
+    });
+  });
+  // Also handle the newsletter form submission — close popup on submit
+  document.querySelectorAll("form").forEach(function(form) {
+    var popup = form.closest("[class*='popup'],[class*='modal'],[id*='popup'],[id*='modal'],[class*='newsletter'],[id*='newsletter'],[class*='promo'],[id*='promo'],[class*='offer'],[id*='offer']");
+    if (!popup) return;
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+      var emailInput = form.querySelector("input[type='email'],input[type='text']");
+      var email = emailInput ? emailInput.value.trim() : "";
+      var btn = form.querySelector("button[type='submit'],button");
+      if (btn) { btn.textContent = "Subscribed!"; btn.style.background = "#22c55e"; }
+      setTimeout(function() { closePopup(popup); }, 1200);
+    });
+  });
+})();
+document.querySelectorAll("details").forEach(function(d) {
+  var s = d.querySelector("summary");
+  if (s) { s.style.cursor = "pointer"; s.addEventListener("click", function(e) { e.preventDefault(); var o = d.hasAttribute("open"); document.querySelectorAll("details").forEach(function(x) { x.removeAttribute("open"); }); if (!o) d.setAttribute("open", ""); }); }
+});
+document.querySelectorAll("[class*='faq'],[class*='accordion'],[id*='faq']").forEach(function(c) {
+  c.querySelectorAll("[class*='item'],[class*='question'],[class*='entry']").forEach(function(item) {
+    var q = item.querySelector("[class*='question'],[class*='trigger'],h3,h4,button");
+    var a = item.querySelector("[class*='answer'],[class*='content'],p");
+    if (q && a) { a.style.display = "none"; q.style.cursor = "pointer"; q.addEventListener("click", function() { var o = a.style.display !== "none"; c.querySelectorAll("[class*='answer'],[class*='content'],p").forEach(function(x) { x.style.display = "none"; }); if (!o) a.style.display = "block"; }); }
+  });
+});
+var cart = [];
+function showToast(msg) { var t = document.getElementById("wg-toast"); if (!t) { t = document.createElement("div"); t.id = "wg-toast"; t.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:99999;transition:opacity 0.3s;pointer-events:none;"; document.body.appendChild(t); } t.textContent = msg; t.style.opacity = "1"; setTimeout(function() { t.style.opacity = "0"; }, 2500); }
+document.querySelectorAll("button,a").forEach(function(btn) { var txt = (btn.textContent || "").toLowerCase().trim(); if (txt.includes("add to cart") || txt.includes("buy now") || txt.includes("add to bag")) { btn.addEventListener("click", function(e) { e.preventDefault(); e.stopPropagation(); var card = this.closest("article") || this.closest("[class*='product']") || this.parentElement; var nm = card && card.querySelector("h1,h2,h3,h4"); var n = nm ? nm.textContent.trim() : "Item"; var ex = cart.find(function(i) { return i.name === n; }); if (ex) ex.qty++; else cart.push({ name: n, qty: 1 }); showToast(n + " added"); var total = cart.reduce(function(a, b) { return a + b.qty; }, 0); document.querySelectorAll("#cart-count,#cart-badge,[class*='cart-count']").forEach(function(b) { b.textContent = total; }); }); } });
+document.querySelectorAll("form").forEach(function(form) {
+  // Skip forms inside the booking widget — it manages its own fetch-based submit
+  if (form.closest("#booking") || form.closest(".bw-container") || form.id === "bw-form") return;
+  form.addEventListener("submit", function(e) {
+    e.preventDefault();
+    if (form.querySelector(".wg-success")) return;
+    var s = document.createElement("div"); s.className = "wg-success";
+    s.style.cssText = "background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;font-family:sans-serif;";
+    s.textContent = "Thank you! We will be in touch within 24 hours.";
+    form.appendChild(s);
+    form.querySelectorAll("input,textarea,select,button[type='submit']").forEach(function(el) { el.setAttribute("disabled", "true"); });
+  });
+});
+// Page-section init: show only .active, hide rest
+var pageSects = document.querySelectorAll(".page-section[id]");
+if (pageSects.length > 1) {
+  var hasActive = document.querySelector(".page-section.active");
+  if (!hasActive) { pageSects[0].classList.add("active"); }
+  pageSects.forEach(function(p) {
+    if (!p.classList.contains("active")) { p.style.display = "none"; }
+    else { p.style.display = "block"; }
+  });
+}
+// Also handle data-page sites
+var realPageWrappers = document.querySelectorAll("[data-page]");
+if (realPageWrappers.length > 1) {
+  var ha = false;
+  realPageWrappers.forEach(function(p) { if (p.classList.contains("active") || p.style.display !== "none") ha = true; });
+  if (!ha) {
+    realPageWrappers.forEach(function(p, i) {
+      if (i === 0) { p.style.display = "block"; p.classList.add("active"); }
+      else { p.style.display = "none"; }
+    });
+  }
+}
+// Show newsletter popup after 8 seconds
+setTimeout(function() {
+  var nl = document.getElementById("newsletter");
+  if (nl) { nl.classList.remove("translate-y-[200%]"); nl.style.transform = "translateY(0)"; }
+}, 8000);
+})();
+</script><script>
+(function(){
+  var WG_JOB="job_1777720115222";
+  var WG_API="https://webgecko-builder.vercel.app/api/analytics/track";
+  function wgTrack(event,page){try{fetch(WG_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:WG_JOB,event:event,page:page||window.location.pathname})});}catch(e){}}
+  wgTrack("page_view",document.title||window.location.pathname);
+  document.addEventListener("click",function(e){
+    var el=e.target.closest("a,button");
+    if(!el)return;
+    var txt=(el.textContent||"").toLowerCase();
+    var href=el.getAttribute("href")||"";
+    var oc=el.getAttribute("onclick")||"";
+    if(txt.includes("book")||oc.includes("booking")||href.includes("booking")){wgTrack("booking_click");}
+    else if(txt.includes("contact")||oc.includes("contact")||href.includes("contact")){wgTrack("contact_click");}
+  });
+  document.addEventListener("submit",function(e){wgTrack("form_submit");});
+})();
+</script>
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/69ed30334e60811c358642c7/1jn388ih6';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+<script>
+(function() {
+  
+  
+  
+  
+})();
+</script></body></html>

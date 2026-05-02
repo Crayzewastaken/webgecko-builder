@@ -40,6 +40,22 @@ export interface AuditResult {
   fixedHtml: string;
 }
 
+
+function detectTheme(html: string): "light" | "dark" {
+  const head = html.slice(0, 4000);
+  // Explicit dark class
+  if (/class="[^"]*dark/.test(head)) return "dark";
+  // Tailwind light backgrounds
+  if (/bg-white|bg-zinc-50|bg-gray-50|bg-slate-50/i.test(head)) return "light";
+  // Inline light background colors
+  if (/background(?:-color)?:\s*(?:#fff|#ffffff|white|#f[89a-f]f[89a-f]f[89a-f])/i.test(head)) return "light";
+  // Dark background colors
+  if (/background(?:-color)?:\s*(?:#0[a-f0-9]{5}|#1[a-f0-9]{5}|#0f172a|#0a0f1a|#111|#000)/i.test(head)) return "dark";
+  // Body background
+  if (/body[^{]*\{[^}]*background[^}]*(?:#fff|white|#f[89a-f])/i.test(head)) return "light";
+  return "dark";
+}
+
 export async function auditAndFixSite(
   html: string,
   context: {
@@ -61,7 +77,8 @@ export async function auditAndFixSite(
 
   if (!html.includes(clientEmail)) add(AuditErrorType.PLACEHOLDER_EMAIL, "Missing real email: " + clientEmail);
   if (clientPhone && !html.includes(clientPhone.replace(/\s/g, "")) && !html.includes(clientPhone)) add(AuditErrorType.PLACEHOLDER_PHONE, "Missing real phone: " + clientPhone);
-  if (!html.includes('id="hamburger"')) add(AuditErrorType.MISSING_HAMBURGER, 'Missing id="hamburger"');
+  const hasHamburger = html.includes('id="hamburger"') || /data-icon=["']menu["']/.test(html) || /aria-label=["'](?:open menu|menu|toggle)["']/i.test(html);
+  if (!hasHamburger) add(AuditErrorType.MISSING_HAMBURGER, 'Missing id="hamburger"');
   if (!html.includes('id="contact"'))   add(AuditErrorType.MISSING_CONTACT,   'Missing id="contact"');
   if (!html.includes('id="faq"'))        add(AuditErrorType.MISSING_FAQ,       'Missing id="faq"');
   if (!html.includes('id="testimonials"')) add(AuditErrorType.MISSING_TESTIMONIALS, 'Missing id="testimonials"');
@@ -80,6 +97,15 @@ export async function auditAndFixSite(
   issues.forEach(i => console.log("  [Auditor][" + i.type + "] " + i.detail + " => " + ERROR_FIXES[i.type]));
   let fixed = html;
   const yr = new Date().getFullYear();
+  const dark = detectTheme(html) === "dark";
+  const clrBg   = dark ? "#0f172a" : "#f8fafc";
+  const clrBg2  = dark ? "#080c14" : "#f1f5f9";
+  const clrCard = dark ? "#1e293b" : "#ffffff";
+  const clrText = dark ? "#e2e8f0" : "#0f172a";
+  const clrSub  = dark ? "#94a3b8" : "#475569";
+  const clrBord = dark ? "#334155" : "#e2e8f0";
+  const clrInp  = dark ? "#1e293b" : "#ffffff";
+  const clrAcct = dark ? "#10b981" : "#059669";
 
   // Fix 1: emails
   if (has(AuditErrorType.PLACEHOLDER_EMAIL)) {
@@ -116,16 +142,16 @@ export async function auditAndFixSite(
   if (has(AuditErrorType.MISSING_CONTACT)) {
     const onsubmit = "event.preventDefault();this.innerHTML='<p style=\"color:#22c55e;font-weight:bold;\">Thank you!</p>'";
     const fb = [
-      '<section id="contact" style="padding:80px 24px;background:#0f172a;">',
-      '<div style="max-width:640px;margin:0 auto;">',
-      '<h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:8px;">Contact Us</h2>',
-      '<p style="color:#94a3b8;margin-bottom:24px;">Get in touch and we will respond within 24 hours.</p>',
-      "<form style=\"display:flex;flex-direction:column;gap:16px;\" onsubmit=\"" + onsubmit + "\">",
-      '<input type="text" placeholder="Your Name" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/>',
-      '<input type="email" placeholder="Your Email" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/>',
-      '<input type="tel" placeholder="Your Phone" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/>',
-      '<textarea placeholder="Your Message" rows="5" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;resize:vertical;"></textarea>',
-      '<button type="submit" style="background:#10b981;color:#fff;font-weight:700;padding:16px;border:none;border-radius:8px;font-size:1rem;cursor:pointer;">Send Message</button>',
+      `<section id="contact" style="padding:80px 24px;background:${clrBg};">`,
+      `<div style="max-width:640px;margin:0 auto;">`,
+      `<h2 style="color:${clrText};font-size:2rem;font-weight:900;margin-bottom:8px;">Contact Us</h2>`,
+      `<p style="color:${clrSub};margin-bottom:24px;">Get in touch and we will respond within 24 hours.</p>`,
+      `<form style="display:flex;flex-direction:column;gap:16px;" onsubmit="${onsubmit}">`,
+      `<input type="text" placeholder="Your Name" required style="background:${clrInp};color:${clrText};border:1px solid ${clrBord};border-radius:8px;padding:14px;font-size:1rem;"/>`,
+      `<input type="email" placeholder="Your Email" required style="background:${clrInp};color:${clrText};border:1px solid ${clrBord};border-radius:8px;padding:14px;font-size:1rem;"/>`,
+      `<input type="tel" placeholder="Your Phone" style="background:${clrInp};color:${clrText};border:1px solid ${clrBord};border-radius:8px;padding:14px;font-size:1rem;"/>`,
+      `<textarea placeholder="Your Message" rows="5" style="background:${clrInp};color:${clrText};border:1px solid ${clrBord};border-radius:8px;padding:14px;font-size:1rem;resize:vertical;"></textarea>`,
+      `<button type="submit" style="background:${clrAcct};color:#fff;font-weight:700;padding:16px;border:none;border-radius:8px;font-size:1rem;cursor:pointer;">Send Message</button>`,
       '</form></div></section>',
     ].join("");
     fixed = addSectionIdSmart(fixed, "contact", [/contact|get-in-touch|contactus|reach-us/i], [/contact us|get in touch|reach us|enquire|send.*message/i], fb);
@@ -135,7 +161,7 @@ export async function auditAndFixSite(
   // Fix 5: FAQ
   if (has(AuditErrorType.MISSING_FAQ)) {
     fixed = addSectionIdSmart(fixed, "faq", [/faq|frequently|accordion|faqs/i], [/faq|frequently asked|common questions/i],
-      '<section id="faq" style="padding:80px 24px;background:#080c14;"><div style="max-width:800px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Frequently Asked Questions</h2></div></section>'
+      `<section id="faq" style="padding:80px 24px;background:${clrBg2};"><div style="max-width:800px;margin:0 auto;"><h2 style="color:${clrText};font-size:2rem;font-weight:900;margin-bottom:32px;">Frequently Asked Questions</h2></div></section>`
     );
     mark(AuditErrorType.MISSING_FAQ);
   }
@@ -143,7 +169,7 @@ export async function auditAndFixSite(
   // Fix 6: testimonials
   if (has(AuditErrorType.MISSING_TESTIMONIALS)) {
     fixed = addSectionIdSmart(fixed, "testimonials", [/testimonial|review|clients-say|feedback/i], [/testimonial|what.*client|what.*customer|what people say/i],
-      '<section id="testimonials" style="padding:80px 24px;background:#0f172a;"><div style="max-width:900px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">What Our Clients Say</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;"><div style="background:#1e293b;border-radius:12px;padding:24px;"><p style="color:#e2e8f0;margin-bottom:16px;">Absolutely fantastic service. Highly recommend!</p><p style="color:#10b981;font-weight:700;">— Happy Client</p></div></div></div></section>'
+      `<section id="testimonials" style="padding:80px 24px;background:${clrBg};"><div style="max-width:900px;margin:0 auto;"><h2 style="color:${clrText};font-size:2rem;font-weight:900;margin-bottom:32px;">What Our Clients Say</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;"><div style="background:${clrCard};border-radius:12px;padding:24px;border:1px solid ${clrBord};"><p style="color:${clrText};margin-bottom:16px;">"Absolutely fantastic service. Highly recommend!"</p><p style="color:${clrAcct};font-weight:700;">— Happy Client</p></div></div></div></section>`
     );
     mark(AuditErrorType.MISSING_TESTIMONIALS);
   }

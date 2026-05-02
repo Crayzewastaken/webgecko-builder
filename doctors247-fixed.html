@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>doctors247</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&amp;family=Work+Sans:wght@400;500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#d1e4fb",
+                        "surface-dim": "#dcd9d9",
+                        "on-secondary": "#ffffff",
+                        "on-surface-variant": "#594139",
+                        "surface-variant": "#e5e2e1",
+                        "tertiary-container": "#899bb0",
+                        "surface-tint": "#ab3500",
+                        "surface": "#fcf9f8",
+                        "background": "#fcf9f8",
+                        "on-secondary-container": "#004b84",
+                        "primary": "#ab3500",
+                        "on-primary-fixed-variant": "#832600",
+                        "error": "#ba1a1a",
+                        "on-primary": "#ffffff",
+                        "primary-container": "#ff6b35",
+                        "secondary": "#24619d",
+                        "secondary-container": "#87bcfe",
+                        "on-tertiary-fixed": "#091d2e",
+                        "on-tertiary-container": "#213344",
+                        "on-primary-container": "#5f1900",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-surface": "#313030",
+                        "surface-bright": "#fcf9f8",
+                        "tertiary": "#4e6073",
+                        "on-tertiary-fixed-variant": "#36485b",
+                        "on-background": "#1c1b1b",
+                        "primary-fixed-dim": "#ffb59d",
+                        "outline": "#8d7168",
+                        "primary-fixed": "#ffdbd0",
+                        "surface-container": "#f0eded",
+                        "on-error": "#ffffff",
+                        "on-primary-fixed": "#390c00",
+                        "secondary-fixed-dim": "#a1c9ff",
+                        "on-secondary-fixed": "#001c37",
+                        "on-surface": "#1c1b1b",
+                        "secondary-fixed": "#d2e4ff",
+                        "on-error-container": "#93000a",
+                        "surface-container-low": "#f6f3f2",
+                        "outline-variant": "#e1bfb5",
+                        "inverse-on-surface": "#f3f0ef",
+                        "surface-container-highest": "#e5e2e1",
+                        "error-container": "#ffdad6",
+                        "on-tertiary": "#ffffff",
+                        "inverse-primary": "#ffb59d",
+                        "on-secondary-fixed-variant": "#004880",
+                        "surface-container-high": "#eae7e7",
+                        "tertiary-fixed-dim": "#b5c8df"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "8px",
+                        "margin-desktop": "48px",
+                        "margin-mobile": "16px",
+                        "gutter": "24px",
+                        "container-max": "1280px"
+                    },
+                    "fontFamily": {
+                        "label-bold": ["Inter"],
+                        "h1": ["Inter"],
+                        "h2": ["Inter"],
+                        "body-lg": ["Work Sans"],
+                        "h3": ["Inter"],
+                        "body-md": ["Work Sans"],
+                        "caption": ["Work Sans"]
+                    },
+                    "fontSize": {
+                        "label-bold": ["14px", {"lineHeight": "1.0", "fontWeight": "700"}],
+                        "h1": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.5px", "fontWeight": "700"}],
+                        "h2": ["36px", {"lineHeight": "1.2", "letterSpacing": "-0.5px", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "h3": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.5px", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "caption": ["14px", {"lineHeight": "1.4", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .page-section { display: block; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md">
+<!-- TopAppBar Component -->
+<nav class="sticky top-0 w-full z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b-2 border-zinc-100 dark:border-zinc-800 shadow-sm">
+<div class="flex justify-between items-center w-full px-6 py-4 max-w-[1280px] mx-auto">
+<div class="flex items-center gap-2 group cursor-pointer" onclick="navigateTo('home')">
+<span class="material-symbols-outlined text-[#FF6B35] text-3xl" data-icon="medical_services">medical_services</span>
+<span class="text-2xl font-black text-[#FF6B35] italic tracking-tighter font-['Inter']">doctors247</span>
+</div>
+<!-- Desktop Navigation -->
+<div class="hidden md:flex items-center gap-8">
+<a class="text-zinc-700 dark:text-zinc-300 font-semibold hover:text-[#FF6B35] transition-colors font-['Inter']" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Home</a>
+<a class="text-zinc-700 dark:text-zinc-300 font-semibold hover:text-[#FF6B35] transition-colors font-['Inter']" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('about')">About</a>
+<a class="text-zinc-700 dark:text-zinc-300 font-semibold hover:text-[#FF6B35] transition-colors font-['Inter']" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('services')">Services</a>
+<a class="text-[#FF6B35] font-extrabold border-b-2 border-[#FF6B35] pb-1 font-['Inter']" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Booking</a>
+<a href="tel:0400000000" class="bg-[#FF6B35] text-white px-6 py-2 rounded-lg font-bold hover:bg-[#E55A2B] active:scale-95 transform transition-all duration-200 shadow-md inline-block">Emergency Call</a>
+</div>
+<!-- Mobile Menu Toggle -->
+<button id="hamburger-btn" class="md:hidden text-zinc-700 p-2 active:scale-95 transition-transform" aria-label="Toggle menu">
+<span class="material-symbols-outlined text-3xl" data-icon="menu">menu</span>
+</button>
+</div>
+</nav>
+<!-- Mobile Navigation Drawer -->
+<div id="mobile-nav" class="fixed inset-0 z-[200] translate-x-full transition-transform duration-300" style="transform:translateX(100%);">
+  <div class="absolute inset-0 bg-black/50" onclick="document.getElementById('mobile-nav').style.transform='translateX(100%)'"></div>
+  <div class="absolute right-0 top-0 h-full w-72 bg-white shadow-2xl flex flex-col">
+    <div class="flex items-center justify-between p-6 border-b border-zinc-100">
+      <span class="text-xl font-black text-[#FF6B35] font-['Inter']">doctors247</span>
+      <button id="close-menu" class="text-zinc-500 hover:text-zinc-900 p-2" aria-label="Close menu">
+        <span class="material-symbols-outlined text-2xl">close</span>
+      </button>
+    </div>
+    <nav class="flex flex-col gap-1 p-4 flex-1">
+      <a href="#" onclick="event.preventDefault();window.navigateTo('home');document.getElementById('mobile-nav').style.transform='translateX(100%)'" class="flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-700 hover:bg-zinc-50 font-semibold font-['Inter']">Home</a>
+      <a href="#" onclick="event.preventDefault();window.navigateTo('about');document.getElementById('mobile-nav').style.transform='translateX(100%)'" class="flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-700 hover:bg-zinc-50 font-semibold font-['Inter']">About</a>
+      <a href="#" onclick="event.preventDefault();window.navigateTo('services');document.getElementById('mobile-nav').style.transform='translateX(100%)'" class="flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-700 hover:bg-zinc-50 font-semibold font-['Inter']">Services</a>
+      <a href="#" onclick="event.preventDefault();window.navigateTo('booking');document.getElementById('mobile-nav').style.transform='translateX(100%)'" class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#FF6B35] font-extrabold font-['Inter']">Book Appointment</a>
+      <a href="#" onclick="event.preventDefault();window.navigateTo('contact');document.getElementById('mobile-nav').style.transform='translateX(100%)'" class="flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-700 hover:bg-zinc-50 font-semibold font-['Inter']">Contact</a>
+    </nav>
+    <div class="p-4 border-t border-zinc-100">
+      <a href="tel:0400000000" class="flex items-center justify-center gap-2 w-full bg-[#FF6B35] text-white py-3 rounded-lg font-bold font-['Inter']">
+        <span class="material-symbols-outlined">call</span> Emergency Call
+      </a>
+    </div>
+  </div>
+</div>
+<!-- Page Content -->
+<div class="page-section" data-page="booking" id="home">
+<!-- Hero/Booking Header Section -->
+<header class="bg-[#004E89] py-24 px-6" id="booking">
+<div class="max-w-[1280px] mx-auto flex flex-col md:flex-row items-center justify-between gap-12">
+<div class="w-full md:w-1/2">
+<div class="inline-flex items-center gap-2 bg-white/10 text-white px-4 py-1 rounded-full mb-6 border border-white/20">
+<span class="relative flex h-3 w-3">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF6B35] opacity-75"></span>
+<span class="relative inline-flex rounded-full h-3 w-3 bg-[#FF6B35]"></span>
+</span>
+<span class="text-xs font-bold tracking-widest uppercase">Live Availability 24/7</span>
+</div>
+<h1 class="font-h1 text-h1 text-white mb-6">Book an Appointment</h1>
+<p class="text-white/80 font-body-lg text-body-lg max-w-lg mb-8 leading-relaxed">
+                        Secure your clinical consultation in minutes. Our network of verified professionals is ready to provide rapid care whenever you need it.
+                    </p>
+<div class="flex flex-wrap gap-4">
+<div class="flex items-center gap-2 text-white/90">
+<span class="material-symbols-outlined text-[#FF6B35]" data-icon="verified">verified</span>
+<span class="font-semibold">Board-Certified Doctors</span>
+</div>
+<div class="flex items-center gap-2 text-white/90">
+<span class="material-symbols-outlined text-[#FF6B35]" data-icon="timer">timer</span>
+<span class="font-semibold">Average 15-min wait</span>
+</div>
+</div>
+</div>
+<div class="w-full md:w-1/2 relative">
+<div class="aspect-video rounded-xl overflow-hidden shadow-2xl border-4 border-white/10 group">
+<img alt="Medical Consultation" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="A professional medical consultation setting featuring a clean, modern clinic interior with high-key lighting. A doctor in a white clinical coat is seen in a shallow focus background, creating an atmosphere of expertise and readiness. The primary color palette consists of crisp whites and deep navy blues, accented by vibrant orange medical equipment details, maintaining a high-contrast and authoritative aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDgZ4Y71fXb6EwOxYhxnL1K07E7fpPpKrJ_WEynZwCLHgFjL0NpzPug_hOJsj7l4zY23d7wVUbiEJYV0yuzdbyHO07IlSKWMm6wVTcRpOfJ8YKd9KiDcoy8mDhPGXPSArzCrxcc9dv5k7Qh8IghskmX4EyazarQE0TP0uOFDWT-N1ElL7X0lJF05CKO4RW68SPllyFt2wa-tHYBtH_dXK5w0jWuI-9gLmfBzS5_FhqqsBR5UV9AfevUPM4ZgYpDg9tJ6WHDYn72xeov"/>
+</div>
+<div class="absolute -bottom-6 -left-6 bg-white p-6 rounded-xl shadow-xl hidden lg:block border-l-4 border-[#FF6B35]">
+<p class="text-secondary font-bold text-h3">98.4%</p>
+<p class="text-zinc-500 text-sm font-semibold">Patient Satisfaction</p>
+</div>
+</div>
+</div>
+</header>
+<!-- Booking Iframe Section -->
+<main class="max-w-[1280px] mx-auto px-6 -mt-12 mb-32 relative z-10">
+<div class="bg-white rounded-xl shadow-2xl overflow-hidden border border-zinc-100">
+<div class="p-4 bg-zinc-50 border-b border-zinc-100 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary" data-icon="calendar_month">calendar_month</span>
+<span class="font-bold text-zinc-800">Scheduler</span>
+</div>
+<div class="flex gap-2">
+<div class="w-3 h-3 rounded-full bg-zinc-300"></div>
+<div class="w-3 h-3 rounded-full bg-zinc-300"></div>
+<div class="w-3 h-3 rounded-full bg-zinc-300"></div>
+</div>
+</div>
+<div class="relative min-h-[700px] w-full bg-white">
+<iframe frameborder="0" height="700" loading="lazy" scrolling="auto" src="https://www.supersaas.com/schedule/webgecko/template" style="display:block;background:#fff;" title="BookAnAppointment" width="100%">
+</iframe>
+</div>
+</div>
+<!-- Urgent Alert Notice -->
+<div class="mt-12 p-8 bg-surface-container-low rounded-xl border-l-4 border-primary-container flex flex-col md:flex-row items-center gap-8">
+<div class="p-4 bg-primary-container/10 rounded-full">
+<span class="material-symbols-outlined text-primary-container text-4xl" data-icon="emergency_home">emergency_home</span>
+</div>
+<div>
+<h3 class="font-h3 text-h3 text-on-background mb-2">Life-Threatening Emergency?</h3>
+<p class="font-body-md text-zinc-600">If you are experiencing severe chest pain, difficulty breathing, or heavy bleeding, please stop this booking process and dial your local emergency services immediately.</p>
+</div>
+<a href="tel:000" class="md:ml-auto bg-zinc-900 text-white px-8 py-4 rounded-lg font-bold hover:bg-black transition-colors shrink-0 inline-block">Get Help Now — Call 000</a>
+</div>
+</main>
+<!-- Features Bento Grid -->
+<section class="max-w-[1280px] mx-auto px-6 mb-32">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<div class="md:col-span-2 bg-white p-10 rounded-xl border border-zinc-200 border-l-4 border-[#FF6B35] shadow-sm flex flex-col justify-between">
+<div>
+<h3 class="font-h2 text-h2 text-secondary mb-4">Why Book with doctors247?</h3>
+<p class="font-body-lg text-zinc-600 mb-8">We provide a seamless connection between patients and elite medical practitioners through our proprietary rapid-routing system.</p>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-secondary font-bold" data-icon="check_circle">check_circle</span>
+<span class="font-semibold text-zinc-800">Instant SMS confirmation</span>
+</div>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-secondary font-bold" data-icon="check_circle">check_circle</span>
+<span class="font-semibold text-zinc-800">Secure data encryption</span>
+</div>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-secondary font-bold" data-icon="check_circle">check_circle</span>
+<span class="font-semibold text-zinc-800">Telehealth or In-person</span>
+</div>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-secondary font-bold" data-icon="check_circle">check_circle</span>
+<span class="font-semibold text-zinc-800">Insurance integration</span>
+</div>
+</div>
+</div>
+<div class="bg-secondary p-10 rounded-xl shadow-lg relative overflow-hidden flex flex-col justify-end">
+<div class="absolute top-0 right-0 p-8">
+<span class="material-symbols-outlined text-white/20 text-9xl" data-icon="health_and_safety">health_and_safety</span>
+</div>
+<div class="relative z-10">
+<p class="text-white/60 font-bold uppercase tracking-widest text-xs mb-2">Our Promise</p>
+<h3 class="text-white font-h3 text-h3 mb-4">Clinical Excellence Every Hour</h3>
+<p class="text-white/80 font-body-md mb-6">Access a global network of specialists without the traditional wait times of local clinics.</p>
+<a class="inline-flex items-center gap-2 text-white font-bold hover:underline" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">
+                            View our standards <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Footer Component -->
+<footer class="bg-zinc-900 dark:bg-black w-full pt-16 pb-8 border-t-4 border-[#FF6B35]">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-12 max-w-[1280px] mx-auto px-6">
+<div class="col-span-1 md:col-span-1">
+<span class="text-xl font-black text-white mb-4 block font-['Inter']">doctors247</span>
+<p class="text-zinc-400 font-['Inter'] text-sm leading-relaxed mb-6">
+                    Providing rapid, high-performance medical care with a focus on immediate response and clinical excellence, 24 hours a day.
+                </p>
+<div class="flex gap-4">
+<a class="text-zinc-400 hover:text-[#FF6B35]" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')"><span class="material-symbols-outlined" data-icon="share">share</span></a>
+<a class="text-zinc-400 hover:text-[#FF6B35]" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')"><span class="material-symbols-outlined" data-icon="public">public</span></a>
+<a class="text-zinc-400 hover:text-[#FF6B35]" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')"><span class="material-symbols-outlined" data-icon="mail">mail</span></a>
+</div>
+</div>
+<div>
+<h4 class="text-white font-bold mb-6 font-['Inter']">Quick Links</h4>
+<ul class="space-y-4">
+<li><a class="text-zinc-400 hover:text-[#FF6B35] transition-colors font-['Inter'] text-sm hover:underline decoration-[#FF6B35] decoration-2 underline-offset-4" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Home</a></li>
+<li><a class="text-zinc-400 hover:text-[#FF6B35] transition-colors font-['Inter'] text-sm hover:underline decoration-[#FF6B35] decoration-2 underline-offset-4" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('about')">About</a></li>
+<li><a class="text-zinc-400 hover:text-[#FF6B35] transition-colors font-['Inter'] text-sm hover:underline decoration-[#FF6B35] decoration-2 underline-offset-4" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('services')">Services</a></li>
+<li><a class="text-white font-bold font-['Inter'] text-sm hover:underline decoration-[#FF6B35] decoration-2 underline-offset-4" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Booking</a></li>
+</ul>
+</div>
+<div>
+<h4 class="text-white font-bold mb-6 font-['Inter']">Support</h4>
+<ul class="space-y-4">
+<li><a class="text-zinc-400 hover:text-[#FF6B35] transition-colors font-['Inter'] text-sm hover:underline decoration-[#FF6B35] decoration-2 underline-offset-4" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('contact')">Contact</a></li>
+<li><a class="text-zinc-400 hover:text-[#FF6B35] transition-colors font-['Inter'] text-sm hover:underline decoration-[#FF6B35] decoration-2 underline-offset-4" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('faq')">FAQ</a></li>
+<li><a class="text-zinc-400 hover:text-[#FF6B35] transition-colors font-['Inter'] text-sm hover:underline decoration-[#FF6B35] decoration-2 underline-offset-4" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Privacy Policy</a></li>
+<li><a class="text-zinc-400 hover:text-[#FF6B35] transition-colors font-['Inter'] text-sm hover:underline decoration-[#FF6B35] decoration-2 underline-offset-4" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Terms of Service</a></li>
+</ul>
+</div>
+<div>
+<h4 class="text-white font-bold mb-6 font-['Inter']">Emergency</h4>
+<div class="bg-white/5 p-6 rounded-lg border border-white/10">
+<p class="text-[#FF6B35] font-black text-xl mb-2 font-['Inter']">1-800-DOC-247</p>
+<p class="text-zinc-400 text-xs font-['Inter']">Direct line for critical clinical assessments and urgent care routing.</p>
+</div>
+</div>
+</div>
+<div class="max-w-[1280px] mx-auto px-6 mt-16 pt-8 border-t border-zinc-800">
+<p class="text-zinc-500 font-['Inter'] text-xs text-center">
+                © 2024 doctors247. Rapid clinical care available 24/7.
+            </p>
+</div>
+</footer>
+<!-- Mobile Bottom Navigation (Hidden on desktop) -->
+<div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-zinc-100 px-6 py-3 flex justify-between items-center z-50">
+<button onclick="window.navigateTo('home')" class="flex flex-col items-center gap-1 text-zinc-400"><span class="material-symbols-outlined" data-icon="home">home</span><span class="text-[10px] font-bold uppercase">Home</span></button>
+<button onclick="window.navigateTo('booking')" class="flex flex-col items-center gap-1 text-[#FF6B35]"><span class="material-symbols-outlined" data-icon="calendar_month">calendar_month</span><span class="text-[10px] font-bold uppercase">Book</span></button>
+<div class="relative -top-8">
+<a href="tel:000" class="bg-[#FF6B35] text-white p-4 rounded-full shadow-lg active:scale-95 transition-transform inline-flex items-center justify-center"><span class="material-symbols-outlined text-3xl" data-icon="emergency">emergency</span></a>
+</div>
+<button onclick="window.navigateTo('services')" class="flex flex-col items-center gap-1 text-zinc-400"><span class="material-symbols-outlined" data-icon="medical_services">medical_services</span><span class="text-[10px] font-bold uppercase">Care</span></button>
+<button onclick="window.navigateTo('contact')" class="flex flex-col items-center gap-1 text-zinc-400"><span class="material-symbols-outlined" data-icon="person">person</span><span class="text-[10px] font-bold uppercase">Profile</span></button>
+</div>
+<div style="padding:40px 24px;background:#0a0f1a;"><div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=AIzaSyD-_pLdY2Da3BE5O5AivqTl8CnEvvEJMcQ&q=9%20kondalilla%20parade%20forest%20alke"></iframe></div></div>
+
+<script>
+(function() {
+window.navigateTo = function(pageId) {
+  // Close any open mobile drawer/menu first
+  var mm = document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.getElementById("side-drawer");
+  if (mm) { mm.classList.add("hidden"); mm.style.display = "none"; mm.classList.remove("translate-x-0"); mm.classList.add("translate-x-full"); }
+
+  // Determine if this is a true multi-page site (elements with data-page attribute)
+  var realPages = document.querySelectorAll("[data-page]");
+  var isMultiPage = realPages.length > 1;
+
+  if (isMultiPage) {
+    // Multi-page: hide all pages, show target
+    document.querySelectorAll("[data-page]").forEach(function(p) { p.style.display = "none"; p.classList.remove("active"); });
+    var target = document.querySelector('[data-page="' + pageId + '"]') || document.getElementById(pageId);
+    if (target) { target.style.display = "block"; target.classList.add("active"); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    return;
+  }
+
+  // Single-page: always scroll to target element. 'home' scrolls to top.
+  if (pageId === "home" || pageId === "top") {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+  var t = document.getElementById(pageId) || document.getElementById("page-" + pageId) || document.querySelector('[id*="' + pageId + '"]');
+  if (t) { t.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  else { window.scrollTo({ top: 0, behavior: "smooth" }); }
+};
+document.querySelectorAll("a,button").forEach(function(el) {
+  var oc = el.getAttribute("onclick") || "", hr = el.getAttribute("href") || "", dn = el.getAttribute("data-nav") || "", dp = el.getAttribute("data-page") || "";
+  if (oc.includes("navigateTo")) return;
+  if (dn) { el.addEventListener("click", function(e) { e.preventDefault(); window.navigateTo(dn); }); return; }
+  if (dp) { el.addEventListener("click", function(e) { e.preventDefault(); window.navigateTo(dp); }); return; }
+  if (hr.startsWith("#") && hr.length > 1) { el.addEventListener("click", function(e) { var t = document.querySelector(hr); if (t) { e.preventDefault(); t.scrollIntoView({ behavior: "smooth" }); } }); }
+});
+// Hamburger / mobile menu toggle — handles both class-based and inline-transform drawers
+document.querySelectorAll("#hamburger,#hamburger-btn,#menu-toggle,[class*='hamburger'],[aria-label='Open menu'],[aria-label='Menu'],[aria-label='Toggle menu']").forEach(function(btn) {
+  if (btn.getAttribute("onclick")) return;
+  btn.addEventListener("click", function() {
+    var drawer = document.getElementById("mobile-nav") || document.getElementById("side-drawer") || document.getElementById("mobile-menu") || document.querySelector("[class*='side-drawer'],[class*='mobile-menu'],[class*='mobile-nav']");
+    if (!drawer) return;
+    var isClosed = drawer.style.transform === "translateX(100%)" || drawer.classList.contains("translate-x-full");
+    if (isClosed) {
+      drawer.style.transform = "translateX(0)";
+      drawer.classList.remove("translate-x-full");
+      drawer.classList.add("translate-x-0");
+    } else {
+      drawer.style.transform = "translateX(100%)";
+      drawer.classList.remove("translate-x-0");
+      drawer.classList.add("translate-x-full");
+    }
+  });
+});
+// Close drawer / mobile nav close button
+document.querySelectorAll("#close-drawer,#close-menu,#menu-close,#nav-close,[aria-label='Close menu'],[aria-label='Close'],[aria-label='Close navigation']").forEach(function(btn) {
+  btn.addEventListener("click", function() {
+    var drawer = document.getElementById("mobile-nav") || document.getElementById("side-drawer") || document.getElementById("mobile-menu") || document.querySelector("[class*='side-drawer'],[class*='mobile-menu'],[class*='mobile-nav']");
+    if (drawer) { drawer.style.transform = "translateX(100%)"; drawer.classList.remove("translate-x-0"); drawer.classList.add("translate-x-full"); }
+  });
+});
+// Newsletter popup / modal close — catches any floating popup with a close button
+// Stitch generates these with no onclick — we wire them up here
+(function() {
+  function closePopup(popup) {
+    popup.style.display = "none";
+    popup.style.opacity = "0";
+    popup.style.visibility = "hidden";
+    popup.style.pointerEvents = "none";
+  }
+  // Find all fixed/absolute positioned containers that look like popups
+  var popups = document.querySelectorAll("[class*='popup'],[class*='modal'],[id*='popup'],[id*='modal'],[class*='newsletter'],[id*='newsletter'],[class*='promo'],[id*='promo'],[class*='offer'],[id*='offer']");
+  popups.forEach(function(popup) {
+    // Wire up any close/dismiss button inside the popup
+    var closeBtns = popup.querySelectorAll("button,[aria-label*='close' i],[aria-label*='dismiss' i],[class*='close'],[id*='close'],[class*='dismiss']");
+    closeBtns.forEach(function(btn) {
+      if (btn.getAttribute("data-wg-popup-wired")) return;
+      btn.setAttribute("data-wg-popup-wired", "1");
+      btn.addEventListener("click", function(e) { e.stopPropagation(); closePopup(popup); });
+    });
+    // Also wire ✕ / × / x text-only buttons inside the popup
+    popup.querySelectorAll("button,span,div").forEach(function(el) {
+      if (el.getAttribute("data-wg-popup-wired")) return;
+      var txt = (el.textContent || "").trim();
+      if (txt === "×" || txt === "✕" || txt === "✖" || txt === "x" || txt === "X" || txt === "close" || txt === "Close") {
+        el.setAttribute("data-wg-popup-wired", "1");
+        el.style.cursor = "pointer";
+        el.addEventListener("click", function(e) { e.stopPropagation(); closePopup(popup); });
+      }
+    });
+  });
+  // Also handle the newsletter form submission — close popup on submit
+  document.querySelectorAll("form").forEach(function(form) {
+    var popup = form.closest("[class*='popup'],[class*='modal'],[id*='popup'],[id*='modal'],[class*='newsletter'],[id*='newsletter'],[class*='promo'],[id*='promo'],[class*='offer'],[id*='offer']");
+    if (!popup) return;
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+      var emailInput = form.querySelector("input[type='email'],input[type='text']");
+      var email = emailInput ? emailInput.value.trim() : "";
+      var btn = form.querySelector("button[type='submit'],button");
+      if (btn) { btn.textContent = "Subscribed!"; btn.style.background = "#22c55e"; }
+      setTimeout(function() { closePopup(popup); }, 1200);
+    });
+  });
+})();
+document.querySelectorAll("details").forEach(function(d) {
+  var s = d.querySelector("summary");
+  if (s) { s.style.cursor = "pointer"; s.addEventListener("click", function(e) { e.preventDefault(); var o = d.hasAttribute("open"); document.querySelectorAll("details").forEach(function(x) { x.removeAttribute("open"); }); if (!o) d.setAttribute("open", ""); }); }
+});
+document.querySelectorAll("[class*='faq'],[class*='accordion'],[id*='faq']").forEach(function(c) {
+  c.querySelectorAll("[class*='item'],[class*='question'],[class*='entry']").forEach(function(item) {
+    var q = item.querySelector("[class*='question'],[class*='trigger'],h3,h4,button");
+    var a = item.querySelector("[class*='answer'],[class*='content'],p");
+    if (q && a) { a.style.display = "none"; q.style.cursor = "pointer"; q.addEventListener("click", function() { var o = a.style.display !== "none"; c.querySelectorAll("[class*='answer'],[class*='content'],p").forEach(function(x) { x.style.display = "none"; }); if (!o) a.style.display = "block"; }); }
+  });
+});
+var cart = [];
+function showToast(msg) { var t = document.getElementById("wg-toast"); if (!t) { t = document.createElement("div"); t.id = "wg-toast"; t.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:99999;transition:opacity 0.3s;pointer-events:none;"; document.body.appendChild(t); } t.textContent = msg; t.style.opacity = "1"; setTimeout(function() { t.style.opacity = "0"; }, 2500); }
+document.querySelectorAll("button,a").forEach(function(btn) { var txt = (btn.textContent || "").toLowerCase().trim(); if (txt.includes("add to cart") || txt.includes("buy now") || txt.includes("add to bag")) { btn.addEventListener("click", function(e) { e.preventDefault(); e.stopPropagation(); var card = this.closest("article") || this.closest("[class*='product']") || this.parentElement; var nm = card && card.querySelector("h1,h2,h3,h4"); var n = nm ? nm.textContent.trim() : "Item"; var ex = cart.find(function(i) { return i.name === n; }); if (ex) ex.qty++; else cart.push({ name: n, qty: 1 }); showToast(n + " added"); var total = cart.reduce(function(a, b) { return a + b.qty; }, 0); document.querySelectorAll("#cart-count,#cart-badge,[class*='cart-count']").forEach(function(b) { b.textContent = total; }); }); } });
+document.querySelectorAll("form").forEach(function(form) {
+  // Skip forms inside the booking widget — it manages its own fetch-based submit
+  if (form.closest("#booking") || form.closest(".bw-container") || form.id === "bw-form") return;
+  form.addEventListener("submit", function(e) {
+    e.preventDefault();
+    if (form.querySelector(".wg-success")) return;
+    var s = document.createElement("div"); s.className = "wg-success";
+    s.style.cssText = "background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;font-family:sans-serif;";
+    s.textContent = "Thank you! We will be in touch within 24 hours.";
+    form.appendChild(s);
+    form.querySelectorAll("input,textarea,select,button[type='submit']").forEach(function(el) { el.setAttribute("disabled", "true"); });
+  });
+});
+// Multi-page init: ONLY activate hide/show for elements with explicit data-page attribute.
+// NEVER hide .page-section elements — Stitch uses that class as pure visual styling on all sections.
+var realPageWrappers = document.querySelectorAll("[data-page]");
+if (realPageWrappers.length > 1) {
+  var ha = false;
+  realPageWrappers.forEach(function(p) { if (p.classList.contains("active") || p.style.display !== "none") ha = true; });
+  if (!ha) {
+    realPageWrappers.forEach(function(p, i) {
+      if (i === 0) { p.style.display = "block"; p.classList.add("active"); }
+      else { p.style.display = "none"; }
+    });
+  }
+}
+})();
+</script><script>
+(function(){
+  var WG_JOB="job_1777709663831";
+  var WG_API="https://webgecko-builder.vercel.app/api/analytics/track";
+  function wgTrack(event,page){try{fetch(WG_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:WG_JOB,event:event,page:page||window.location.pathname})});}catch(e){}}
+  wgTrack("page_view",document.title||window.location.pathname);
+  document.addEventListener("click",function(e){
+    var el=e.target.closest("a,button");
+    if(!el)return;
+    var txt=(el.textContent||"").toLowerCase();
+    var href=el.getAttribute("href")||"";
+    var oc=el.getAttribute("onclick")||"";
+    if(txt.includes("book")||oc.includes("booking")||href.includes("booking")){wgTrack("booking_click");}
+    else if(txt.includes("contact")||oc.includes("contact")||href.includes("contact")){wgTrack("contact_click");}
+  });
+  document.addEventListener("submit",function(e){wgTrack("form_submit");});
+})();
+</script>
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/69ed30334e60811c358642c7/1jn388ih6/default';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+<script>
+(function() {
+  
+  
+  
+  
+})();
+</script></body></html>
