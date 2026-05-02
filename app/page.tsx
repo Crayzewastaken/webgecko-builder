@@ -120,6 +120,7 @@ const CheckCard = ({ checked, onClick, label }: any) => (
 export default function HomePage() {
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [compressing, setCompressing] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [turnstileReady, setTurnstileReady] = useState(false);
@@ -396,8 +397,20 @@ export default function HomePage() {
     if (heroFile) formData.append("hero", heroFile);
     photoFiles.forEach((f, i) => formData.append(`photo_${i}`, f));
 
-    setSubmitted(true);
-    fetch("/api/worker", { method: "POST", body: formData }).catch(console.error);
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/worker", { method: "POST", body: formData });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.success === false) {
+        setErrors([data.message || "Something went wrong. Please try again."]);
+        setSubmitting(false);
+        return;
+      }
+      setSubmitted(true);
+    } catch (err) {
+      setErrors(["Network error — please check your connection and try again."]);
+      setSubmitting(false);
+    }
   }
 
   function next() {
@@ -786,8 +799,8 @@ export default function HomePage() {
           {/* Nav */}
           <div className="flex gap-3 mt-6 md:mt-8">
             {step > 1 && <button onClick={back} className="h-14 px-6 md:px-8 rounded-2xl border border-white/10 text-slate-400 font-medium text-sm">← Back</button>}
-            <button onClick={next} disabled={compressing || (currentStepId === 'contact' && !turnstileToken)} className="flex-1 h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold transition-all text-sm">
-              {compressing ? "⏳ Compressing..." : currentStepId === 'contact' ? "🚀 Submit Request" : "Continue →"}
+            <button onClick={next} disabled={compressing || submitting || (currentStepId === 'contact' && !turnstileToken)} className="flex-1 h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold transition-all text-sm">
+              {submitting ? "⏳ Submitting..." : compressing ? "⏳ Compressing..." : currentStepId === 'contact' ? "🚀 Submit Request" : "Continue →"}
             </button>
           </div>
         </div>
@@ -824,3 +837,4 @@ export default function HomePage() {
     </main>
   );
 }
+           

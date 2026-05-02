@@ -1290,8 +1290,7 @@ export default function ClientPortal() {
                       Send Cancellation Request
                     </a>
                     <button onClick={() => setShowSubModal(false)} style={{ ...S.btn("secondary"), width: "100%", fontSize: 13 }}>Keep my plan</button>
-                    <button onClick={() => setSubStep("option")} style={{ ...S.btn("secondary"), width: "100%", fontSize: 13 }}>Back</button>
-                    <button onClick={() => setSubStep("option")} style={{ ...S.btn("secondary"), width: "100%", fontSize: 13 }}>Back</button>
+                    <button onClick={() => setSubStep("option")} style={{ ...S.btn("ghost"), width: "100%", fontSize: 13 }}>← Back</button>
                   </>
                 )}
               </div>

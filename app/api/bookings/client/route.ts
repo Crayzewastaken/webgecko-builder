@@ -105,7 +105,22 @@ export async function PATCH(request: NextRequest) {
     await sendStatusEmail(updated, emailAction, reason);
   } catch (e) { console.error("Status email failed:", e); }
 
-  return Response.json({ success: true, booking: updated });
+  // Return shape the portal expects (bookingId, visitorName, etc.)
+  const normalized = updated ? {
+    bookingId: updated.id,
+    jobId: updated.job_id,
+    visitorName: updated.customer_name,
+    visitorEmail: updated.customer_email,
+    visitorPhone: updated.customer_phone,
+    service: updated.service,
+    date: new Date(updated.slot_start).toISOString().split("T")[0],
+    time: new Date(updated.slot_start).toTimeString().slice(0, 5),
+    status: updated.status,
+    notes: updated.notes,
+    createdAt: updated.created_at,
+  } : null;
+
+  return Response.json({ success: true, booking: normalized });
 }
 
 export async function POST(request: NextRequest) {
@@ -130,7 +145,20 @@ export async function POST(request: NextRequest) {
     slotStart, slotEnd: slotStart, notes: message || "",
   });
 
-  return Response.json({ success: true, booking: saved });
+  const normalizedSaved = saved ? {
+    bookingId: saved.id,
+    jobId: saved.job_id,
+    visitorName: saved.customer_name,
+    visitorEmail: saved.customer_email,
+    visitorPhone: saved.customer_phone,
+    service: saved.service,
+    date: new Date(saved.slot_start).toISOString().split("T")[0],
+    time: new Date(saved.slot_start).toTimeString().slice(0, 5),
+    status: saved.status,
+    notes: saved.notes,
+    createdAt: saved.created_at,
+  } : null;
+  return Response.json({ success: true, booking: normalizedSaved });
 }
 
 export async function DELETE(request: NextRequest) {

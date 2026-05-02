@@ -270,57 +270,21 @@ const buildWebsite = inngest.createFunction(
       return html;
     });
 
-    // ── STEP 6: Inject essentials + booking widget ────────────────────────────
-    const finalHtml = await step.run("step6-inject", async () => {
+    // ── STEP 6: Inject essentials + images (NO booking widget yet — auditor runs first) ─
+    const injectedHtml = await step.run("step6-inject", async () => {
       const { html: checkedHtml } = checkAndFixLinks(fixedHtml, Array.isArray(userInput.pages) ? userInput.pages : []);
       const ga4Id = job.ga4Id || userInput.ga4Id || "";
-      // Tawk.to: use a single shared property ID from env (per-client creation not supported by their API)
       const tawktoPropertyId = features.includes("Live Chat")
         ? (process.env.TAWKTO_PROPERTY_ID || undefined)
         : undefined;
       let html = injectEssentials(checkedHtml, clientEmail, clientPhone, jobId, ga4Id, tawktoPropertyId);
       html = injectImages(html, logoUrl, heroUrl, photoUrls, productsWithPhotos);
-
-      const hasAiBookingPlaceholder = /(?:forge integration|booking system.*?recalibrat|advanced booking.*?recalibrat|calendly|acuity|setmore)/i.test(html);
-      if (hasBookingFeature || hasAiBookingPlaceholder) {
-        try {
-          const services = getServicesForIndustry(userInput.industry);
-          let accentColor = "#D4AF37";
-          const ctaBgMatch = html.match(/(?:class="[^"]*(?:btn|button|cta)[^"]*"[^>]*|id="[^"]*(?:cta|btn)[^"]*"[^>]*)style="[^"]*background(?:-color)?:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/);
-          if (ctaBgMatch?.[1]) accentColor = ctaBgMatch[1];
-          else {
-            const cssVarMatch = html.match(/--(?:primary|accent|brand|color-primary)[^:]*:\s*(#[0-9a-fA-F]{3,8})/);
-            if (cssVarMatch?.[1]) accentColor = cssVarMatch[1];
-          }
-          const bookingWidgetHtml = generateBookingWidget({
-            jobId, businessName: userInput.businessName,
-            timezone: "Australia/Brisbane", services,
-            primaryColor: accentColor,
-            apiBase: "https://webgecko-builder.vercel.app",
-          });
-          html = html.replace(/<section([^>]*)>([\s\S]*?(?:forge integration|booking system.*?recalibrat|advanced booking.*?recalibrat)[\s\S]*?)<\/section>/gi,
-            (_m: string, attrs: string) => {
-              const newAttrs = /id=["'][^"']*["']/.test(attrs) ? attrs.replace(/id=["'][^"']*["']/, 'id="booking"') : ` id="booking"${attrs}`;
-              return `<section${newAttrs}></section>`;
-            }
-          );
-          html = html.replace(/<([a-z][a-z0-9]*)\b([^>]*)\bid="booking"[^>]*>[\s\S]*?<\/\1>/gi, '<div id="booking"></div>');
-          if (html.includes('id="booking"')) {
-            html = html.replace('<div id="booking"></div>', bookingWidgetHtml);
-          } else {
-            html = html.replace("</body>", bookingWidgetHtml + "\n</body>");
-          }
-        } catch (e) {
-          console.error("[Inngest] Booking widget injection failed:", e);
-        }
-      }
-
       return html;
     });
 
-    // ── STEP 6b: Claude Opus audit + fix (Brain 3: Auditor) ──────────────────
-    const auditedHtml = await step.run("step6b-opus-audit", async () => {
-      const result = await auditAndFixSite(finalHtml, {
+    // ── STEP 6b: Auditor — ensures id="booking", id="contact", etc. all exist ──
+    const auditedHtml = await step.run("step6b-audit", async () => {
+      const result = await auditAndFixSite(injectedHtml, {
         businessName: userInput.businessName,
         clientEmail,
         clientPhone,
@@ -334,6 +298,56 @@ const buildWebsite = inngest.createFunction(
         console.log(`[Auditor] Fixed ${result.issues.length} issues:`, result.issues);
       }
       return result.fixedHtml;
+    });
+
+    // ── STEP 6c: Booking widget injection (AFTER auditor so id="booking" is guaranteed) ─
+    const finalHtml = await step.run("step6c-booking", async () => {
+      if (!hasBookingFeature) return auditedHtml;
+      let html = auditedHtml;
+      try {
+        const services = getServicesForIndustry(userInput.industry);
+
+        // Extract accent colour from CSS vars or button styles
+        let accentColor = "#10b981";
+        const cssVarMatch = html.match(/--(?:primary|accent|brand|color-primary)[^:]*:\s*(#[0-9a-fA-F]{3,8})/);
+        if (cssVarMatch?.[1]) accentColor = cssVarMatch[1];
+        else {
+          const ctaBgMatch = html.match(/background(?:-color)?:\s*(#[0-9a-fA-F]{3,8})/);
+          if (ctaBgMatch?.[1] && ctaBgMatch[1] !== "#000000" && ctaBgMatch[1] !== "#ffffff") accentColor = ctaBgMatch[1];
+        }
+
+        const bookingWidgetHtml = generateBookingWidget({
+          jobId, businessName: userInput.businessName,
+          timezone: "Australia/Brisbane", services,
+          primaryColor: accentColor,
+          apiBase: "https://webgecko-builder.vercel.app",
+        });
+
+        // Remove any existing booking section content (calendly placeholders, AI placeholders, empty divs)
+        // but keep the id="booking" anchor intact so we can target it
+        html = html.replace(
+          /<(section|div)([^>]*\bid="booking"[^>]*)>([\s\S]*?)<\/\1>/i,
+          (_m: string, tag: string, attrs: string) => `<${tag}${attrs}></${tag}>`
+        );
+
+        // Now replace the empty booking element with the full widget
+        const bookingTagMatch = html.match(/<(section|div)([^>]*\bid="booking"[^>]*)><\/\1>/i);
+        if (bookingTagMatch) {
+          html = html.replace(bookingTagMatch[0], bookingWidgetHtml);
+          console.log("[Step6c] Booking widget injected into existing id=booking element");
+        } else if (html.includes('id="booking"')) {
+          // Fallback: just replace the whole booking element
+          html = html.replace(/<[^>]*\bid="booking"[^>]*>[\s\S]*?<\/[^>]+>/i, bookingWidgetHtml);
+          console.log("[Step6c] Booking widget injected via fallback replace");
+        } else {
+          // No booking element at all — append before </body>
+          html = html.replace("</body>", bookingWidgetHtml + "\n</body>");
+          console.log("[Step6c] Booking widget appended before </body> (no id=booking found)");
+        }
+      } catch (e) {
+        console.error("[Step6c] Booking widget injection failed:", e);
+      }
+      return html;
     });
 
     // ── STEP 7: Square shop ───────────────────────────────────────────────────
@@ -399,7 +413,7 @@ const buildWebsite = inngest.createFunction(
       if (clientSlug) {
         const existingClient = await getClient(clientSlug);
         if (existingClient) {
-          await saveClient(clientSlug, { ...existingClient, preview_url: previewUrl, build_status: "complete" });
+          await saveClient(clientSlug, { ...existingClient, preview_url: previewUrl });
         }
       }
 

@@ -23,14 +23,15 @@ export async function POST(req: NextRequest) {
 
   await saveFeedback(client.job_id, { message: text.trim(), clientSlug: slug });
 
-  // Return all feedback for this job
+  // Return all feedback for this job (shape: {id, text, createdAt} for portal compatibility)
   const { data: allFeedback } = await supabase
     .from("feedback")
     .select("*")
     .eq("job_id", client.job_id)
     .order("created_at", { ascending: true });
 
-  return NextResponse.json({ success: true, feedback: allFeedback || [] });
+  const mapped = (allFeedback || []).map((f: any) => ({ id: f.id, text: f.message, createdAt: f.created_at }));
+  return NextResponse.json({ success: true, feedback: mapped });
 }
 
 // GET — retrieve feedback
@@ -48,7 +49,8 @@ export async function GET(req: NextRequest) {
     .eq("job_id", client.job_id)
     .order("created_at", { ascending: true });
 
-  return NextResponse.json({ feedback: feedback || [], round: 1 });
+  const mapped = (feedback || []).map((f: any) => ({ id: f.id, text: f.message, createdAt: f.created_at }));
+  return NextResponse.json({ feedback: mapped, round: 1 });
 }
 
 // DELETE — client submits their change list for revision (emails owner)

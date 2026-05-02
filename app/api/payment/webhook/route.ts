@@ -65,9 +65,9 @@ export async function POST(req: NextRequest) {
 
     await savePaymentState(jobId, {
       ...existing,
-      depositPaid: stage === "deposit" ? true : existing.deposit_paid,
-      finalPaid: stage === "final" ? true : existing.final_paid,
-      monthlyActive: stage === "monthly" ? true : existing.monthly_active,
+      depositPaid: stage === "deposit" ? true : (existing.deposit_paid ?? existing.depositPaid ?? false),
+      finalPaid: stage === "final" ? true : (existing.final_paid ?? existing.finalPaid ?? false),
+      monthlyActive: stage === "monthly" ? true : (existing.monthly_active ?? existing.monthlyActive ?? false),
       payments,
     });
 

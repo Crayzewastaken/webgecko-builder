@@ -191,18 +191,30 @@ export function injectEssentials(html: string, email: string, phone: string, job
 <script>
 (function() {
 window.navigateTo = function(pageId) {
-  var t = document.getElementById(pageId) || document.getElementById("page-" + pageId) || document.querySelector('[data-page="' + pageId + '"]');
-  // Only use hide/show if there are real page wrappers with data-page; otherwise scroll
-  var realPages = document.querySelectorAll("[data-page],.page[id]");
-  if (realPages.length > 1) {
-    document.querySelectorAll(".page,.page-section[data-page],.page[id]").forEach(function(p) { p.style.display = "none"; p.classList.remove("active"); });
-    if (t) { t.style.display = "block"; t.classList.add("active"); window.scrollTo({ top: 0, behavior: "smooth" }); }
-  } else {
-    if (t) { t.scrollIntoView({ behavior: "smooth", block: "start" }); }
-  }
-  // Close any open mobile drawer/menu
+  // Close any open mobile drawer/menu first
   var mm = document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.getElementById("side-drawer");
   if (mm) { mm.classList.add("hidden"); mm.style.display = "none"; mm.classList.remove("translate-x-0"); mm.classList.add("translate-x-full"); }
+
+  // Determine if this is a true multi-page site (elements with data-page attribute)
+  var realPages = document.querySelectorAll("[data-page]");
+  var isMultiPage = realPages.length > 1;
+
+  if (isMultiPage) {
+    // Multi-page: hide all pages, show target
+    document.querySelectorAll("[data-page]").forEach(function(p) { p.style.display = "none"; p.classList.remove("active"); });
+    var target = document.querySelector('[data-page="' + pageId + '"]') || document.getElementById(pageId);
+    if (target) { target.style.display = "block"; target.classList.add("active"); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    return;
+  }
+
+  // Single-page: always scroll to target element. 'home' scrolls to top.
+  if (pageId === "home" || pageId === "top") {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+  var t = document.getElementById(pageId) || document.getElementById("page-" + pageId) || document.querySelector('[id*="' + pageId + '"]');
+  if (t) { t.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  else { window.scrollTo({ top: 0, behavior: "smooth" }); }
 };
 document.querySelectorAll("a,button").forEach(function(el) {
   var oc = el.getAttribute("onclick") || "", hr = el.getAttribute("href") || "", dn = el.getAttribute("data-nav") || "", dp = el.getAttribute("data-page") || "";
@@ -252,15 +264,31 @@ document.querySelectorAll("[class*='faq'],[class*='accordion'],[id*='faq']").for
 var cart = [];
 function showToast(msg) { var t = document.getElementById("wg-toast"); if (!t) { t = document.createElement("div"); t.id = "wg-toast"; t.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:99999;transition:opacity 0.3s;pointer-events:none;"; document.body.appendChild(t); } t.textContent = msg; t.style.opacity = "1"; setTimeout(function() { t.style.opacity = "0"; }, 2500); }
 document.querySelectorAll("button,a").forEach(function(btn) { var txt = (btn.textContent || "").toLowerCase().trim(); if (txt.includes("add to cart") || txt.includes("buy now") || txt.includes("add to bag")) { btn.addEventListener("click", function(e) { e.preventDefault(); e.stopPropagation(); var card = this.closest("article") || this.closest("[class*='product']") || this.parentElement; var nm = card && card.querySelector("h1,h2,h3,h4"); var n = nm ? nm.textContent.trim() : "Item"; var ex = cart.find(function(i) { return i.name === n; }); if (ex) ex.qty++; else cart.push({ name: n, qty: 1 }); showToast(n + " added"); var total = cart.reduce(function(a, b) { return a + b.qty; }, 0); document.querySelectorAll("#cart-count,#cart-badge,[class*='cart-count']").forEach(function(b) { b.textContent = total; }); }); } });
-document.querySelectorAll("form").forEach(function(form) { form.addEventListener("submit", function(e) { e.preventDefault(); if (form.querySelector(".wg-success")) return; var s = document.createElement("div"); s.className = "wg-success"; s.style.cssText = "background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;font-family:sans-serif;"; s.textContent = "Thank you! We will be in touch within 24 hours."; form.appendChild(s); form.querySelectorAll("input,textarea,select,button[type='submit']").forEach(function(el) { el.setAttribute("disabled", "true"); }); }); });
-// Multi-page init: ONLY hide/show elements that explicitly have data-page or .page[id].
-// Stitch often uses class="page-section" as a visual styling class on every section —
-// hiding those would blank the entire site. We only activate hide/show for real page wrappers.
-var realPageWrappers = document.querySelectorAll("[data-page],.page[id]");
+document.querySelectorAll("form").forEach(function(form) {
+  // Skip forms inside the booking widget — it manages its own fetch-based submit
+  if (form.closest("#booking") || form.closest(".bw-container") || form.id === "bw-form") return;
+  form.addEventListener("submit", function(e) {
+    e.preventDefault();
+    if (form.querySelector(".wg-success")) return;
+    var s = document.createElement("div"); s.className = "wg-success";
+    s.style.cssText = "background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;font-family:sans-serif;";
+    s.textContent = "Thank you! We will be in touch within 24 hours.";
+    form.appendChild(s);
+    form.querySelectorAll("input,textarea,select,button[type='submit']").forEach(function(el) { el.setAttribute("disabled", "true"); });
+  });
+});
+// Multi-page init: ONLY activate hide/show for elements with explicit data-page attribute.
+// NEVER hide .page-section elements — Stitch uses that class as pure visual styling on all sections.
+var realPageWrappers = document.querySelectorAll("[data-page]");
 if (realPageWrappers.length > 1) {
   var ha = false;
-  realPageWrappers.forEach(function(p) { if (p.classList.contains("active")) ha = true; });
-  if (!ha) { realPageWrappers.forEach(function(p, i) { if (i === 0) { p.style.display = "block"; p.classList.add("active"); } else { p.style.display = "none"; } }); }
+  realPageWrappers.forEach(function(p) { if (p.classList.contains("active") || p.style.display !== "none") ha = true; });
+  if (!ha) {
+    realPageWrappers.forEach(function(p, i) {
+      if (i === 0) { p.style.display = "block"; p.classList.add("active"); }
+      else { p.style.display = "none"; }
+    });
+  }
 }
 })();
 </script>`;

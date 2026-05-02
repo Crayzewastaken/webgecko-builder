@@ -4,6 +4,7 @@
 -- If clients table already exists, run these to add missing columns:
 -- alter table clients add column if not exists password text;
 -- alter table clients add column if not exists metadata jsonb default '{}';
+-- alter table clients add column if not exists launch_ready boolean default false;
 
 -- ============================================================
 -- JOBS — website build jobs (was job:{jobId} in Redis)
@@ -46,6 +47,7 @@ create table if not exists clients (
   square_customer_id text,
   square_subscription_id text,
   metadata jsonb default '{}',
+  launch_ready boolean default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -167,5 +169,4 @@ $$ language plpgsql;
 create or replace trigger jobs_updated_at before update on jobs
   for each row execute function update_updated_at();
 
-create or replace trigger clients_updated_at before update on clients
-  for each row execute function update_updated_at();
+c

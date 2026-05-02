@@ -2,7 +2,7 @@
 // Owner clicks "Release to Client" — emails them the portal link.
 import { NextRequest } from "next/server";
 import { Resend } from "resend";
-import { getJob, saveJob } from "@/lib/db";
+import { getJob, saveJob, getPaymentState, savePaymentState } from "@/lib/db";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -19,8 +19,14 @@ export async function GET(req: NextRequest) {
     const job = await getJob(jobId);
     if (!job) return page("Job not found", "#ef4444", 404);
 
-    // Mark preview as unlocked
+    // Mark preview as unlocked — update BOTH jobs (for reference) and payment_state (which the portal reads)
     await saveJob(jobId, { ...job, previewUnlocked: true, previewUnlockedAt: new Date().toISOString() });
+    const existingPs = await getPaymentState(jobId) || {};
+    await savePaymentState(jobId, {
+      ...existingPs,
+      previewUnlocked: true,
+      previewUnlockedAt: new Date().toISOString(),
+    });
 
     const clientSlug = job.clientSlug || "";
     const clientEmail = job.userInput?.email || "";
