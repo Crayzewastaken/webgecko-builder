@@ -169,4 +169,5 @@ $$ language plpgsql;
 create or replace trigger jobs_updated_at before update on jobs
   for each row execute function update_updated_at();
 
-c
+create or replace trigger clients_updated_at before update on clients
+  for each row execute function update_updated_at();

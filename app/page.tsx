@@ -837,4 +837,17 @@ export default function HomePage() {
     </main>
   );
 }
-           
+              {businessName && <p>🏢 {businessName}</p>}
+              {industry && <p>🏭 {industry}</p>}
+              {goal && <p>🎯 {goal}</p>}
+              {siteType && <p>📄 {siteType === 'multi' ? 'Multi Page' : 'Single Page'}</p>}
+              {pages.length > 0 && <p className="truncate">📑 {pages.join(', ')}</p>}
+              {name && <p>👤 {name}</p>}
+            </div>
+            {/* Live quote intentionally hidden from client */}
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
