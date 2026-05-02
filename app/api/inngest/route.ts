@@ -363,7 +363,10 @@ const buildWebsite = inngest.createFunction(
 
         // Find id="booking" element and replace its entire content using a depth counter
         // (regex can't reliably match nested tags, so we walk the string manually)
+        const bookingIdx = html.indexOf('id="booking"');
+        console.log(`[Step6c] id="booking" present: ${bookingIdx !== -1} at idx ${bookingIdx}, html length: ${html.length}`);
         const bookingOpenMatch = html.match(/<(section|div)([^>]*\bid="booking"[^>]*)>/i);
+        console.log(`[Step6c] bookingOpenMatch: ${bookingOpenMatch ? bookingOpenMatch[0].slice(0,80) : "null"}`);
         if (bookingOpenMatch) {
           const openTag = bookingOpenMatch[0];
           const tagName = bookingOpenMatch[1].toLowerCase();
@@ -390,11 +393,18 @@ const buildWebsite = inngest.createFunction(
           // pos now points to just after the closing tag
           const fullElement = html.slice(startIdx, pos);
           html = html.slice(0, startIdx) + bookingWidgetHtml + html.slice(pos);
-          console.log(`[Step6c] Booking widget replaced element (${fullElement.length} chars) at idx ${startIdx}`);
+          console.log(`[Step6c] Replaced element (${fullElement.length} chars). Widget present: ${html.includes("BW_JOB_ID")}`);
         } else {
-          // No booking element at all — append before </body>
-          html = html.replace("</body>", bookingWidgetHtml + "\n</body>");
-          console.log("[Step6c] Booking widget appended before </body> (no id=booking found)");
+          // No section/div with id="booking" — check for any element with that id
+          const anyBookingEl = /<[a-z][^>]*\bid="booking"[^>]*>/i.exec(html);
+          if (anyBookingEl) {
+            console.log(`[Step6c] id="booking" on non-section/div element: ${anyBookingEl[0].slice(0,80)} — appending widget after it`);
+            html = html.replace(anyBookingEl[0], anyBookingEl[0] + bookingWidgetHtml);
+          } else {
+            // No booking element at all — append before </body>
+            html = html.replace("</body>", bookingWidgetHtml + "\n</body>");
+            console.log("[Step6c] Booking widget appended before </body> (no id=booking found)");
+          }
         }
       } catch (e) {
         console.error("[Step6c] Booking widget injection failed:", e);
