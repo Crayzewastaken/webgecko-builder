@@ -15,11 +15,12 @@ import {
   injectImages,
   getServicesForIndustry,
 } from "@/lib/pipeline-helpers";
-import { createSuperSaasSchedule, generateBookingEmbed } from "@/lib/supersaas";
+import { createSuperSaasSchedule } from "@/lib/supersaas";
 import { createClientShopCatalogue } from "@/lib/square";
 import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailability, getAnalyticsCount, getBookingsForJob } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { createTawktoProperty } from "@/lib/tawkto";
+import { subscribeToNewsletter } from "@/lib/beehiiv";
 import { generateSiteBlueprint } from "@/lib/gemini";
 import { auditAndFixSite } from "@/lib/auditor";
 
@@ -91,6 +92,31 @@ const buildWebsite = inngest.createFunction(
       ? `CLIENT IMAGES — use these exact URLs: ${logoUrl ? `Logo: ${logoUrl}` : ""} ${heroUrl ? `Hero: ${heroUrl}` : ""} ${photoUrls && photoUrls.length > 0 ? `Photos: ${photoUrls.join(", ")}` : ""}`
       : "No client images provided — use relevant stock image placeholders.";
 
+    // ── STEP 0: Brain 1 — Create SuperSaas schedule BEFORE Stitch so the booking
+    // URL is embedded natively in the HTML by Stitch rather than injected after. ──
+    const bookingUrl = await step.run("step0-supersaas", async () => {
+      // Use client-provided URL if given
+      const existing = (userInput.existingBookingUrl || "").trim();
+      if (existing) {
+        console.log(`[Step0] Using client-provided booking URL: ${existing}`);
+        return existing;
+      }
+      if (!hasBookingFeature) return "";
+      console.log("[Step0] Creating SuperSaas schedule before Stitch");
+      const schedule = await createSuperSaasSchedule({
+        businessName: userInput.businessName,
+        clientEmail,
+        timezone: "Australia/Brisbane",
+      });
+      if (schedule) {
+        await saveJob(jobId, { ...job, supersaasUrl: schedule.embedUrl, supersaasId: schedule.id });
+        console.log(`[Step0] SuperSaas schedule ready: ${schedule.embedUrl}`);
+        return schedule.embedUrl;
+      }
+      console.warn("[Step0] SuperSaas creation failed — will use placeholder booking section");
+      return "";
+    });
+
     // ── STEP 1: Claude Haiku — Site Blueprint (Brain 1: Architect) ──────────
     const spec = await step.run("step1-blueprint", async () => {
       const blueprint = await generateSiteBlueprint({
@@ -111,6 +137,7 @@ const buildWebsite = inngest.createFunction(
         pages: Array.isArray(userInput.pages) && userInput.pages.length > 0 ? userInput.pages : ["Home"],
         isMultiPage,
         hasBooking: hasBookingFeature,
+        bookingUrl: bookingUrl || undefined,
         pricingSection,
         imageSection,
         productsWithPhotos,
@@ -305,6 +332,19 @@ const buildWebsite = inngest.createFunction(
         return m;
       });
 
+      // Replace Stitch's showPage('pageid') calls with our navigateTo('pageid') —
+      // Stitch generates showPage() for all nav links but we strip its showPage definition above,
+      // which leaves nav clicks doing nothing. This converts them to our injected navigateTo().
+      if (isMultiPage) {
+        const showPageCount = (html.match(/showPage\s*\(/g) || []).length;
+        if (showPageCount > 0) {
+          html = html.replace(/\bshowPage\s*\(\s*['"]([^'"]+)['"]\s*\)/g, (_m: string, pageId: string) => {
+            return `navigateTo('${pageId.toLowerCase()}')`;
+          });
+          console.log(`[Step5] Replaced ${showPageCount} showPage() calls with navigateTo()`);
+        }
+      }
+
       return html;
     });
 
@@ -312,9 +352,21 @@ const buildWebsite = inngest.createFunction(
     const injectedHtml = await step.run("step6-inject", async () => {
       const { html: checkedHtml } = checkAndFixLinks(fixedHtml, Array.isArray(userInput.pages) ? userInput.pages : []);
       const ga4Id = job.ga4Id || userInput.ga4Id || "";
-      const tawktoPropertyId = features.includes("Live Chat")
-        ? (process.env.TAWKTO_PROPERTY_ID || undefined)
-        : undefined;
+      // Create per-client Tawk.to property (Brain 1 — before Stitch)
+      let tawktoPropertyId: string | undefined = undefined;
+      if (features.includes("Live Chat")) {
+        const existingPropId = process.env.TAWKTO_PROPERTY_ID;
+        if (existingPropId) {
+          tawktoPropertyId = existingPropId;
+        } else {
+          const propId = await createTawktoProperty(userInput.businessName);
+          if (propId) {
+            tawktoPropertyId = propId;
+            await saveJob(jobId, { ...job, tawktoPropertyId: propId });
+            console.log("[Step6] Tawk.to property created:", propId);
+          }
+        }
+      }
       let html = injectEssentials(checkedHtml, clientEmail, clientPhone, jobId, ga4Id, tawktoPropertyId);
       html = injectImages(html, logoUrl, heroUrl, photoUrls, productsWithPhotos);
       return html;
@@ -338,94 +390,78 @@ const buildWebsite = inngest.createFunction(
       return result.fixedHtml;
     });
 
-    // ── STEP 6c: Booking embed injection (AFTER auditor so id="booking" is guaranteed) ─
-    // Uses client's own URL if provided, otherwise auto-creates a SuperSaas schedule.
+    // ── STEP 6c: Booking section — V2 fixed component (no injection) ─────────
+    // The booking URL was created in step0 BEFORE Stitch, so Stitch already built
+    // an id="booking" section with the iframe. This step guarantees the section is
+    // correct by replacing whatever Stitch generated with our fixed component HTML.
+    // No regex depth-walking. No guessing. Deterministic every time.
     const finalHtml = await step.run("step6c-booking", async () => {
       if (!hasBookingFeature) return auditedHtml;
       let html = auditedHtml;
-      try {
-        // Extract accent colour from CSS vars or button styles
-        let accentColor = "#10b981";
-        const cssVarMatch = html.match(/--(?:primary|accent|brand|color-primary)[^:]*:\s*(#[0-9a-fA-F]{3,8})/);
-        if (cssVarMatch?.[1]) accentColor = cssVarMatch[1];
-        else {
-          const ctaBgMatch = html.match(/background(?:-color)?:\s*(#[0-9a-fA-F]{3,8})/);
-          if (ctaBgMatch?.[1] && ctaBgMatch[1] !== "#000000" && ctaBgMatch[1] !== "#ffffff") accentColor = ctaBgMatch[1];
-        }
 
-        // Determine booking URL — client's own or auto-create SuperSaas schedule
-        let bookingUrl = (userInput.existingBookingUrl || "").trim();
-        if (!bookingUrl) {
-          console.log("[Step6c] No existing booking URL — creating SuperSaas schedule");
-          const schedule = await createSuperSaasSchedule({
-            businessName: userInput.businessName,
-            clientEmail,
-            timezone: "Australia/Brisbane",
-          });
-          if (schedule) {
-            bookingUrl = schedule.embedUrl;
-            // Persist the schedule URL on the job so it's retrievable later
-            await saveJob(jobId, { ...job, supersaasUrl: schedule.embedUrl, supersaasId: schedule.id });
-            console.log(`[Step6c] SuperSaas schedule created: ${bookingUrl}`);
+      // Extract accent colour from CSS vars for theming the booking section
+      let accentColor = spec.palette?.accent || "#10b981";
+      const cssVarMatch = html.match(/--(?:primary|accent|brand|color-primary)[^:]*:\s*(#[0-9a-fA-F]{3,8})/);
+      if (cssVarMatch?.[1]) accentColor = cssVarMatch[1];
+
+      // Build the fixed booking component — parameterised only by URL, name, color
+      const bookingComponent = bookingUrl
+        ? [
+            '<section id="booking" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">',
+            '  <div style="max-width:900px;margin:0 auto;text-align:center;">',
+            '    <h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;margin:0 0 8px;">Book an Appointment</h2>',
+            `    <p style="color:#94a3b8;margin:0 0 32px;">Schedule your appointment with ${userInput.businessName} online.</p>`,
+            '    <div style="border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);">',
+            `      <iframe src="${bookingUrl}" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;" title="Book an Appointment" loading="lazy"></iframe>`,
+            '    </div>',
+            `    <p style="color:#475569;font-size:12px;margin-top:16px;">Prefer to call? <a href="tel:${clientPhone}" style="color:${accentColor};">${clientPhone}</a></p>`,
+            '  </div>',
+            '</section>',
+          ].join("\n")
+        : [
+            '<section id="booking" style="padding:80px 24px;background:#0a0f1a;text-align:center;scroll-margin-top:80px;">',
+            '  <div style="max-width:640px;margin:0 auto;">',
+            '    <h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;margin:0 0 16px;">Book an Appointment</h2>',
+            `    <p style="color:#94a3b8;margin:0 0 32px;">Contact us to schedule your appointment with ${userInput.businessName}.</p>`,
+            `    <a href="tel:${clientPhone}" style="display:inline-block;background:${accentColor};color:#fff;font-weight:700;font-size:1.1rem;padding:18px 40px;border-radius:10px;text-decoration:none;">Call ${clientPhone}</a>`,
+            `    <p style="color:#475569;font-size:13px;margin-top:16px;">Or email us at <a href="mailto:${clientEmail}" style="color:${accentColor};">${clientEmail}</a></p>`,
+            '  </div>',
+            '</section>',
+          ].join("\n");
+
+      // Replace existing id="booking" element entirely using string walk
+      // (simple open-tag find + depth counter — much simpler now that the component is fixed)
+      const bookingOpenMatch = html.match(/<(section|div)([^>]*\bid="booking"[^>]*)>/i);
+      if (bookingOpenMatch) {
+        const openTag = bookingOpenMatch[0];
+        const tagName = bookingOpenMatch[1].toLowerCase();
+        const startIdx = html.indexOf(openTag);
+        let depth = 1;
+        let pos = startIdx + openTag.length;
+        const openRe = new RegExp(`<${tagName}[\\s>]`, "gi");
+        const closeRe = new RegExp(`<\\/${tagName}>`, "gi");
+        while (depth > 0 && pos < html.length) {
+          openRe.lastIndex = pos;
+          closeRe.lastIndex = pos;
+          const nextOpen = openRe.exec(html);
+          const nextClose = closeRe.exec(html);
+          if (!nextClose) break;
+          if (nextOpen && nextOpen.index < nextClose.index) {
+            depth++;
+            pos = nextOpen.index + nextOpen[0].length;
           } else {
-            console.warn("[Step6c] SuperSaas creation failed — booking section will be placeholder");
-          }
-        } else {
-          console.log(`[Step6c] Using client-provided booking URL: ${bookingUrl}`);
-        }
-
-        const bookingWidgetHtml = bookingUrl
-          ? generateBookingEmbed({ bookingUrl, businessName: userInput.businessName, primaryColor: accentColor })
-          : `<section id="booking" style="padding:80px 24px;background:#0a0f1a;text-align:center;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;">Book an Appointment</h2><p style="color:#94a3b8;margin-top:16px;">Contact us to schedule your appointment.</p></section>`;
-
-        // Find id="booking" element and replace its entire content using a depth counter
-        // (regex can't reliably match nested tags, so we walk the string manually)
-        const bookingIdx = html.indexOf('id="booking"');
-        console.log(`[Step6c] id="booking" present: ${bookingIdx !== -1} at idx ${bookingIdx}, html length: ${html.length}`);
-        const bookingOpenMatch = html.match(/<(section|div)([^>]*\bid="booking"[^>]*)>/i);
-        console.log(`[Step6c] bookingOpenMatch: ${bookingOpenMatch ? bookingOpenMatch[0].slice(0,80) : "null"}`);
-        if (bookingOpenMatch) {
-          const openTag = bookingOpenMatch[0];
-          const tagName = bookingOpenMatch[1].toLowerCase();
-          const startIdx = html.indexOf(openTag);
-          // Walk forward counting open/close tags of the same type to find the matching close
-          let depth = 1;
-          let pos = startIdx + openTag.length;
-          const openRe = new RegExp(`<${tagName}[\\s>]`, "gi");
-          const closeRe = new RegExp(`<\\/${tagName}>`, "gi");
-          while (depth > 0 && pos < html.length) {
-            openRe.lastIndex = pos;
-            closeRe.lastIndex = pos;
-            const nextOpen = openRe.exec(html);
-            const nextClose = closeRe.exec(html);
-            if (!nextClose) break;
-            if (nextOpen && nextOpen.index < nextClose.index) {
-              depth++;
-              pos = nextOpen.index + nextOpen[0].length;
-            } else {
-              depth--;
-              pos = nextClose.index + nextClose[0].length;
-            }
-          }
-          // pos now points to just after the closing tag
-          const fullElement = html.slice(startIdx, pos);
-          html = html.slice(0, startIdx) + bookingWidgetHtml + html.slice(pos);
-          console.log(`[Step6c] Replaced element (${fullElement.length} chars). SuperSaas injected: ${html.includes("supersaas.com")}, has booking section: ${html.includes('id="booking"')}`);
-        } else {
-          // No section/div with id="booking" — check for any element with that id
-          const anyBookingEl = /<[a-z][^>]*\bid="booking"[^>]*>/i.exec(html);
-          if (anyBookingEl) {
-            console.log(`[Step6c] id="booking" on non-section/div element: ${anyBookingEl[0].slice(0,80)} — appending widget after it`);
-            html = html.replace(anyBookingEl[0], anyBookingEl[0] + bookingWidgetHtml);
-          } else {
-            // No booking element at all — append before </body>
-            html = html.replace("</body>", bookingWidgetHtml + "\n</body>");
-            console.log("[Step6c] Booking widget appended before </body> (no id=booking found)");
+            depth--;
+            pos = nextClose.index + nextClose[0].length;
           }
         }
-      } catch (e) {
-        console.error("[Step6c] Booking widget injection failed:", e);
+        html = html.slice(0, startIdx) + bookingComponent + html.slice(pos);
+        console.log(`[Step6c] Booking component installed. iframe present: ${html.includes("supersaas.com") || html.includes(bookingUrl || "NOPE")}`);
+      } else {
+        // Stitch didn't generate a booking section — inject before </body>
+        html = html.replace("</body>", bookingComponent + "\n</body>");
+        console.log("[Step6c] Booking component injected before </body> (no id=booking in Stitch output)");
       }
+
       return html;
     });
 
@@ -434,8 +470,8 @@ const buildWebsite = inngest.createFunction(
     const shopProducts: { name: string; price: string; photoUrl?: string }[] = productsWithPhotos.length > 0 ? productsWithPhotos : [];
 
     const finalHtmlWithShop = await step.run("step7-shop", async () => {
-      if (!hasShopFeature || shopProducts.length === 0) return auditedHtml;
-      let html = auditedHtml;
+      if (!hasShopFeature || shopProducts.length === 0) return finalHtml;
+      let html = finalHtml;
       try {
         const siteUrl = `https://${vercelProjectName}.vercel.app`;
         const catalogueItems = await createClientShopCatalogue({ jobId, businessName: userInput.businessName, products: shopProducts, redirectUrl: siteUrl });
@@ -475,25 +511,189 @@ const buildWebsite = inngest.createFunction(
       return `https://${vercelProjectName}.vercel.app`;
     });
 
+    // ── STEP 8b: Smoke test — fetch live URL and verify critical elements ─────
+    // Non-blocking: failures recorded and surfaced in the email, never kill the build.
+    type SmokeCheck = { label: string; pass: boolean; severity: "error" | "warn" };
+    const smokeResults = await step.run("step8b-smoke", async () => {
+      const checks: SmokeCheck[] = [];
+      if (!previewUrl) return [{ label: "Deploy URL", pass: false, severity: "error" as const }];
+
+      // Vercel cold-starts — retry up to 3x with backoff
+      let liveHtml = "";
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await new Promise(r => setTimeout(r, attempt * 2000));
+          const res = await fetch(previewUrl, { headers: { "User-Agent": "WebGecko-SmokeTest/1.0" } });
+          if (res.ok) { liveHtml = await res.text(); break; }
+        } catch {}
+        console.log("[Smoke] Attempt " + attempt + " failed for " + previewUrl);
+      }
+
+      if (!liveHtml) return [{ label: "Site reachable", pass: false, severity: "error" as const }];
+
+      checks.push({ label: "Site reachable",        pass: true,                                                                   severity: "error" });
+      checks.push({ label: "Has <html> tag",         pass: liveHtml.includes("<html"),                                            severity: "error" });
+      checks.push({ label: "Substantial content",    pass: liveHtml.length > 5000,                                                severity: "error" });
+      checks.push({ label: "No skeleton placeholder",pass: !/<h1>\s*(HOME PAGE|PAGE CONTENT)\s*<\/h1>/i.test(liveHtml),        severity: "error" });
+      checks.push({ label: "Real email present",     pass: liveHtml.includes(clientEmail),                                        severity: "error" });
+      checks.push({ label: "Has navigation",         pass: liveHtml.includes('id="hamburger"') || liveHtml.includes("<nav"),     severity: "error" });
+      checks.push({ label: "Hero section",           pass: /id=["\']hero["\']/.test(liveHtml),                                  severity: "warn"  });
+      checks.push({ label: "Contact section",        pass: /id=["\']contact["\']/.test(liveHtml),                               severity: "warn"  });
+      checks.push({ label: "Testimonials section",   pass: /id=["\']testimonials["\']/.test(liveHtml),                          severity: "warn"  });
+      checks.push({ label: "FAQ section",            pass: /id=["\']faq["\']/.test(liveHtml),                                   severity: "warn"  });
+      checks.push({ label: "Footer copyright",       pass: liveHtml.includes("©") || liveHtml.includes("&copy;"),                 severity: "warn"  });
+      if (hasBookingFeature) {
+        checks.push({ label: "Booking section",      pass: /id=["\']booking["\']/.test(liveHtml),                               severity: "error" });
+        checks.push({ label: "Booking iframe",       pass: liveHtml.includes("supersaas.com") || (!!bookingUrl && liveHtml.includes(bookingUrl)), severity: "error" });
+      }
+      if (isMultiPage) {
+        checks.push({ label: "Multi-page navigateTo", pass: liveHtml.includes("navigateTo"),                                      severity: "error" });
+        checks.push({ label: "No stray showPage()",   pass: !liveHtml.includes("showPage("),                                      severity: "warn"  });
+      }
+      if (userInput.businessAddress) {
+        checks.push({ label: "Google Maps embedded",  pass: liveHtml.includes("google.com/maps"),                                 severity: "warn"  });
+      }
+
+      const passed = checks.filter(c => c.pass).length;
+      const errors = checks.filter(c => !c.pass && c.severity === "error");
+      const warns  = checks.filter(c => !c.pass && c.severity === "warn");
+      console.log("[Smoke] " + passed + "/" + checks.length + " passed | errors: " + errors.length + " | warns: " + warns.length);
+      if (errors.length) console.error("[Smoke] ERRORS: " + errors.map((c: SmokeCheck) => c.label).join(", "));
+      return checks;
+    });
+
+    // ── STEP 8c: Fail loop — re-audit and redeploy if smoke errors found ────────
+    // Max 2 extra attempts. Each attempt: re-run auditor on finalHtmlWithShop,
+    // patch what it finds, redeploy, re-smoke. Non-blocking if all retries fail.
+    const MAX_FIX_ATTEMPTS = 2;
+    let loopHtml = finalHtmlWithShop;
+    let loopPreviewUrl = previewUrl;
+    let loopSmokeResults = smokeResults;
+
+    for (let attempt = 1; attempt <= MAX_FIX_ATTEMPTS; attempt++) {
+      const hasErrors = loopSmokeResults.some((c: any) => !c.pass && c.severity === "error");
+      if (!hasErrors) break;
+
+      const errorLabels = loopSmokeResults.filter((c: any) => !c.pass && c.severity === "error").map((c: any) => c.label);
+      console.log("[FailLoop] Attempt " + attempt + " — errors: " + errorLabels.join(", "));
+
+      loopHtml = await step.run("step8c-fix-attempt-" + attempt, async () => {
+        // Re-audit with current HTML to pick up any remaining issues
+        const reAudit = await auditAndFixSite(loopHtml, {
+          businessName: userInput.businessName,
+          clientEmail,
+          clientPhone,
+          businessAddress: userInput.businessAddress || "",
+          hasBooking: hasBookingFeature,
+          isMultiPage,
+          pages: Array.isArray(userInput.pages) ? userInput.pages : ["Home"],
+          features,
+        });
+        let patched = reAudit.fixedHtml;
+
+        // If booking iframe missing — re-apply the fixed booking component
+        if (hasBookingFeature && !patched.includes("supersaas.com") && !patched.includes(bookingUrl || "NOPE")) {
+          const accentColor = spec.palette?.accent || "#10b981";
+          const bookingComponent = bookingUrl
+            ? ['<section id="booking" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">',
+               '  <div style="max-width:900px;margin:0 auto;text-align:center;">',
+               '    <h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;margin:0 0 8px;">Book an Appointment</h2>',
+               '    <p style="color:#94a3b8;margin:0 0 32px;">Schedule your appointment with ' + userInput.businessName + ' online.</p>',
+               '    <div style="border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);">',
+               '      <iframe src="' + bookingUrl + '" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;" title="Book an Appointment" loading="lazy"></iframe>',
+               '    </div>',
+               '  </div>',
+               '</section>'].join("\n")
+            : '<section id="booking" style="padding:80px 24px;background:#0a0f1a;text-align:center;"><div style="max-width:640px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;">Book an Appointment</h2><a href="tel:' + clientPhone + '" style="display:inline-block;margin-top:24px;background:' + accentColor + ';color:#fff;font-weight:700;padding:16px 36px;border-radius:10px;text-decoration:none;font-size:1.1rem;">Call ' + clientPhone + '</a></div></section>';
+          patched = patched.replace("</body>", bookingComponent + "\n</body>");
+          console.log("[FailLoop] Re-injected booking component");
+        }
+
+        // If navigateTo missing on multi-page — re-inject via injectEssentials is too heavy;
+        // just ensure the script tag is present
+        if (isMultiPage && !patched.includes("navigateTo")) {
+          patched = patched.replace("</body>", "<script>window.navigateTo=function(id){var el=document.getElementById(id)||document.querySelector('[data-page=\"'+id+'\"]');if(el){el.scrollIntoView({behavior:\"smooth\"});}}</script>\n</body>");
+          console.log("[FailLoop] Re-injected navigateTo");
+        }
+
+        return patched;
+      });
+
+      // Redeploy patched HTML
+      loopPreviewUrl = await step.run("step8c-redeploy-" + attempt, async () => {
+        const deployRes = await fetch("https://api.vercel.com/v13/deployments", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + process.env.VERCEL_API_TOKEN, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: vercelProjectName,
+            teamId: process.env.VERCEL_TEAM_ID || undefined,
+            files: [{ file: "index.html", data: loopHtml, encoding: "utf-8" }],
+            projectSettings: { framework: null, outputDirectory: "./" },
+          }),
+        });
+        if (!deployRes.ok) { console.error("[FailLoop] Redeploy failed:", await deployRes.text()); return loopPreviewUrl; }
+        console.log("[FailLoop] Redeployed attempt " + attempt);
+        return "https://" + vercelProjectName + ".vercel.app";
+      });
+
+      // Re-smoke
+      loopSmokeResults = await step.run("step8c-resmoke-" + attempt, async () => {
+        await new Promise(r => setTimeout(r, 4000));
+        try {
+          const res = await fetch(loopPreviewUrl, { headers: { "User-Agent": "WebGecko-SmokeTest/1.0" } });
+          if (!res.ok) return [{ label: "Site reachable", pass: false, severity: "error" }];
+          const liveHtml = await res.text();
+          const checks: any[] = [];
+          checks.push({ label: "Site reachable",         pass: true,                                                 severity: "error" });
+          checks.push({ label: "Real email present",      pass: liveHtml.includes(clientEmail),                       severity: "error" });
+          checks.push({ label: "Has navigation",          pass: liveHtml.includes('id="hamburger"') || liveHtml.includes("<nav"), severity: "error" });
+          if (hasBookingFeature) {
+            checks.push({ label: "Booking section",       pass: /id=["'"]booking["'"]/.test(liveHtml),              severity: "error" });
+            checks.push({ label: "Booking iframe",        pass: liveHtml.includes("supersaas.com") || (!!bookingUrl && liveHtml.includes(bookingUrl)), severity: "error" });
+          }
+          if (isMultiPage) checks.push({ label: "navigateTo present", pass: liveHtml.includes("navigateTo"),          severity: "error" });
+          console.log("[FailLoop] Re-smoke attempt " + attempt + ": " + checks.filter((c: any) => c.pass).length + "/" + checks.length + " passed");
+          return checks;
+        } catch (e) {
+          return [{ label: "Site reachable", pass: false, severity: "error" }];
+        }
+      });
+    }
+
+    // Use loop's final HTML and URL for save/email
+    const deployedHtml = loopHtml;
+    const deployedUrl  = loopPreviewUrl;
+    const finalSmokeResults = loopSmokeResults;
+
     // ── STEP 9: Save to Supabase ──────────────────────────────────────────────
     await step.run("step9-save", async () => {
       await saveJob(jobId, {
         ...job,
-        html: finalHtmlWithShop,
+        html: deployedHtml,
         title: spec.projectTitle,
         fileName,
         domainSlug,
         vercelProjectName,
         status: "complete",
-        previewUrl,
+        previewUrl: deployedUrl,
         builtAt: new Date().toISOString(),
       });
 
       if (clientSlug) {
         const existingClient = await getClient(clientSlug);
         if (existingClient) {
-          await saveClient(clientSlug, { ...existingClient, preview_url: previewUrl });
+          await saveClient(clientSlug, { ...existingClient, preview_url: deployedUrl });
         }
+      }
+
+      // Beehiiv newsletter subscription — subscribe client when Newsletter feature selected
+      if (features.includes("Newsletter Signup") && clientEmail) {
+        const subscribed = await subscribeToNewsletter({
+          email: clientEmail,
+          name: userInput.businessName,
+          referringSite: deployedUrl || "webgecko.au",
+        });
+        console.log("[Step9] Beehiiv subscription for " + clientEmail + ": " + (subscribed ? "OK" : "skipped/failed"));
       }
 
       // Auto-create availability config if booking is enabled
@@ -528,19 +728,34 @@ const buildWebsite = inngest.createFunction(
       const fixUrl = `${base}/api/admin/fix-proxy?jobId=${jobId}&secret=${secret}`;
       const unlockBookingUrl = `${base}/api/unlock/booking?jobId=${jobId}&secret=${secret}`;
       const adminUrl = `${base}/admin?secret=${secret}`;
-      const cssContent = extractCSS(finalHtmlWithShop);
+      const cssContent = extractCSS(deployedHtml);
+
+      // Smoke test results table for email
+      const smokeErrors  = finalSmokeResults.filter((c: any) => !c.pass && c.severity === "error");
+      const smokeWarns   = finalSmokeResults.filter((c: any) => !c.pass && c.severity === "warn");
+      const smokeAllPass = smokeErrors.length === 0;
+      const smokeRowsHtml = finalSmokeResults.map((c: any) =>
+        "<tr><td style=\"padding:6px 16px;font-size:12px;color:" + (c.pass ? "#00c896" : c.severity === "error" ? "#ef4444" : "#f59e0b") + ";\">" + (c.pass ? "✓" : c.severity === "error" ? "✗" : "⚠") + "</td>" +
+        "<td style=\"padding:6px 16px;font-size:12px;color:" + (c.pass ? "#e2e8f0" : c.severity === "error" ? "#f87171" : "#fcd34d") + "\">" + c.label + "</td></tr>"
+      ).join("");
+      const smokeSummaryHtml = smokeResults.length > 0
+        ? "<div style=\"margin-bottom:24px;\">" +
+          "<p style=\"color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 8px;\">Live Site Smoke Test — " + (smokeAllPass ? "ALL PASS" : smokeErrors.length + " ERROR(S)") + "</p>" +
+          "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#080c14;border-radius:8px;\">" + smokeRowsHtml + "</table>" +
+          "</div>"
+        : "";
 
       const featureChecklist = [
-        { label: "Hero section", check: finalHtmlWithShop.includes('id="hero') || finalHtmlWithShop.includes('viewport') },
-        { label: "Sticky nav + hamburger", check: finalHtmlWithShop.includes('id="hamburger"') },
-        { label: "Testimonials section", check: finalHtmlWithShop.includes('id="testimonials"') },
-        { label: "FAQ accordion", check: finalHtmlWithShop.includes('id="faq"') },
-        { label: "Contact form", check: finalHtmlWithShop.includes('id="contact"') },
-        { label: "Real email injected", check: finalHtmlWithShop.includes(clientEmail) },
-        { label: "Real phone injected", check: finalHtmlWithShop.includes(clientPhone.replace(/\s/g, "")) || finalHtmlWithShop.includes(clientPhone) },
-        { label: "Google Maps embedded", check: finalHtmlWithShop.includes("google.com/maps") },
-        { label: "Booking widget", check: hasBookingFeature && (finalHtmlWithShop.includes("supersaas.com") || finalHtmlWithShop.includes("existingBookingUrl") || finalHtmlWithShop.includes('id="booking"')) },
-        { label: "Footer with copyright", check: finalHtmlWithShop.includes("©") || finalHtmlWithShop.includes("&copy;") },
+        { label: "Hero section", check: deployedHtml.includes('id="hero') || deployedHtml.includes('viewport') },
+        { label: "Sticky nav + hamburger", check: deployedHtml.includes('id="hamburger"') },
+        { label: "Testimonials section", check: deployedHtml.includes('id="testimonials"') },
+        { label: "FAQ accordion", check: deployedHtml.includes('id="faq"') },
+        { label: "Contact form", check: deployedHtml.includes('id="contact"') },
+        { label: "Real email injected", check: deployedHtml.includes(clientEmail) },
+        { label: "Real phone injected", check: deployedHtml.includes(clientPhone.replace(/\s/g, "")) || deployedHtml.includes(clientPhone) },
+        { label: "Google Maps embedded", check: deployedHtml.includes("google.com/maps") },
+        { label: "Booking widget", check: hasBookingFeature && (deployedHtml.includes("supersaas.com") || (bookingUrl ? deployedHtml.includes(bookingUrl) : false) || deployedHtml.includes('id="booking"')) },
+        { label: "Footer with copyright", check: deployedHtml.includes("©") || deployedHtml.includes("&copy;") },
       ].filter(f => {
         if (f.label === "Booking widget" && !hasBookingFeature) return false;
         if (f.label === "Google Maps embedded" && !userInput.businessAddress) return false;
@@ -564,8 +779,10 @@ const buildWebsite = inngest.createFunction(
     <p style="margin:4px 0 0;color:rgba(0,0,0,0.7);font-size:14px;">${userInput.businessName} — ${spec.projectTitle}</p>
   </td></tr>
   <tr><td style="padding:28px 32px;">
-    ${previewUrl ? `<p style="margin:0 0 20px;"><a href="${previewUrl}" style="color:#00c896;font-size:15px;font-weight:600;">🌐 View Live Preview →</a></p>` : ""}
+    ${deployedUrl ? `<p style="margin:0 0 20px;"><a href="${deployedUrl}" style="color:#00c896;font-size:15px;font-weight:600;">🌐 View Live Preview →</a></p>` : ""}
+    ${smokeSummaryHtml}
     <div style="margin-bottom:24px;">
+      <p style="color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 8px;">Build Checklist (HTML)</p>
       <table width="100%" cellpadding="0" cellspacing="0" style="background:#080c14;border-radius:8px;">${checklistHtml}</table>
     </div>
     <table cellpadding="0" cellspacing="0"><tr>
@@ -578,7 +795,7 @@ const buildWebsite = inngest.createFunction(
 </table></td></tr></table>
 </body></html>`,
         attachments: [
-          { filename: `${fileName}-FINAL.html`, content: Buffer.from(finalHtmlWithShop).toString("base64") },
+          { filename: `${fileName}-FINAL.html`, content: Buffer.from(deployedHtml).toString("base64") },
           { filename: `${fileName}-STITCH-RAW.html`, content: Buffer.from(stitchHtml).toString("base64") },
           { filename: `${fileName}-styles.css`, content: Buffer.from(cssContent).toString("base64") },
         ],

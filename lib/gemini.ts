@@ -38,17 +38,20 @@ function parseJson(raw: string): SiteBlueprint {
   // First attempt: standard parse
   try { return JSON.parse(s) as SiteBlueprint; } catch {}
 
-  // Second attempt: extract stitchPrompt separately (it's the only field that can contain special chars),
-  // replace its value with a placeholder, parse the rest, then re-attach.
+  // Second attempt: extract stitchPrompt separately.
+  // stitchPrompt is always the LAST field — so its closing quote is just before
+  // the final `}` of the JSON. Scan backward from the end to find it, then
+  // replace the value with a safe placeholder, parse the shell, re-attach.
   try {
     const spKey = '"stitchPrompt"';
     const spIdx = s.indexOf(spKey);
     if (spIdx !== -1) {
       const colonIdx = s.indexOf(":", spIdx + spKey.length);
       const quoteOpen = s.indexOf('"', colonIdx + 1);
+      // Scan BACKWARD from the final } to find the closing quote of stitchPrompt
       let quoteClose = -1;
-      for (let i = quoteOpen + 1; i < s.length; i++) {
-        if (s[i] === '"' && s[i - 1] !== '\\') { quoteClose = i; break; }
+      for (let i = s.length - 1; i > quoteOpen; i--) {
+        if (s[i] === '"' && s[i - 1] !== "\\") { quoteClose = i; break; }
       }
       if (quoteOpen !== -1 && quoteClose > quoteOpen) {
         const stitchPromptRaw = s.slice(quoteOpen + 1, quoteClose);
@@ -97,6 +100,7 @@ export async function generateSiteBlueprint(context: {
   pages: string[];
   isMultiPage: boolean;
   hasBooking: boolean;
+  bookingUrl?: string;
   pricingSection: string;
   imageSection: string;
   productsWithPhotos: any[];
@@ -104,12 +108,18 @@ export async function generateSiteBlueprint(context: {
   const {
     businessName, industry, targetAudience, usp, goal, style, colorPrefs,
     references, features, clientEmail, clientPhone, businessAddress,
-    facebookPage, additionalNotes, pages, isMultiPage, hasBooking,
+    facebookPage, additionalNotes, pages, isMultiPage, hasBooking, bookingUrl,
     pricingSection, imageSection, productsWithPhotos,
   } = context;
 
   const pageList = pages.join(", ") || "Home";
   const currentYear = new Date().getFullYear();
+  const iframeTag = bookingUrl ? '<iframe src=' + bookingUrl + ' width=100% height=700 frameborder=0 scrolling=auto style=display:block;background:#fff; title=BookAnAppointment loading=lazy></iframe>' : '';
+  const bookingInstruction = hasBooking && bookingUrl
+    ? '- Booking section id=booking - EMBED THIS EXACT IFRAME: ' + iframeTag + ' - wrap in a dark section with heading Book an Appointment'
+    : hasBooking
+    ? '- Booking section id=booking with a prominent Book Now call to action'
+    : '';
 
   const prompt = `You are a world-class web design architect producing a Site Blueprint JSON.
 
@@ -151,7 +161,7 @@ CRITICAL RULES:
    - FAQ accordion id=faq with 6+ Q&A pairs
    - Contact id=contact with form, real email, real phone
    - Footer copyright ${currentYear}
-   ${hasBooking ? "- Booking section id=booking" : ""}
+   ${bookingInstruction}
    ${isMultiPage ? "- MULTI-PAGE: div.page-section per page, nav onclick=navigateTo" : "- SINGLE PAGE: smooth scroll href=#sectionid"}
    ${features.includes("Photo Gallery") ? "- Gallery id=gallery" : ""}
    ${features.includes("Payments / Shop") && productsWithPhotos.length > 0 ? "- Shop id=shop with class=wg-buy-btn on product cards" : ""}

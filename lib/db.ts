@@ -277,6 +277,9 @@ function dbJobToJob(row: Record<string, any>) {
     userInput: row.user_input,
     fixedAt: row.fixed_at,
     createdAt: row.created_at,
+    supersaasUrl: row.supersaas_url,
+    supersaasId: row.supersaas_id,
+    tawktoPropertyId: row.tawkto_property_id,
   };
 }
 
