@@ -15,7 +15,7 @@ import {
   injectImages,
   getServicesForIndustry,
 } from "@/lib/pipeline-helpers";
-import { generateBookingWidget } from "@/lib/booking-widget";
+import { createSuperSaasSchedule, generateBookingEmbed } from "@/lib/supersaas";
 import { createClientShopCatalogue } from "@/lib/square";
 import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailability, getAnalyticsCount, getBookingsForJob } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
@@ -338,13 +338,12 @@ const buildWebsite = inngest.createFunction(
       return result.fixedHtml;
     });
 
-    // ── STEP 6c: Booking widget injection (AFTER auditor so id="booking" is guaranteed) ─
+    // ── STEP 6c: Booking embed injection (AFTER auditor so id="booking" is guaranteed) ─
+    // Uses client's own URL if provided, otherwise auto-creates a SuperSaas schedule.
     const finalHtml = await step.run("step6c-booking", async () => {
       if (!hasBookingFeature) return auditedHtml;
       let html = auditedHtml;
       try {
-        const services = getServicesForIndustry(userInput.industry);
-
         // Extract accent colour from CSS vars or button styles
         let accentColor = "#10b981";
         const cssVarMatch = html.match(/--(?:primary|accent|brand|color-primary)[^:]*:\s*(#[0-9a-fA-F]{3,8})/);
@@ -354,12 +353,30 @@ const buildWebsite = inngest.createFunction(
           if (ctaBgMatch?.[1] && ctaBgMatch[1] !== "#000000" && ctaBgMatch[1] !== "#ffffff") accentColor = ctaBgMatch[1];
         }
 
-        const bookingWidgetHtml = generateBookingWidget({
-          jobId, businessName: userInput.businessName,
-          timezone: "Australia/Brisbane", services,
-          primaryColor: accentColor,
-          apiBase: "https://webgecko-builder.vercel.app",
-        });
+        // Determine booking URL — client's own or auto-create SuperSaas schedule
+        let bookingUrl = (userInput.existingBookingUrl || "").trim();
+        if (!bookingUrl) {
+          console.log("[Step6c] No existing booking URL — creating SuperSaas schedule");
+          const schedule = await createSuperSaasSchedule({
+            businessName: userInput.businessName,
+            clientEmail,
+            timezone: "Australia/Brisbane",
+          });
+          if (schedule) {
+            bookingUrl = schedule.embedUrl;
+            // Persist the schedule URL on the job so it's retrievable later
+            await saveJob(jobId, { ...job, supersaasUrl: schedule.embedUrl, supersaasId: schedule.id });
+            console.log(`[Step6c] SuperSaas schedule created: ${bookingUrl}`);
+          } else {
+            console.warn("[Step6c] SuperSaas creation failed — booking section will be placeholder");
+          }
+        } else {
+          console.log(`[Step6c] Using client-provided booking URL: ${bookingUrl}`);
+        }
+
+        const bookingWidgetHtml = bookingUrl
+          ? generateBookingEmbed({ bookingUrl, businessName: userInput.businessName, primaryColor: accentColor })
+          : `<section id="booking" style="padding:80px 24px;background:#0a0f1a;text-align:center;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;">Book an Appointment</h2><p style="color:#94a3b8;margin-top:16px;">Contact us to schedule your appointment.</p></section>`;
 
         // Find id="booking" element and replace its entire content using a depth counter
         // (regex can't reliably match nested tags, so we walk the string manually)
@@ -522,7 +539,7 @@ const buildWebsite = inngest.createFunction(
         { label: "Real email injected", check: finalHtmlWithShop.includes(clientEmail) },
         { label: "Real phone injected", check: finalHtmlWithShop.includes(clientPhone.replace(/\s/g, "")) || finalHtmlWithShop.includes(clientPhone) },
         { label: "Google Maps embedded", check: finalHtmlWithShop.includes("google.com/maps") },
-        { label: "Booking widget", check: hasBookingFeature && finalHtmlWithShop.includes("BW_JOB_ID") },
+        { label: "Booking widget", check: hasBookingFeature && (finalHtmlWithShop.includes("supersaas.com") || finalHtmlWithShop.includes("existingBookingUrl") || finalHtmlWithShop.includes('id="booking"')) },
         { label: "Footer with copyright", check: finalHtmlWithShop.includes("©") || finalHtmlWithShop.includes("&copy;") },
       ].filter(f => {
         if (f.label === "Booking widget" && !hasBookingFeature) return false;

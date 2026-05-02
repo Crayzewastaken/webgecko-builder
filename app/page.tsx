@@ -182,6 +182,7 @@ export default function HomePage() {
   const [ga4Id, setGa4Id] = useState("");
   const [businessAddress, setBusinessAddress] = useState("");
   const [facebookPage, setFacebookPage] = useState("");
+  const [existingBookingUrl, setExistingBookingUrl] = useState("");
   const [confirmRemovePage, setConfirmRemovePage] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [heroFile, setHeroFile] = useState<File | null>(null);
@@ -280,8 +281,8 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    saveToStorage({ businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, businessAddress, facebookPage, step });
-  }, [businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, businessAddress, facebookPage, step]);
+    saveToStorage({ businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, businessAddress, facebookPage, existingBookingUrl, step });
+  }, [businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, businessAddress, facebookPage, existingBookingUrl, step]);
 
   useEffect(() => {
     if (currentStepId !== 'contact') return;
@@ -386,7 +387,7 @@ export default function HomePage() {
 
     const formData = new FormData();
     const industryValue = industry === "Other" ? (industryOther.trim() || "Other") : industry;
-    const fields: Record<string, string> = { businessName, industry: industryValue, usp, existingWebsite, targetAudience, goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, ga4Id, businessAddress, facebookPage, turnstileToken };
+    const fields: Record<string, string> = { businessName, industry: industryValue, usp, existingWebsite, targetAudience, goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, ga4Id, businessAddress, facebookPage, existingBookingUrl, turnstileToken };
     Object.entries(fields).forEach(([k, v]) => formData.append(k, v));
     formData.append("pages", JSON.stringify(pages));
     formData.append("features", JSON.stringify(features));
@@ -773,6 +774,20 @@ export default function HomePage() {
                 </div>
               </div>
               <TextAreaField icon="📌" label="Anything else we should know? (optional)" value={additionalNotes} onChange={(e: any) => setAdditionalNotes(e.target.value)} placeholder="Deadline, special requirements, competitors, links to pull content from..." />
+              {features.includes("Booking System") && (
+                <div className="space-y-3 p-4 rounded-2xl border border-white/8 bg-white/3">
+                  <p className="text-white font-semibold">📅 Booking System</p>
+                  <p className="text-slate-400 text-sm">Do you already have a booking system set up (e.g. existing SuperSaas, Calendly, etc.)?</p>
+                  <div className="flex gap-3">
+                    {["No — set it up for me", "Yes — I have one"].map(opt => (
+                      <SelectCard key={opt} selected={(existingBookingUrl ? "Yes — I have one" : (existingBookingUrl === "" && opt === "No — set it up for me" ? true : false)) as any} onClick={() => { if (opt === "No — set it up for me") setExistingBookingUrl(""); }} label={opt} />
+                    ))}
+                  </div>
+                  {existingBookingUrl !== undefined && (
+                    <InputField icon="🔗" label="Your booking link" value={existingBookingUrl} onChange={(e: any) => setExistingBookingUrl(e.target.value)} placeholder="e.g. https://supersaas.com/schedule/yourbusiness/appointments" hint="We'll embed this directly into your site." />
+                  )}
+                </div>
+              )}
               <div className="border-t border-white/8 pt-5 space-y-4">
                 <p className="text-white font-semibold">📬 Your Contact Details</p>
                 <InputField icon="👤" label="Full Name" value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Your full name" required />

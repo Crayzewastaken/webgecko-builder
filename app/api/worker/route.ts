@@ -88,6 +88,7 @@ export async function POST(req: Request) {
       businessAddress: getString("businessAddress"),
       facebookPage: getString("facebookPage"),
       ga4Id: getString("ga4Id"),
+      existingBookingUrl: getString("existingBookingUrl"),
     };
 
     const pageList = Array.isArray(userInput.pages) && userInput.pages.length > 0 ? userInput.pages.join(", ") : "Home";
