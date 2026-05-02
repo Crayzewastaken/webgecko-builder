@@ -13,6 +13,8 @@ interface ClientMetadata {
   siteType?: string;
   pages?: string[];
   features?: string[];
+  supersaasId?: string | number;
+  supersaasUrl?: string;
   style?: string;
   colorPrefs?: string;
   references?: string;
@@ -206,12 +208,36 @@ function BookingManager({ slug, client, paymentStatus }: { slug: string; client:
 
   useEffect(() => { loadBookings(); }, []);
 
+  const useSuperSaas = !!(client as any).supersaasId;
+
   async function loadBookings() {
     if (!client.jobId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/bookings/client?jobId=${client.jobId}&slug=${slug}`);
-      if (res.ok) setBookings((await res.json()).bookings || []);
+      if (useSuperSaas) {
+        const res = await fetch(`/api/bookings/supersaas?slug=${slug}`);
+        if (res.ok) {
+          const d = await res.json();
+          // Map SuperSaas appointment shape to Booking shape
+          const mapped = (d.appointments || []).map((a: any) => ({
+            bookingId: String(a.id),
+            jobId: client.jobId,
+            visitorName: a.fullName || a.full_name || "",
+            visitorEmail: a.email || "",
+            visitorPhone: a.phone || "",
+            service: a.description || "Appointment",
+            date: (a.start || "").slice(0, 10),
+            time: (a.start || "").slice(11, 16),
+            message: "",
+            status: a.status || "confirmed",
+            createdAt: a.createdOn || "",
+          }));
+          setBookings(mapped);
+        }
+      } else {
+        const res = await fetch(`/api/bookings/client?jobId=${client.jobId}&slug=${slug}`);
+        if (res.ok) setBookings((await res.json()).bookings || []);
+      }
     } catch {}
     finally { setLoading(false); }
   }
@@ -219,11 +245,41 @@ function BookingManager({ slug, client, paymentStatus }: { slug: string; client:
   async function doAction(bookingId: string, action: string, extra?: { reason?: string; newDate?: string; newTime?: string }) {
     setActing(bookingId);
     try {
-      const res = await fetch(`/api/bookings/client?slug=${slug}`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId: client.jobId, bookingId, action, ...extra }),
-      });
-      if (res.ok) { const d = await res.json(); setBookings(prev => prev.map(b => b.bookingId === bookingId ? d.booking : b)); }
+      if (useSuperSaas) {
+        // Build start/finish for reschedule
+        let start: string | undefined, finish: string | undefined;
+        if (action === "reschedule" && extra?.newDate && extra?.newTime) {
+          start = extra.newDate + "T" + extra.newTime + ":00";
+          // Default 1-hour slot
+          const d = new Date(start);
+          d.setHours(d.getHours() + 1);
+          finish = d.toISOString().slice(0, 19);
+        }
+        const active = bookings.find(b => b.bookingId === bookingId);
+        const res = await fetch(`/api/bookings/supersaas?slug=${slug}`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            appointmentId: bookingId, action,
+            start, finish,
+            reason: extra?.reason,
+            customerEmail: active?.visitorEmail,
+            customerName: active?.visitorName,
+          }),
+        });
+        if (res.ok) {
+          if (action === "cancel") {
+            setBookings(prev => prev.map(b => b.bookingId === bookingId ? { ...b, status: "cancelled" } : b));
+          } else if (action === "reschedule" && start) {
+            setBookings(prev => prev.map(b => b.bookingId === bookingId ? { ...b, date: start!.slice(0, 10), time: start!.slice(11, 16), status: "confirmed" } : b));
+          }
+        }
+      } else {
+        const res = await fetch(`/api/bookings/client?slug=${slug}`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jobId: client.jobId, bookingId, action, ...extra }),
+        });
+        if (res.ok) { const d = await res.json(); setBookings(prev => prev.map(b => b.bookingId === bookingId ? d.booking : b)); }
+      }
     } finally { setActing(null); setModal(null); setActiveBooking(null); setModalReason(""); setNewDate(""); setNewTime(""); }
   }
 

@@ -107,3 +107,86 @@ export function generateBookingEmbed(params: {
   ];
   return lines.join("\n");
 }
+
+// ─── Appointment Management ───────────────────────────────────────────────────
+
+export interface SuperSaasAppointment {
+  id: number;
+  scheduleId: number;
+  start: string;        // ISO datetime
+  finish: string;       // ISO datetime
+  status: string;       // "confirmed" | "pending" | "cancelled"
+  fullName: string;
+  email: string;
+  phone: string;
+  description: string;
+  createdOn: string;
+}
+
+function parseAppointment(a: any): SuperSaasAppointment {
+  return {
+    id:         a.id,
+    scheduleId: a.schedule_id,
+    start:      a.start || a.slot_start || "",
+    finish:     a.finish || a.slot_end || "",
+    status:     a.status || "confirmed",
+    fullName:   a.full_name || a.name || "",
+    email:      a.email || "",
+    phone:      a.mobile || a.phone || "",
+    description: a.description || "",
+    createdOn:  a.created_on || "",
+  };
+}
+
+export async function listAppointments(scheduleId: number, params?: {
+  start?: string;  // YYYY-MM-DD
+  limit?: number;
+}): Promise<SuperSaasAppointment[]> {
+  if (!SS_ACCOUNT || !SS_API_KEY) return [];
+  try {
+    let path = `/appointments?schedule_id=${scheduleId}`;
+    if (params?.start) path += `&start=${params.start}`;
+    if (params?.limit) path += `&limit=${params.limit}`;
+    // ssRequest appends .json but appointments endpoint doesn't use path like others
+    const url = `${SS_BASE}/appointments.json?account=${encodeURIComponent(SS_ACCOUNT)}&api_key=${encodeURIComponent(SS_API_KEY)}&schedule_id=${scheduleId}${params?.start ? "&start=" + params.start : ""}${params?.limit ? "&limit=" + params.limit : ""}`;
+    const basicAuth = Buffer.from(`${SS_ACCOUNT}:${SS_API_KEY}`).toString("base64");
+    const res = await fetch(url, {
+      headers: { "Accept": "application/json", "Authorization": `Basic ${basicAuth}` },
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`SuperSaas ${res.status}: ${text}`);
+    const data = JSON.parse(text);
+    const appointments = Array.isArray(data) ? data : (data?.appointments || []);
+    return appointments.map(parseAppointment);
+  } catch (err) {
+    console.error("[SuperSaas] listAppointments failed:", err);
+    return [];
+  }
+}
+
+export async function cancelAppointment(appointmentId: number): Promise<boolean> {
+  if (!SS_ACCOUNT || !SS_API_KEY) return false;
+  try {
+    await ssRequest(`/appointments/${appointmentId}`, "DELETE");
+    return true;
+  } catch (err) {
+    console.error("[SuperSaas] cancelAppointment failed:", err);
+    return false;
+  }
+}
+
+export async function rescheduleAppointment(appointmentId: number, params: {
+  start: string;   // ISO datetime e.g. "2025-06-15T10:00:00"
+  finish: string;
+}): Promise<boolean> {
+  if (!SS_ACCOUNT || !SS_API_KEY) return false;
+  try {
+    await ssRequest(`/appointments/${appointmentId}`, "PUT", {
+      appointment: { start: params.start, finish: params.finish },
+    });
+    return true;
+  } catch (err) {
+    console.error("[SuperSaas] rescheduleAppointment failed:", err);
+    return false;
+  }
+}
