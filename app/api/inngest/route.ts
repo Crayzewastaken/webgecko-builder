@@ -292,9 +292,18 @@ const buildWebsite = inngest.createFunction(
         }
       }
 
-      html = html.replace(/<script[^>]*calendly[^>]*>[\s\S]*?<\/script>/gi, '');
-      html = html.replace(/<link[^>]*calendly[^>]*/gi, '');
-      html = html.replace(/<!--\s*Calendly[\s\S]*?-->/gi, '');
+      // Strip Stitch-generated scripts that define navigateTo or page-switching logic —
+      // our injected script in pipeline-helpers handles all of this correctly.
+      // Only strip scripts that explicitly define these functions to avoid over-stripping.
+      html = html.replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, (m: string, body: string) => {
+        const definesNavigateTo = /function\s+navigateTo\b/.test(body) || /window\.navigateTo\s*=/.test(body) || /var\s+navigateTo\s*=/.test(body);
+        const definesPageSwitch = /function\s+showPage\b/.test(body) || /function\s+switchPage\b/.test(body) || /\.page-section['"\s]*[,{]/.test(body);
+        if (definesNavigateTo || definesPageSwitch) {
+          console.log("[Step5] Stripped conflicting Stitch script (" + body.length + " chars, navigateTo=" + definesNavigateTo + " pageSwitch=" + definesPageSwitch + ")");
+          return "";
+        }
+        return m;
+      });
 
       return html;
     });
@@ -352,22 +361,36 @@ const buildWebsite = inngest.createFunction(
           apiBase: "https://webgecko-builder.vercel.app",
         });
 
-        // Remove any existing booking section content (calendly placeholders, AI placeholders, empty divs)
-        // but keep the id="booking" anchor intact so we can target it
-        html = html.replace(
-          /<(section|div)([^>]*\bid="booking"[^>]*)>([\s\S]*?)<\/\1>/i,
-          (_m: string, tag: string, attrs: string) => `<${tag}${attrs}></${tag}>`
-        );
-
-        // Now replace the empty booking element with the full widget
-        const bookingTagMatch = html.match(/<(section|div)([^>]*\bid="booking"[^>]*)><\/\1>/i);
-        if (bookingTagMatch) {
-          html = html.replace(bookingTagMatch[0], bookingWidgetHtml);
-          console.log("[Step6c] Booking widget injected into existing id=booking element");
-        } else if (html.includes('id="booking"')) {
-          // Fallback: just replace the whole booking element
-          html = html.replace(/<[^>]*\bid="booking"[^>]*>[\s\S]*?<\/[^>]+>/i, bookingWidgetHtml);
-          console.log("[Step6c] Booking widget injected via fallback replace");
+        // Find id="booking" element and replace its entire content using a depth counter
+        // (regex can't reliably match nested tags, so we walk the string manually)
+        const bookingOpenMatch = html.match(/<(section|div)([^>]*\bid="booking"[^>]*)>/i);
+        if (bookingOpenMatch) {
+          const openTag = bookingOpenMatch[0];
+          const tagName = bookingOpenMatch[1].toLowerCase();
+          const startIdx = html.indexOf(openTag);
+          // Walk forward counting open/close tags of the same type to find the matching close
+          let depth = 1;
+          let pos = startIdx + openTag.length;
+          const openRe = new RegExp(`<${tagName}[\\s>]`, "gi");
+          const closeRe = new RegExp(`<\\/${tagName}>`, "gi");
+          while (depth > 0 && pos < html.length) {
+            openRe.lastIndex = pos;
+            closeRe.lastIndex = pos;
+            const nextOpen = openRe.exec(html);
+            const nextClose = closeRe.exec(html);
+            if (!nextClose) break;
+            if (nextOpen && nextOpen.index < nextClose.index) {
+              depth++;
+              pos = nextOpen.index + nextOpen[0].length;
+            } else {
+              depth--;
+              pos = nextClose.index + nextClose[0].length;
+            }
+          }
+          // pos now points to just after the closing tag
+          const fullElement = html.slice(startIdx, pos);
+          html = html.slice(0, startIdx) + bookingWidgetHtml + html.slice(pos);
+          console.log(`[Step6c] Booking widget replaced element (${fullElement.length} chars) at idx ${startIdx}`);
         } else {
           // No booking element at all — append before </body>
           html = html.replace("</body>", bookingWidgetHtml + "\n</body>");
