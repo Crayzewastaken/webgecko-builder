@@ -1,19 +1,26 @@
 -- ============================================================
 -- WebGecko — Run this in Supabase Dashboard → SQL Editor
--- Fixes the INTAKE crash: "Could not find the 'metadata' column"
 -- ============================================================
 
--- 1. Add metadata jsonb column (stores all intake fields)
+-- ── clients table ────────────────────────────────────────────
 alter table clients add column if not exists metadata jsonb default '{}';
-
--- 2. Add launch_ready column (set to true on final payment)
 alter table clients add column if not exists launch_ready boolean default false;
-
--- 3. Add has_booking column (true when booking system is enabled/unlocked)
 alter table clients add column if not exists has_booking boolean default false;
 
--- 4. Confirm the columns exist
-select column_name, data_type, column_default
+-- ── jobs table ───────────────────────────────────────────────
+-- SuperSaas schedule fields
+alter table jobs add column if not exists supersaas_url text;
+alter table jobs add column if not exists supersaas_id bigint;
+
+-- Tawk.to live chat property ID
+alter table jobs add column if not exists tawkto_property_id text;
+
+-- Metadata jsonb — stores SuperSaas sub-user credentials, extra intake fields, etc.
+alter table jobs add column if not exists metadata jsonb default '{}';
+
+-- ── Confirm all columns exist ─────────────────────────────────
+select table_name, column_name, data_type
 from information_schema.columns
-where table_name = 'clients'
-  and column_name in ('metadata', 'launch_ready', 'password', 'has_booking');
+where (table_name = 'jobs' and column_name in ('supersaas_url', 'supersaas_id', 'tawkto_property_id', 'metadata'))
+   or (table_name = 'clients' and column_name in ('metadata', 'launch_ready', 'has_booking'))
+order by table_name, column_name;

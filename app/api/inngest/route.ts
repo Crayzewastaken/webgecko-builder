@@ -422,12 +422,15 @@ const buildWebsite = inngest.createFunction(
       // generates a standalone iframe with supersaas.com/schedule/.../template before our
       // step creates the real schedule name. Remove these so we don't end up with two iframes.
       // We keep only the one inside id="booking" which we'll replace/inject below.
-      const templateIframeRe = /<iframe[^>]+src="https:\/\/www\.supersaas\.com\/schedule\/[^"]*\/template"[^>]*>[\s\S]*?<\/iframe>/gi;
+      // Strip ALL supersaas template iframes (self-closing or with closing tag)
+      const templateIframeRe = /<iframe[^>]+src="https:\/\/www\.supersaas\.com\/schedule\/[^"]*\/template"[^>]*>(?:[\s\S]*?<\/iframe>)?/gi;
       const iframeCount = (html.match(templateIframeRe) || []).length;
       if (iframeCount > 0) {
         console.log(`[Step6c] Stripping ${iframeCount} stray template iframe(s)`);
         html = html.replace(templateIframeRe, "");
       }
+      // Also strip any remaining supersaas template iframes (paranoid cleanup)
+      html = html.replace(/<iframe[^>]+src="https:\/\/www\.supersaas\.com\/schedule\/[^"]*\/template"[^>]*>(?:[\s\S]*?<\/iframe>)?/gi, "");
 
       // Extract accent colour from CSS vars for theming the booking section
       let accentColor = spec.palette?.accent || "#10b981";
@@ -575,7 +578,8 @@ const buildWebsite = inngest.createFunction(
       checks.push({ label: "Footer copyright",       pass: liveHtml.includes("©") || liveHtml.includes("&copy;"),                 severity: "warn"  });
       if (hasBookingFeature) {
         checks.push({ label: "Booking section",      pass: /id=["\']booking["\']/.test(liveHtml),                               severity: "error" });
-        checks.push({ label: "Booking iframe",       pass: liveHtml.includes("supersaas.com") || (!!bookingUrl && liveHtml.includes(bookingUrl)), severity: "error" });
+        const hasRealBookingIframe = (!!bookingUrl && liveHtml.includes(bookingUrl)) || (liveHtml.includes("supersaas.com") && !liveHtml.includes("/template"));
+        checks.push({ label: "Booking iframe",       pass: hasRealBookingIframe, severity: "error" });
       }
       if (isMultiPage) {
         checks.push({ label: "Multi-page navigateTo", pass: liveHtml.includes("navigateTo"),                                      severity: "error" });
@@ -623,7 +627,8 @@ const buildWebsite = inngest.createFunction(
         let patched = reAudit.fixedHtml;
 
         // If booking iframe missing — re-apply the fixed booking component
-        if (hasBookingFeature && !patched.includes("supersaas.com") && !patched.includes(bookingUrl || "NOPE")) {
+        const hasRealIframe = (!!bookingUrl && patched.includes(bookingUrl)) || (patched.includes("supersaas.com") && !patched.includes("/template"));
+        if (hasBookingFeature && !hasRealIframe) {
           const accentColor = spec.palette?.accent || "#10b981";
           const bookingComponent = bookingUrl
             ? ['<section id="booking" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">',
@@ -680,7 +685,8 @@ const buildWebsite = inngest.createFunction(
           checks.push({ label: "Has navigation",          pass: liveHtml.includes('id="hamburger"') || liveHtml.includes("<nav"), severity: "error" });
           if (hasBookingFeature) {
             checks.push({ label: "Booking section",       pass: /id=["'"]booking["'"]/.test(liveHtml),              severity: "error" });
-            checks.push({ label: "Booking iframe",        pass: liveHtml.includes("supersaas.com") || (!!bookingUrl && liveHtml.includes(bookingUrl)), severity: "error" });
+            const hasRealIframe2 = (!!bookingUrl && liveHtml.includes(bookingUrl)) || (liveHtml.includes("supersaas.com") && !liveHtml.includes("/template"));
+          checks.push({ label: "Booking iframe",        pass: hasRealIframe2, severity: "error" });
           }
           if (isMultiPage) checks.push({ label: "navigateTo present", pass: liveHtml.includes("navigateTo"),          severity: "error" });
           console.log("[FailLoop] Re-smoke attempt " + attempt + ": " + checks.filter((c: any) => c.pass).length + "/" + checks.length + " passed");

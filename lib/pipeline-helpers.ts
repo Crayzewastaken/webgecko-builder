@@ -279,6 +279,34 @@ document.querySelectorAll("#close-drawer,#close-menu,#menu-close,#nav-close,[ari
       if (ic) { btn.setAttribute("data-wg-wired", "1"); btn.addEventListener("click", function() { wgToggleDrawer(true); }); }
     });
   });
+  // If no drawer exists at all, inject one using the nav links already on the page
+  var existingDrawer = document.getElementById("side-drawer") || document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.querySelector("[class*='side-drawer'],[class*='mobile-menu'],[class*='mobile-nav']");
+  if (!existingDrawer) {
+    var nav = document.querySelector("header nav, nav");
+    var links = nav ? Array.from(nav.querySelectorAll("a")).map(function(a) {
+      return '<a href="' + (a.getAttribute("href") || "#") + '" onclick="' + (a.getAttribute("onclick") || "") + ';document.getElementById(\'wg-drawer\').style.display=\'none\';document.getElementById(\'wg-overlay\').style.display=\'none\';" style="display:block;padding:13px 16px;border-bottom:1px solid #f1f5f9;color:#111;font-weight:600;font-size:15px;text-decoration:none;">' + a.textContent.trim() + '</a>';
+    }).join("") : "";
+    var drawer = document.createElement("div");
+    drawer.id = "wg-drawer";
+    drawer.setAttribute("style", "display:none;position:fixed;top:0;right:0;width:80%;max-width:300px;height:100vh;background:#fff;z-index:9999;box-shadow:-4px 0 24px rgba(0,0,0,0.18);flex-direction:column;padding:20px;overflow-y:auto;");
+    drawer.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;"><span style="font-weight:800;font-size:16px;">Menu</span><button onclick="document.getElementById(\'wg-drawer\').style.display=\'none\';document.getElementById(\'wg-overlay\').style.display=\'none\';" style="background:none;border:none;font-size:26px;cursor:pointer;line-height:1;color:#666;">×</button></div>' + links;
+    var overlay = document.createElement("div");
+    overlay.id = "wg-overlay";
+    overlay.setAttribute("style", "display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9998;");
+    overlay.onclick = function() { drawer.style.display = "none"; overlay.style.display = "none"; };
+    document.body.appendChild(drawer);
+    document.body.appendChild(overlay);
+    // Re-wire hamburger to this new drawer
+    document.querySelectorAll("button,a").forEach(function(btn) {
+      if (btn.getAttribute("data-wg-wired")) return;
+      var ic = btn.querySelector("[data-icon='menu'],[data-icon='menu_open']");
+      var txt = (btn.textContent || "").trim().toLowerCase();
+      if (ic || txt === "menu" || btn.id === "hamburger") {
+        btn.setAttribute("data-wg-wired", "1");
+        btn.addEventListener("click", function(e) { e.stopPropagation(); drawer.style.display = "flex"; overlay.style.display = "block"; });
+      }
+    });
+  }
 })();
 // Newsletter popup / modal close — catches any floating popup with a close button
 // Stitch generates these with no onclick — we wire them up here

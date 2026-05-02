@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>doctorvisits</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;600;700;800;900&amp;family=Inter:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-fixed": "#e5e2e1",
+                    "surface-bright": "#f9f9f9",
+                    "error-container": "#ffdad6",
+                    "surface-variant": "#e2e2e2",
+                    "primary": "#026e00",
+                    "on-secondary-fixed": "#1c1b1b",
+                    "surface-container-low": "#f3f3f3",
+                    "inverse-primary": "#02e600",
+                    "on-tertiary": "#ffffff",
+                    "inverse-surface": "#2f3131",
+                    "on-primary-fixed": "#002200",
+                    "surface-container-lowest": "#ffffff",
+                    "background": "#f9f9f9",
+                    "secondary-container": "#e5e2e1",
+                    "error": "#ba1a1a",
+                    "tertiary-container": "#dedbdb",
+                    "secondary": "#5f5e5e",
+                    "surface-dim": "#dadada",
+                    "outline-variant": "#b9ccaf",
+                    "surface": "#f9f9f9",
+                    "on-primary": "#ffffff",
+                    "on-surface-variant": "#3b4b35",
+                    "on-background": "#1a1c1c",
+                    "tertiary-fixed-dim": "#c8c6c5",
+                    "outline": "#6b7c63",
+                    "on-tertiary-container": "#616060",
+                    "primary-fixed-dim": "#02e600",
+                    "on-primary-fixed-variant": "#015300",
+                    "primary-fixed": "#77ff61",
+                    "on-secondary": "#ffffff",
+                    "on-primary-container": "#027100",
+                    "on-error-container": "#93000a",
+                    "primary-container": "#00ff00",
+                    "surface-container": "#eeeeee",
+                    "inverse-on-surface": "#f1f1f1",
+                    "secondary-fixed": "#e5e2e1",
+                    "surface-tint": "#026e00",
+                    "on-surface": "#1a1c1c",
+                    "on-tertiary-fixed": "#1c1b1b",
+                    "on-error": "#ffffff",
+                    "on-tertiary-fixed-variant": "#474746",
+                    "on-secondary-container": "#656464",
+                    "surface-container-highest": "#e2e2e2",
+                    "surface-container-high": "#e8e8e8",
+                    "tertiary": "#5f5e5e",
+                    "secondary-fixed-dim": "#c9c6c5",
+                    "on-secondary-fixed-variant": "#474646"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "section-padding-mobile": "64px",
+                    "base": "8px",
+                    "section-padding-desktop": "120px",
+                    "gutter": "24px",
+                    "container-max": "1280px"
+            },
+            "fontFamily": {
+                    "h1": ["Epilogue"],
+                    "h2": ["Epilogue"],
+                    "body-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-caps": ["Inter"],
+                    "h3": ["Epilogue"]
+            },
+            "fontSize": {
+                    "h1": ["64px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "h2": ["48px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "label-caps": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.1em", "fontWeight": "600"}],
+                    "h3": ["32px", {"lineHeight": "1.3", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .smooth-scroll { scroll-behavior: smooth; }
+        .loading-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface font-body-md text-on-surface">
+<!-- TopAppBar -->
+<header class="bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-200 dark:border-zinc-800 shadow-sm fixed top-0 w-full z-50">
+<div class="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-lime-400" data-icon="medical_services">medical_services</span>
+<span class="text-2xl font-black text-black dark:text-white font-['Epilogue'] tracking-tight">doctorvisits</span>
+</div>
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-gray-600 dark:text-gray-400 font-medium hover:text-lime-600 dark:hover:text-lime-300 transition-all duration-300 cubic-bezier(0.4,0,0.2,1) hover:scale-105" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Home</a>
+<a class="text-gray-600 dark:text-gray-400 font-medium hover:text-lime-600 dark:hover:text-lime-300 transition-all duration-300 cubic-bezier(0.4,0,0.2,1) hover:scale-105" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('services')">Services</a>
+<a class="text-lime-500 dark:text-lime-400 font-bold border-b-2 border-lime-500" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('booking')">Booking</a>
+<a class="text-gray-600 dark:text-gray-400 font-medium hover:text-lime-600 dark:hover:text-lime-300 transition-all duration-300 cubic-bezier(0.4,0,0.2,1) hover:scale-105" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('about')">About</a>
+</nav>
+<button class="bg-primary-container text-on-primary-container px-6 py-2.5 rounded-lg font-bold hover:scale-105 active:scale-95 transition-all hidden md:block" onclick="window.navigateTo&&window.navigateTo('booking')">
+                Book Appointment
+            </button>
+<button id="hamburger" class="md:hidden p-2 rounded-lg text-gray-600 dark:text-gray-300" aria-label="Open menu">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+</button>
+</div>
+</header>
+<!-- Mobile drawer -->
+<div id="mobile-menu" style="display:none;position:fixed;top:0;right:0;width:80%;max-width:300px;height:100vh;background:#fff;z-index:9999;box-shadow:-4px 0 24px rgba(0,0,0,0.2);flex-direction:column;padding:24px 20px;overflow-y:auto;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;">
+    <span style="font-weight:800;font-size:17px;color:#111;">doctorvisits</span>
+    <button onclick="document.getElementById('mobile-menu').style.display='none';document.getElementById('mobile-overlay').style.display='none';" style="background:none;border:none;font-size:26px;cursor:pointer;color:#666;line-height:1;">×</button>
+  </div>
+  <nav style="display:flex;flex-direction:column;gap:2px;">
+    <a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home');document.getElementById('mobile-menu').style.display='none';document.getElementById('mobile-overlay').style.display='none';" style="display:block;padding:13px 14px;border-radius:8px;color:#111;font-weight:600;font-size:15px;text-decoration:none;border-bottom:1px solid #f3f4f6;">Home</a>
+    <a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('services');document.getElementById('mobile-menu').style.display='none';document.getElementById('mobile-overlay').style.display='none';" style="display:block;padding:13px 14px;border-radius:8px;color:#111;font-weight:600;font-size:15px;text-decoration:none;border-bottom:1px solid #f3f4f6;">Services</a>
+    <a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('booking');document.getElementById('mobile-menu').style.display='none';document.getElementById('mobile-overlay').style.display='none';" style="display:block;padding:13px 14px;border-radius:8px;color:#65a30d;font-weight:700;font-size:15px;text-decoration:none;border-bottom:1px solid #f3f4f6;">Booking</a>
+    <a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('about');document.getElementById('mobile-menu').style.display='none';document.getElementById('mobile-overlay').style.display='none';" style="display:block;padding:13px 14px;border-radius:8px;color:#111;font-weight:600;font-size:15px;text-decoration:none;">About</a>
+  </nav>
+  <button onclick="window.navigateTo&&window.navigateTo('booking');document.getElementById('mobile-menu').style.display='none';document.getElementById('mobile-overlay').style.display='none';" style="margin-top:28px;width:100%;background:#65a30d;color:#fff;border:none;border-radius:8px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;">Book Appointment</button>
+</div>
+<div id="mobile-overlay" onclick="document.getElementById('mobile-menu').style.display='none';this.style.display='none';" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9998;"></div>
+<!-- Hero / Booking Section -->
+<main class="pt-24 bg-[#0a0a0a] text-white">
+<section class="max-w-7xl mx-auto px-6 py-20">
+<div class="grid lg:grid-cols-12 gap-12 items-start">
+<section id="booking" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">
+  <div style="max-width:900px;margin:0 auto;text-align:center;">
+    <h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;margin:0 0 8px;">Book an Appointment</h2>
+    <p style="color:#94a3b8;margin:0 0 32px;">Schedule your appointment with doctorvisits online.</p>
+    <div style="border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);">
+      <iframe src="https://www.supersaas.com/schedule/webgecko/doctorvisits" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;" title="Book an Appointment" loading="lazy"></iframe>
+    </div>
+    <p style="color:#475569;font-size:12px;margin-top:16px;">Prefer to call? <a href="tel:04000000000000000" style="color:#FFFFFF;">04000000000000000</a></p>
+  </div>
+</section>
+<div class="lg:col-span-8 bg-white rounded-2xl overflow-hidden shadow-2xl relative min-h-[700px]">
+<!-- Loading State Placeholder (Z-index handled by source) -->
+<div class="absolute inset-0 flex flex-col items-center justify-center bg-white z-0">
+<div class="w-12 h-12 border-4 border-lime-400 border-t-transparent rounded-full animate-spin"></div>
+<p class="mt-4 text-black font-semibold font-h3 text-h3">Initializing Calendar...</p>
+</div>
+<!-- Booking Iframe -->
+
+</div>
+</div>
+</section>
+</main>
+<!-- Contact & Map Section -->
+<section class="bg-surface-bright py-24">
+<div class="max-w-7xl mx-auto px-6">
+<div class="grid lg:grid-cols-2 gap-16">
+<!-- Contact Info & Form -->
+<div class="space-y-12">
+<div id="contact">
+<h2 class="font-h2 text-h2 text-on-background mb-4">Get in Touch</h2>
+<p class="font-body-lg text-body-lg text-secondary max-w-lg">
+                            Have questions before you book? Our team is available 24/7 to assist with your medical inquiries.
+                        </p>
+</div>
+<div class="grid gap-6">
+<div class="flex items-start gap-4 p-6 bg-white rounded-xl border border-gray-100 shadow-sm">
+<span class="material-symbols-outlined text-primary-fixed-dim bg-primary-container/20 p-3 rounded-lg" data-icon="location_on">location_on</span>
+<div>
+<h4 class="font-bold text-lg">Location</h4>
+<p class="text-secondary">9 kondalilla parade forest lake</p>
+</div>
+</div>
+<div class="flex items-start gap-4 p-6 bg-white rounded-xl border border-gray-100 shadow-sm">
+<span class="material-symbols-outlined text-primary-fixed-dim bg-primary-container/20 p-3 rounded-lg" data-icon="mail">mail</span>
+<div>
+<h4 class="font-bold text-lg">Email</h4>
+<p class="text-secondary">crayzewastaken@gmail.com</p>
+</div>
+</div>
+<div class="flex items-start gap-4 p-6 bg-white rounded-xl border border-gray-100 shadow-sm">
+<span class="material-symbols-outlined text-primary-fixed-dim bg-primary-container/20 p-3 rounded-lg" data-icon="call">call</span>
+<div>
+<h4 class="font-bold text-lg">Phone</h4>
+<p class="text-secondary">04000000000000000</p>
+</div>
+</div>
+</div>
+<form class="space-y-4 pt-4">
+<div class="grid md:grid-cols-2 gap-4">
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-secondary">Full Name</label>
+<input class="w-full px-4 py-3 rounded-lg border-gray-200 focus:border-lime-500 focus:ring-lime-500 outline-none transition-all" placeholder="John Doe" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-secondary">Email Address</label>
+<input class="w-full px-4 py-3 rounded-lg border-gray-200 focus:border-lime-500 focus:ring-lime-500 outline-none transition-all" placeholder="crayzewastaken@gmail.com" type="email"/>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-secondary">Phone Number</label>
+<input class="w-full px-4 py-3 rounded-lg border-gray-200 focus:border-lime-500 focus:ring-lime-500 outline-none transition-all" placeholder="04000000000000000" type="tel"/>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-secondary">Message</label>
+<textarea class="w-full px-4 py-3 rounded-lg border-gray-200 focus:border-lime-500 focus:ring-lime-500 outline-none transition-all" placeholder="How can we help you?" rows="4"></textarea>
+</div>
+<button class="w-full bg-black text-lime-400 py-4 rounded-lg font-bold text-lg hover:bg-zinc-900 transition-all flex items-center justify-center gap-2" type="submit">
+                            Send Message
+                            <span class="material-symbols-outlined" data-icon="send">send</span>
+</button>
+</form>
+</div>
+<!-- Google Maps Integration -->
+<div class="relative h-full min-h-[500px] rounded-3xl overflow-hidden shadow-xl border-8 border-white">
+<div class="absolute inset-0 bg-gray-200 animate-pulse"></div>
+<iframe allowfullscreen="" class="absolute inset-0 w-full h-full" data-location="Forest Lake, Australia" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3536.852924446549!2d152.9559388150596!3d-27.635334482821133!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x6b9156477d700001%3A0x502a35af3de9880!2s9%20Kondalilla%20Parade%2C%20Forest%20Lake%20QLD%204078%2C%20Australia!5e0!3m2!1sen!2sus!4v1650000000000!5m2!1sen!2sus" style="border:0;"></iframe>
+<div class="absolute bottom-6 left-6 right-6 bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+<div class="flex items-center gap-4">
+<div class="bg-lime-400 p-2 rounded-full">
+<span class="material-symbols-outlined text-black" data-icon="directions">directions</span>
+</div>
+<div>
+<h4 class="font-bold">Forest Lake Medical Center</h4>
+<p class="text-sm text-secondary">Easy parking available on-site</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Footer -->
+<footer class="bg-zinc-950 dark:bg-black w-full py-12 px-6 border-t border-zinc-800">
+<div class="flex flex-col md:flex-row justify-between items-center max-w-7xl mx-auto gap-8">
+<div class="flex items-center gap-2">
+<span class="text-white font-bold font-['Epilogue'] text-2xl">doctorvisits</span>
+</div>
+<div class="flex flex-wrap justify-center gap-8">
+<a class="font-['Epilogue'] text-sm text-gray-500 hover:text-lime-400 hover:translate-y-[-2px] transition-transform" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Privacy Policy</a>
+<a class="font-['Epilogue'] text-sm text-gray-500 hover:text-lime-400 hover:translate-y-[-2px] transition-transform" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Terms of Service</a>
+<a class="font-['Epilogue'] text-sm text-gray-500 hover:text-lime-400 hover:translate-y-[-2px] transition-transform" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Facebook</a>
+<a class="font-['Epilogue'] text-sm text-gray-500 hover:text-lime-400 hover:translate-y-[-2px] transition-transform" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">Instagram</a>
+<a class="font-['Epilogue'] text-sm text-gray-500 hover:text-lime-400 hover:translate-y-[-2px] transition-transform" href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('home')">LinkedIn</a>
+</div>
+<p class="font-['Epilogue'] text-sm text-gray-400">© 2026 doctorvisits. All rights reserved.</p>
+</div>
+</footer>
+
+<script>
+(function() {
+window.navigateTo = function(pageId) {
+  // Close any open mobile drawer/menu first
+  var mm = document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.getElementById("side-drawer");
+  if (mm) { mm.classList.add("hidden"); mm.style.display = "none"; mm.classList.remove("translate-x-0"); mm.classList.add("translate-x-full"); }
+
+  // Determine if this is a true multi-page site (elements with data-page attribute)
+  var realPages = document.querySelectorAll("[data-page]");
+  var isMultiPage = realPages.length > 1;
+
+  if (isMultiPage) {
+    // Multi-page: hide all pages, show target
+    document.querySelectorAll("[data-page]").forEach(function(p) { p.style.display = "none"; p.classList.remove("active"); });
+    var target = document.querySelector('[data-page="' + pageId + '"]') || document.getElementById(pageId);
+    if (target) { target.style.display = "block"; target.classList.add("active"); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    return;
+  }
+
+  // Single-page: always scroll to target element. 'home' scrolls to top.
+  if (pageId === "home" || pageId === "top") {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+  var t = document.getElementById(pageId) || document.getElementById("page-" + pageId) || document.querySelector('[id*="' + pageId + '"]');
+  if (t) { t.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  else { window.scrollTo({ top: 0, behavior: "smooth" }); }
+};
+document.querySelectorAll("a,button").forEach(function(el) {
+  var oc = el.getAttribute("onclick") || "", hr = el.getAttribute("href") || "", dn = el.getAttribute("data-nav") || "", dp = el.getAttribute("data-page") || "";
+  if (oc.includes("navigateTo")) return;
+  if (dn) { el.addEventListener("click", function(e) { e.preventDefault(); window.navigateTo(dn); }); return; }
+  if (dp) { el.addEventListener("click", function(e) { e.preventDefault(); window.navigateTo(dp); }); return; }
+  if (hr.startsWith("#") && hr.length > 1) { el.addEventListener("click", function(e) { var t = document.querySelector(hr); if (t) { e.preventDefault(); t.scrollIntoView({ behavior: "smooth" }); } }); }
+});
+// Hamburger — catches id="hamburger", id="menu-toggle", class*=hamburger, aria-label patterns
+document.querySelectorAll("#hamburger,#hamburger-btn,#menu-toggle,[class*='hamburger'],[aria-label='Open menu'],[aria-label='Menu'],[aria-label='Toggle menu']").forEach(function(btn) {
+  if (btn.getAttribute("onclick")) return;
+  btn.addEventListener("click", function() {
+    // Find the drawer/menu — catches id="side-drawer", id="mobile-menu", id="mobile-nav", class patterns
+    var drawer = document.getElementById("side-drawer") || document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.querySelector("[class*='side-drawer'],[class*='mobile-menu'],[class*='mobile-nav']");
+    if (!drawer) return;
+    var isOpen = drawer.style.transform === "translateX(0px)" || drawer.style.transform === "translateX(0)" || !drawer.classList.contains("translate-x-full") && drawer.getBoundingClientRect().right > 0 && drawer.getBoundingClientRect().left < window.innerWidth;
+    // For Tailwind translate-based drawers (translate-x-full = closed)
+    if (drawer.classList.contains("translate-x-full") || drawer.style.transform === "translateX(100%)") {
+      drawer.classList.remove("translate-x-full"); drawer.classList.add("translate-x-0"); drawer.style.transform = "translateX(0)";
+    } else if (drawer.classList.contains("translate-x-0") || drawer.style.transform === "translateX(0px)" || drawer.style.transform === "translateX(0)") {
+      drawer.classList.remove("translate-x-0"); drawer.classList.add("translate-x-full"); drawer.style.transform = "translateX(100%)";
+    } else {
+      // Fallback: toggle display
+      var h = getComputedStyle(drawer).display === "none";
+      drawer.style.display = h ? "flex" : "none";
+    }
+  });
+});
+// Close drawer button
+document.querySelectorAll("#close-drawer,#close-menu,#menu-close,#nav-close,[aria-label='Close menu'],[aria-label='Close'],[aria-label='Close navigation']").forEach(function(btn) {
+  btn.addEventListener("click", function() {
+    var drawer = document.getElementById("side-drawer") || document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.querySelector("[class*='side-drawer'],[class*='mobile-menu'],[class*='mobile-nav']");
+    if (drawer) { drawer.classList.remove("translate-x-0"); drawer.classList.add("translate-x-full"); drawer.style.transform = "translateX(100%)"; drawer.style.display = "none"; }
+  });
+});
+// Fallback: Stitch-generated buttons with data-icon="menu" (Material Icons pattern)
+(function() {
+  function wgToggleDrawer(forceClose) {
+    var drawer = document.getElementById("side-drawer") || document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.querySelector("[class*='side-drawer'],[class*='mobile-menu'],[class*='mobile-nav'],[class*='nav-drawer']");
+    if (!drawer) return;
+    var isOpen = drawer.style.transform === "translateX(0px)" || drawer.style.transform === "translateX(0)" || drawer.style.display === "flex" || drawer.style.display === "block";
+    if (forceClose || isOpen) {
+      drawer.classList.remove("translate-x-0"); drawer.classList.add("translate-x-full"); drawer.style.transform = "translateX(100%)"; drawer.style.display = "none";
+    } else {
+      drawer.classList.remove("translate-x-full"); drawer.classList.add("translate-x-0"); drawer.style.transform = "translateX(0)"; drawer.style.display = "flex";
+    }
+  }
+  document.querySelectorAll("button,a").forEach(function(btn) {
+    if (btn.getAttribute("data-wg-wired")) return;
+    var ic = btn.querySelector("[data-icon='menu'],[data-icon='menu_open']");
+    var txt = (btn.textContent || "").trim().toLowerCase();
+    if (ic || txt === "menu") {
+      btn.setAttribute("data-wg-wired", "1");
+      btn.addEventListener("click", function(e) { e.stopPropagation(); wgToggleDrawer(); });
+    }
+  });
+  // Wire data-icon="close" inside drawers
+  document.querySelectorAll("[class*='side-drawer'],[class*='mobile-menu'],[class*='mobile-nav'],[class*='nav-drawer']").forEach(function(drawer) {
+    drawer.querySelectorAll("button,a").forEach(function(btn) {
+      if (btn.getAttribute("data-wg-wired")) return;
+      var ic = btn.querySelector("[data-icon='close']");
+      if (ic) { btn.setAttribute("data-wg-wired", "1"); btn.addEventListener("click", function() { wgToggleDrawer(true); }); }
+    });
+  });
+})();
+// Newsletter popup / modal close — catches any floating popup with a close button
+// Stitch generates these with no onclick — we wire them up here
+(function() {
+  function closePopup(popup) {
+    popup.style.display = "none";
+    popup.style.opacity = "0";
+    popup.style.visibility = "hidden";
+    popup.style.pointerEvents = "none";
+  }
+  // Find all fixed/absolute positioned containers that look like popups
+  var popups = document.querySelectorAll("[class*='popup'],[class*='modal'],[id*='popup'],[id*='modal'],[class*='newsletter'],[id*='newsletter'],[class*='promo'],[id*='promo'],[class*='offer'],[id*='offer']");
+  popups.forEach(function(popup) {
+    // Wire up any close/dismiss button inside the popup
+    var closeBtns = popup.querySelectorAll("button,[aria-label*='close' i],[aria-label*='dismiss' i],[class*='close'],[id*='close'],[class*='dismiss']");
+    closeBtns.forEach(function(btn) {
+      if (btn.getAttribute("data-wg-popup-wired")) return;
+      btn.setAttribute("data-wg-popup-wired", "1");
+      btn.addEventListener("click", function(e) { e.stopPropagation(); closePopup(popup); });
+    });
+    // Also wire ✕ / × / x text-only buttons inside the popup
+    popup.querySelectorAll("button,span,div").forEach(function(el) {
+      if (el.getAttribute("data-wg-popup-wired")) return;
+      var txt = (el.textContent || "").trim();
+      if (txt === "×" || txt === "✕" || txt === "✖" || txt === "x" || txt === "X" || txt === "close" || txt === "Close") {
+        el.setAttribute("data-wg-popup-wired", "1");
+        el.style.cursor = "pointer";
+        el.addEventListener("click", function(e) { e.stopPropagation(); closePopup(popup); });
+      }
+    });
+  });
+  // Also handle the newsletter form submission — close popup on submit
+  document.querySelectorAll("form").forEach(function(form) {
+    var popup = form.closest("[class*='popup'],[class*='modal'],[id*='popup'],[id*='modal'],[class*='newsletter'],[id*='newsletter'],[class*='promo'],[id*='promo'],[class*='offer'],[id*='offer']");
+    if (!popup) return;
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+      var emailInput = form.querySelector("input[type='email'],input[type='text']");
+      var email = emailInput ? emailInput.value.trim() : "";
+      var btn = form.querySelector("button[type='submit'],button");
+      if (btn) { btn.textContent = "Subscribed!"; btn.style.background = "#22c55e"; }
+      setTimeout(function() { closePopup(popup); }, 1200);
+    });
+  });
+})();
+document.querySelectorAll("details").forEach(function(d) {
+  var s = d.querySelector("summary");
+  if (s) { s.style.cursor = "pointer"; s.addEventListener("click", function(e) { e.preventDefault(); var o = d.hasAttribute("open"); document.querySelectorAll("details").forEach(function(x) { x.removeAttribute("open"); }); if (!o) d.setAttribute("open", ""); }); }
+});
+document.querySelectorAll("[class*='faq'],[class*='accordion'],[id*='faq']").forEach(function(c) {
+  c.querySelectorAll("[class*='item'],[class*='question'],[class*='entry']").forEach(function(item) {
+    var q = item.querySelector("[class*='question'],[class*='trigger'],h3,h4,button");
+    var a = item.querySelector("[class*='answer'],[class*='content'],p");
+    if (q && a) { a.style.display = "none"; q.style.cursor = "pointer"; q.addEventListener("click", function() { var o = a.style.display !== "none"; c.querySelectorAll("[class*='answer'],[class*='content'],p").forEach(function(x) { x.style.display = "none"; }); if (!o) a.style.display = "block"; }); }
+  });
+});
+var cart = [];
+function showToast(msg) { var t = document.getElementById("wg-toast"); if (!t) { t = document.createElement("div"); t.id = "wg-toast"; t.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:99999;transition:opacity 0.3s;pointer-events:none;"; document.body.appendChild(t); } t.textContent = msg; t.style.opacity = "1"; setTimeout(function() { t.style.opacity = "0"; }, 2500); }
+document.querySelectorAll("button,a").forEach(function(btn) { var txt = (btn.textContent || "").toLowerCase().trim(); if (txt.includes("add to cart") || txt.includes("buy now") || txt.includes("add to bag")) { btn.addEventListener("click", function(e) { e.preventDefault(); e.stopPropagation(); var card = this.closest("article") || this.closest("[class*='product']") || this.parentElement; var nm = card && card.querySelector("h1,h2,h3,h4"); var n = nm ? nm.textContent.trim() : "Item"; var ex = cart.find(function(i) { return i.name === n; }); if (ex) ex.qty++; else cart.push({ name: n, qty: 1 }); showToast(n + " added"); var total = cart.reduce(function(a, b) { return a + b.qty; }, 0); document.querySelectorAll("#cart-count,#cart-badge,[class*='cart-count']").forEach(function(b) { b.textContent = total; }); }); } });
+document.querySelectorAll("form").forEach(function(form) {
+  // Skip forms inside the booking widget — it manages its own fetch-based submit
+  if (form.closest("#booking") || form.closest(".bw-container") || form.id === "bw-form") return;
+  form.addEventListener("submit", function(e) {
+    e.preventDefault();
+    if (form.querySelector(".wg-success")) return;
+    var s = document.createElement("div"); s.className = "wg-success";
+    s.style.cssText = "background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;font-family:sans-serif;";
+    s.textContent = "Thank you! We will be in touch within 24 hours.";
+    form.appendChild(s);
+    form.querySelectorAll("input,textarea,select,button[type='submit']").forEach(function(el) { el.setAttribute("disabled", "true"); });
+  });
+});
+// Multi-page init: ONLY activate hide/show for elements with explicit data-page attribute.
+// NEVER hide .page-section elements — Stitch uses that class as pure visual styling on all sections.
+var realPageWrappers = document.querySelectorAll("[data-page]");
+if (realPageWrappers.length > 1) {
+  var ha = false;
+  realPageWrappers.forEach(function(p) { if (p.classList.contains("active") || p.style.display !== "none") ha = true; });
+  if (!ha) {
+    realPageWrappers.forEach(function(p, i) {
+      if (i === 0) { p.style.display = "block"; p.classList.add("active"); }
+      else { p.style.display = "none"; }
+    });
+  }
+}
+})();
+</script><script>
+(function(){
+  var WG_JOB="job_1777674605353";
+  var WG_API="https://webgecko-builder.vercel.app/api/analytics/track";
+  function wgTrack(event,page){try{fetch(WG_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:WG_JOB,event:event,page:page||window.location.pathname})});}catch(e){}}
+  wgTrack("page_view",document.title||window.location.pathname);
+  document.addEventListener("click",function(e){
+    var el=e.target.closest("a,button");
+    if(!el)return;
+    var txt=(el.textContent||"").toLowerCase();
+    var href=el.getAttribute("href")||"";
+    var oc=el.getAttribute("onclick")||"";
+    if(txt.includes("book")||oc.includes("booking")||href.includes("booking")){wgTrack("booking_click");}
+    else if(txt.includes("contact")||oc.includes("contact")||href.includes("contact")){wgTrack("contact_click");}
+  });
+  document.addEventListener("submit",function(e){wgTrack("form_submit");});
+})();
+</script>
+<script>
+(function() {
+  
+  
+  
+  
+})();
+</script><section id="faq" style="padding:80px 24px;background:#080c14;"><div style="max-width:800px;margin:0 auto;"><h2 style="color:#e2e8f0;font-size:2rem;font-weight:900;margin-bottom:32px;">Frequently Asked Questions</h2></div></section>
+<section id="testimonials" style="padding:80px 24px;background:#0f172a;"><div style="max-width:900px;margin:0 auto;"><h2 style="color:#e2e8f0;font-size:2rem;font-weight:900;margin-bottom:32px;">What Our Clients Say</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;"><div style="background:#1e293b;border-radius:12px;padding:24px;border:1px solid #334155;"><p style="color:#e2e8f0;margin-bottom:16px;">"Absolutely fantastic service. Highly recommend!"</p><p style="color:#10b981;font-weight:700;">— Happy Client</p></div></div></div></section>
+
+<script>
+(function() {
+  var btn = document.getElementById('hamburger');
+  if (btn) btn.addEventListener('click', function() {
+    document.getElementById('mobile-menu').style.display = 'flex';
+    document.getElementById('mobile-overlay').style.display = 'block';
+  });
+})();
+</script>
+</body></html>

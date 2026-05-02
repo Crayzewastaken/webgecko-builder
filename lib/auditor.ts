@@ -130,11 +130,28 @@ export async function auditAndFixSite(
     mark(AuditErrorType.PLACEHOLDER_PHONE);
   }
 
-  // Fix 3: hamburger
+  // Fix 3: hamburger — try multiple strategies to wire a hamburger button
   if (has(AuditErrorType.MISSING_HAMBURGER)) {
-    fixed = fixed.replace(/(<button[^>]*(?:class="[^"]*(?:hamburger|menu-toggle|nav-toggle|mobile-menu|menu-btn)[^"]*"|aria-label="(?:Open menu|Menu|Toggle menu|Toggle navigation)")[^>]*)>/gi,
+    // Strategy A: add id="hamburger" to any button with known hamburger class/aria
+    let hamburgerFixed = fixed.replace(/(<button[^>]*(?:class="[^"]*(?:hamburger|menu-toggle|nav-toggle|mobile-menu|menu-btn)[^"]*"|aria-label="(?:Open menu|Menu|Toggle menu|Toggle navigation)")[^>]*)>/gi,
       (m: string, attrs: string) => attrs.includes('id=') ? m : attrs + ' id="hamburger">'
     );
+    // Strategy B: find button containing data-icon="menu" span — add id="hamburger" to the button
+    if (hamburgerFixed === fixed) {
+      hamburgerFixed = fixed.replace(/(<button(?:[^>]*)>)(\s*<[^>]*data-icon=["']menu["'][^>]*>)/gi,
+        (m: string, btnOpen: string, iconSpan: string) => {
+          if (btnOpen.includes('id=')) return m;
+          return btnOpen.replace('<button', '<button id="hamburger"') + iconSpan;
+        }
+      );
+    }
+    // Strategy C: find md:hidden button (Tailwind pattern) and add id
+    if (hamburgerFixed === fixed) {
+      hamburgerFixed = fixed.replace(/(<button[^>]*class="[^"]*md:hidden[^"]*"[^>]*)>/gi,
+        (m: string, attrs: string) => attrs.includes('id=') ? m : attrs + ' id="hamburger">'
+      );
+    }
+    fixed = hamburgerFixed;
     mark(AuditErrorType.MISSING_HAMBURGER);
   }
 
