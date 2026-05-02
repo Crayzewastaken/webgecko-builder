@@ -30,6 +30,9 @@ export async function subscribeToNewsletter(
     return false;
   }
 
+  // Beehiiv requires publication IDs in "pub_xxx" format — auto-prefix if raw UUID was supplied
+  const normalizedPubId = publicationId.startsWith("pub_") ? publicationId : `pub_${publicationId}`;
+
   try {
     const payload: Record<string, any> = {
       email,
@@ -44,7 +47,7 @@ export async function subscribeToNewsletter(
     }
 
     const response = await fetch(
-      `https://api.beehiiv.com/v2/publications/${publicationId}/subscriptions`,
+      `https://api.beehiiv.com/v2/publications/${normalizedPubId}/subscriptions`,
       {
         method: "POST",
         headers: {
@@ -65,7 +68,7 @@ export async function subscribeToNewsletter(
 
     const data = await response.json();
     console.log(
-      `[Beehiiv] Successfully subscribed ${email} to publication ${publicationId}`
+      `[Beehiiv] Successfully subscribed ${email} to publication ${normalizedPubId}`
     );
     return true;
   } catch (error) {

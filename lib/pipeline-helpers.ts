@@ -250,6 +250,50 @@ document.querySelectorAll("#close-drawer,#close-menu,#menu-close,#nav-close,[ari
     if (drawer) { drawer.classList.remove("translate-x-0"); drawer.classList.add("translate-x-full"); drawer.style.transform = "translateX(100%)"; drawer.style.display = "none"; }
   });
 });
+// Newsletter popup / modal close — catches any floating popup with a close button
+// Stitch generates these with no onclick — we wire them up here
+(function() {
+  function closePopup(popup) {
+    popup.style.display = "none";
+    popup.style.opacity = "0";
+    popup.style.visibility = "hidden";
+    popup.style.pointerEvents = "none";
+  }
+  // Find all fixed/absolute positioned containers that look like popups
+  var popups = document.querySelectorAll("[class*='popup'],[class*='modal'],[id*='popup'],[id*='modal'],[class*='newsletter'],[id*='newsletter'],[class*='promo'],[id*='promo'],[class*='offer'],[id*='offer']");
+  popups.forEach(function(popup) {
+    // Wire up any close/dismiss button inside the popup
+    var closeBtns = popup.querySelectorAll("button,[aria-label*='close' i],[aria-label*='dismiss' i],[class*='close'],[id*='close'],[class*='dismiss']");
+    closeBtns.forEach(function(btn) {
+      if (btn.getAttribute("data-wg-popup-wired")) return;
+      btn.setAttribute("data-wg-popup-wired", "1");
+      btn.addEventListener("click", function(e) { e.stopPropagation(); closePopup(popup); });
+    });
+    // Also wire ✕ / × / x text-only buttons inside the popup
+    popup.querySelectorAll("button,span,div").forEach(function(el) {
+      if (el.getAttribute("data-wg-popup-wired")) return;
+      var txt = (el.textContent || "").trim();
+      if (txt === "×" || txt === "✕" || txt === "✖" || txt === "x" || txt === "X" || txt === "close" || txt === "Close") {
+        el.setAttribute("data-wg-popup-wired", "1");
+        el.style.cursor = "pointer";
+        el.addEventListener("click", function(e) { e.stopPropagation(); closePopup(popup); });
+      }
+    });
+  });
+  // Also handle the newsletter form submission — close popup on submit
+  document.querySelectorAll("form").forEach(function(form) {
+    var popup = form.closest("[class*='popup'],[class*='modal'],[id*='popup'],[id*='modal'],[class*='newsletter'],[id*='newsletter'],[class*='promo'],[id*='promo'],[class*='offer'],[id*='offer']");
+    if (!popup) return;
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+      var emailInput = form.querySelector("input[type='email'],input[type='text']");
+      var email = emailInput ? emailInput.value.trim() : "";
+      var btn = form.querySelector("button[type='submit'],button");
+      if (btn) { btn.textContent = "Subscribed!"; btn.style.background = "#22c55e"; }
+      setTimeout(function() { closePopup(popup); }, 1200);
+    });
+  });
+})();
 document.querySelectorAll("details").forEach(function(d) {
   var s = d.querySelector("summary");
   if (s) { s.style.cursor = "pointer"; s.addEventListener("click", function(e) { e.preventDefault(); var o = d.hasAttribute("open"); document.querySelectorAll("details").forEach(function(x) { x.removeAttribute("open"); }); if (!o) d.setAttribute("open", ""); }); }
