@@ -190,6 +190,32 @@ export function injectEssentials(html: string, email: string, phone: string, job
   const script = `
 <script>
 (function() {
+// ── Fix navigateTo targets — Stitch often wires all nav links to 'home' ──────
+(function() {
+  var labelMap = {
+    "home": "home", "about": "about", "about us": "about",
+    "services": "services", "our services": "services",
+    "booking": "booking", "book": "booking", "book now": "booking",
+    "appointments": "booking", "schedule": "booking",
+    "contact": "contact", "contact us": "contact", "get in touch": "contact",
+    "faq": "faq", "faqs": "faq", "frequently asked": "faq",
+    "testimonials": "testimonials", "reviews": "testimonials",
+    "gallery": "gallery", "portfolio": "gallery",
+    "pricing": "pricing", "plans": "pricing",
+    "blog": "blog", "news": "blog",
+  };
+  document.querySelectorAll("a[onclick*='navigateTo'], button[onclick*='navigateTo']").forEach(function(el) {
+    var txt = (el.textContent || "").trim().toLowerCase();
+    var target = labelMap[txt];
+    if (!target) return;
+    var oc = el.getAttribute("onclick") || "";
+    // Only fix if current target is wrong (e.g. 'home' when text says 'booking')
+    var currentTarget = (oc.match(/navigateTo\(['"](\w+)['"]\)/) || [])[1];
+    if (currentTarget && currentTarget !== target) {
+      el.setAttribute("onclick", oc.replace(/navigateTo\(['"](\w+)['"]\)/, "navigateTo('" + target + "')"));
+    }
+  });
+})();
 window.navigateTo = function(pageId) {
   // Close any open mobile drawer/menu first
   var mm = document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.getElementById("side-drawer");
