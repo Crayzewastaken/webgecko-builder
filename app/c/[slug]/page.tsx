@@ -53,6 +53,9 @@ interface ClientData {
   previewUrl?: string;
   hasBooking?: boolean;
   launchReady?: boolean;
+  // SuperSaas — enriched from jobs table by client-login GET
+  supersaasId?: string | number | null;
+  supersaasUrl?: string | null;
   name?: string;
   abn?: string;
   goal?: string;
@@ -208,7 +211,7 @@ function BookingManager({ slug, client, paymentStatus }: { slug: string; client:
 
   useEffect(() => { loadBookings(); }, []);
 
-  const useSuperSaas = !!(client as any).supersaasId;
+  const useSuperSaas = !!(client.supersaasId);
 
   async function loadBookings() {
     if (!client.jobId) return;
@@ -529,9 +532,13 @@ export default function ClientPortal() {
       // Normalise to consistent camelCase fields used throughout the component
       businessName: raw.business_name || raw.businessName || "",
       jobId: raw.job_id || raw.jobId || "",
+      email: raw.email || raw.client_email || "",
       previewUrl: raw.preview_url || raw.previewUrl || null,
       launchReady: raw.launch_ready || raw.launchReady || false,
       hasBooking: m.hasBooking ?? raw.has_booking ?? raw.hasBooking ?? false,
+      // SuperSaas — enriched from jobs table by client-login GET
+      supersaasId: raw.supersaasId ?? raw.supersaas_id ?? m.supersaasId ?? null,
+      supersaasUrl: raw.supersaasUrl ?? raw.supersaas_url ?? m.supersaasUrl ?? null,
       name: m.name || raw.name || "",
       abn: m.abn || raw.abn || "",
       goal: m.goal || raw.goal || "",

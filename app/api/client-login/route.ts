@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getClient } from "@/lib/db";
+import { getClient, getJob } from "@/lib/db";
 
 // POST - login with username + password
 export async function POST(req: NextRequest) {
@@ -56,6 +56,22 @@ export async function GET(req: NextRequest) {
     }
 
     const { password: _, ...safeData } = clientData as any;
+
+    // Enrich with job-level data the portal needs (supersaasId, supersaasUrl, etc.)
+    // These live on the jobs table, not clients
+    if (safeData.job_id) {
+      try {
+        const job = await getJob(safeData.job_id);
+        if (job) {
+          if (job.supersaasId) safeData.supersaasId = job.supersaasId;
+          if (job.supersaasUrl) safeData.supersaasUrl = job.supersaasUrl;
+          if (job.tawktoPropertyId) safeData.tawktoPropertyId = job.tawktoPropertyId;
+        }
+      } catch (e) {
+        console.error("client-login: failed to fetch job data", e);
+      }
+    }
+
     return NextResponse.json(safeData);
   } catch (err) {
     console.error("Client portal fetch error:", err);

@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
         : '<section id="booking" style="padding:80px 24px;background:#0a0f1a;text-align:center;"><div style="max-width:640px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;">Book an Appointment</h2><a href="tel:' + clientPhone + '" style="display:inline-block;margin-top:24px;background:' + accentColor + ';color:#fff;font-weight:700;padding:16px 36px;border-radius:10px;text-decoration:none;font-size:1.1rem;">Call ' + clientPhone + '</a></div></section>';
 
       // Replace existing booking section or append
-      const bookingOpenMatch = html.match(/<(section|div)([^>]*\bid="booking"[^>]*)>/i);
+      const bookingOpenMatch = html.match(/<(section|div|header|article|main)([^>]*\bid="booking"[^>]*)>/i);
       if (bookingOpenMatch) {
         const openTag = bookingOpenMatch[0];
         const tagName = bookingOpenMatch[1].toLowerCase();

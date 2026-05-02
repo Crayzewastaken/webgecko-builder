@@ -95,11 +95,17 @@ const buildWebsite = inngest.createFunction(
     // ── STEP 0: Brain 1 — Create SuperSaas schedule BEFORE Stitch so the booking
     // URL is embedded natively in the HTML by Stitch rather than injected after. ──
     const bookingUrl = await step.run("step0-supersaas", async () => {
-      // Use client-provided URL if given
+      // Use client-provided URL if given — validate it looks like a real URL
       const existing = (userInput.existingBookingUrl || "").trim();
       if (existing) {
-        console.log(`[Step0] Using client-provided booking URL: ${existing}`);
-        return existing;
+        // Must start with http(s):// to be a valid embeddable URL
+        const isValidUrl = /^https?:\/\/.{4,}/.test(existing);
+        if (isValidUrl) {
+          console.log(`[Step0] Using client-provided booking URL: ${existing}`);
+          return existing;
+        } else {
+          console.warn(`[Step0] Client-provided booking URL "${existing}" is not a valid URL — creating SuperSaas schedule instead`);
+        }
       }
       if (!hasBookingFeature) return "";
       console.log("[Step0] Creating SuperSaas schedule before Stitch");
@@ -399,6 +405,17 @@ const buildWebsite = inngest.createFunction(
       if (!hasBookingFeature) return auditedHtml;
       let html = auditedHtml;
 
+      // Strip any stray booking iframes NOT in an id="booking" section — Stitch sometimes
+      // generates a standalone iframe with supersaas.com/schedule/.../template before our
+      // step creates the real schedule name. Remove these so we don't end up with two iframes.
+      // We keep only the one inside id="booking" which we'll replace/inject below.
+      const templateIframeRe = /<iframe[^>]+src="https:\/\/www\.supersaas\.com\/schedule\/[^"]*\/template"[^>]*>[\s\S]*?<\/iframe>/gi;
+      const iframeCount = (html.match(templateIframeRe) || []).length;
+      if (iframeCount > 0) {
+        console.log(`[Step6c] Stripping ${iframeCount} stray template iframe(s)`);
+        html = html.replace(templateIframeRe, "");
+      }
+
       // Extract accent colour from CSS vars for theming the booking section
       let accentColor = spec.palette?.accent || "#10b981";
       const cssVarMatch = html.match(/--(?:primary|accent|brand|color-primary)[^:]*:\s*(#[0-9a-fA-F]{3,8})/);
@@ -431,7 +448,8 @@ const buildWebsite = inngest.createFunction(
 
       // Replace existing id="booking" element entirely using string walk
       // (simple open-tag find + depth counter — much simpler now that the component is fixed)
-      const bookingOpenMatch = html.match(/<(section|div)([^>]*\bid="booking"[^>]*)>/i);
+      // NOTE: must also match <header id="booking"> — Stitch sometimes uses header tags
+      const bookingOpenMatch = html.match(/<(section|div|header|article|main)([^>]*\bid="booking"[^>]*)>/i);
       if (bookingOpenMatch) {
         const openTag = bookingOpenMatch[0];
         const tagName = bookingOpenMatch[1].toLowerCase();

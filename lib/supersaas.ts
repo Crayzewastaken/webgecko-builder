@@ -56,14 +56,12 @@ export async function createSuperSaasSchedule(params: {
         start_time: "09:00",
         end_time: "17:00",
         durations: [60],
+        // SuperSaas uses "notification" as a comma-separated list of emails to notify on new booking
         notification: params.clientEmail,
-        confirm_email: true,
-        fields: [
-          { name: "name",    label: "Full Name",     required: true  },
-          { name: "email",   label: "Email Address", required: true  },
-          { name: "phone",   label: "Phone Number",  required: false },
-          { name: "comment", label: "Notes",         required: false },
-        ],
+        // "confirm" sends a confirmation email to the booker
+        confirm: true,
+        // "created_email" is sent to the schedule owner (client) when a reservation is made
+        created_email: params.clientEmail,
       },
     });
 
