@@ -185,10 +185,15 @@ const buildWebsite = inngest.createFunction(
       const preCheck = await fetch(url).then(r => r.text()).catch(() => "");
       if (preCheck.length < 5000) throw new Error(`Stitch HTML too short (${preCheck.length} chars)`);
       if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(preCheck)) throw new Error(`Stitch returned skeleton`);
+      // Count CSS in <style> blocks — Stitch often puts most styles inline so threshold is low
       const styleLen = (preCheck.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
-      if (styleLen < 500) throw new Error(`Stitch HTML has no real CSS (styleLen=${styleLen})`);
+      // Also count inline style attributes as a secondary signal
+      const inlineStyleCount = (preCheck.match(/\bstyle=/gi) || []).length;
+      if (styleLen < 100 && inlineStyleCount < 20) {
+        throw new Error(`Stitch HTML has no CSS (styleLen=${styleLen}, inlineStyles=${inlineStyleCount})`);
+      }
 
-      console.log(`[Inngest] STEP 3 DONE: downloadUrl obtained, HTML ${preCheck.length} chars`);
+      console.log(`[Inngest] STEP 3 DONE: downloadUrl obtained, HTML ${preCheck.length} chars, styleLen=${styleLen}, inlineStyles=${inlineStyleCount}`);
       return url;
     });
 
@@ -201,7 +206,8 @@ const buildWebsite = inngest.createFunction(
         if (pattern.test(html)) throw new Error("Stitch returned a skeleton placeholder");
       }
       const styleContent = (html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || []).join("");
-      if (styleContent.length < 500) throw new Error(`Stitch HTML has no real CSS`);
+      const inlineStyles = (html.match(/\bstyle=/gi) || []).length;
+      if (styleContent.length < 100 && inlineStyles < 20) throw new Error(`Stitch HTML has no CSS (styleLen=${styleContent.length}, inline=${inlineStyles})`);
       return html;
     });
 
