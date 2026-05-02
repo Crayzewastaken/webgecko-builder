@@ -132,41 +132,64 @@ const buildWebsite = inngest.createFunction(
       return pid;
     });
 
-    // ── STEP 3: Stitch generate ───────────────────────────────────────────────
+    // ── STEP 3: Stitch generate ─────────────────────────────────────────────
+    // IMPORTANT: Stitch SDK says "DO NOT RETRY" — generation can take minutes and
+    // retrying causes duplicate charges + broken state. One attempt only.
+    // Inngest's own step-level retry handles transient failures automatically.
     const downloadUrl = await step.run("step3-stitch-generate", async () => {
-      const MAX_ATTEMPTS = 3;
-      const RETRY_DELAYS_MS = [10_000, 20_000];
-      let lastError: Error = new Error("Stitch: unknown failure");
+      console.log(`[Inngest] STEP 3: Stitch generate (prompt: ${spec.stitchPrompt?.length} chars)`);
+      const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", {
+        projectId,
+        prompt: spec.stitchPrompt,
+      });
 
-      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        try {
-          console.log(`[Inngest] STEP 3 attempt ${attempt}/${MAX_ATTEMPTS}: Stitch generate (prompt: ${spec.stitchPrompt?.length} chars)`);
-          const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", {
-            projectId,
-            prompt: spec.stitchPrompt,
-          });
-          console.log(`[Inngest] STEP 3 attempt ${attempt}: keys=${Object.keys(stitchResult||{}).join(",")}, code=${stitchResult?.code}`);
-          if (stitchResult?.code === "UNKNOWN_ERROR" || stitchResult?.suggestion === undefined && stitchResult?.recoverable === false) {
-            throw new Error(`Stitch service unavailable (attempt ${attempt})`);
-          }
-          const screens = stitchResult?.outputComponents?.find((x: any) => x.design)?.design?.screens || [];
-          if (!screens.length) throw new Error(`Stitch: no screens returned (attempt ${attempt})`);
-          const url = screens[0]?.htmlCode?.downloadUrl;
-          if (!url) throw new Error(`Stitch: no downloadUrl (attempt ${attempt})`);
-          const preCheck = await fetch(url).then(r => r.text()).catch(() => "");
-          if (preCheck.length < 5000) throw new Error(`Stitch HTML too short (${preCheck.length} chars)`);
-          if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(preCheck)) throw new Error(`Stitch returned skeleton`);
-          const styleLen = (preCheck.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
-          if (styleLen < 500) throw new Error(`Stitch HTML has no real CSS`);
-          return url;
-        } catch (err: any) {
-          lastError = err;
-          if (attempt < MAX_ATTEMPTS) {
-            await new Promise(resolve => setTimeout(resolve, RETRY_DELAYS_MS[attempt - 1] ?? 60_000));
-          }
+      const resultKeys = Object.keys(stitchResult || {}).join(",");
+      console.log(`[Inngest] STEP 3 result: keys=${resultKeys}, code=${stitchResult?.code}`);
+
+      // Log outputComponents for debugging — Stitch sometimes returns text/suggestions
+      if (stitchResult?.outputComponents) {
+        const oc = stitchResult.outputComponents;
+        console.log(`[Inngest] STEP 3 outputComponents count=${oc.length}, types=${oc.map((x: any) => x.type || (x.design ? "design" : x.text ? "text" : "unknown")).join(",")}`);
+        const textItems = oc.filter((x: any) => x.text);
+        if (textItems.length) console.log(`[Inngest] STEP 3 Stitch text response: ${textItems.map((x: any) => x.text).join(" | ").slice(0, 300)}`);
+      }
+
+      // Hard error from Stitch
+      if (stitchResult?.code === "UNKNOWN_ERROR") {
+        throw new Error(`Stitch service error: ${stitchResult?.message || "UNKNOWN_ERROR"}`);
+      }
+
+      // Try primary path: outputComponents[].design.screens[].htmlCode.downloadUrl
+      const screens = stitchResult?.outputComponents?.find((x: any) => x.design)?.design?.screens || [];
+      let url = screens[0]?.htmlCode?.downloadUrl as string | undefined;
+
+      // Fallback: if Stitch returned a sessionId but no screens yet, poll get_screen once
+      if (!url && stitchResult?.sessionId) {
+        console.log(`[Inngest] STEP 3: no downloadUrl in result, trying get_screen with sessionId=${stitchResult.sessionId}`);
+        await new Promise(resolve => setTimeout(resolve, 5_000));
+        const screenResult: any = await stitchClient.callTool("get_screen", {
+          projectId,
+          sessionId: stitchResult.sessionId,
+        }).catch((e: any) => { console.error("[Inngest] STEP 3 get_screen failed:", e.message); return null; });
+        if (screenResult) {
+          console.log(`[Inngest] STEP 3 get_screen result keys=${Object.keys(screenResult||{}).join(",")}`);
+          const fallbackScreens = screenResult?.outputComponents?.find((x: any) => x.design)?.design?.screens || [];
+          url = fallbackScreens[0]?.htmlCode?.downloadUrl;
         }
       }
-      throw new Error(`Stitch failed after ${MAX_ATTEMPTS} attempts. Last: ${lastError.message}`);
+
+      if (!url) {
+        throw new Error(`Stitch: no downloadUrl in response. keys=${resultKeys}`);
+      }
+
+      const preCheck = await fetch(url).then(r => r.text()).catch(() => "");
+      if (preCheck.length < 5000) throw new Error(`Stitch HTML too short (${preCheck.length} chars)`);
+      if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(preCheck)) throw new Error(`Stitch returned skeleton`);
+      const styleLen = (preCheck.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
+      if (styleLen < 500) throw new Error(`Stitch HTML has no real CSS (styleLen=${styleLen})`);
+
+      console.log(`[Inngest] STEP 3 DONE: downloadUrl obtained, HTML ${preCheck.length} chars`);
+      return url;
     });
 
     // ── STEP 4: Fetch HTML ────────────────────────────────────────────────────
