@@ -2,7 +2,6 @@
 // Square sends payment events here. Must be a raw body handler.
 import { NextRequest, NextResponse } from "next/server";
 import { verifySquareWebhook } from "@/lib/square";
-import { inngest } from "@/lib/inngest";
 import { getJob, getPaymentState, savePaymentState, getClient, saveClient } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -73,11 +72,46 @@ export async function POST(req: NextRequest) {
 
     console.log(`Payment confirmed: jobId=${jobId} stage=${stage}`);
 
-    // Trigger Inngest build on deposit
+    // On deposit — notify owner to action in admin dashboard (do NOT auto-build)
+    // Owner completes SuperSaas checklist in admin, then clicks "Activate & Launch" to trigger build
     if (stage === "deposit") {
       try {
-        await inngest.send({ name: "build/website", data: { jobId } });
-      } catch (e) { console.error("Failed to trigger build:", e); }
+        const job = await getJob(jobId);
+        const base = "https://webgecko-builder.vercel.app";
+        const secret = encodeURIComponent(process.env.PROCESS_SECRET || "");
+        const adminUrl = `${base}/admin?secret=${secret}`;
+        const resend = new (await import("resend")).Resend(process.env.RESEND_API_KEY!);
+        await resend.emails.send({
+          from: "WebGecko <hello@webgecko.au>",
+          to: process.env.RESULT_TO_EMAIL!,
+          subject: `💰 Deposit Received — ${job?.userInput?.businessName || jobId}`,
+          html: [
+            "<div style='font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;background:#0a0f1a;color:#e2e8f0;'>",
+            "<h1 style='color:#00c896;'>💰 Deposit Received</h1>",
+            "<p style='color:#94a3b8;'>A client has paid their deposit. Complete the checklist below, then activate their build.</p>",
+            "<table style='width:100%;border-collapse:collapse;margin:20px 0;'>",
+            "<tr><td style='color:#64748b;padding:8px 0;'>Business</td><td style='color:#e2e8f0;font-weight:600;'>" + (job?.userInput?.businessName || "—") + "</td></tr>",
+            "<tr><td style='color:#64748b;padding:8px 0;'>Industry</td><td style='color:#e2e8f0;'>" + (job?.userInput?.industry || "—") + "</td></tr>",
+            "<tr><td style='color:#64748b;padding:8px 0;'>Email</td><td style='color:#e2e8f0;'>" + (job?.userInput?.email || "—") + "</td></tr>",
+            "<tr><td style='color:#64748b;padding:8px 0;'>Job ID</td><td style='color:#475569;font-size:12px;'>" + jobId + "</td></tr>",
+            "</table>",
+            "<div style='background:#1a0e00;border:1px solid rgba(251,191,36,0.3);border-radius:10px;padding:16px 20px;margin:20px 0;'>",
+            "<p style='color:#fbbf24;font-weight:700;margin:0 0 10px;'>⚠️ Your action required before build starts:</p>",
+            "<ol style='color:#cbd5e1;font-size:14px;line-height:2;margin:0;padding-left:20px;'>",
+            "<li>Go to SuperSaas dashboard → New Schedule → name it <strong style='color:#fbbf24;'>" + (job?.userInput?.businessName || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 40) + "</strong></li>",
+            "<li>Configure available hours & days</li>",
+            "<li>Add appointment types / services</li>",
+            "<li>Set notification email to client</li>",
+            "<li>Test a booking</li>",
+            "<li>Go to admin dashboard and click <strong>Activate & Launch</strong></li>",
+            "</ol>",
+            "</div>",
+            "<a href='" + adminUrl + "' style='display:inline-block;background:#00c896;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;'>📊 Open Admin Dashboard →</a>",
+            "</div>",
+          ].join(""),
+        });
+        console.log(`[Payment] Deposit received for ${jobId} — owner notified, waiting for admin activation`);
+      } catch (e) { console.error("Failed to send deposit notification:", e); }
     }
 
     // Mark launch ready on final payment
