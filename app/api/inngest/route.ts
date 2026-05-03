@@ -925,10 +925,23 @@ RULES:
       <table width="100%" cellpadding="0" cellspacing="0" style="background:#080c14;border-radius:8px;">${checklistHtml}</table>
     </div>
     ${hasBookingFeature && job.metadata?.supersaasSubEmail ? `<div style="background:#0a1628;border:1px solid rgba(0,200,150,0.2);border-radius:8px;padding:16px 20px;margin-bottom:20px;"><p style="color:#00c896;font-size:12px;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 8px;">📅 SuperSaas Sub-Account (client login)</p><p style="color:#94a3b8;font-size:13px;margin:0;">Login: <strong style="color:#e2e8f0;">${job.metadata.supersaasSubEmail}</strong> — Password: <strong style="color:#e2e8f0;">${job.metadata.supersaasSubPassword}</strong><br><span style="color:#475569;font-size:12px;">Client can log in at supersaas.com and manage only their own schedule</span></p></div>` : ""}
+    ${hasBookingFeature ? `<div style="background:#1a0a0a;border:1px solid rgba(239,68,68,0.4);border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+      <p style="color:#ef4444;font-size:12px;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 12px;">⚠️ Manual Action Required — SuperSaas Schedule</p>
+      <p style="color:#94a3b8;font-size:13px;margin:0 0 12px;">The booking iframe is embedded but the SuperSaas schedule must be created manually (SuperSaas does not support programmatic schedule creation).</p>
+      <ol style="color:#e2e8f0;font-size:13px;margin:0 0 12px;padding-left:20px;line-height:2;">
+        <li>Go to <a href="https://www.supersaas.com/dashboard" style="color:#f87171;">supersaas.com/dashboard</a></li>
+        <li>Click <strong>New Schedule</strong></li>
+        <li>Name it exactly: <strong style="color:#fbbf24;font-family:monospace;">${fileName}</strong></li>
+        <li>Configure hours, slot duration, notifications to <strong>${clientEmail}</strong></li>
+        <li>Save — the booking iframe on the site will automatically use this schedule</li>
+        <li>Once done, click <a href="${base}/api/pipeline/run?jobId=${jobId}&secret=${secret}" style="color:#fbbf24;font-weight:700;">🔄 Rebuild Site</a> — the booking iframe will automatically use the new schedule</li>
+      </ol>
+      <p style="color:#475569;font-size:12px;margin:0;">Schedule URL will be: <span style="color:#94a3b8;font-family:monospace;">supersaas.com/schedule/webgecko/${fileName}</span></p>
+    </div>` : ""}
     <table cellpadding="0" cellspacing="0"><tr>
       <td style="padding-right:8px;padding-bottom:8px;"><a href="${releaseUrl}" style="background:#00c896;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📤 Release to Client</a></td>
       <td style="padding-right:8px;padding-bottom:8px;"><a href="${fixUrl}" style="background:#3b82f6;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">🔧 Fix This Site</a></td>
-      ${hasBookingFeature ? `<td style="padding-right:8px;padding-bottom:8px;"><a href="${unlockBookingUrl}" style="background:#f59e0b;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📅 Unlock Booking</a></td>` : ""}
+      ${hasBookingFeature ? `<td style="padding-right:8px;padding-bottom:8px;"><a href="${unlockBookingUrl}" style="background:#f59e0b;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📅 Unlock Booking</a></td><td style="padding-right:8px;padding-bottom:8px;"><a href="${base}/api/pipeline/run?jobId=${jobId}&secret=${secret}" style="background:#fbbf24;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">🔄 Rebuild Site</a></td>` : ""}
     </tr></table>
     <p style="margin:16px 0 0;"><a href="${adminUrl}" style="color:#475569;font-size:12px;">📊 Admin Dashboard</a></p>
   </td></tr>
@@ -997,7 +1010,61 @@ const monthlyReports = inngest.createFunction(
   }
 );
 
+// ─── Auto-Release Scheduled Function ─────────────────────────────────────────
+// Runs every 6 hours, checks for jobs with scheduledReleaseAt in the past,
+// and auto-releases them to the client (sends welcome email + unlocks portal).
+
+const autoRelease = inngest.createFunction(
+  {
+    id: "auto-release-sites",
+    name: "Auto-Release Sites to Clients",
+    triggers: [{ cron: "0 */6 * * *" }], // every 6 hours
+  },
+  async ({ step }: { step: any }) => {
+    await step.run("check-scheduled-releases", async () => {
+      // Get all jobs from Supabase and check metadata.scheduledReleaseAt
+      const { data: jobs } = await supabase
+        .from("jobs")
+        .select("id, metadata, user_input, client_slug")
+        .not("metadata->scheduledReleaseAt", "is", null)
+        .eq("metadata->alreadyReleased", false as any)
+        .is("preview_unlocked_at", null);
+
+      if (!jobs || jobs.length === 0) {
+        console.log("[AutoRelease] No pending releases");
+        return;
+      }
+
+      const now = new Date();
+      for (const job of jobs) {
+        const releaseAt = job.metadata?.scheduledReleaseAt;
+        if (!releaseAt) continue;
+        if (new Date(releaseAt) > now) continue; // not time yet
+
+        console.log("[AutoRelease] Releasing job", job.id, "scheduled for", releaseAt);
+        try {
+          const base = "https://webgecko-builder.vercel.app";
+          const secret = encodeURIComponent(process.env.PROCESS_SECRET || "");
+          const res = await fetch(`${base}/api/unlock/release?jobId=${job.id}&secret=${secret}`);
+          if (res.ok) {
+            // Mark as released so we don't re-release
+            await supabase
+              .from("jobs")
+              .update({ metadata: { ...(job.metadata || {}), alreadyReleased: true, releasedAt: now.toISOString() } })
+              .eq("id", job.id);
+            console.log("[AutoRelease] Released job", job.id, "for", job.user_input?.businessName);
+          } else {
+            console.error("[AutoRelease] Release failed for", job.id, "→", res.status);
+          }
+        } catch (e) {
+          console.error("[AutoRelease] Error releasing job", job.id, ":", e);
+        }
+      }
+    });
+  }
+);
+
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [buildWebsite, monthlyReports],
+  functions: [buildWebsite, monthlyReports, autoRelease],
 });

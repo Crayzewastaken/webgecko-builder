@@ -173,7 +173,17 @@ Four risks identified and resolved:
 - Added fallback retry: if POST with `schedules` fails 400, retry without the `schedules` field (some SuperSaas plans don't support schedule restrictions)
 - `actualName` is now hardcoded to `slugName` (the name we requested) rather than trusting the API response — this prevents the master template schedule name from leaking into embed URLs
 - Added raw response logging so the next 400 can be diagnosed from the exact SS response body  
-**Status:** ✅ Fixed — deploy and rebuild
+---
+
+## ISSUE 016 — SuperSaas schedule creation not possible via API
+**Symptom:** Every build returns `HTTP 200` with `[{"id":832470,"name":"template"}]` — the existing template schedule — regardless of what schedule name we POST.  
+**Root cause:** SuperSaas has no API endpoint for creating schedules. `POST /api/schedules` does not exist — the Information API is read-only (GET only). The pipeline was hitting `GET /schedules` which returns the existing schedule list.  
+**Fix applied:**  
+- Dropped automatic schedule creation from the pipeline  
+- Admin build-complete email now includes a red ⚠️ action-required section with step-by-step instructions to manually create the schedule in SuperSaas dashboard  
+- Client portal overview tab shows a booking setup checklist so the client can track what's pending  
+- Login session changed from `sessionStorage` (lost on tab close) to `localStorage` with 14-day expiry  
+**Status:** ✅ Fixed — schedule creation is manual, everything else is automatic
 
 **Update after second run:**
 Sub-user 400 persisted even without the `schedules` field — root cause is likely email already registered from a prior build attempt. Added 3-strategy approach:

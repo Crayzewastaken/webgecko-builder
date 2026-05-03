@@ -517,8 +517,13 @@ export default function ClientPortal() {
 
   // ── Auth + data load ────────────────────────────────────────────────────────
   useEffect(() => {
-    const auth = sessionStorage.getItem(`wg_auth_${slug}`);
-    if (!auth) { router.replace("/c"); return; }
+    const wgAuthVal = localStorage.getItem(`wg_auth_${slug}`);
+    const wgExpiry = wgAuthVal ? parseInt(wgAuthVal, 10) : 0;
+    if (!wgAuthVal || Date.now() > wgExpiry) {
+      localStorage.removeItem(`wg_auth_${slug}`);
+      router.replace("/c");
+      return;
+    }
     loadClient();
   }, [slug]);
 
@@ -577,7 +582,7 @@ export default function ClientPortal() {
   async function loadClient() {
     try {
       const res = await fetch(`/api/client-login?slug=${slug}`);
-      if (!res.ok) { sessionStorage.removeItem(`wg_auth_${slug}`); router.replace("/c"); return; }
+      if (!res.ok) { localStorage.removeItem(`wg_auth_${slug}`); router.replace("/c"); return; }
       const raw = await res.json();
       setClient(normalizeClient(raw));
     } catch { setError("Failed to load your project. Please refresh."); }
@@ -688,7 +693,7 @@ export default function ClientPortal() {
     return `${base}–${base + 2} business days`;
   }
 
-  function signOut() { sessionStorage.removeItem(`wg_auth_${slug}`); router.replace("/c"); }
+  function signOut() { localStorage.removeItem(`wg_auth_${slug}`); router.replace("/c"); }
 
   const today = new Date().toISOString().split("T")[0];
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
@@ -908,6 +913,31 @@ export default function ClientPortal() {
             {notifications.map((n, i) => (
               <div key={i} style={{ background: "#ffaa0010", border: "1px solid #ffaa0025", borderRadius: 8, padding: "10px 14px", marginBottom: 8, fontSize: 13, color: "#ffcc55" }}>{n}</div>
             ))}
+
+            {/* SuperSaas setup checklist — shown when booking is enabled but sub-user not yet created */}
+            {hasBooking && client.supersaasUrl && !client.supersaasUrl.includes("?user=") && (
+              <div style={{ background: "#1a0e00", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 10, padding: "14px 16px", marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#fbbf24", marginBottom: 10 }}>📅 Booking Setup Checklist</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {[
+                    { done: true, text: "Booking section embedded on your site" },
+                    { done: !!client.supersaasUrl && !client.supersaasUrl.includes("/template"), text: "Booking schedule created (supersaas.com/dashboard → New Schedule)" },
+                    { done: false, text: "Configure your available hours in SuperSaas" },
+                    { done: false, text: "Add your services/appointment types in SuperSaas" },
+                    { done: false, text: "Test a booking end-to-end" },
+                  ].map((item, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 13 }}>
+                      <span style={{ color: item.done ? "#00c896" : "#fbbf24", flexShrink: 0, marginTop: 1 }}>{item.done ? "✓" : "○"}</span>
+                      <span style={{ color: item.done ? "#64748b" : "#cbd5e1", textDecoration: item.done ? "line-through" : "none" }}>{item.text}</span>
+                    </div>
+                  ))}
+                </div>
+                <a href="https://www.supersaas.com/dashboard" target="_blank" rel="noopener noreferrer"
+                  style={{ display: "inline-block", marginTop: 12, fontSize: 12, color: "#fbbf24", textDecoration: "none", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 6, padding: "6px 12px" }}>
+                  Open SuperSaas Dashboard →
+                </a>
+              </div>
+            )}
 
             {/* Stats */}
             {hasBooking && (

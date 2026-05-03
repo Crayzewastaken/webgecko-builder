@@ -53,6 +53,7 @@ export async function GET(req: NextRequest) {
         monthlyActive: !!c.square_subscription_id,
       },
       bookingCount: bookingsByJob[c.job_id] || 0,
+      metadata: job.metadata || null,
     };
   });
 

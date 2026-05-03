@@ -24,7 +24,8 @@ export default function ClientLogin() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Invalid credentials");
-      sessionStorage.setItem(`wg_auth_${data.slug}`, "1");
+      const wgExpiry = Date.now() + 14 * 24 * 60 * 60 * 1000; // 14 days
+      localStorage.setItem(`wg_auth_${data.slug}`, String(wgExpiry));
       router.push(`/c/${data.slug}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Login failed");

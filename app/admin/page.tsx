@@ -28,9 +28,15 @@ interface ClientAnalytics {
   bookingCount: number;
   hasBooking: boolean;
   builtAt?: string;
+  metadata?: {
+    scheduledReleaseAt?: string;
+    scheduledReleaseDays?: number;
+    checklistCompletedAt?: string;
+    alreadyReleased?: boolean;
+  };
 }
 
-type ActionKey = "release" | "fix" | "unlockPayment" | "unlockBooking" | "sendReport" | "delete" | "rebuild" | "resetPassword";
+type ActionKey = "release" | "fix" | "unlockPayment" | "unlockBooking" | "sendReport" | "delete" | "rebuild" | "resetPassword" | "activate";
 
 interface ActionState {
   confirming: ActionKey | null;
@@ -164,6 +170,82 @@ function GoLiveButton({ c, secret }: { c: ClientAnalytics; secret: string }) {
   );
 }
 
+function SuperSaasChecklist({ client: c, secret, onActivated }: { client: ClientAnalytics; secret: string; onActivated: () => void }) {
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [activating, setActivating] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const items = [
+    { key: "schedule", label: `Created schedule named "${c.businessName?.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 40)}" in SuperSaas dashboard` },
+    { key: "hours", label: "Configured available hours & days in SuperSaas" },
+    { key: "services", label: "Added appointment types / services in SuperSaas" },
+    { key: "notifications", label: `Set notification email to client in SuperSaas` },
+    { key: "tested", label: "Tested a booking end-to-end" },
+  ];
+
+  const allDone = items.every(i => checked[i.key]);
+
+  async function handleActivate() {
+    setActivating(true);
+    try {
+      const res = await fetch(`/api/admin/activate?jobId=${c.jobId}&secret=${secret}`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setResult({ ok: true, message: data.message });
+        setTimeout(onActivated, 3000);
+      } else {
+        setResult({ ok: false, message: data.error || "Activation failed" });
+      }
+    } catch (e) {
+      setResult({ ok: false, message: "Network error" });
+    } finally {
+      setActivating(false);
+    }
+  }
+
+  return (
+    <div style={{ background: "#1a0e00", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 10, padding: "14px 16px", marginBottom: 14 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#fbbf24", marginBottom: 10, textTransform: "uppercase", letterSpacing: ".06em" }}>
+        ⚠️ SuperSaas Setup Checklist
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+        {items.map(item => (
+          <label key={item.key} style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", fontSize: 13 }}>
+            <input
+              type="checkbox"
+              checked={!!checked[item.key]}
+              onChange={e => setChecked(prev => ({ ...prev, [item.key]: e.target.checked }))}
+              style={{ marginTop: 2, accentColor: "#00c896", width: 14, height: 14, flexShrink: 0 }}
+            />
+            <span style={{ color: checked[item.key] ? "#4a5568" : "#cbd5e1", textDecoration: checked[item.key] ? "line-through" : "none" }}>
+              {item.label}
+            </span>
+          </label>
+        ))}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <a href="https://www.supersaas.com/dashboard" target="_blank" rel="noopener noreferrer"
+          style={{ fontSize: 12, color: "#fbbf24", textDecoration: "none", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 6, padding: "6px 12px" }}>
+          Open SuperSaas →
+        </a>
+        {allDone && !result && (
+          <button
+            onClick={handleActivate}
+            disabled={activating}
+            style={{ fontSize: 13, fontWeight: 700, color: "#000", background: activating ? "#555" : "#00c896", border: "none", borderRadius: 8, padding: "8px 18px", cursor: activating ? "not-allowed" : "pointer" }}>
+            {activating ? "Activating..." : "✅ Activate & Launch"}
+          </button>
+        )}
+        {result && (
+          <div style={{ fontSize: 12, color: result.ok ? "#00c896" : "#ef4444", flex: 1 }}>
+            {result.ok ? "✓" : "✗"} {result.message}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ClientCard({ c, secret }: { c: ClientAnalytics; secret: string }) {
   const [actionState, setActionState] = useState<ActionState>({ confirming: null, loading: null, result: null });
 
@@ -285,6 +367,30 @@ function ClientCard({ c, secret }: { c: ClientAnalytics; secret: string }) {
           {c.domain && !c.liveDomain && c.vercelProjectName && (
             <GoLiveButton c={c} secret={secret} />
           )}
+        </div>
+      )}
+
+      <div style={{ borderTop: "1px solid #1a1a1a", marginBottom: "14px" }} />
+
+      {/* SuperSaas setup checklist — shown when booking enabled and not yet activated */}
+      {c.hasBooking && !c.metadata?.checklistCompletedAt && (
+        <SuperSaasChecklist
+          client={c}
+          secret={sec}
+          onActivated={() => window.location.reload()}
+        />
+      )}
+
+      {/* Scheduled release badge */}
+      {c.metadata?.scheduledReleaseAt && !c.metadata?.alreadyReleased && (
+        <div style={{ background: "#0a1628", border: "1px solid rgba(0,200,150,0.2)", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 12, color: "#00c896" }}>
+          🕐 Auto-releases to client on <strong>{new Date(c.metadata.scheduledReleaseAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}</strong>
+          {" "}({c.metadata.scheduledReleaseDays} days from activation)
+        </div>
+      )}
+      {c.metadata?.alreadyReleased && (
+        <div style={{ background: "#0a1a0a", border: "1px solid rgba(0,200,150,0.2)", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 12, color: "#00c896" }}>
+          ✅ Released to client
         </div>
       )}
 
