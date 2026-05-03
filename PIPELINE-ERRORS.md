@@ -109,7 +109,7 @@ alter table jobs add column if not exists metadata jsonb default '{}';
 
 | # | Issue | Status |
 |---|-------|--------|
-| 008 | Nav links have wrong `navigateTo` targets from Stitch | ⚠️ Needs pipeline post-process step |
+| 008 | Nav links have wrong `navigateTo` targets from Stitch | ✅ Fixed via `fixNavigateToTargets()` compile-time pass |
 | — | Tawk.to live chat embed URL doubling | ✅ Fixed in pipeline-helpers.ts |
 | — | Light-theme sites getting dark injected sections | ✅ Fixed via `detectTheme()` in auditor.ts |
 

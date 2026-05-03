@@ -86,6 +86,48 @@ export function extractCSS(html: string): string {
 
 // ─── checkAndFixLinks ─────────────────────────────────────────────────────────
 
+// ─── Fix navigateTo targets at HTML level ─────────────────────────────────────
+// Stitch often sets onclick="navigateTo('home')" on ALL nav links regardless of label.
+// This function rewrites navigateTo targets based on the link's visible text content.
+export function fixNavigateToTargets(html: string): string {
+  const labelMap: Record<string, string> = {
+    "home": "home", "about": "about", "about us": "about",
+    "services": "services", "our services": "services", "what we do": "services",
+    "booking": "booking", "book": "booking", "book now": "booking",
+    "appointments": "booking", "book an appointment": "booking", "reserve": "booking",
+    "schedule": "booking", "book a session": "booking", "book online": "booking",
+    "contact": "contact", "contact us": "contact", "get in touch": "contact",
+    "enquire": "contact", "enquire now": "contact",
+    "gallery": "gallery", "our work": "gallery", "portfolio": "gallery",
+    "faq": "faq", "faqs": "faq", "questions": "faq",
+    "testimonials": "testimonials", "reviews": "testimonials",
+    "pricing": "pricing", "prices": "pricing", "packages": "pricing",
+    "shop": "shop", "store": "shop", "products": "shop",
+    "blog": "blog", "news": "blog", "articles": "blog",
+    "team": "team", "our team": "team",
+    "menu": "menu",
+  };
+
+  // Match any element with onclick containing navigateTo and extract inner text
+  return html.replace(
+    /(<(?:a|button)([^>]*onclick=["'][^"']*navigateTo\(['"](\w+)['"]\)[^"']*["'][^>]*)>)([\s\S]*?)(<\/(?:a|button)>)/gi,
+    (match, openTag, attrs, currentTarget, innerContent, closeTag) => {
+      // Get visible text from inner content
+      const text = innerContent.replace(/<[^>]+>/g, "").trim().toLowerCase();
+      const mappedTarget = labelMap[text];
+      if (mappedTarget && mappedTarget !== currentTarget) {
+        const fixedTag = openTag.replace(
+          /navigateTo\(['"](\w+)['"]\)/,
+          `navigateTo('${mappedTarget}')`
+        );
+        console.log(`[fixNavigateTo] "${text}": '${currentTarget}' → '${mappedTarget}'`);
+        return fixedTag + innerContent + closeTag;
+      }
+      return match;
+    }
+  );
+}
+
 export function checkAndFixLinks(html: string, pages: string[]): { html: string; report: string[] } {
   const issues: string[] = [];
   let fixed = html;

@@ -11,6 +11,7 @@ import {
   safeFileName,
   extractCSS,
   checkAndFixLinks,
+  fixNavigateToTargets,
   injectEssentials,
   injectImages,
   getServicesForIndustry,
@@ -472,6 +473,7 @@ RULES:
     // ── STEP 6: Inject essentials + images (NO booking widget yet — auditor runs first) ─
     const injectedHtml = await step.run("step6-inject", async () => {
       const { html: checkedHtml } = checkAndFixLinks(fixedHtml, Array.isArray(userInput.pages) ? userInput.pages : []);
+      const navFixedHtml = fixNavigateToTargets(checkedHtml);
       const ga4Id = job.ga4Id || userInput.ga4Id || "";
       // Create per-client Tawk.to property (Brain 1 — before Stitch)
       let tawktoPropertyId: string | undefined = undefined;
@@ -488,7 +490,7 @@ RULES:
           }
         }
       }
-      let html = injectEssentials(checkedHtml, clientEmail, clientPhone, jobId, ga4Id, tawktoPropertyId);
+      let html = injectEssentials(navFixedHtml, clientEmail, clientPhone, jobId, ga4Id, tawktoPropertyId);
       html = injectImages(html, logoUrl, heroUrl, photoUrls, productsWithPhotos);
       return html;
     });

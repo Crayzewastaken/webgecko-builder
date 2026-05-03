@@ -924,6 +924,8 @@ export default function ClientPortal() {
                     { done: !!client.supersaasUrl && !client.supersaasUrl.includes("/template"), text: "Booking schedule created (supersaas.com/dashboard → New Schedule)" },
                     { done: false, text: "Configure your available hours in SuperSaas" },
                     { done: false, text: "Add your services/appointment types in SuperSaas" },
+                    { done: false, text: "Add service dropdown to booking form (Configure → Form)" },
+                    { done: false, text: "Set booking visibility to availability only (Configure → Access Control)" },
                     { done: false, text: "Test a booking end-to-end" },
                   ].map((item, i) => (
                     <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 13 }}>

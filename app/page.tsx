@@ -408,6 +408,7 @@ export default function HomePage() {
         return;
       }
       setSubmitted(true);
+      setSubmitting(false);
     } catch (err) {
       setErrors(["Network error — please check your connection and try again."]);
       setSubmitting(false);

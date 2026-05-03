@@ -180,6 +180,8 @@ function SuperSaasChecklist({ client: c, secret, onActivated }: { client: Client
     { key: "hours", label: "Configured available hours & days in SuperSaas" },
     { key: "services", label: "Added appointment types / services in SuperSaas" },
     { key: "notifications", label: `Set notification email to client in SuperSaas` },
+    { key: "form", label: "Added service/treatment dropdown to booking form (Configure → Form)" },
+    { key: "privacy", label: "Set booking visibility to availability-only (Configure → Access Control)" },
     { key: "tested", label: "Tested a booking end-to-end" },
   ];
 
