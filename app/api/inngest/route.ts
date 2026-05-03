@@ -257,9 +257,111 @@ const buildWebsite = inngest.createFunction(
       return html;
     });
 
+    // ── STEP 4b: Claude rewrites Stitch HTML — preserves visual style, guarantees structure ──
+    // Stitch gives us the visual design. Claude rewrites it as clean, fully-functional HTML
+    // with all required structural elements guaranteed (ids, mobile nav, booking iframe, etc.)
+    const rebuiltHtml = await step.run("step4b-claude-rebuild", async () => {
+      // Extract ALL CSS blocks (some Stitch outputs have multiple <style> tags)
+      const allCss = (stitchHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [])
+        .map((s: string) => s.replace(/<\/?style[^>]*>/gi, "")).join("\n").slice(0, 8000);
+      const css = allCss;
+
+      // Pass the FULL body — not just a snippet — so Claude sees all content
+      // Split into two halves if too large so we capture both top and bottom sections
+      const bodyMatch = stitchHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+      const fullBody = bodyMatch ? bodyMatch[1] : stitchHtml;
+      const bodySnippet = fullBody.length <= 16000
+        ? fullBody
+        : fullBody.slice(0, 8000) + "\n<!-- ...middle truncated... -->\n" + fullBody.slice(-4000);
+
+      const bookingBlock = hasBookingFeature && bookingUrl
+        ? `<section id="booking" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">
+  <div style="max-width:900px;margin:0 auto;text-align:center;">
+    <h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;margin:0 0 8px;">Book an Appointment</h2>
+    <p style="color:#94a3b8;margin:0 0 32px;">Schedule your appointment with ${userInput.businessName} online.</p>
+    <div style="border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.4);">
+      <iframe src="${bookingUrl}" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;" loading="lazy"></iframe>
+    </div>
+  </div>
+</section>`
+        : "";
+
+      const multiPageNote = isMultiPage
+        ? `This is a MULTI-PAGE site with pages: ${pageList}. Each page must be a <div class="page-section" id="PAGENAME"> element. Nav links must use onclick="window.navigateTo&&window.navigateTo('PAGENAME')".`
+        : `This is a SINGLE-PAGE site. Nav links must use onclick="document.getElementById('SECTIONID')?.scrollIntoView({behavior:'smooth'})".`;
+
+      const prompt = `You are a senior front-end developer. I have a Stitch-generated website design below. Your job is to rewrite it as a complete, production-ready HTML file that EXACTLY preserves the visual design (colors, fonts, layout, imagery style) but guarantees all structural and functional requirements.
+
+BUSINESS: ${userInput.businessName}
+INDUSTRY: ${userInput.industry}
+EMAIL: ${clientEmail} | PHONE: ${clientPhone}${userInput.businessAddress ? " | ADDRESS: " + userInput.businessAddress : ""}
+${multiPageNote}
+
+STITCH CSS (preserve these exact styles):
+${css}
+
+STITCH BODY (use this as your visual reference):
+${bodySnippet}
+
+ABSOLUTE REQUIREMENTS — every single one must be present in your output:
+1. <button id="hamburger" class="md:hidden"> in the header — toggles the mobile drawer
+2. <div id="mobile-menu" style="display:none;position:fixed;top:0;right:0;width:80%;max-width:300px;height:100vh;z-index:9999;"> — mobile drawer with all nav links and a close button
+3. <section id="hero"> — full-viewport hero
+4. <section id="services"> — services grid
+5. <section id="testimonials"> — 3+ Australian client names, 5-star ratings
+6. <section id="faq"> — 6+ Q&A accordion pairs relevant to ${userInput.industry}
+7. <section id="contact"> — form with name/email/phone/message fields, action posts to #, shows success on submit. Use real email ${clientEmail} and phone ${clientPhone}.
+8. <footer> — copyright © ${new Date().getFullYear()} ${userInput.businessName}
+${hasBookingFeature && bookingUrl ? `9. Insert this EXACT booking section as-is (do not modify the iframe src):
+${bookingBlock}` : hasBookingFeature ? `9. <section id="booking"> with a prominent "Book Now" CTA linking to #contact` : ""}
+${isMultiPage ? `10. window.navigateTo function that shows/hides .page-section divs` : ""}
+
+RULES:
+- Return ONLY the complete HTML starting with <!DOCTYPE html> — no explanation, no markdown
+- Preserve the exact color palette, fonts, and visual style from the Stitch CSS
+- Use the real business name, email, phone throughout — no placeholders
+- All images: use unsplash.com or placehold.co URLs if no real images provided
+- Mobile-first, responsive using the same Tailwind/CSS classes from the Stitch output
+- The hamburger button MUST open the mobile-menu div (add inline onclick or wire via script)`;
+
+      const response = await anthropic.messages.create({
+        model: "claude-haiku-4-5-20251001",  // Haiku: ~20x cheaper than Sonnet, reliable for HTML
+        max_tokens: 16000,
+        messages: [{ role: "user", content: prompt }],
+      });
+
+      const text = response.content[0]?.type === "text" ? response.content[0].text : "";
+      const start = text.indexOf("<!DOCTYPE");
+      const extracted = start !== -1 ? text.slice(start) : text;
+
+      // Validate Claude's output — check it has the key structural requirements
+      const requiredIds = ['id="hamburger"', 'id="mobile-menu"', 'id="contact"'];
+      const missingIds = requiredIds.filter(id => !extracted.includes(id));
+      const isTooShort = extracted.length < 8000 || !extracted.includes("<html");
+
+      if (isTooShort) {
+        console.error("[Step4b] FALLBACK: Claude output too short/invalid (" + extracted.length + " chars) — using Stitch HTML");
+        // Log to Resend so you know when this happens
+        resend.emails.send({
+          from: "WebGecko Pipeline <hello@webgecko.au>",
+          to: "crayzewastaken@gmail.com",
+          subject: "⚠️ Step4b Fallback — " + userInput.businessName,
+          html: "<p>Claude rebuild failed for <strong>" + userInput.businessName + "</strong> (job: " + jobId + "). Fell back to raw Stitch HTML. Output was " + extracted.length + " chars.</p>",
+        }).catch(() => {});
+        return stitchHtml;
+      }
+
+      if (missingIds.length > 0) {
+        console.warn("[Step4b] Claude output missing: " + missingIds.join(", ") + " — pipeline will patch these downstream");
+      }
+
+      console.log("[Step4b] Claude rebuilt HTML: " + extracted.length + " chars (Stitch was " + stitchHtml.length + " chars). Missing ids: " + (missingIds.join(",") || "none"));
+      return extracted;
+    });
+
     // ── STEP 5: Code-only fix pass ────────────────────────────────────────────
     const fixedHtml = await step.run("step5-code-fix", async () => {
-      let html = stitchHtml;
+      let html = rebuiltHtml;  // use Claude's rebuilt HTML instead of raw Stitch
       const bookingNavTarget = hasBookingFeature ? "booking" : "contact";
 
       if (userInput.businessName) {

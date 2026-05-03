@@ -112,3 +112,52 @@ alter table jobs add column if not exists metadata jsonb default '{}';
 | 008 | Nav links have wrong `navigateTo` targets from Stitch | ⚠️ Needs pipeline post-process step |
 | — | Tawk.to live chat embed URL doubling | ✅ Fixed in pipeline-helpers.ts |
 | — | Light-theme sites getting dark injected sections | ✅ Fixed via `detectTheme()` in auditor.ts |
+
+---
+
+## ISSUE 011 — Stitch ignores structural HTML requirements (missing ids, mobile drawer, sections)
+**Symptom:** RAW Stitch output missing `id="hamburger"`, `id="mobile-menu"`, `id="booking"`, `id="faq"`, `id="testimonials"`. Final output has them only because post-processing injected them.  
+**Root cause:** Stitch is a visual design tool — it generates beautiful UI but ignores specific HTML attribute requirements (`id=`, `onclick=`, `class=`). Changing the export file type is not possible (HTML is the only output). The prompt was already explicit but Stitch treats structural requirements as suggestions.  
+**Fix applied:**
+- `lib/gemini.ts`: Stitch prompt now uses plain `id=hamburger` notation (no quotes) to avoid Stitch treating them as design tokens, and is more explicit about element structure
+- Removed single-quoted HTML attributes from the template literal to fix TypeScript compilation errors
+- Core strategy: **never rely on Stitch for structure** — pipeline post-processing (auditor + injectEssentials + step6c) is the source of truth for all structural elements  
+**Status:** ✅ Prompt improved + post-processing is the safety net
+
+---
+
+## ISSUE 012 — gemini.ts TypeScript errors from single quotes inside template literal
+**Symptom:** `npx tsc --noEmit` reports dozens of errors in `lib/gemini.ts` after prompt update.  
+**Root cause:** Single quotes inside a backtick template literal (e.g. `<button id='hamburger'>`) break TypeScript's parser when the surrounding string already uses backticks.  
+**Fix applied:** Replaced all `'quoted'` HTML attribute examples in the prompt text with unquoted `id=hamburger` notation — Stitch understands both and this avoids the TS conflict.  
+**Rule going forward:** Never use single quotes inside template literals in gemini.ts or pipeline-helpers.ts prompt strings.  
+**Status:** ✅ Fixed
+---
+
+## ISSUE 013 — Stitch generates visually good but structurally broken HTML
+**Symptom:** All the nav IDs, mobile drawer, booking section, FAQ, testimonials missing from Stitch output even with explicit prompt instructions.  
+**Root cause:** Stitch is a visual design tool — it ignores functional/structural HTML requirements reliably. No prompt improvement can fix this.  
+**Fix applied:** New **Step 4b** added to pipeline between Stitch fetch and code-fix pass:
+- Passes Stitch CSS + body snippet to Claude Sonnet as a visual reference
+- Claude rewrites the full HTML guaranteeing all structural requirements: `id=hamburger`, `id=mobile-menu`, `id=hero`, `id=services`, `id=testimonials`, `id=faq`, `id=contact`, booking iframe, footer copyright, navigateTo for multi-page
+- Falls back to raw Stitch HTML if Claude output is too short/invalid
+- All downstream steps (step 5+) now operate on Claude's rebuilt HTML, not Stitch's raw output  
+**Status:** ✅ Implemented — deploy and rebuild
+---
+
+## ISSUE 014 — Step 4b cons addressed
+Four risks identified and resolved:
+
+**Cost (Sonnet ~$0.20/build):**  
+→ Switched to `claude-haiku-4-5` — ~20x cheaper, still reliable for HTML generation.
+
+**Speed (+30-60s):**  
+→ Accepted tradeoff — pipeline is 5-10min already. No fix needed.
+
+**Claude only sees 8k body snippet:**  
+→ Now passes full body up to 16k chars. If larger, sends first 8k + last 4k so both hero and footer sections are always included. Extracts ALL `<style>` blocks, not just the first.
+
+**Silent fallback (you'd never know it triggered):**  
+→ Fallback now sends an alert email to crayzewastaken@gmail.com with job ID and char count when it triggers. Also logs which required IDs are missing even on success.
+
+**Status:** ✅ All four resolved

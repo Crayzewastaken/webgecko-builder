@@ -148,23 +148,28 @@ CRITICAL RULES:
 1. Respond ONLY with a valid JSON object - no markdown, no backticks, no explanation
 2. Start with { and end with }
 3. Inside ALL string values use only single quotes, never raw double quotes
-4. stitchPrompt must be minimum 800 words and MUST include:
+4. stitchPrompt must be minimum 800 words and MUST include ALL of the following EXACTLY:
+
+STRUCTURE (non-negotiable — these exact HTML attributes must appear):
+   - header with sticky nav: logo left, desktop links right, and a button with id=hamburger class=md:hidden that toggles div with id=mobile-menu
+   - div id=mobile-menu sliding drawer with all nav links duplicated, hidden by default, closed by a button with aria-label=Close menu
+   - section id=hero full viewport hero with bold headline and CTA button that scrolls to booking
+   - section id=services services grid
+   - section id=testimonials with 3+ Australian names and 5-star ratings
+   - section id=faq accordion with 6+ Q&A pairs
+   - section id=contact with working form, real email ${clientEmail}, real phone ${clientPhone}
+   - footer with copyright ${currentYear} ${businessName}
+   ${bookingInstruction}
+   ${isMultiPage ? "- Each page is a div with class=page-section and a unique id matching the page name. Nav links have onclick calling window.navigateTo with the page id." : "- Single page: nav links scroll to section ids smoothly"}
+   ${features.includes("Photo Gallery") ? "- section id=gallery" : ""}
+   ${features.includes("Payments / Shop") && productsWithPhotos.length > 0 ? "- section id=shop with class=wg-buy-btn on product cards" : ""}
+
+CONTENT:
    - Exact business name: ${businessName}
    - Exact contact: email ${clientEmail}, phone ${clientPhone}${businessAddress ? ", address: " + businessAddress : ""}
    - Colour palette with hex codes
    - Google Fonts to use
-   - Hero: full viewport, bold headline 60-80px, subheadline, CTA button
-   - Sticky nav: logo left, links right, hamburger id=hamburger toggling id=mobile-menu
-   - Stats bar with 3-4 numbers
-   - Services section
-   - Testimonials id=testimonials with 3+ Australian names, 5-star ratings
-   - FAQ accordion id=faq with 6+ Q&A pairs
-   - Contact id=contact with form, real email, real phone
-   - Footer copyright ${currentYear}
-   ${bookingInstruction}
-   ${isMultiPage ? "- MULTI-PAGE: div.page-section per page, nav onclick=navigateTo" : "- SINGLE PAGE: smooth scroll href=#sectionid"}
-   ${features.includes("Photo Gallery") ? "- Gallery id=gallery" : ""}
-   ${features.includes("Payments / Shop") && productsWithPhotos.length > 0 ? "- Shop id=shop with class=wg-buy-btn on product cards" : ""}
+   - Stats bar with 3-4 numbers relevant to ${industry}
 
 Return exactly this JSON shape (no other text):
 {
