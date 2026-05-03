@@ -37,8 +37,8 @@ const buildWebsite = inngest.createFunction(
     retries: 1,
     triggers: [{ event: "build/website" }],
   },
-  async ({ event, step }: { event: { data: { jobId: string } }; step: any }) => {
-    const { jobId } = event.data;
+  async ({ event, step }: { event: { data: { jobId: string; isRebuild?: boolean } }; step: any }) => {
+    const { jobId, isRebuild = false } = event.data;
 
     // ── Load job ──────────────────────────────────────────────────────────────
     const job = await step.run("load-job", async () => {
@@ -49,6 +49,17 @@ const buildWebsite = inngest.createFunction(
       await saveJob(jobId, { ...j, status: "building" });
       return j;
     });
+
+    // ── REBUILD MODE: skip Stitch + Claude generation, reuse saved HTML ────────
+    // When triggered via /api/pipeline/run, isRebuild=true. Steps 0-4b are skipped
+    // so the visual design stays consistent and we do not hit Stitch again.
+    const savedHtmlForRebuild: string | null = (isRebuild && job.html && job.html.length > 5000)
+      ? job.html : null;
+    if (isRebuild) {
+      console.log(savedHtmlForRebuild
+        ? "[Rebuild] Using saved HTML (" + (job.html?.length ?? 0) + " chars) — skipping Stitch"
+        : "[Rebuild] No saved HTML — running full pipeline");
+    }
 
     const {
       userInput, logoUrl, heroUrl,
@@ -95,7 +106,9 @@ const buildWebsite = inngest.createFunction(
 
     // ── STEP 0: Brain 1 — Create SuperSaas schedule BEFORE Stitch so the booking
     // URL is embedded natively in the HTML by Stitch rather than injected after. ──
-    const bookingUrl = await step.run("step0-supersaas", async () => {
+    const bookingUrl = (isRebuild && job.supersaasUrl)
+      ? job.supersaasUrl
+      : await step.run("step0-supersaas", async () => {
       // Use client-provided URL if given — validate it looks like a real URL
       const existing = (userInput.existingBookingUrl || "").trim();
       if (existing) {
@@ -136,10 +149,13 @@ const buildWebsite = inngest.createFunction(
       }
       console.warn("[Step0] SuperSaas creation failed — will use placeholder booking section");
       return "";
-    });
+      });
+
 
     // ── STEP 1: Claude Haiku — Site Blueprint (Brain 1: Architect) ──────────
-    const spec = await step.run("step1-blueprint", async () => {
+    const spec = savedHtmlForRebuild
+      ? { projectTitle: job.title || "Website", stitchPrompt: "", palette: { primary: "#1a1a2e", accent: "#10b981", background: "#0a0f1a", surface: "#0f1623", text: "#e2e8f0" }, typography: { headingFont: "Inter", bodyFont: "Inter", heroSize: "72px" }, sections: [] as string[], tone: "", heroHeadline: "", heroSubheadline: "", ctaText: "", uniqueDesignIdea: "" }
+      : await step.run("step1-blueprint", async () => {
       const blueprint = await generateSiteBlueprint({
         businessName: userInput.businessName,
         industry: userInput.industry,
@@ -164,13 +180,14 @@ const buildWebsite = inngest.createFunction(
         productsWithPhotos,
       });
       return blueprint;
-    });
+      });
+
 
     console.log(`[Inngest] STEP 1 DONE (Blueprint): ${spec.projectTitle} — palette: ${spec.palette?.primary}`);
 
 
     // ── STEP 2: Create Stitch project ─────────────────────────────────────────
-    const projectId = await step.run("step2-stitch-create", async () => {
+    const projectId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step2-stitch-create", async () => {
       console.log(`[Inngest] STEP 2 START: creating Stitch project "${spec.projectTitle}"`);
       const project: any = await stitchClient.callTool("create_project", { title: spec.projectTitle });
       console.log(`[Inngest] STEP 2: Stitch response keys=${Object.keys(project||{}).join(",")}`);
@@ -178,13 +195,14 @@ const buildWebsite = inngest.createFunction(
       if (!pid) throw new Error("Stitch: no projectId returned. Response: " + JSON.stringify(project)?.slice(0, 200));
       console.log(`[Inngest] STEP 2 DONE: projectId=${pid}`);
       return pid;
-    });
+      }) as string;
+
 
     // ── STEP 3: Stitch generate ─────────────────────────────────────────────
     // IMPORTANT: Stitch SDK says "DO NOT RETRY" — generation can take minutes and
     // retrying causes duplicate charges + broken state. One attempt only.
     // Inngest's own step-level retry handles transient failures automatically.
-    const downloadUrl = await step.run("step3-stitch-generate", async () => {
+    const downloadUrl = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step3-stitch-generate", async () => {
       console.log(`[Inngest] STEP 3: Stitch generate (prompt: ${spec.stitchPrompt?.length} chars)`);
       const stitchResult: any = await stitchClient.callTool("generate_screen_from_text", {
         projectId,
@@ -243,10 +261,10 @@ const buildWebsite = inngest.createFunction(
 
       console.log(`[Inngest] STEP 3 DONE: downloadUrl obtained, HTML ${preCheck.length} chars, styleLen=${styleLen}, inlineStyles=${inlineStyleCount}`);
       return url;
-    });
+      }) as string;
 
     // ── STEP 4: Fetch HTML ────────────────────────────────────────────────────
-    const stitchHtml = await step.run("step4-fetch-html", async () => {
+    const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step4-fetch-html", async () => {
       const html = await fetch(downloadUrl).then(r => r.text());
       if (!html || html.length < 5000) throw new Error(`Stitch HTML too short (${html?.length ?? 0} chars)`);
       const skeletonPatterns = [/<h1>\s*(HOME PAGE|ABOUT PAGE|SERVICES PAGE|CONTACT PAGE|PAGE CONTENT)\s*<\/h1>/i, /const BOOKING_URL = "https:\/\/cal\.com\/your-link"/i];
@@ -257,12 +275,12 @@ const buildWebsite = inngest.createFunction(
       const inlineStyles = (html.match(/\bstyle=/gi) || []).length;
       if (styleContent.length < 100 && inlineStyles < 20) throw new Error(`Stitch HTML has no CSS (styleLen=${styleContent.length}, inline=${inlineStyles})`);
       return html;
-    });
+      });
 
     // ── STEP 4b: Claude rewrites Stitch HTML — preserves visual style, guarantees structure ──
     // Stitch gives us the visual design. Claude rewrites it as clean, fully-functional HTML
     // with all required structural elements guaranteed (ids, mobile nav, booking iframe, etc.)
-    const rebuiltHtml = await step.run("step4b-claude-rebuild", async () => {
+    const rebuiltHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step4b-claude-rebuild", async () => {
       // Extract ALL CSS blocks (some Stitch outputs have multiple <style> tags)
       const allCss = (stitchHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [])
         .map((s: string) => s.replace(/<\/?style[^>]*>/gi, "")).join("\n").slice(0, 8000);
@@ -305,8 +323,8 @@ const buildWebsite = inngest.createFunction(
 
       // For multi-page sites where Stitch gave incomplete output, Claude rebuilds as multi-page
       const multiPageNote = isMultiPage
-        ? `This is a MULTI-PAGE site with pages: ${pageList}. Each page must be a <div class="page-section" id="PAGENAME" data-page="PAGENAME"> element. First page has no extra style (visible), all others have style="display:none". Nav links use onclick="navigateTo('PAGENAME')". Include a navigateTo(id) JS function that removes .active from all .page-section divs and adds it to the target, and a toggleDrawer() for mobile nav.`
-        : `This is a SINGLE-PAGE site. Nav links use onclick="document.getElementById('SECTIONID')?.scrollIntoView({behavior:'smooth'})".`;
+        ? `This is a MULTI-PAGE site with pages: ${pageList}. REQUIRED CSS inside your <style> tag (do not omit): .page-section{display:none!important} .page-section.active{display:block!important} — Each page is a <div class="page-section" id="PAGENAME" data-page="PAGENAME">. The FIRST page div gets class="page-section active", all others get class="page-section" only (no inline style). Nav links use onclick="navigateTo('PAGENAME')". DO NOT define a navigateTo() JS function — it will be injected automatically, and a duplicate will break navigation.`
+        : `This is a SINGLE-PAGE site. Nav links use onclick="document.getElementById('SECTIONID')?.scrollIntoView({behavior:'smooth'})`;
 
       const prompt = `You are a senior front-end developer. I have a Stitch-generated website design below. Your job is to rewrite it as a complete, production-ready HTML file that EXACTLY preserves the visual design (colors, fonts, layout, imagery style) but guarantees all structural and functional requirements.
 
@@ -325,8 +343,9 @@ ABSOLUTE REQUIREMENTS — every single one must be present in your output:
 1. Sticky header with logo/business name + desktop nav links + hamburger button (id="hamburger") for mobile
 2. <div id="mobile-menu" style="display:none;position:fixed;top:0;right:0;width:80%;max-width:300px;height:100vh;z-index:9999;background:#fff;"> — mobile drawer with all nav links + close button
 ${isMultiPage ? `3. MULTI-PAGE STRUCTURE: Each page is a <div class="page-section" id="PAGENAME" data-page="PAGENAME">. Pages: ${pageList.split(", ").map((p: string, i: number) => p.toLowerCase()).join(", ")}. First page has class="page-section active", all others class="page-section". CSS must include: .page-section{display:none} .page-section.active{display:block}
-4. navigateTo(id) JS function: removes .active from all .page-section elements, adds .active to getElementById(id), scrolls to top
-5. toggleDrawer() JS function for hamburger
+4. DO NOT define a navigateTo() JS function — it will be injected automatically. DO define toggleDrawer() for the hamburger button.
+
+5. All nav links and CTA buttons that should navigate to a page must have onclick="navigateTo('PAGENAME')" with the correct page id.
 6. Each page must have full rich content — hero, services, about info, testimonials, FAQ, contact form as appropriate per page
 7. <section id="contact"> inside the Contact page with name/email/phone/message form. Real email: ${clientEmail}, phone: ${clientPhone}
 8. <footer> — copyright © ${new Date().getFullYear()} ${userInput.businessName}
@@ -379,7 +398,8 @@ RULES:
 
       console.log("[Step4b] Claude rebuilt HTML: " + extracted.length + " chars (Stitch was " + stitchHtml.length + " chars). Missing ids: " + (missingIds.join(",") || "none"));
       return extracted;
-    });
+      });
+
 
     // ── STEP 5: Code-only fix pass ────────────────────────────────────────────
     const fixedHtml = await step.run("step5-code-fix", async () => {
@@ -462,34 +482,26 @@ RULES:
         }
       }
 
-      // Strip Stitch-generated scripts that define navigateTo or page-switching logic —
-      // EXCEPTION: for multi-page sites, Stitch's navigateTo is the correct implementation
-      // (it toggles .active class which matches Stitch's CSS). Don't strip it.
-      if (!isMultiPage) {
-        html = html.replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, (m: string, body: string) => {
-          const definesNavigateTo = /function\s+navigateTo/.test(body) || /window\.navigateTo\s*=/.test(body) || /var\s+navigateTo\s*=/.test(body);
-          const definesPageSwitch = /function\s+showPage/.test(body) || /function\s+switchPage/.test(body) || /\.page-section['"\s]*[,{]/.test(body);
-          if (definesNavigateTo || definesPageSwitch) {
-            console.log("[Step5] Stripped conflicting Stitch script (" + body.length + " chars, navigateTo=" + definesNavigateTo + " pageSwitch=" + definesPageSwitch + ")");
-            return "";
-          }
-          return m;
-        });
-      } else {
-        console.log("[Step5] Multi-page: keeping Stitch navigateTo script (uses .active class toggle)");
-      }
-
-      // Replace Stitch's showPage('pageid') calls with our navigateTo('pageid') —
-      // Stitch generates showPage() for all nav links but we strip its showPage definition above,
-      // which leaves nav clicks doing nothing. This converts them to our injected navigateTo().
-      if (isMultiPage) {
-        const showPageCount = (html.match(/showPage\s*\(/g) || []).length;
-        if (showPageCount > 0) {
-          html = html.replace(/\bshowPage\s*\(\s*['"]([^'"]+)['"]\s*\)/g, (_m: string, pageId: string) => {
-            return `navigateTo('${pageId.toLowerCase()}')`;
-          });
-          console.log(`[Step5] Replaced ${showPageCount} showPage() calls with navigateTo()`);
+      // Strip ALL Stitch scripts defining navigateTo or page-switching.
+      // injectEssentials (Step 6) always injects our authoritative navigateTo
+      // which handles both multi-page (.active toggling) and single-page (scroll).
+      html = html.replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, (m: string, body: string) => {
+        const definesNavigateTo = /function\s+navigateTo/.test(body) || /window\.navigateTo\s*=/.test(body) || /var\s+navigateTo\s*=/.test(body);
+        const definesPageSwitch = /function\s+showPage/.test(body) || /function\s+switchPage/.test(body) || /\.page-section['\"\s]*[,{]/.test(body);
+        if (definesNavigateTo || definesPageSwitch) {
+          console.log("[Step5] Stripped Stitch script (" + body.length + " chars, navigateTo=" + definesNavigateTo + " pageSwitch=" + definesPageSwitch + ")");
+          return "";
         }
+        return m;
+      });
+
+      // Replace any showPage('id') calls with navigateTo('id') — all site types.
+      const showPageCount = (html.match(/showPage\s*\(/g) || []).length;
+      if (showPageCount > 0) {
+        html = html.replace(/\bshowPage\s*\(\s*['"]([^'"]+)['"]\s*\)/g, (_m: string, pageId: string) => {
+          return `navigateTo('${pageId.toLowerCase()}')`;
+        });
+        console.log(`[Step5] Replaced ${showPageCount} showPage() calls with navigateTo()`);
       }
 
       return html;
@@ -777,7 +789,8 @@ RULES:
         // If navigateTo missing on multi-page — re-inject via injectEssentials is too heavy;
         // just ensure the script tag is present
         if (isMultiPage && !patched.includes("navigateTo")) {
-          patched = patched.replace("</body>", "<script>window.navigateTo=function(id){var dp=document.querySelectorAll('[data-page]');var ps=document.querySelectorAll('.page-section[id]');var pages=dp.length>1?dp:ps;if(pages.length>1){pages.forEach(function(p){p.style.display='none';p.classList.remove('active');});var t=document.querySelector('[data-page=\"'+id+'\"]') || document.getElementById(id);if(t){t.style.display='block';t.classList.add('active');window.scrollTo({top:0,behavior:'smooth'});}}else{var t=document.getElementById(id);if(t)t.scrollIntoView({behavior:'smooth'});}};\n</script>\n</body>");
+          patched = patched.replace("</body>", '<script>\n' + 'window.navigateTo=function(pageId){\n' + '  var d=document.getElementById("mobile-menu")||document.getElementById("mobile-drawer")||document.getElementById("side-drawer");\n' + '  if(d){d.classList.remove("translate-x-0");d.classList.add("translate-x-full","hidden");d.style.display="none";}\n' + '  var ss=document.querySelectorAll(".page-section");\n' + '  if(ss.length>1){ss.forEach(function(s){s.classList.remove("active");});var t=document.getElementById(pageId)||document.querySelector("[data-page=\\"" + pageId + "\\"]");if(t){t.classList.add("active");t.style.display="";window.scrollTo({top:0,behavior:"smooth"});}return;}\n' + '  var el=document.getElementById(pageId);if(el)el.scrollIntoView({behavior:"smooth"});\n' + '};\n' + '</script>\n</body>');
+
           console.log("[FailLoop] Re-injected navigateTo");
         }
 

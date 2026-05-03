@@ -9,7 +9,7 @@ import { inngest } from "@/lib/inngest";
 import { getJob } from "@/lib/db";
 
 export async function runPipeline(jobId: string): Promise<{ success: boolean; error?: string }> {
-  await inngest.send({ name: "build/website", data: { jobId } });
+  await inngest.send({ name: "build/website", data: { jobId, isRebuild: true } });
   return { success: true };
 }
 
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  await inngest.send({ name: "build/website", data: { jobId } });
+  await inngest.send({ name: "build/website", data: { jobId, isRebuild: true } });
 
   return new Response(
     `<!DOCTYPE html><html><body style="font-family:sans-serif;background:#0f172a;color:white;padding:40px;text-align:center;">
@@ -53,6 +53,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  await inngest.send({ name: "build/website", data: { jobId } });
+  await inngest.send({ name: "build/website", data: { jobId, isRebuild: true } });
   return NextResponse.json({ success: true, queued: true, jobId });
 }

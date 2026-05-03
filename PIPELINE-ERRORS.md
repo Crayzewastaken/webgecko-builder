@@ -198,3 +198,36 @@ _All issues logged here. Format: symptom → root cause → fix → status. Date
 **Root cause (C):** When Claude rebuild ran for multi-page jobs, requirements list still listed single-page sections instead of multi-page page divs.
 **Fix:** Step 4b now validates before skipping: requires `pageSectionCount >= 2` AND `navCallCount >= 2`. Auditor uses same `isValidMultiPage` check. Step 4b requirements list is dynamic — multi-page path instructs Claude to build `<div class="page-section">` pages with `navigateTo()` + `toggleDrawer()` + CSS; single-page uses scroll sections.
 **Status:** ✅ Fixed — deploy and rebuild
+
+---
+
+## ISSUE 020 — Multi-page nav buttons broken + rebuild produces completely different site
+**Date:** 2026-05-03
+**Symptom (A):** Nav buttons on multi-page sites don't switch pages at all — clicking does nothing.
+**Symptom (B):** Triggering a rebuild via "🔄 Rebuild Site" produces a visually completely different site with new layout/colours.
+**Root cause (A) — Three competing navigateTo definitions racing each other:**
+  1. `injectEssentials` conditionally defined `navigateTo` only if `!window.navigateTo` — so if Stitch's version existed it was kept, even if broken
+  2. A wrapper IIFE then captured `_orig = window.navigateTo` at execution time — if Stitch's script tag appeared *after* the injected script in the HTML, `_orig` was `undefined` at capture time
+  3. The wrapper called `_orig(pageId)` — with `_orig = undefined`, navigation silently did nothing
+  4. Additionally Step 5 had `if (!isMultiPage)` guard on Stitch script stripping — so Stitch's broken/conflicting `navigateTo` was kept intact for multi-page builds
+**Root cause (B) — Rebuild re-runs entire pipeline including Stitch generation:**
+  - `/api/pipeline/run` fired `inngest.send("build/website")` with no flags
+  - Pipeline ran Steps 0–4b: Stitch generated a brand-new design, Claude rebuilt that new output
+  - No mechanism existed to reuse the saved HTML from the first build
+**Fix (A) — Single authoritative navigateTo:**
+  - Removed `if (!window.navigateTo)` guard and IIFE wrapper entirely
+  - `injectEssentials` now always defines `window.navigateTo` unconditionally
+  - New implementation detects multi-page vs single-page at runtime: `querySelectorAll(".page-section").length > 1` → toggle `.active` class; else → `scrollIntoView`
+  - Clears inline `display` style on activated section (Claude sometimes bakes in `style="display:none"` which blocks CSS)
+  - Multi-page init now always removes `.active` from all sections then adds it to first, and injects a `<style data-wg-mp>` CSS guarantee block if missing
+  - Step 5 strips Stitch's `navigateTo` and `showPage` scripts unconditionally (removed `if (!isMultiPage)` guard)
+  - Step 5 `showPage()` replacement now runs for all site types, not just multi-page
+  - Claude rebuild prompt updated: tells Claude to include required CSS + NOT define `navigateTo()` (it will be injected)
+  - FailLoop re-injection updated to use `.active` class toggling instead of `style.display`
+**Fix (B) — Rebuild reuses saved HTML:**
+  - `/api/pipeline/run` now sends `isRebuild: true` in Inngest event data
+  - Pipeline reads `isRebuild` and sets `savedHtmlForRebuild = job.html` if saved HTML exists (>5000 chars)
+  - Steps 0–4b all short-circuit when `savedHtmlForRebuild` is set: SuperSaas reuses `job.supersaasUrl`, blueprint returns cached dummy, Stitch steps return `"rebuild-skipped"`, step 4b returns saved HTML directly
+  - Steps 5–10 (inject, audit, deploy, smoke, save) run normally on the saved HTML → incremental fixes only
+**Files changed:** `lib/pipeline-helpers.ts`, `app/api/inngest/route.ts`, `app/api/pipeline/run/route.ts`
+**Status:** ✅ Fixed

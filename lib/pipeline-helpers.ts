@@ -258,30 +258,39 @@ export function injectEssentials(html: string, email: string, phone: string, job
     }
   });
 })();
-// Only define navigateTo if Stitch didn't already provide one.
-// Stitch's multi-page navigateTo uses .active CSS class toggling — don't override it.
-if (!window.navigateTo) {
-  window.navigateTo = function(pageId) {
-    // Close any open mobile drawer/menu first
-    var mm = document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.getElementById("side-drawer");
-    if (mm) { mm.classList.add("hidden"); mm.style.display = "none"; mm.classList.remove("translate-x-0"); mm.classList.add("translate-x-full"); }
+// Authoritative navigateTo — always defined here, Stitch version stripped in Step 5.
+// Handles multi-page (.active class toggling) and single-page (scroll to id).
+window.navigateTo = function(pageId) {
+  // Close any open mobile drawer first
+  var drawer = document.getElementById("mobile-menu") || document.getElementById("mobile-drawer") || document.getElementById("side-drawer") || document.getElementById("mobile-nav") || document.getElementById("wg-drawer");
+  if (drawer) {
+    drawer.classList.remove("translate-x-0");
+    drawer.classList.add("translate-x-full", "hidden");
+    drawer.style.display = "none";
+    drawer.style.transform = "translateX(100%)";
+  }
+  var overlay = document.getElementById("wg-overlay");
+  if (overlay) overlay.style.display = "none";
 
-    // Single-page: scroll to target element. 'home' scrolls to top.
-    if (pageId === "home" || pageId === "top") { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
-    var t = document.getElementById(pageId) || document.getElementById("page-" + pageId) || document.querySelector('[id*="' + pageId + '"]');
-    if (t) { t.scrollIntoView({ behavior: "smooth", block: "start" }); }
-    else { window.scrollTo({ top: 0, behavior: "smooth" }); }
-  };
-}
-// Wrap Stitch's navigateTo to also close the mobile drawer when a page is selected
-(function() {
-  var _orig = window.navigateTo;
-  window.navigateTo = function(pageId) {
-    var mm = document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.getElementById("side-drawer") || document.getElementById("mobile-drawer");
-    if (mm) { mm.classList.add("hidden", "translate-x-full"); mm.classList.remove("translate-x-0"); mm.style.display = "none"; mm.style.transform = "translateX(100%)"; }
-    if (_orig) _orig(pageId);
-  };
-})();
+  // Multi-page: toggle .active class on .page-section elements
+  var sections = document.querySelectorAll(".page-section");
+  if (sections.length > 1) {
+    sections.forEach(function(s) { s.classList.remove("active"); });
+    var target = document.getElementById(pageId) || document.querySelector("[data-page='" + pageId + "']");
+    if (target) {
+      target.classList.add("active");
+      target.style.display = "";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    return;
+  }
+
+  // Single-page: scroll to section by id
+  if (pageId === "home" || pageId === "top") { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+  var el = document.getElementById(pageId);
+  if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  else { window.scrollTo({ top: 0, behavior: "smooth" }); }
+};
 document.querySelectorAll("a,button").forEach(function(el) {
   var oc = el.getAttribute("onclick") || "", hr = el.getAttribute("href") || "", dn = el.getAttribute("data-nav") || "", dp = el.getAttribute("data-page") || "";
   if (oc.includes("navigateTo")) return;
@@ -445,18 +454,24 @@ document.querySelectorAll("form").forEach(function(form) {
     form.querySelectorAll("input,textarea,select,button[type='submit']").forEach(function(el) { el.setAttribute("disabled", "true"); });
   });
 });
-// Multi-page init: ensure first .page-section has the .active class.
-// Stitch uses CSS: .page-section { display:none } / .page-section.active { display:block }
-// We only manage the .active class — never set inline display styles (they'd override CSS).
+// Multi-page init: activate first .page-section, deactivate all others.
+// Also injects failsafe CSS in case Claude omitted .page-section rules,
+// and clears any inline display style that would block the CSS from working.
 (function() {
   var pageSections = document.querySelectorAll(".page-section");
   if (pageSections.length > 1) {
-    var hasActive = false;
-    pageSections.forEach(function(p) { if (p.classList.contains("active")) hasActive = true; });
-    if (!hasActive) {
-      pageSections[0].classList.add("active");
-      console.log("[WG] Multi-page init: activated first section", pageSections[0].id);
+    // Inject CSS guarantee if missing
+    if (!document.querySelector("style[data-wg-mp]")) {
+      var s = document.createElement("style");
+      s.setAttribute("data-wg-mp", "1");
+      s.textContent = ".page-section{display:none!important}.page-section.active{display:block!important}";
+      document.head.appendChild(s);
     }
+    // Remove all active classes, then activate first section
+    pageSections.forEach(function(p) { p.classList.remove("active"); });
+    pageSections[0].classList.add("active");
+    pageSections[0].style.display = "";
+    console.log("[WG] Multi-page init: activated", pageSections[0].id || "section[0]");
   }
 })()
 })();
