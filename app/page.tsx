@@ -183,6 +183,7 @@ export default function HomePage() {
   const [businessAddress, setBusinessAddress] = useState("");
   const [facebookPage, setFacebookPage] = useState("");
   const [existingBookingUrl, setExistingBookingUrl] = useState("");
+  const [bookingServices, setBookingServices] = useState(""); // comma-sep list of services for SuperSaas dropdown
   const [confirmRemovePage, setConfirmRemovePage] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [heroFile, setHeroFile] = useState<File | null>(null);
@@ -281,8 +282,8 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    saveToStorage({ businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, businessAddress, facebookPage, existingBookingUrl, step });
-  }, [businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, businessAddress, facebookPage, existingBookingUrl, step]);
+    saveToStorage({ businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, businessAddress, facebookPage, existingBookingUrl, bookingServices, step });
+  }, [businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, businessAddress, facebookPage, existingBookingUrl, bookingServices, step]);
 
   useEffect(() => {
     if (currentStepId !== 'contact') return;
@@ -387,7 +388,7 @@ export default function HomePage() {
 
     const formData = new FormData();
     const industryValue = industry === "Other" ? (industryOther.trim() || "Other") : industry;
-    const fields: Record<string, string> = { businessName, industry: industryValue, usp, existingWebsite, targetAudience, goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, ga4Id, businessAddress, facebookPage, existingBookingUrl, turnstileToken };
+    const fields: Record<string, string> = { businessName, industry: industryValue, usp, existingWebsite, targetAudience, goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, ga4Id, businessAddress, facebookPage, existingBookingUrl, bookingServices, turnstileToken };
     Object.entries(fields).forEach(([k, v]) => formData.append(k, v));
     formData.append("pages", JSON.stringify(pages));
     formData.append("features", JSON.stringify(features));
@@ -433,35 +434,40 @@ export default function HomePage() {
     </div>
   );
 
-  // submitted banner shown inline in form below
+  if (submitted) {
+    return (
+      <main className="min-h-screen bg-[#0a0f1a] text-white flex items-center justify-center p-6">
+        <div className="max-w-lg w-full text-center">
+          <div className="w-24 h-24 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center mx-auto mb-8">
+            <span className="text-5xl">✓</span>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-bold mb-3">Request Submitted!</h1>
+          <p className="text-slate-400 text-base md:text-lg mb-8">Your website request has been received. Your confirmation email will arrive within <strong className="text-white">2 to 5 minutes</strong>.</p>
+          <div className="bg-[#0f1623] border border-white/10 rounded-3xl p-6 text-left space-y-4 mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl flex-shrink-0">📧</div>
+              <div><p className="text-white font-semibold text-sm">Check your email</p><p className="text-slate-400 text-sm">{email}</p></div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl flex-shrink-0">📞</div>
+              <div><p className="text-white font-semibold text-sm">We will call you within 24 hours</p><p className="text-slate-400 text-sm">{phone}</p></div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl flex-shrink-0">🌐</div>
+              <div><p className="text-white font-semibold text-sm">{businessName}</p><p className="text-slate-400 text-sm">We will prepare your custom quote and send it through.</p></div>
+            </div>
+          </div>
+          <p className="text-slate-600 text-sm">Didn't receive an email? Check spam or contact <span className="text-slate-400">hello@webgecko.au</span></p>
+          <button onClick={() => setSubmitted(false)} className="mt-6 text-sm text-slate-600 hover:text-slate-400 transition-colors">← Submit another request</button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[#0a0f1a] text-white p-3 md:p-8">
       <div className="max-w-6xl mx-auto grid lg:grid-cols-[1fr_300px] gap-4 md:gap-6">
         <div className="rounded-2xl md:rounded-3xl bg-[#0f1623] border border-white/8 p-5 md:p-10 shadow-2xl">
-
-          {/* Submitted banner */}
-          {submitted && (
-            <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 rounded-2xl px-5 py-3 mb-5">
-              <div className="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
-                <span>✓</span> Already submitted
-              </div>
-              <button
-                onClick={() => {
-                  setBusinessName(""); setIndustry(""); setIndustryOther(""); setUsp(""); setExistingWebsite("");
-                  setTargetAudience(""); setGoal(""); setSiteType(""); setPages([]); setSelectedBundles([]);
-                  setHasPricing(""); setPricingType(""); setPricingMethod(""); setPricingDetails(""); setPricingUrl("");
-                  setStyle(""); setColorPrefs(""); setReferences(""); setHasLogo(""); setHasContent("");
-                  setAdditionalNotes(""); setName(""); setEmail(""); setPhone(""); setAbn(""); setDomain("");
-                  setBusinessAddress(""); setFacebookPage(""); setExistingBookingUrl("");
-                  setStep(1); setSubmitted(false); setErrors([]);
-                  localStorage.removeItem("wg_intake_v2");
-                }}
-                className="text-xs text-slate-500 hover:text-red-400 transition-colors border border-white/10 rounded-xl px-3 py-1.5"
-              >
-                Clear all fields
-              </button>
-            </div>
-          )}
 
           {/* Header */}
           <div className="flex items-center gap-3 mb-5">
@@ -783,6 +789,7 @@ export default function HomePage() {
                   {existingBookingUrl !== undefined && (
                     <InputField icon="🔗" label="Your booking link" value={existingBookingUrl} onChange={(e: any) => setExistingBookingUrl(e.target.value)} placeholder="e.g. https://supersaas.com/schedule/yourbusiness/appointments" hint="We'll embed this directly into your site." />
                   )}
+                  <InputField icon="🗂️" label="Services offered (for booking dropdown)" value={bookingServices} onChange={(e: any) => setBookingServices(e.target.value)} placeholder="e.g. Haircut, Colour, Blowdry" hint="List the services clients can book — comma separated. These will be added as options in the booking form." />
                 </div>
               )}
               <div className="border-t border-white/8 pt-5 space-y-4">

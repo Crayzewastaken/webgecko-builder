@@ -79,9 +79,10 @@ export async function auditAndFixSite(
   if (clientPhone && !html.includes(clientPhone.replace(/\s/g, "")) && !html.includes(clientPhone)) add(AuditErrorType.PLACEHOLDER_PHONE, "Missing real phone: " + clientPhone);
   const hasHamburger = html.includes('id="hamburger"') || /data-icon=["']menu["']/.test(html) || /aria-label=["'](?:open menu|menu|toggle)["']/i.test(html);
   if (!hasHamburger) add(AuditErrorType.MISSING_HAMBURGER, 'Missing id="hamburger"');
-  if (!html.includes('id="contact"'))   add(AuditErrorType.MISSING_CONTACT,   'Missing id="contact"');
-  if (!html.includes('id="faq"'))        add(AuditErrorType.MISSING_FAQ,       'Missing id="faq"');
-  if (!html.includes('id="testimonials"')) add(AuditErrorType.MISSING_TESTIMONIALS, 'Missing id="testimonials"');
+  // For multi-page sites, faq/testimonials/contact live inside page divs — don't check for them as top-level sections
+  if (!isMultiPage && !html.includes('id="contact"'))   add(AuditErrorType.MISSING_CONTACT,   'Missing id="contact"');
+  if (!isMultiPage && !html.includes('id="faq"'))        add(AuditErrorType.MISSING_FAQ,       'Missing id="faq"');
+  if (!isMultiPage && !html.includes('id="testimonials"')) add(AuditErrorType.MISSING_TESTIMONIALS, 'Missing id="testimonials"');
   if (hasBooking && !html.includes('id="booking"')) add(AuditErrorType.MISSING_BOOKING, 'Missing id="booking"');
   if (isMultiPage && html.includes('href="#')) add(AuditErrorType.BROKEN_NAV_LINKS, "Multi-page href=# links");
   if (html.includes("placeholder@") || html.includes("example.com") || html.includes("yourname@")) add(AuditErrorType.PLACEHOLDER_EMAIL, "Placeholder email found");

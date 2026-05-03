@@ -114,6 +114,7 @@ const buildWebsite = inngest.createFunction(
         businessName: userInput.businessName,
         clientEmail,
         timezone: "Australia/Brisbane",
+        bookingServices: userInput.bookingServices || "",
       });
       if (schedule) {
         // Save schedule + sub-user credentials so the welcome email can include them
@@ -287,9 +288,17 @@ const buildWebsite = inngest.createFunction(
 </section>`
         : "";
 
-      const multiPageNote = isMultiPage
-        ? `This is a MULTI-PAGE site with pages: ${pageList}. Each page must be a <div class="page-section" id="PAGENAME"> element. Nav links must use onclick="window.navigateTo&&window.navigateTo('PAGENAME')".`
-        : `This is a SINGLE-PAGE site. Nav links must use onclick="document.getElementById('SECTIONID')?.scrollIntoView({behavior:'smooth'})".`;
+      // MULTI-PAGE: Skip Claude rebuild — Stitch handles multi-page structure correctly.
+      // Claude's single-page requirements (hero, testimonials, faq sections) conflict with
+      // multi-page page-switching architecture. Stitch already generates id="home", id="services"
+      // etc. as proper page divs with navigateTo() nav. We just need to ensure the booking
+      // section gets injected correctly by step6c downstream.
+      if (isMultiPage) {
+        console.log("[Step4b] Multi-page site — skipping Claude rebuild, using Stitch HTML directly");
+        return stitchHtml;
+      }
+
+      const multiPageNote = `This is a SINGLE-PAGE site. Nav links must use onclick="document.getElementById('SECTIONID')?.scrollIntoView({behavior:'smooth'})".`;
 
       const prompt = `You are a senior front-end developer. I have a Stitch-generated website design below. Your job is to rewrite it as a complete, production-ready HTML file that EXACTLY preserves the visual design (colors, fonts, layout, imagery style) but guarantees all structural and functional requirements.
 
@@ -442,17 +451,21 @@ RULES:
       }
 
       // Strip Stitch-generated scripts that define navigateTo or page-switching logic —
-      // our injected script in pipeline-helpers handles all of this correctly.
-      // Only strip scripts that explicitly define these functions to avoid over-stripping.
-      html = html.replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, (m: string, body: string) => {
-        const definesNavigateTo = /function\s+navigateTo\b/.test(body) || /window\.navigateTo\s*=/.test(body) || /var\s+navigateTo\s*=/.test(body);
-        const definesPageSwitch = /function\s+showPage\b/.test(body) || /function\s+switchPage\b/.test(body) || /\.page-section['"\s]*[,{]/.test(body);
-        if (definesNavigateTo || definesPageSwitch) {
-          console.log("[Step5] Stripped conflicting Stitch script (" + body.length + " chars, navigateTo=" + definesNavigateTo + " pageSwitch=" + definesPageSwitch + ")");
-          return "";
-        }
-        return m;
-      });
+      // EXCEPTION: for multi-page sites, Stitch's navigateTo is the correct implementation
+      // (it toggles .active class which matches Stitch's CSS). Don't strip it.
+      if (!isMultiPage) {
+        html = html.replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, (m: string, body: string) => {
+          const definesNavigateTo = /function\s+navigateTo/.test(body) || /window\.navigateTo\s*=/.test(body) || /var\s+navigateTo\s*=/.test(body);
+          const definesPageSwitch = /function\s+showPage/.test(body) || /function\s+switchPage/.test(body) || /\.page-section['"\s]*[,{]/.test(body);
+          if (definesNavigateTo || definesPageSwitch) {
+            console.log("[Step5] Stripped conflicting Stitch script (" + body.length + " chars, navigateTo=" + definesNavigateTo + " pageSwitch=" + definesPageSwitch + ")");
+            return "";
+          }
+          return m;
+        });
+      } else {
+        console.log("[Step5] Multi-page: keeping Stitch navigateTo script (uses .active class toggle)");
+      }
 
       // Replace Stitch's showPage('pageid') calls with our navigateTo('pageid') —
       // Stitch generates showPage() for all nav links but we strip its showPage definition above,
@@ -752,7 +765,7 @@ RULES:
         // If navigateTo missing on multi-page — re-inject via injectEssentials is too heavy;
         // just ensure the script tag is present
         if (isMultiPage && !patched.includes("navigateTo")) {
-          patched = patched.replace("</body>", "<script>window.navigateTo=function(id){var el=document.getElementById(id)||document.querySelector('[data-page=\"'+id+'\"]');if(el){el.scrollIntoView({behavior:\"smooth\"});}}</script>\n</body>");
+          patched = patched.replace("</body>", "<script>window.navigateTo=function(id){var dp=document.querySelectorAll('[data-page]');var ps=document.querySelectorAll('.page-section[id]');var pages=dp.length>1?dp:ps;if(pages.length>1){pages.forEach(function(p){p.style.display='none';p.classList.remove('active');});var t=document.querySelector('[data-page=\"'+id+'\"]') || document.getElementById(id);if(t){t.style.display='block';t.classList.add('active');window.scrollTo({top:0,behavior:'smooth'});}}else{var t=document.getElementById(id);if(t)t.scrollIntoView({behavior:'smooth'});}};\n</script>\n</body>");
           console.log("[FailLoop] Re-injected navigateTo");
         }
 
@@ -935,6 +948,7 @@ RULES:
         <li>Click <strong>New Schedule</strong></li>
         <li>Name it exactly: <strong style="color:#fbbf24;font-family:monospace;">${fileName}</strong></li>
         <li>Configure hours, slot duration, notifications to <strong>${clientEmail}</strong></li>
+        ${userInput.bookingServices ? `<li>Add a <strong>Drop-down list</strong> field named "Service" with options: <strong>${userInput.bookingServices}</strong></li>` : ""}
         <li>Save — the booking iframe on the site will automatically use this schedule</li>
         <li>Once done, click <a href="${base}/api/pipeline/run?jobId=${jobId}&secret=${secret}" style="color:#fbbf24;font-weight:700;">🔄 Rebuild Site</a> — the booking iframe will automatically use the new schedule</li>
       </ol>

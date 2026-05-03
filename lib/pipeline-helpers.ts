@@ -258,32 +258,30 @@ export function injectEssentials(html: string, email: string, phone: string, job
     }
   });
 })();
-window.navigateTo = function(pageId) {
-  // Close any open mobile drawer/menu first
-  var mm = document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.getElementById("side-drawer");
-  if (mm) { mm.classList.add("hidden"); mm.style.display = "none"; mm.classList.remove("translate-x-0"); mm.classList.add("translate-x-full"); }
+// Only define navigateTo if Stitch didn't already provide one.
+// Stitch's multi-page navigateTo uses .active CSS class toggling — don't override it.
+if (!window.navigateTo) {
+  window.navigateTo = function(pageId) {
+    // Close any open mobile drawer/menu first
+    var mm = document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.getElementById("side-drawer");
+    if (mm) { mm.classList.add("hidden"); mm.style.display = "none"; mm.classList.remove("translate-x-0"); mm.classList.add("translate-x-full"); }
 
-  // Determine if this is a true multi-page site (elements with data-page attribute)
-  var realPages = document.querySelectorAll("[data-page]");
-  var isMultiPage = realPages.length > 1;
-
-  if (isMultiPage) {
-    // Multi-page: hide all pages, show target
-    document.querySelectorAll("[data-page]").forEach(function(p) { p.style.display = "none"; p.classList.remove("active"); });
-    var target = document.querySelector('[data-page="' + pageId + '"]') || document.getElementById(pageId);
-    if (target) { target.style.display = "block"; target.classList.add("active"); window.scrollTo({ top: 0, behavior: "smooth" }); }
-    return;
-  }
-
-  // Single-page: always scroll to target element. 'home' scrolls to top.
-  if (pageId === "home" || pageId === "top") {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    return;
-  }
-  var t = document.getElementById(pageId) || document.getElementById("page-" + pageId) || document.querySelector('[id*="' + pageId + '"]');
-  if (t) { t.scrollIntoView({ behavior: "smooth", block: "start" }); }
-  else { window.scrollTo({ top: 0, behavior: "smooth" }); }
-};
+    // Single-page: scroll to target element. 'home' scrolls to top.
+    if (pageId === "home" || pageId === "top") { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+    var t = document.getElementById(pageId) || document.getElementById("page-" + pageId) || document.querySelector('[id*="' + pageId + '"]');
+    if (t) { t.scrollIntoView({ behavior: "smooth", block: "start" }); }
+    else { window.scrollTo({ top: 0, behavior: "smooth" }); }
+  };
+}
+// Wrap Stitch's navigateTo to also close the mobile drawer when a page is selected
+(function() {
+  var _orig = window.navigateTo;
+  window.navigateTo = function(pageId) {
+    var mm = document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.getElementById("side-drawer") || document.getElementById("mobile-drawer");
+    if (mm) { mm.classList.add("hidden", "translate-x-full"); mm.classList.remove("translate-x-0"); mm.style.display = "none"; mm.style.transform = "translateX(100%)"; }
+    if (_orig) _orig(pageId);
+  };
+})();
 document.querySelectorAll("a,button").forEach(function(el) {
   var oc = el.getAttribute("onclick") || "", hr = el.getAttribute("href") || "", dn = el.getAttribute("data-nav") || "", dp = el.getAttribute("data-page") || "";
   if (oc.includes("navigateTo")) return;
@@ -447,19 +445,20 @@ document.querySelectorAll("form").forEach(function(form) {
     form.querySelectorAll("input,textarea,select,button[type='submit']").forEach(function(el) { el.setAttribute("disabled", "true"); });
   });
 });
-// Multi-page init: ONLY activate hide/show for elements with explicit data-page attribute.
-// NEVER hide .page-section elements — Stitch uses that class as pure visual styling on all sections.
-var realPageWrappers = document.querySelectorAll("[data-page]");
-if (realPageWrappers.length > 1) {
-  var ha = false;
-  realPageWrappers.forEach(function(p) { if (p.classList.contains("active") || p.style.display !== "none") ha = true; });
-  if (!ha) {
-    realPageWrappers.forEach(function(p, i) {
-      if (i === 0) { p.style.display = "block"; p.classList.add("active"); }
-      else { p.style.display = "none"; }
-    });
+// Multi-page init: ensure first .page-section has the .active class.
+// Stitch uses CSS: .page-section { display:none } / .page-section.active { display:block }
+// We only manage the .active class — never set inline display styles (they'd override CSS).
+(function() {
+  var pageSections = document.querySelectorAll(".page-section");
+  if (pageSections.length > 1) {
+    var hasActive = false;
+    pageSections.forEach(function(p) { if (p.classList.contains("active")) hasActive = true; });
+    if (!hasActive) {
+      pageSections[0].classList.add("active");
+      console.log("[WG] Multi-page init: activated first section", pageSections[0].id);
+    }
   }
-}
+})()
 })();
 </script>`;
 

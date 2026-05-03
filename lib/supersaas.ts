@@ -46,6 +46,7 @@ export async function createSuperSaasSchedule(params: {
   businessName: string;
   clientEmail: string;
   timezone?: string;
+  bookingServices?: string; // comma-separated list of services for the schedule
 }): Promise<SuperSaasSchedule | null> {
   if (!SS_ACCOUNT || !SS_API_KEY) {
     console.warn("[SuperSaas] API keys not set - skipping schedule creation");
