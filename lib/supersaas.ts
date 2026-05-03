@@ -95,7 +95,21 @@ export async function createSuperSaasSchedule(params: {
     let subUserEmail: string | undefined;
     let subUserPassword: string | undefined;
 
-    try {
+    // Skip sub-user creation if:
+    //   (a) the client email is the master account owner email, OR
+    //   (b) SUPERSAAS_PLAN=free is set (free plan blocks sub-user API calls)
+    const masterAccountEmail = process.env.SUPERSAAS_OWNER_EMAIL || "";
+    const isMasterEmail = masterAccountEmail && params.clientEmail.toLowerCase() === masterAccountEmail.toLowerCase();
+    const isFreePlan = (process.env.SUPERSAAS_PLAN || "").toLowerCase() === "free";
+    if (isMasterEmail) {
+      console.log("[SuperSaas] Client email is master account owner — skipping sub-user creation");
+    }
+    if (isFreePlan) {
+      console.log("[SuperSaas] Free plan — sub-user API not available, embedding without SSO login");
+    }
+    const skipSubUser = !!isMasterEmail || isFreePlan;
+
+    if (!skipSubUser) try {
       // Try creating sub-user. SuperSaas 400 often means the email already exists as a user.
       // We try 3 strategies:
       //   1. POST with schedules:[id] (numeric ID) and role:"user"

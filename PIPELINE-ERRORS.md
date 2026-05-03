@@ -182,3 +182,8 @@ Sub-user 400 persisted even without the `schedules` field — root cause is like
 3. GET `/users` to find existing user by email → update their password so embed URL still works  
 Also added full payload logging before each attempt so the exact SS error can be diagnosed from logs.  
 **Status:** ✅ Updated — deploy and rebuild
+
+**Root cause confirmed:** `clientEmail` was `crayzewastaken@gmail.com` — the SuperSaas master account owner's email. SuperSaas rejects sub-user creation for the account owner (can't register yourself as your own sub-user).  
+**Final fix:** Added `SUPERSAAS_OWNER_EMAIL` env var. Before attempting sub-user creation, code checks if `clientEmail === masterAccountEmail` and skips the sub-user POST entirely, logging a clear message. For real clients (different email), all 3 strategies still apply.  
+**Env var to add:** `SUPERSAAS_OWNER_EMAIL=crayzewastaken@gmail.com` in Vercel + `.env.local`  
+**Status:** ✅ Fixed
