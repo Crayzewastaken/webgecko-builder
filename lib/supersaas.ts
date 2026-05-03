@@ -95,19 +95,14 @@ export async function createSuperSaasSchedule(params: {
     let subUserEmail: string | undefined;
     let subUserPassword: string | undefined;
 
-    // Skip sub-user creation if:
-    //   (a) the client email is the master account owner email, OR
-    //   (b) SUPERSAAS_PLAN=free is set (free plan blocks sub-user API calls)
+    // Skip sub-user creation if the client email is the master account owner —
+    // SuperSaas won't let you register the account owner as a sub-user.
     const masterAccountEmail = process.env.SUPERSAAS_OWNER_EMAIL || "";
     const isMasterEmail = masterAccountEmail && params.clientEmail.toLowerCase() === masterAccountEmail.toLowerCase();
-    const isFreePlan = (process.env.SUPERSAAS_PLAN || "").toLowerCase() === "free";
     if (isMasterEmail) {
       console.log("[SuperSaas] Client email is master account owner — skipping sub-user creation");
     }
-    if (isFreePlan) {
-      console.log("[SuperSaas] Free plan — sub-user API not available, embedding without SSO login");
-    }
-    const skipSubUser = !!isMasterEmail || isFreePlan;
+    const skipSubUser = !!isMasterEmail;
 
     if (!skipSubUser) try {
       // Try creating sub-user. SuperSaas 400 often means the email already exists as a user.
@@ -124,12 +119,18 @@ export async function createSuperSaasSchedule(params: {
       };
 
       let userResult: any;
+      // SuperSaas API field notes (from docs):
+      //   name     = login name (must be email address if account uses email login)
+      //   email    = separate email field (optional if name is already the email)
+      //   role     = integer: 3=regular user, 4=superuser, -1=blocked (NOT a string)
+      //   full_name = display name
       const basePayload: Record<string, any> = {
-        name: params.businessName,
+        name: params.clientEmail,       // login name = email address
+        full_name: params.businessName, // display name
         email: params.clientEmail,
         password: subPassword,
         password_confirmation: subPassword,
-        role: "user",
+        role: 3,                        // 3 = regular user (integer, not string)
       };
 
       try {

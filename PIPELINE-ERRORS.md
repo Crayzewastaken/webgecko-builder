@@ -183,7 +183,11 @@ Sub-user 400 persisted even without the `schedules` field — root cause is like
 Also added full payload logging before each attempt so the exact SS error can be diagnosed from logs.  
 **Status:** ✅ Updated — deploy and rebuild
 
-**Root cause confirmed:** `clientEmail` was `crayzewastaken@gmail.com` — the SuperSaas master account owner's email. SuperSaas rejects sub-user creation for the account owner (can't register yourself as your own sub-user).  
-**Final fix:** Added `SUPERSAAS_OWNER_EMAIL` env var. Before attempting sub-user creation, code checks if `clientEmail === masterAccountEmail` and skips the sub-user POST entirely, logging a clear message. For real clients (different email), all 3 strategies still apply.  
-**Env var to add:** `SUPERSAAS_OWNER_EMAIL=crayzewastaken@gmail.com` in Vercel + `.env.local`  
-**Status:** ✅ Fixed
+**Root cause confirmed (final):** SuperSaas `role` field takes an **integer** (`3` = regular user), not the string `"user"`. We were sending `role: "user"` which causes a 400 Bad Request. Also `name` must be the login email address (not the business name), and `full_name` is the separate display name field.  
+**Final fix:**
+- `role: 3` (integer) instead of `role: "user"` (string)
+- `name: clientEmail` (login identifier) instead of `name: businessName`
+- `full_name: businessName` (display name)
+- Added `SUPERSAAS_OWNER_EMAIL` env var to skip sub-user creation when client email matches master account (e.g. during testing with your own email)  
+**Env var to add:** `SUPERSAAS_OWNER_EMAIL=hello@webgecko.au` in Vercel + `.env.local`  
+**Status:** ✅ Fixed — deploy and rebuild
