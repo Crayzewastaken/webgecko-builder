@@ -288,17 +288,25 @@ const buildWebsite = inngest.createFunction(
 </section>`
         : "";
 
-      // MULTI-PAGE: Skip Claude rebuild — Stitch handles multi-page structure correctly.
-      // Claude's single-page requirements (hero, testimonials, faq sections) conflict with
-      // multi-page page-switching architecture. Stitch already generates id="home", id="services"
-      // etc. as proper page divs with navigateTo() nav. We just need to ensure the booking
-      // section gets injected correctly by step6c downstream.
-      if (isMultiPage) {
-        console.log("[Step4b] Multi-page site — skipping Claude rebuild, using Stitch HTML directly");
+      // MULTI-PAGE: Only skip Claude rebuild if Stitch actually gave us a valid multi-page structure.
+      // Stitch sometimes generates page-section CSS but only one page with no navigateTo calls —
+      // in that case we must run Claude rebuild to get the full site structure.
+      const stitchPageSections = (stitchHtml.match(/class="[^"]*page-section[^"]*"/g) || []).length;
+      const stitchNavCalls = (stitchHtml.match(/navigateTo\s*\(/g) || []).length;
+      const stitchIsValidMultiPage = isMultiPage && stitchPageSections >= 2 && stitchNavCalls >= 2;
+
+      if (stitchIsValidMultiPage) {
+        console.log("[Step4b] Multi-page site with valid Stitch structure (" + stitchPageSections + " pages, " + stitchNavCalls + " nav calls) — skipping Claude rebuild");
         return stitchHtml;
       }
+      if (isMultiPage) {
+        console.log("[Step4b] Multi-page requested but Stitch gave incomplete structure (" + stitchPageSections + " page-sections, " + stitchNavCalls + " nav calls) — running Claude rebuild");
+      }
 
-      const multiPageNote = `This is a SINGLE-PAGE site. Nav links must use onclick="document.getElementById('SECTIONID')?.scrollIntoView({behavior:'smooth'})".`;
+      // For multi-page sites where Stitch gave incomplete output, Claude rebuilds as multi-page
+      const multiPageNote = isMultiPage
+        ? `This is a MULTI-PAGE site with pages: ${pageList}. Each page must be a <div class="page-section" id="PAGENAME" data-page="PAGENAME"> element. First page has no extra style (visible), all others have style="display:none". Nav links use onclick="navigateTo('PAGENAME')". Include a navigateTo(id) JS function that removes .active from all .page-section divs and adds it to the target, and a toggleDrawer() for mobile nav.`
+        : `This is a SINGLE-PAGE site. Nav links use onclick="document.getElementById('SECTIONID')?.scrollIntoView({behavior:'smooth'})".`;
 
       const prompt = `You are a senior front-end developer. I have a Stitch-generated website design below. Your job is to rewrite it as a complete, production-ready HTML file that EXACTLY preserves the visual design (colors, fonts, layout, imagery style) but guarantees all structural and functional requirements.
 
@@ -314,17 +322,21 @@ STITCH BODY (use this as your visual reference):
 ${bodySnippet}
 
 ABSOLUTE REQUIREMENTS — every single one must be present in your output:
-1. <button id="hamburger" class="md:hidden"> in the header — toggles the mobile drawer
-2. <div id="mobile-menu" style="display:none;position:fixed;top:0;right:0;width:80%;max-width:300px;height:100vh;z-index:9999;"> — mobile drawer with all nav links and a close button
-3. <section id="hero"> — full-viewport hero
-4. <section id="services"> — services grid
+1. Sticky header with logo/business name + desktop nav links + hamburger button (id="hamburger") for mobile
+2. <div id="mobile-menu" style="display:none;position:fixed;top:0;right:0;width:80%;max-width:300px;height:100vh;z-index:9999;background:#fff;"> — mobile drawer with all nav links + close button
+${isMultiPage ? `3. MULTI-PAGE STRUCTURE: Each page is a <div class="page-section" id="PAGENAME" data-page="PAGENAME">. Pages: ${pageList.split(", ").map((p: string, i: number) => p.toLowerCase()).join(", ")}. First page has class="page-section active", all others class="page-section". CSS must include: .page-section{display:none} .page-section.active{display:block}
+4. navigateTo(id) JS function: removes .active from all .page-section elements, adds .active to getElementById(id), scrolls to top
+5. toggleDrawer() JS function for hamburger
+6. Each page must have full rich content — hero, services, about info, testimonials, FAQ, contact form as appropriate per page
+7. <section id="contact"> inside the Contact page with name/email/phone/message form. Real email: ${clientEmail}, phone: ${clientPhone}
+8. <footer> — copyright © ${new Date().getFullYear()} ${userInput.businessName}
+${hasBookingFeature && bookingUrl ? "9. Insert this EXACT booking section inside the Booking page (do not modify the iframe src):\n" + bookingBlock : hasBookingFeature ? "9. Booking page with prominent call-to-action to phone " + clientPhone : ""}` : `3. <section id="hero"> — full-viewport hero with headline, subheadline, CTA button
+4. <section id="services"> — services grid with 4-6 cards
 5. <section id="testimonials"> — 3+ Australian client names, 5-star ratings
 6. <section id="faq"> — 6+ Q&A accordion pairs relevant to ${userInput.industry}
-7. <section id="contact"> — form with name/email/phone/message fields, action posts to #, shows success on submit. Use real email ${clientEmail} and phone ${clientPhone}.
+7. <section id="contact"> — form with name/email/phone/message fields. Real email: ${clientEmail}, phone: ${clientPhone}
 8. <footer> — copyright © ${new Date().getFullYear()} ${userInput.businessName}
-${hasBookingFeature && bookingUrl ? `9. Insert this EXACT booking section as-is (do not modify the iframe src):
-${bookingBlock}` : hasBookingFeature ? `9. <section id="booking"> with a prominent "Book Now" CTA linking to #contact` : ""}
-${isMultiPage ? `10. window.navigateTo function that shows/hides .page-section divs` : ""}
+${hasBookingFeature && bookingUrl ? "9. Insert this EXACT booking section as-is (do not modify the iframe src):\n" + bookingBlock : hasBookingFeature ? "9. <section id=\"booking\"> with a prominent Book Now CTA" : ""}`}
 
 RULES:
 - Return ONLY the complete HTML starting with <!DOCTYPE html> — no explanation, no markdown
