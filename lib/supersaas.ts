@@ -20,6 +20,7 @@ async function ssRequest(path: string, method = "GET", body?: Record<string, any
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const text = await res.text();
+  console.log(`[SuperSaas] ${method} ${path} → HTTP ${res.status} | body: ${text.slice(0, 200)}`);
   if (!res.ok) throw new Error(`SuperSaas API ${res.status}: ${text}`);
   try { return JSON.parse(text); } catch { return text; }
 }
