@@ -432,39 +432,35 @@ export default function HomePage() {
     </div>
   );
 
-  if (submitted) {
-    return (
-      <main className="min-h-screen bg-[#0a0f1a] text-white flex items-center justify-center p-6">
-        <div className="max-w-lg w-full text-center">
-          <div className="w-24 h-24 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center mx-auto mb-8">
-            <span className="text-5xl">✓</span>
-          </div>
-          <h1 className="text-3xl md:text-4xl font-bold mb-3">Request Submitted!</h1>
-          <p className="text-slate-400 text-base md:text-lg mb-8">Your website request has been received. Your confirmation email will arrive within <strong className="text-white">2 to 5 minutes</strong>.</p>
-          <div className="bg-[#0f1623] border border-white/10 rounded-3xl p-6 text-left space-y-4 mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl flex-shrink-0">📧</div>
-              <div><p className="text-white font-semibold text-sm">Check your email</p><p className="text-slate-400 text-sm">{email}</p></div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl flex-shrink-0">📞</div>
-              <div><p className="text-white font-semibold text-sm">We'll call you within 24 hours</p><p className="text-slate-400 text-sm">{phone}</p></div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl flex-shrink-0">🌐</div>
-              <div><p className="text-white font-semibold text-sm">{businessName}</p><p className="text-slate-400 text-sm">We'll prepare your custom quote and send it through.</p></div>
-            </div>
-          </div>
-          <p className="text-slate-600 text-sm">Didn't receive an email? Check spam or contact <span className="text-slate-400">hello@webgecko.au</span></p>
-        </div>
-      </main>
-    );
-  }
-
+  // submitted banner shown inline in form below
   return (
     <main className="min-h-screen bg-[#0a0f1a] text-white p-3 md:p-8">
       <div className="max-w-6xl mx-auto grid lg:grid-cols-[1fr_300px] gap-4 md:gap-6">
         <div className="rounded-2xl md:rounded-3xl bg-[#0f1623] border border-white/8 p-5 md:p-10 shadow-2xl">
+
+          {/* Submitted banner */}
+          {submitted && (
+            <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 rounded-2xl px-5 py-3 mb-5">
+              <div className="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
+                <span>✓</span> Already submitted
+              </div>
+              <button
+                onClick={() => {
+                  setBusinessName(""); setIndustry(""); setIndustryOther(""); setUsp(""); setExistingWebsite("");
+                  setTargetAudience(""); setGoal(""); setSiteType(""); setPages([]); setSelectedBundles([]);
+                  setHasPricing(""); setPricingType(""); setPricingMethod(""); setPricingDetails(""); setPricingUrl("");
+                  setStyle(""); setColorPrefs(""); setReferences(""); setHasLogo(""); setHasContent("");
+                  setAdditionalNotes(""); setName(""); setEmail(""); setPhone(""); setAbn(""); setDomain("");
+                  setBusinessAddress(""); setFacebookPage(""); setExistingBookingUrl("");
+                  setStep(1); setSubmitted(false); setErrors([]);
+                  localStorage.removeItem("wg_intake_v2");
+                }}
+                className="text-xs text-slate-500 hover:text-red-400 transition-colors border border-white/10 rounded-xl px-3 py-1.5"
+              >
+                Clear all fields
+              </button>
+            </div>
+          )}
 
           {/* Header */}
           <div className="flex items-center gap-3 mb-5">
