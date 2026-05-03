@@ -96,37 +96,73 @@ export async function createSuperSaasSchedule(params: {
     let subUserPassword: string | undefined;
 
     try {
-      // SuperSaas sub-user: schedules field takes schedule IDs (numbers), not names.
-      // We pass the numeric schedule ID we just created.
-      // Role must be one of: superadmin | admin | user | viewer
-      // We use "user" so the client can manage their own bookings but not others.
-      const userPayload: Record<string, any> = {
+      // Try creating sub-user. SuperSaas 400 often means the email already exists as a user.
+      // We try 3 strategies:
+      //   1. POST with schedules:[id] (numeric ID) and role:"user"
+      //   2. POST without schedules field
+      //   3. GET /users to find the existing user by email (if email already registered)
+      const subPassForEmbed = subPassword; // save for embed URL regardless of which path succeeds
+
+      const tryCreate = async (payload: Record<string, any>) => {
+        // Log the exact payload so we can debug 400s
+        console.log("[SuperSaas] POST /users payload:", JSON.stringify({ user: payload }).slice(0, 300));
+        return ssRequest("/users", "POST", { user: payload });
+      };
+
+      let userResult: any;
+      const basePayload: Record<string, any> = {
         name: params.businessName,
         email: params.clientEmail,
         password: subPassword,
         password_confirmation: subPassword,
         role: "user",
-        schedules: [id],   // numeric schedule ID, not the name string
       };
-      let userResult: any;
+
       try {
-        userResult = await ssRequest("/users", "POST", { user: userPayload });
-      } catch (firstErr) {
-        const msg = (firstErr as Error).message;
-        // If 400 with schedules field, retry without it (some SS plans don't support it)
-        if (msg.includes("400")) {
-          console.warn("[SuperSaas] User POST with schedules failed, retrying without schedules field");
-          const { schedules: _dropped, ...payloadNoSchedules } = userPayload;
-          userResult = await ssRequest("/users", "POST", { user: payloadNoSchedules });
-        } else {
-          throw firstErr;
+        // Strategy 1: with schedules array (numeric IDs)
+        userResult = await tryCreate({ ...basePayload, schedules: [id] });
+      } catch (e1) {
+        const m1 = (e1 as Error).message;
+        console.warn("[SuperSaas] Strategy 1 failed:", m1);
+        try {
+          // Strategy 2: without schedules field
+          userResult = await tryCreate(basePayload);
+        } catch (e2) {
+          const m2 = (e2 as Error).message;
+          console.warn("[SuperSaas] Strategy 2 failed:", m2);
+          // Strategy 3: email already exists — look up existing user
+          if (m2.includes("400")) {
+            console.log("[SuperSaas] Trying to find existing user by email...");
+            try {
+              const usersResp = await ssRequest("/users", "GET");
+              const allUsers: any[] = Array.isArray(usersResp) ? usersResp : (usersResp?.users || []);
+              const existing = allUsers.find((u: any) => u.email === params.clientEmail);
+              if (existing) {
+                console.log(`[SuperSaas] Found existing user id=${existing.id} — reusing with new password`);
+                // Update their password so we know what it is for the embed URL
+                await ssRequest(`/users/${existing.id}`, "PUT", {
+                  user: { password: subPassword, password_confirmation: subPassword }
+                }).catch(() => {
+                  console.warn("[SuperSaas] Could not update existing user password");
+                });
+                userResult = existing;
+              } else {
+                throw new Error("Email not found in user list either — " + m2);
+              }
+            } catch (e3) {
+              throw new Error("All 3 strategies failed: " + (e3 as Error).message);
+            }
+          } else {
+            throw e2;
+          }
         }
       }
+
       const user = Array.isArray(userResult) ? userResult[0] : (userResult?.user || userResult);
       subUserId = user?.id;
       subUserEmail = params.clientEmail;
-      subUserPassword = subPassword;
-      console.log(`[SuperSaas] Created sub-user id=${subUserId} email=${params.clientEmail} for schedule "${actualName}"`);
+      subUserPassword = subPassForEmbed;
+      console.log(`[SuperSaas] Sub-user ready: id=${subUserId} email=${params.clientEmail}`);
     } catch (userErr) {
       // Sub-user creation is non-fatal — schedule still works without it
       // (client just won't have their own login; they use the embed iframe)

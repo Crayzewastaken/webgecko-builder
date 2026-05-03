@@ -174,3 +174,11 @@ Four risks identified and resolved:
 - `actualName` is now hardcoded to `slugName` (the name we requested) rather than trusting the API response — this prevents the master template schedule name from leaking into embed URLs
 - Added raw response logging so the next 400 can be diagnosed from the exact SS response body  
 **Status:** ✅ Fixed — deploy and rebuild
+
+**Update after second run:**
+Sub-user 400 persisted even without the `schedules` field — root cause is likely email already registered from a prior build attempt. Added 3-strategy approach:
+1. POST with `schedules:[id]` (numeric)
+2. POST without `schedules` field
+3. GET `/users` to find existing user by email → update their password so embed URL still works  
+Also added full payload logging before each attempt so the exact SS error can be diagnosed from logs.  
+**Status:** ✅ Updated — deploy and rebuild
