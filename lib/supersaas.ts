@@ -78,11 +78,15 @@ export async function createSuperSaasSchedule(params: {
       },
     });
 
+    console.log("[SuperSaas] Raw schedule creation response:", JSON.stringify(result).slice(0, 400));
     const schedule = Array.isArray(result) ? result[0] : (result?.schedule || result);
     const id = schedule?.id;
     if (!id) throw new Error("No schedule ID in response: " + JSON.stringify(result).slice(0, 200));
-    const actualName = schedule?.name || slugName;
-    console.log(`[SuperSaas] Created schedule "${actualName}" id=${id} for "${params.businessName}"`);
+    // IMPORTANT: trust slugName over the returned name — SuperSaas sometimes returns the
+    // master template schedule object if the name was already taken. We always use the name
+    // we requested (slugName) as the authoritative schedule name for URL building.
+    const actualName = slugName;
+    console.log(`[SuperSaas] Created schedule "${actualName}" (SS returned name="${schedule?.name}") id=${id} for "${params.businessName}"`);
 
     // ── Step 2: Create sub-user for the client ───────────────────────────────
     // Generate a secure random password for the sub-user
@@ -92,18 +96,32 @@ export async function createSuperSaasSchedule(params: {
     let subUserPassword: string | undefined;
 
     try {
-      const userResult = await ssRequest("/users", "POST", {
-        user: {
-          name: params.businessName,
-          email: params.clientEmail,
-          password: subPassword,
-          password_confirmation: subPassword,
-          // role "user" = client/supervisor — can manage their own bookings
-          // SuperSaas roles: "superadmin" | "admin" | "user" | "viewer"
-          role: "user",
-          schedules: [actualName],   // restrict to only their schedule
-        },
-      });
+      // SuperSaas sub-user: schedules field takes schedule IDs (numbers), not names.
+      // We pass the numeric schedule ID we just created.
+      // Role must be one of: superadmin | admin | user | viewer
+      // We use "user" so the client can manage their own bookings but not others.
+      const userPayload: Record<string, any> = {
+        name: params.businessName,
+        email: params.clientEmail,
+        password: subPassword,
+        password_confirmation: subPassword,
+        role: "user",
+        schedules: [id],   // numeric schedule ID, not the name string
+      };
+      let userResult: any;
+      try {
+        userResult = await ssRequest("/users", "POST", { user: userPayload });
+      } catch (firstErr) {
+        const msg = (firstErr as Error).message;
+        // If 400 with schedules field, retry without it (some SS plans don't support it)
+        if (msg.includes("400")) {
+          console.warn("[SuperSaas] User POST with schedules failed, retrying without schedules field");
+          const { schedules: _dropped, ...payloadNoSchedules } = userPayload;
+          userResult = await ssRequest("/users", "POST", { user: payloadNoSchedules });
+        } else {
+          throw firstErr;
+        }
+      }
       const user = Array.isArray(userResult) ? userResult[0] : (userResult?.user || userResult);
       subUserId = user?.id;
       subUserEmail = params.clientEmail;

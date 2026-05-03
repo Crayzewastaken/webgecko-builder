@@ -161,3 +161,16 @@ Four risks identified and resolved:
 → Fallback now sends an alert email to crayzewastaken@gmail.com with job ID and char count when it triggers. Also logs which required IDs are missing even on success.
 
 **Status:** ✅ All four resolved
+
+---
+
+## ISSUE 015 — SuperSaas sub-user creation failing with 400 Bad Request
+**Symptom:** `[SuperSaas] Sub-user creation failed (non-fatal): SuperSaas API 400: {"errors":[{"status":"400","title":"Bad request"}]}`  
+**Root cause (A):** The `schedules` field in the user creation payload was passing the schedule name (a string) but SuperSaas expects schedule IDs (integers).  
+**Root cause (B):** `actualName` was being set from `schedule?.name` in the API response — but SuperSaas sometimes returns the master `"template"` schedule object instead of the newly created one, making the embed URL point to `webgecko/template` instead of `webgecko/doctorvisits`.  
+**Fix applied:**
+- `lib/supersaas.ts`: `schedules` field now passes `[id]` (numeric) instead of `[actualName]` (string)
+- Added fallback retry: if POST with `schedules` fails 400, retry without the `schedules` field (some SuperSaas plans don't support schedule restrictions)
+- `actualName` is now hardcoded to `slugName` (the name we requested) rather than trusting the API response — this prevents the master template schedule name from leaking into embed URLs
+- Added raw response logging so the next 400 can be diagnosed from the exact SS response body  
+**Status:** ✅ Fixed — deploy and rebuild
