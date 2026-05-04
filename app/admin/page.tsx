@@ -605,7 +605,17 @@ function ClientCard({ c, secret }: { c: ClientAnalytics; secret: string }) {
 
 function AdminDashboard() {
   const searchParams = useSearchParams();
-  const secret = searchParams.get("secret") || "";
+  const urlSecret = searchParams.get("secret") || "";
+
+  // Login state — seed from URL param (legacy) or sessionStorage
+  const [secret, setSecret] = useState<string>(() => {
+    if (urlSecret) return urlSecret;
+    if (typeof window !== "undefined") return sessionStorage.getItem("wg_admin_secret") || "";
+    return "";
+  });
+  const [loginInput, setLoginInput] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loggedIn, setLoggedIn] = useState(!!urlSecret || (typeof window !== "undefined" && !!sessionStorage.getItem("wg_admin_secret")));
 
   const [clients, setClients] = useState<ClientAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
@@ -613,17 +623,63 @@ function AdminDashboard() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "building" | "unpaid">("all");
 
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setLoginError("");
+    const trimmed = loginInput.trim();
+    if (!trimmed) { setLoginError("Enter the admin password."); return; }
+    // Verify against the API — if it returns 403 the password is wrong
+    const res = await fetch(`/api/admin/clients?secret=${encodeURIComponent(trimmed)}`);
+    if (res.status === 403) { setLoginError("Incorrect password."); return; }
+    sessionStorage.setItem("wg_admin_secret", trimmed);
+    setSecret(trimmed);
+    setLoggedIn(true);
+  }
+
+  function handleLogout() {
+    sessionStorage.removeItem("wg_admin_secret");
+    setLoggedIn(false);
+    setSecret("");
+    setLoginInput("");
+    setClients([]);
+  }
+
   useEffect(() => {
-    if (!secret) { setError("Missing secret. Add ?secret=YOUR_PROCESS_SECRET to the URL."); setLoading(false); return; }
+    if (!loggedIn || !secret) return;
     loadDashboard();
-  }, [secret]);
+  }, [loggedIn, secret]);
+
+  // Show login screen if not authenticated
+  if (!loggedIn) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#080808", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter',-apple-system,sans-serif" }}>
+        <form onSubmit={handleLogin} style={{ background: "#0f0f0f", border: "1px solid #1a1a1a", borderRadius: "16px", padding: "40px 36px", width: "100%", maxWidth: "360px" }}>
+          <div style={{ fontSize: "22px", fontWeight: 800, color: "#fff", marginBottom: "6px" }}>WebGecko Admin</div>
+          <div style={{ fontSize: "13px", color: "#444", marginBottom: "28px" }}>Enter your admin password to continue.</div>
+          <input
+            type="password"
+            placeholder="Admin password"
+            value={loginInput}
+            onChange={e => setLoginInput(e.target.value)}
+            autoFocus
+            style={{ width: "100%", background: "#111", border: "1px solid " + (loginError ? "#ef4444" : "#1a1a1a"), borderRadius: "8px", padding: "12px 14px", color: "#fff", fontSize: "14px", outline: "none", boxSizing: "border-box", marginBottom: "10px" }}
+          />
+          {loginError && <div style={{ color: "#ef4444", fontSize: "12px", marginBottom: "12px" }}>{loginError}</div>}
+          <button type="submit" style={{ width: "100%", background: "#00c896", color: "#000", fontWeight: 700, fontSize: "14px", padding: "12px", border: "none", borderRadius: "8px", cursor: "pointer" }}>
+            Sign In →
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   async function loadDashboard() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/clients?secret=${encodeURIComponent(secret)}`);
-      if (!res.ok) throw new Error("Forbidden — check your secret");
+      const res = await fetch("/api/admin/clients?secret=" + encodeURIComponent(secret));
+      if (res.status === 403) { handleLogout(); return; }
+      if (!res.ok) throw new Error("Failed to load clients");
       const data = await res.json();
       setClients(data.clients || []);
     } catch (e) {
@@ -669,9 +725,14 @@ function AdminDashboard() {
             <div style={{ fontSize: "22px", fontWeight: 800 }}>WebGecko Admin</div>
             <div style={{ color: "#555", fontSize: "13px" }}>Client Management &amp; Analytics</div>
           </div>
-          <button onClick={loadDashboard} style={{ marginLeft: "auto", background: "#111", border: "1px solid #1a1a1a", color: "#555", borderRadius: "8px", padding: "8px 14px", fontSize: "13px", cursor: "pointer" }}>
-            Refresh
-          </button>
+          <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
+            <button onClick={loadDashboard} style={{ background: "#111", border: "1px solid #1a1a1a", color: "#555", borderRadius: "8px", padding: "8px 14px", fontSize: "13px", cursor: "pointer" }}>
+              Refresh
+            </button>
+            <button onClick={handleLogout} style={{ background: "#111", border: "1px solid #1a1a1a", color: "#555", borderRadius: "8px", padding: "8px 14px", fontSize: "13px", cursor: "pointer" }}>
+              Sign Out
+            </button>
+          </div>
         </div>
 
         {error && (

@@ -847,7 +847,7 @@ RULES:
             subject: "⚠️ Pre-deploy validation failed — " + userInput.businessName,
             html: "<p>Build for <strong>" + userInput.businessName + "</strong> (job: " + jobId + ") has validation failures:<br><ul>" + failuresAfterRepair.map((f: string) => "<li>" + f + "</li>").join("") + "</ul></p>",
           }).catch(() => {});
-          return { html: repaired, valid: false, failures: failuresAfterRepair };
+          throw new Error("[Step7b] Pre-deploy validation failed after repair: " + failuresAfterRepair.join("; "));
         }
         console.log("[Step7b] Repaired HTML passes validation");
         return { html: repaired, valid: true, failures: [] };
@@ -985,7 +985,7 @@ RULES:
         // If navigateTo missing on multi-page — re-inject via injectEssentials is too heavy;
         // just ensure the script tag is present
         if (isMultiPage && !patched.includes("navigateTo")) {
-          patched = patched.replace("</body>", '<script>\n' + 'window.navigateTo=function(pageId){\n' + '  var d=document.getElementById("mobile-menu")||document.getElementById("mobile-drawer")||document.getElementById("side-drawer");\n' + '  if(d){d.classList.remove("translate-x-0");d.classList.add("translate-x-full","hidden");d.style.display="none";}\n' + '  var ss=document.querySelectorAll(".page-section");\n' + '  if(ss.length>1){ss.forEach(function(s){s.classList.remove("active");});var t=document.getElementById(pageId)||document.querySelector("[data-page=\\"" + pageId + "\\"]");if(t){t.classList.add("active");t.style.display="";window.scrollTo({top:0,behavior:"smooth"});}return;}\n' + '  var el=document.getElementById(pageId);if(el)el.scrollIntoView({behavior:"smooth"});\n' + '};\n' + '</script>\n</body>');
+          patched = patched.replace("</body>", '<script>\n' + 'window.navigateTo=function(pageId){\n' + '  var d=document.getElementById("mobile-menu")||document.getElementById("mobile-drawer")||document.getElementById("side-drawer");\n' + '  if(d){d.classList.remove("translate-x-0");d.classList.add("translate-x-full","hidden");d.style.display="none";}\n' + '  var ss=document.querySelectorAll("[data-page]");\n' + '  if(ss.length>1){ss.forEach(function(s){s.classList.remove("active");});var t=document.querySelector("[data-page=\\"" + pageId + "\\"]")||document.getElementById(pageId);if(t){t.classList.add("active");window.scrollTo({top:0,behavior:"smooth"});}return;}\n' + '  var el=document.getElementById(pageId);if(el)el.scrollIntoView({behavior:"smooth"});\n' + '};\n' + '</script>\n</body>');
 
           console.log("[FailLoop] Re-injected navigateTo");
         }
@@ -1130,7 +1130,7 @@ RULES:
         { label: "Real phone injected", check: deployedHtml.includes(clientPhone.replace(/\s/g, "")) || deployedHtml.includes(clientPhone) },
         { label: "Google Maps embedded", check: deployedHtml.includes("google.com/maps") },
         { label: "Booking widget", check: hasBookingFeature && (deployedHtml.includes("supersaas.com") || (bookingUrl ? deployedHtml.includes(bookingUrl) : false) || deployedHtml.includes('id="booking"')) },
-        { label: "Footer with copyright", check: deployedHtml.includes("©") || deployedHtml.includes("&copy;") || deployedHtml.includes("All rights reserved") },
+        { label: "Footer with copyright", check: deployedHtml.includes("&copy;") || deployedHtml.includes("All rights reserved") },
       ].filter(f => {
         if (f.label === "Booking widget" && !hasBookingFeature) return false;
         if (f.label === "Google Maps embedded" && !userInput.businessAddress) return false;

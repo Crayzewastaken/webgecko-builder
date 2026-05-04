@@ -258,6 +258,7 @@ export function repairHtml(html: string, businessName: string, year: number): st
 
   // 1. Truncated trailing attribute — e.g. `<a href="` at end (Claude cut off mid-tag)
   //    Strip anything after the last complete tag close before injected content lands.
+  out = out.replace(/<[a-zA-Z][^>]*(?=<script\b)/gi, "");
   out = out.replace(/<[a-zA-Z][^>]*$/, "");  // remove incomplete trailing open tag
 
   // 2. Ensure DOCTYPE + html wrapper
@@ -288,8 +289,8 @@ export function repairHtml(html: string, businessName: string, year: number): st
   }
 
   // 6. Ensure copyright in footer if missing
-  if (!out.includes("©") && !out.includes("&copy;") && !out.includes("All rights reserved")) {
-    const copy = `<div style="text-align:center;padding:12px 0;font-size:12px;opacity:0.6;">© ${year} ${businessName}. All rights reserved.</div>`;
+  if (!out.includes("&copy;") && !out.includes("All rights reserved")) {
+    const copy = `<div style="text-align:center;padding:12px 0;font-size:12px;opacity:0.6;">&copy; ${year} ${businessName}. All rights reserved.</div>`;
     if (out.includes("</footer>")) {
       out = out.replace("</footer>", copy + "\n</footer>");
     } else if (out.includes("</body>")) {
@@ -327,6 +328,7 @@ export function validateForDeploy(
 
   // Truncated trailing tag — e.g. ends with `<a href="`
   if (/<[a-zA-Z][^>]*$/.test(html.trimEnd())) failures.push("Truncated trailing tag at end of HTML");
+  if (/<[a-zA-Z][^>]*(?=<script\b)/i.test(html)) failures.push("Truncated tag before injected script");
 
   // Multi-page: every requested page must have data-page wrapper
   if (isMultiPage) {
@@ -335,7 +337,7 @@ export function validateForDeploy(
         failures.push(`Missing data-page="${id}" wrapper`);
       }
     }
-    if (!(html.match(/data-page=["'][^"']+["']/g) || []).length) {
+    if (!(html.match(/\bdata-page=["'][^"']+["']/g) || []).length) {
       failures.push("No data-page wrappers found at all");
     }
   }
@@ -403,9 +405,9 @@ export function injectEssentials(html: string, email: string, phone: string, job
     if (!target) return;
     var oc = el.getAttribute("onclick") || "";
     // Only fix if current target is wrong (e.g. 'home' when text says 'booking')
-    var currentTarget = (oc.match(/navigateTo\(['"](\w+)['"]\)/) || [])[1];
+    var currentTarget = (oc.match(/navigateTo\\(['"](\\w+)['"]\\)/) || [])[1];
     if (currentTarget && currentTarget !== target) {
-      el.setAttribute("onclick", oc.replace(/navigateTo\(['"](\w+)['"]\)/, "navigateTo('" + target + "')"));
+      el.setAttribute("onclick", oc.replace(/navigateTo\\(['"](\\w+)['"]\\)/, "navigateTo('" + target + "')"));
     }
   });
 })();
