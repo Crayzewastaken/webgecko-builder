@@ -10,7 +10,6 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Fetch all clients joined with jobs
   const { data: clientRows, error } = await supabase
     .from("clients")
     .select("*, jobs(*)")
@@ -20,7 +19,6 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  // Get booking counts per job
   const { data: bookingCounts } = await supabase
     .from("bookings")
     .select("job_id")
@@ -31,9 +29,19 @@ export async function GET(req: NextRequest) {
     bookingsByJob[b.job_id] = (bookingsByJob[b.job_id] || 0) + 1;
   }
 
+  const { data: paymentRows } = await supabase
+    .from("payment_state")
+    .select("job_id, deposit_paid, final_paid");
+
+  const paymentByJob: Record<string, { deposit_paid: boolean; final_paid: boolean }> = {};
+  for (const p of paymentRows || []) {
+    paymentByJob[p.job_id] = { deposit_paid: !!p.deposit_paid, final_paid: !!p.final_paid };
+  }
+
   const clients = (clientRows || []).map((c: any) => {
     const job = c.jobs || {};
     const userInput = job.user_input || {};
+    const ps = paymentByJob[c.job_id] || { deposit_paid: false, final_paid: false };
     return {
       slug: c.slug,
       jobId: c.job_id || "",
@@ -48,8 +56,8 @@ export async function GET(req: NextRequest) {
       liveUrl: c.preview_url || job.preview_url || "",
       vercelProjectName: job.vercel_project_name || "",
       paymentState: {
-        depositPaid: false,
-        finalPaid: false,
+        depositPaid: ps.deposit_paid,
+        finalPaid: ps.final_paid,
         monthlyActive: !!c.square_subscription_id,
       },
       bookingCount: bookingsByJob[c.job_id] || 0,
