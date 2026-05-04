@@ -56,6 +56,11 @@ interface ClientData {
   // SuperSaas — enriched from jobs table by client-login GET
   supersaasId?: string | number | null;
   supersaasUrl?: string | null;
+  // Square OAuth
+  squareConnected?: boolean;
+  squareMerchantId?: string | null;
+  // Manual payment link fallback
+  shopPaymentUrl?: string | null;
   name?: string;
   abn?: string;
   goal?: string;
@@ -509,6 +514,11 @@ export default function ClientPortal() {
   const [reportSending, setReportSending] = useState(false);
   const [reportSent, setReportSent] = useState(false);
 
+  // Shop payment link
+  const [shopPaymentUrl, setShopPaymentUrl] = useState("");
+  const [shopPaymentSaving, setShopPaymentSaving] = useState(false);
+  const [shopPaymentSaved, setShopPaymentSaved] = useState(false);
+
   // Subscription management
   const [showSubModal, setShowSubModal] = useState(false);
   const [subStep, setSubStep] = useState<"reason" | "option" | "confirm">("reason");
@@ -543,6 +553,10 @@ export default function ClientPortal() {
       setTimeout(() => loadPaymentStatus(), 2000);
       setTimeout(() => loadPaymentStatus(), 5000);
     }
+    if (p.get("square") === "connected") {
+      window.history.replaceState({}, "", window.location.pathname);
+      setTimeout(() => loadClient(), 500);
+    }
   }, []);
 
   function normalizeClient(raw: any): ClientData {
@@ -560,6 +574,9 @@ export default function ClientPortal() {
       // SuperSaas — enriched from jobs table by client-login GET
       supersaasId: raw.supersaasId ?? raw.supersaas_id ?? m.supersaasId ?? null,
       supersaasUrl: raw.supersaasUrl ?? raw.supersaas_url ?? m.supersaasUrl ?? null,
+      squareConnected: !!(raw.square_access_token || raw.squareAccessToken || raw.squareConnected),
+      squareMerchantId: raw.square_merchant_id || raw.squareMerchantId || null,
+      shopPaymentUrl: raw.shop_payment_url || raw.shopPaymentUrl || null,
       name: m.name || raw.name || "",
       abn: m.abn || raw.abn || "",
       goal: m.goal || raw.goal || "",
@@ -584,9 +601,37 @@ export default function ClientPortal() {
       const res = await fetch(`/api/client-login?slug=${slug}`);
       if (!res.ok) { localStorage.removeItem(`wg_auth_${slug}`); router.replace("/c"); return; }
       const raw = await res.json();
-      setClient(normalizeClient(raw));
+      const normalised = normalizeClient(raw);
+      setClient(normalised);
+      if (normalised.shopPaymentUrl) setShopPaymentUrl(normalised.shopPaymentUrl);
     } catch { setError("Failed to load your project. Please refresh."); }
     finally { setLoading(false); }
+  }
+
+  async function saveShopPaymentUrl() {
+    if (!shopPaymentUrl.trim() || !client?.jobId) return;
+    setShopPaymentSaving(true);
+    setShopPaymentSaved(false);
+    try {
+      const res = await fetch(`/api/client-login`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, shopPaymentUrl: shopPaymentUrl.trim() }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      setShopPaymentSaved(true);
+      setClient(prev => prev ? { ...prev, shopPaymentUrl: shopPaymentUrl.trim() } : prev);
+      await fetch(`/api/pipeline/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId: client.jobId }),
+      });
+      setTimeout(() => setShopPaymentSaved(false), 3000);
+    } catch {
+      alert("Could not save payment link. Please try again.");
+    } finally {
+      setShopPaymentSaving(false);
+    }
   }
 
   async function loadPaymentStatus() {
@@ -704,6 +749,7 @@ export default function ClientPortal() {
   const hasBlog = features.includes("Blog");
   const hasShop = features.includes("Payments / Shop") || features.includes("Online Shop");
   const hasGallery = features.includes("Photo Gallery");
+  const squareConnected = !!(client?.squareConnected);
   const hasGrowth = features.includes("Newsletter Signup") || features.includes("Live Chat");
 
   const upcomingBookings = bookings.filter(b => b.status !== "cancelled" && b.date >= today);
@@ -1031,13 +1077,51 @@ export default function ClientPortal() {
                     </a>
                   )}
                   {hasShop && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "#080c14", border: "1px solid #1e2531", borderRadius: 10 }}>
-                      <span style={{ fontSize: 20 }}>🛒</span>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Online Shop & Payments</div>
-                        <div style={{ fontSize: 12, color: "#4a5568" }}>Square payments active on your site</div>
+                    <div style={{ padding: "14px", background: "#080c14", border: "1px solid #1e2531", borderRadius: 10 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: squareConnected ? 0 : 12 }}>
+                        <span style={{ fontSize: 20 }}>🛒</span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Online Shop & Payments</div>
+                          <div style={{ fontSize: 12, color: "#4a5568" }}>
+                            {squareConnected
+                              ? "Square connected — payments go straight to your account"
+                              : client?.shopPaymentUrl
+                              ? "Payment link active on your shop"
+                              : "Add a payment link so customers can buy from your site"}
+                          </div>
+                        </div>
+                        {squareConnected && <span style={{ ...S.pill("#00c896"), fontSize: 11 }}>Square Connected</span>}
+                        {!squareConnected && client?.shopPaymentUrl && <span style={{ ...S.pill("#00c896"), fontSize: 11 }}>Active</span>}
                       </div>
-                      <span style={{ marginLeft: "auto", ...S.pill("#00c896"), fontSize: 11 }}>Active</span>
+                      {!squareConnected && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          <div style={{ fontSize: 11, color: "#64748b" }}>
+                            Paste any payment link — Square, Stripe, PayPal, bank transfer page, anything. Customers clicking "Buy Now" will be sent here.
+                          </div>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <input
+                              type="url"
+                              placeholder="https://square.link/... or paypal.me/... or stripe.com/..."
+                              value={shopPaymentUrl}
+                              onChange={e => setShopPaymentUrl(e.target.value)}
+                              style={{ flex: 1, background: "#0f172a", border: "1px solid #1e2531", borderRadius: 8, padding: "8px 12px", color: "#e2e8f0", fontSize: 12, outline: "none" }}
+                            />
+                            <button
+                              onClick={saveShopPaymentUrl}
+                              disabled={shopPaymentSaving || !shopPaymentUrl.trim()}
+                              style={{ background: shopPaymentSaving ? "#1e2531" : "#006aff", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", whiteSpace: "nowrap" }}
+                            >
+                              {shopPaymentSaving ? "Saving..." : shopPaymentSaved ? "Saved" : "Save & Apply"}
+                            </button>
+                          </div>
+                          <div style={{ fontSize: 11, color: "#4a5568" }}>
+                            Have a Square account?{" "}
+                            <a href={`/api/square/connect?slug=${slug}&jobId=${client?.jobId}`} style={{ color: "#006aff", textDecoration: "none" }}>
+                              Connect it instead
+                            </a>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                   {hasBlog && (

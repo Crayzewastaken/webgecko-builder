@@ -1,24 +1,27 @@
 // lib/square.ts
 // Square API wrapper — all amounts in AUD cents (Square uses smallest currency unit)
 
-const SQUARE_BASE = process.env.SQUARE_ENVIRONMENT === "production"
-  ? "https://connect.squareup.com"
-  : "https://connect.squareupsandbox.com";
-
 const SQUARE_VERSION = "2024-11-20";
 
-function squareHeaders() {
+function squareBase(): string {
+  return process.env.SQUARE_ENVIRONMENT === "production"
+    ? "https://connect.squareup.com"
+    : "https://connect.squareupsandbox.com";
+}
+
+function squareHeaders(accessToken?: string) {
   return {
     "Square-Version": SQUARE_VERSION,
-    "Authorization": `Bearer ${process.env.SQUARE_ACCESS_TOKEN}`,
+    "Authorization": `Bearer ${accessToken || process.env.SQUARE_ACCESS_TOKEN}`,
     "Content-Type": "application/json",
   };
 }
 
-async function squareRequest(method: string, path: string, body?: unknown) {
-  const res = await fetch(`${SQUARE_BASE}${path}`, {
+async function squareRequest(method: string, path: string, body?: unknown, accessToken?: string) {
+  const base = squareBase();
+  const res = await fetch(`${base}${path}`, {
     method,
-    headers: squareHeaders(),
+    headers: squareHeaders(accessToken),
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json();
@@ -45,11 +48,13 @@ export async function createPaymentLink(params: {
   referenceId: string;   // format: "job_xxx-deposit" | "job_xxx-final" | "job_xxx-monthly"
   redirectUrl: string;
   buyerEmail?: string;
+  accessToken?: string;
+  locationId?: string;
 }) {
   const body: Record<string, unknown> = {
     idempotency_key: `${params.referenceId}-${Date.now()}`,
     order: {
-      location_id: process.env.SQUARE_LOCATION_ID,
+      location_id: params.locationId || process.env.SQUARE_LOCATION_ID,
       reference_id: params.referenceId,
       line_items: [
         {
@@ -73,7 +78,7 @@ export async function createPaymentLink(params: {
     body.pre_populated_data = { buyer_email: params.buyerEmail };
   }
 
-  const data = await squareRequest("POST", "/v2/online-checkout/payment-links", body);
+  const data = await squareRequest("POST", "/v2/online-checkout/payment-links", body, params.accessToken);
 
   return {
     url: data.payment_link?.url as string,
@@ -90,14 +95,18 @@ export async function createMonthlyPaymentLink(params: {
   referenceId: string;
   redirectUrl: string;
   buyerEmail?: string;
+  accessToken?: string;
+  locationId?: string;
 }) {
   return createPaymentLink({
     amountDollars: params.monthlyDollars,
     title: `${params.businessName} — Monthly Hosting & Maintenance`,
     description: `Monthly performance & hosting fee for ${params.businessName}`,
-    referenceId: params.referenceId,   // NOT appending -monthly again — caller already did
+    referenceId: params.referenceId,
     redirectUrl: params.redirectUrl,
     buyerEmail: params.buyerEmail,
+    accessToken: params.accessToken,
+    locationId: params.locationId,
   });
 }
 
@@ -161,7 +170,7 @@ function parsePriceDollars(price: string): number {
 }
 
 // Upload an image URL to Square's Catalogue Images API and return the image ID
-async function createCatalogueImage(name: string, imageUrl: string, idempotencyKey: string): Promise<string | null> {
+async function createCatalogueImage(name: string, imageUrl: string, idempotencyKey: string, accessToken?: string): Promise<string | null> {
   try {
     // Square Catalogue Image requires a multipart upload — we fetch the image and post it
     const imgRes = await fetch(imageUrl);
@@ -192,11 +201,11 @@ async function createCatalogueImage(name: string, imageUrl: string, idempotencyK
     merged.set(imgBuf, offset); offset += imgBuf.length;
     merged.set(end, offset);
 
-    const res = await fetch(`${SQUARE_BASE}/v2/catalog/images`, {
+    const res = await fetch(`${squareBase()}/v2/catalog/images`, {
       method: "POST",
       headers: {
         "Square-Version": SQUARE_VERSION,
-        "Authorization": `Bearer ${process.env.SQUARE_ACCESS_TOKEN}`,
+        "Authorization": `Bearer ${accessToken || process.env.SQUARE_ACCESS_TOKEN}`,
         "Content-Type": `multipart/form-data; boundary=${boundary}`,
       },
       body: merged,
@@ -218,15 +227,16 @@ async function createCatalogueItem(params: {
   description?: string;
   photoUrl?: string;
   index: number;
+  accessToken?: string;
+  locationId?: string;
 }): Promise<{ itemId: string; variationId: string; imageId?: string }> {
-  const { jobId, name, priceCents, description, photoUrl, index } = params;
+  const { jobId, name, priceCents, description, photoUrl, index, accessToken } = params;
   const itemKey = `${jobId}-item-${index}`;
-  const variationKey = `${jobId}-var-${index}`;
 
   // Upload image first if we have one
   let imageId: string | undefined;
   if (photoUrl) {
-    imageId = await createCatalogueImage(name, photoUrl, `${jobId}-img-${index}`) || undefined;
+    imageId = await createCatalogueImage(name, photoUrl, `${jobId}-img-${index}`, accessToken) || undefined;
   }
 
   const body: any = {
@@ -254,7 +264,7 @@ async function createCatalogueItem(params: {
     }],
   };
 
-  const data = await squareRequest("POST", "/v2/catalog/batch-upsert", body);
+  const data = await squareRequest("POST", "/v2/catalog/batch-upsert", body, accessToken);
   const objects = data?.objects || [];
   const item = objects.find((o: any) => o.type === "ITEM");
   const variation = objects.find((o: any) => o.type === "ITEM_VARIATION");
@@ -271,8 +281,10 @@ async function createProductPaymentLink(params: {
   businessName: string;
   referenceId: string;
   redirectUrl: string;
+  accessToken?: string;
+  locationId?: string;
 }): Promise<{ url: string; paymentLinkId: string }> {
-  const { variationId, businessName, referenceId, redirectUrl } = params;
+  const { variationId, businessName, referenceId, redirectUrl, accessToken, locationId } = params;
   const body = {
     idempotency_key: `${referenceId}-link-${Date.now()}`,
     checkout_options: {
@@ -280,7 +292,7 @@ async function createProductPaymentLink(params: {
       ask_for_shipping_address: false,
     },
     order: {
-      location_id: process.env.SQUARE_LOCATION_ID,
+      location_id: locationId || process.env.SQUARE_LOCATION_ID,
       reference_id: referenceId,
       line_items: [{
         catalog_object_id: variationId,
@@ -289,7 +301,7 @@ async function createProductPaymentLink(params: {
     },
     pre_populated_data: {},
   };
-  const data = await squareRequest("POST", "/v2/online-checkout/payment-links", body);
+  const data = await squareRequest("POST", "/v2/online-checkout/payment-links", body, accessToken);
   return {
     url: data.payment_link?.url as string,
     paymentLinkId: data.payment_link?.id as string,
@@ -304,8 +316,14 @@ export async function createClientShopCatalogue(params: {
   businessName: string;
   products: ShopProduct[];
   redirectUrl: string;  // Where to send the buyer after checkout (the client's site)
+  accessToken?: string;  // Client's OAuth access token — payments go to them, not WebGecko
+  locationId?: string;   // Client's Square location ID
 }): Promise<SquareCatalogueItem[]> {
-  const { jobId, businessName, products, redirectUrl } = params;
+  const { jobId, businessName, products, redirectUrl, accessToken, locationId } = params;
+
+  if (!accessToken) {
+    console.warn("[Square Shop] No client access token — payments would go to WebGecko account. Client must connect Square in portal.");
+  }
   const results: SquareCatalogueItem[] = [];
 
   for (let i = 0; i < products.length; i++) {
@@ -323,6 +341,8 @@ export async function createClientShopCatalogue(params: {
         description: product.description,
         photoUrl: product.photoUrl,
         index: i,
+        accessToken,
+        locationId,
       });
 
       if (!variationId) {
@@ -335,6 +355,8 @@ export async function createClientShopCatalogue(params: {
         variationId, businessName,
         referenceId,
         redirectUrl,
+        accessToken,
+        locationId,
       });
 
       results.push({

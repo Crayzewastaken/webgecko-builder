@@ -7,10 +7,9 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { inngest } from "@/lib/inngest";
 import { getJob } from "@/lib/db";
-import { supabase } from "@/lib/supabase";
 
 export async function runPipeline(jobId: string): Promise<{ success: boolean; error?: string }> {
-  await inngest.send({ name: "build/website", data: { jobId, isRebuild: true } });
+  await inngest.send({ name: "build/website", data: { jobId } });
   return { success: true };
 }
 
@@ -33,7 +32,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  await inngest.send({ name: "build/website", data: { jobId, isRebuild: true } });
+  await inngest.send({ name: "build/website", data: { jobId } });
 
   return new Response(
     `<!DOCTYPE html><html><body style="font-family:sans-serif;background:#0f172a;color:white;padding:40px;text-align:center;">
@@ -50,24 +49,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const { jobId, secret } = body;
 
-  const hasAdminSecret = secret === process.env.PROCESS_SECRET;
-  let hasClientAuth = false;
-  if (!hasAdminSecret && jobId) {
-    const sessionSlug = req.cookies.get("wg_client_slug")?.value;
-    if (sessionSlug) {
-      const { data } = await supabase
-        .from("clients")
-        .select("job_id")
-        .eq("slug", sessionSlug)
-        .single();
-      hasClientAuth = data?.job_id === jobId;
-    }
-  }
-
-  if (!jobId || (!hasAdminSecret && !hasClientAuth)) {
+  if (!jobId || secret !== process.env.PROCESS_SECRET) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  await inngest.send({ name: "build/website", data: { jobId, isRebuild: true } });
+  await inngest.send({ name: "build/website", data: { jobId } });
   return NextResponse.json({ success: true, queued: true, jobId });
 }

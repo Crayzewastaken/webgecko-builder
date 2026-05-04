@@ -261,6 +261,12 @@ function jobToDbJob(id: string, job: Record<string, any>) {
     supersaas_id: job.supersaasId || null,
     // Tawk.to
     tawkto_property_id: job.tawktoPropertyId || null,
+    // Square per-client OAuth credentials
+    ...(job.squareAccessToken !== undefined ? { square_access_token: job.squareAccessToken } : {}),
+    ...(job.squareRefreshToken !== undefined ? { square_refresh_token: job.squareRefreshToken } : {}),
+    ...(job.squareTokenExpiresAt !== undefined ? { square_token_expires_at: job.squareTokenExpiresAt } : {}),
+    ...(job.squareMerchantId !== undefined ? { square_merchant_id: job.squareMerchantId } : {}),
+    ...(job.squareLocationId !== undefined ? { square_location_id: job.squareLocationId } : {}),
     // Metadata jsonb — stores sub-user creds, extra intake fields, etc.
     ...(job.metadata !== undefined ? { metadata: job.metadata } : {}),
   };
@@ -287,6 +293,11 @@ function dbJobToJob(row: Record<string, any>) {
     supersaasUrl: row.supersaas_url,
     supersaasId: row.supersaas_id,
     tawktoPropertyId: row.tawkto_property_id,
+    squareAccessToken: row.square_access_token || null,
+    squareRefreshToken: row.square_refresh_token || null,
+    squareTokenExpiresAt: row.square_token_expires_at || null,
+    squareMerchantId: row.square_merchant_id || null,
+    squareLocationId: row.square_location_id || null,
     metadata: row.metadata || null,
   };
 }

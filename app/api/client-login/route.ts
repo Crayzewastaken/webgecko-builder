@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, getJob } from "@/lib/db";
+import { supabase } from "@/lib/supabase";
 
 // POST - login with username + password
 export async function POST(req: NextRequest) {
@@ -66,6 +67,10 @@ export async function GET(req: NextRequest) {
           if (job.supersaasId) safeData.supersaasId = job.supersaasId;
           if (job.supersaasUrl) safeData.supersaasUrl = job.supersaasUrl;
           if (job.tawktoPropertyId) safeData.tawktoPropertyId = job.tawktoPropertyId;
+          if (job.squareAccessToken) {
+            safeData.squareConnected = true;
+            safeData.squareMerchantId = job.squareMerchantId || null;
+          }
         }
       } catch (e) {
         console.error("client-login: failed to fetch job data", e);
@@ -76,5 +81,34 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     console.error("Client portal fetch error:", err);
     return NextResponse.json({ error: "Failed to load portal" }, { status: 500 });
+  }
+}
+
+// PATCH - update client settings from the portal (e.g. shop payment URL)
+export async function PATCH(req: NextRequest) {
+  try {
+    const sessionSlug = req.cookies.get("wg_client_slug")?.value;
+    const body = await req.json();
+    const { slug, shopPaymentUrl } = body;
+
+    if (!slug || !sessionSlug || sessionSlug !== slug) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    if (shopPaymentUrl !== undefined) {
+      if (shopPaymentUrl && !/^https?:\/\/.{4,}/.test(shopPaymentUrl)) {
+        return NextResponse.json({ error: "Invalid payment URL" }, { status: 400 });
+      }
+      const { error } = await supabase
+        .from("clients")
+        .update({ shop_payment_url: shopPaymentUrl || null })
+        .eq("slug", slug);
+      if (error) throw new Error(error.message);
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (err: any) {
+    console.error("Client PATCH error:", err);
+    return NextResponse.json({ error: err.message || "Update failed" }, { status: 500 });
   }
 }
