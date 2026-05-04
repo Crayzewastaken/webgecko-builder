@@ -231,18 +231,46 @@ const buildWebsite = inngest.createFunction(
       const screens = stitchResult?.outputComponents?.find((x: any) => x.design)?.design?.screens || [];
       let url = screens[0]?.htmlCode?.downloadUrl as string | undefined;
 
-      // Fallback: if Stitch returned a sessionId but no screens yet, poll get_screen once
+      // Fallback A: sessionId present — Stitch is async, poll get_screen with correct params
       if (!url && stitchResult?.sessionId) {
-        console.log(`[Inngest] STEP 3: no downloadUrl in result, trying get_screen with sessionId=${stitchResult.sessionId}`);
-        await new Promise(resolve => setTimeout(resolve, 5_000));
+        const screenId = stitchResult.sessionId as string;
+        console.log(`[Inngest] STEP 3: sessionId=${screenId} — waiting 8s then calling get_screen`);
+        await new Promise(resolve => setTimeout(resolve, 8_000));
         const screenResult: any = await stitchClient.callTool("get_screen", {
           projectId,
-          sessionId: stitchResult.sessionId,
+          screenId,
+          name: `projects/${projectId}/screens/${screenId}`,
         }).catch((e: any) => { console.error("[Inngest] STEP 3 get_screen failed:", e.message); return null; });
         if (screenResult) {
           console.log(`[Inngest] STEP 3 get_screen result keys=${Object.keys(screenResult||{}).join(",")}`);
-          const fallbackScreens = screenResult?.outputComponents?.find((x: any) => x.design)?.design?.screens || [];
-          url = fallbackScreens[0]?.htmlCode?.downloadUrl;
+          url = screenResult?.htmlCode?.downloadUrl as string | undefined;
+        }
+      }
+
+      // Fallback B: no sessionId either — retry generate_screen_from_text once
+      if (!url) {
+        console.log("[Inngest] STEP 3: no url after fallback A — waiting 5s then retrying generate_screen_from_text");
+        await new Promise(resolve => setTimeout(resolve, 5_000));
+        const retryResult: any = await stitchClient.callTool("generate_screen_from_text", {
+          projectId,
+          prompt: spec.stitchPrompt,
+        }).catch((e: any) => { console.error("[Inngest] STEP 3 retry failed:", e.message); return null; });
+        if (retryResult) {
+          console.log(`[Inngest] STEP 3 retry result keys=${Object.keys(retryResult||{}).join(",")}`);
+          const retryScreens = retryResult?.outputComponents?.find((x: any) => x.design)?.design?.screens || [];
+          url = retryScreens[0]?.htmlCode?.downloadUrl as string | undefined;
+          // If retry also gives sessionId, poll it too
+          if (!url && retryResult?.sessionId) {
+            const retryScreenId = retryResult.sessionId as string;
+            console.log(`[Inngest] STEP 3 retry sessionId=${retryScreenId} — waiting 8s then get_screen`);
+            await new Promise(resolve => setTimeout(resolve, 8_000));
+            const retryScreen: any = await stitchClient.callTool("get_screen", {
+              projectId,
+              screenId: retryScreenId,
+              name: `projects/${projectId}/screens/${retryScreenId}`,
+            }).catch((e: any) => { console.error("[Inngest] STEP 3 retry get_screen failed:", e.message); return null; });
+            url = retryScreen?.htmlCode?.downloadUrl as string | undefined;
+          }
         }
       }
 

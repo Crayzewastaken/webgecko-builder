@@ -219,7 +219,7 @@ function SuperSaasChecklist({ client: c, secret, onActivated }: { client: Client
       required: true,
       autoCompleted: false,
       label: "Step 4 \u2014 Add services as a drop-down field on the booking form",
-      detail: "Configure \u2192 Form \u2192 Add field \u2192 Drop-down list \u2192 name it \"Service\" \u2192 add the service options listed above",
+      detail: `Configure → Form → Add field → Drop-down list → name it "Service" → add these options: ${servicesFormatted.join(" | ")}`,
     }] : []),
     {
       key: "notifications",

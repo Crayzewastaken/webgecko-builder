@@ -92,6 +92,13 @@ export async function POST(req: Request) {
       bookingServices: getString("bookingServices"),
     };
 
+    // Auto-populate bookingServices from industry defaults when user left it blank or said "generate"
+    const rawBookingServices = (userInput.bookingServices || "").trim().toLowerCase();
+    if (!rawBookingServices || rawBookingServices === "generate" || rawBookingServices === "yes" || rawBookingServices === "auto") {
+      const generatedServices = getServicesForIndustry(userInput.industry || "");
+      userInput.bookingServices = generatedServices.map((s: { name: string; duration: number }) => s.name).join(", ");
+    }
+
     const pageList = Array.isArray(userInput.pages) && userInput.pages.length > 0 ? userInput.pages.join(", ") : "Home";
     const fileName = safeFileName(userInput.businessName || "website");
     const clientEmail = userInput.email || "";
