@@ -40,8 +40,13 @@ export async function createTawktoProperty(businessName: string): Promise<string
     if (!propertyId) throw new Error("No property ID in response: " + JSON.stringify(result));
     console.log(`[Tawk.to] Created property for "${businessName}": ${propertyId}`);
     return propertyId;
-  } catch (err) {
-    console.error("[Tawk.to] Failed to create property:", err);
+  } catch (err: any) {
+    const msg = err?.message || String(err);
+    if (msg.includes("404")) {
+      console.warn("[Tawk.to] Live chat skipped — Tawk.to API returned 404 (property creation not available on this plan or API key). Build continues without live chat.");
+    } else {
+      console.error("[Tawk.to] Failed to create property:", msg);
+    }
     return null;
   }
 }

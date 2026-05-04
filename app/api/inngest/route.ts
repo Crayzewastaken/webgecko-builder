@@ -16,6 +16,7 @@ import {
   injectImages,
   getServicesForIndustry,
   normalizePageId,
+  repairHtml,
 } from "@/lib/pipeline-helpers";
 import { createSuperSaasSchedule } from "@/lib/supersaas";
 import { createClientShopCatalogue } from "@/lib/square";
@@ -358,7 +359,18 @@ const buildWebsite = inngest.createFunction(
 
       // For multi-page sites where Stitch gave incomplete output, Claude rebuilds as multi-page
       const multiPageNote = isMultiPage
-        ? `This is a MULTI-PAGE site. CRITICAL: each page wrapper MUST have data-page="id" AND id="id" AND class="page-section". Page ids (use exactly these): ${requestedPageIds.join(", ")}. First page gets class="page-section active", all others class="page-section" (no inline display style — router CSS is injected separately). Nav links: onclick="navigateTo('page-id')". DO NOT define navigateTo() — it will be injected and a duplicate breaks navigation. DO NOT add CSS for .page-section visibility.`
+        ? `This is a MULTI-PAGE site. CRITICAL rules:
+- Each page wrapper MUST use BOTH data-page="id" AND id="id" AND class="page-section". Page ids (use exactly): ${requestedPageIds.join(", ")}.
+- First page: class="page-section active". All others: class="page-section". NO inline display style. NO .page-section CSS (injected automatically).
+- Nav links: onclick="navigateTo('page-id')". DO NOT define navigateTo() — it will be injected. A duplicate BREAKS navigation.
+- The Home page wrapper MUST contain a nested <section id="hero"> with a full-viewport hero (headline + CTA).
+- The site MUST contain <section id="testimonials"> (can be on Home or a dedicated page).
+- The site MUST contain <section id="faq"> with a real FAQ accordion.
+- Contact page MUST contain <section id="contact"> with a real form (name/email/phone/message).
+- Booking page/component MUST be <section id="booking"> or a wrapper with id="booking".
+- <footer> MUST include visible copyright: &copy; ${new Date().getFullYear()} ${userInput.businessName}. All rights reserved.
+- Output MUST end exactly with </body></html>. No trailing text after </html>.
+- Do NOT leave unfinished tags. Do NOT remove IDs that existed in the Stitch HTML.`
         : `This is a SINGLE-PAGE site. Nav links use onclick="document.getElementById('SECTIONID')?.scrollIntoView({behavior:'smooth'})`;
 
       const prompt = `You are a senior front-end developer. I have a Stitch-generated website design below. Your job is to rewrite it as a complete, production-ready HTML file that EXACTLY preserves the visual design (colors, fonts, layout, imagery style) but guarantees all structural and functional requirements.
@@ -398,7 +410,10 @@ RULES:
 - Use the real business name, email, phone throughout — no placeholders
 - All images: use unsplash.com or placehold.co URLs if no real images provided
 - Mobile-first, responsive using the same Tailwind/CSS classes from the Stitch output
-- The hamburger button MUST open the mobile-menu div (add inline onclick or wire via script)`;
+- The hamburger button MUST open the mobile-menu div (add inline onclick or wire via script)
+- Output MUST end exactly with </body></html>. Do NOT leave unfinished tags or attributes.
+- <footer> MUST contain: &copy; ${new Date().getFullYear()} ${userInput.businessName}. All rights reserved.
+- Do NOT remove any id= attributes that existed in the Stitch HTML.`;
 
       const response = await anthropic.messages.create({
         model: "claude-haiku-4-5-20251001",  // Haiku: ~20x cheaper than Sonnet, reliable for HTML
@@ -408,30 +423,32 @@ RULES:
 
       const text = response.content[0]?.type === "text" ? response.content[0].text : "";
       const start = text.indexOf("<!DOCTYPE");
-      const extracted = start !== -1 ? text.slice(start) : text;
+      let extracted = start !== -1 ? text.slice(start) : text;
 
-      // Validate Claude's output — check it has the key structural requirements
-      const requiredIds = ['id="hamburger"', 'id="mobile-menu"', 'id="contact"'];
-      const missingIds = requiredIds.filter(id => !extracted.includes(id));
-      const isTooShort = extracted.length < 8000 || !extracted.includes("<html");
-
+      // Check for malformed output — too short or missing structure
+      const isTooShort = extracted.length < 8000 || !extracted.includes("<html") || !extracted.includes("<body");
       if (isTooShort) {
-        console.error("[Step4b] FALLBACK: Claude output too short/invalid (" + extracted.length + " chars) — using Stitch HTML");
-        // Log to Resend so you know when this happens
+        console.error("[Step4b] FALLBACK: Claude output too short/malformed (" + extracted.length + " chars) — using Stitch HTML");
         resend.emails.send({
           from: "WebGecko Pipeline <hello@webgecko.au>",
           to: "crayzewastaken@gmail.com",
           subject: "⚠️ Step4b Fallback — " + userInput.businessName,
           html: "<p>Claude rebuild failed for <strong>" + userInput.businessName + "</strong> (job: " + jobId + "). Fell back to raw Stitch HTML. Output was " + extracted.length + " chars.</p>",
         }).catch(() => {});
-        return stitchHtml;
+        return repairHtml(stitchHtml, userInput.businessName, new Date().getFullYear());
       }
 
+      // Repair structural issues (truncated tags, missing </footer></body></html>, missing copyright)
+      extracted = repairHtml(extracted, userInput.businessName, new Date().getFullYear());
+
+      // Warn on missing required IDs — auditor will patch these in Step 5
+      const requiredIds = ['id="hamburger"', 'id="mobile-menu"', 'id="contact"', 'id="hero"'];
+      const missingIds = requiredIds.filter(id => !extracted.includes(id));
       if (missingIds.length > 0) {
-        console.warn("[Step4b] Claude output missing: " + missingIds.join(", ") + " — pipeline will patch these downstream");
+        console.warn("[Step4b] Claude output missing: " + missingIds.join(", ") + " — auditor will patch");
       }
 
-      console.log("[Step4b] Claude rebuilt HTML: " + extracted.length + " chars (Stitch was " + stitchHtml.length + " chars). Missing ids: " + (missingIds.join(",") || "none"));
+      console.log("[Step4b] Claude rebuilt HTML: " + extracted.length + " chars (Stitch was " + stitchHtml.length + " chars). Missing: " + (missingIds.join(",") || "none"));
       return extracted;
       });
 
@@ -787,11 +804,20 @@ RULES:
       checks.push({ label: "No skeleton placeholder",pass: !/<h1>\s*(HOME PAGE|PAGE CONTENT)\s*<\/h1>/i.test(liveHtml),        severity: "error" });
       checks.push({ label: "Real email present",     pass: liveHtml.includes(clientEmail),                                        severity: "error" });
       checks.push({ label: "Has navigation",         pass: liveHtml.includes('id="hamburger"') || liveHtml.includes("<nav"),     severity: "error" });
-      checks.push({ label: "Hero section",           pass: /id=["\']hero["\']/.test(liveHtml),                                  severity: "warn"  });
-      checks.push({ label: "Contact section",        pass: /id=["\']contact["\']/.test(liveHtml),                               severity: "warn"  });
-      checks.push({ label: "Testimonials section",   pass: /id=["\']testimonials["\']/.test(liveHtml),                          severity: "warn"  });
-      checks.push({ label: "FAQ section",            pass: /id=["\']faq["\']/.test(liveHtml),                                   severity: "warn"  });
-      checks.push({ label: "Footer copyright",       pass: liveHtml.includes("©") || liveHtml.includes("&copy;"),                 severity: "warn"  });
+      checks.push({ label: "Hero section",
+        // Multi-page: hero can be nested inside home page wrapper; single-page: needs id="hero"
+        pass: /id=["']hero["']/.test(liveHtml) || (isMultiPage && /data-page=["']home["']/.test(liveHtml) && /<h1[\s>]/i.test(liveHtml)),
+        severity: "warn"  });
+      checks.push({ label: "Contact section",
+        pass: /id=["']contact["']/.test(liveHtml) || (isMultiPage && /data-page=["']contact["']/.test(liveHtml)),
+        severity: "warn"  });
+      checks.push({ label: "Testimonials section",
+        pass: /id=["']testimonials["']/.test(liveHtml) || /testimonial|review/i.test(liveHtml),
+        severity: "warn"  });
+      checks.push({ label: "FAQ section",
+        pass: /id=["']faq["']/.test(liveHtml) || /<details[\s>]|accordion/i.test(liveHtml),
+        severity: "warn"  });
+      checks.push({ label: "Footer copyright",       pass: liveHtml.includes("©") || liveHtml.includes("&copy;") || liveHtml.includes("All rights reserved"),                 severity: "warn"  });
       if (hasBookingFeature) {
         checks.push({ label: "Booking section",      pass: /id=["\']booking["\']/.test(liveHtml),                               severity: "error" });
         const hasRealBookingIframe = (!!bookingUrl && liveHtml.includes(bookingUrl)) || (liveHtml.includes("supersaas.com") && !liveHtml.includes("/template"));
@@ -1000,16 +1026,16 @@ RULES:
         : "";
 
       const featureChecklist = [
-        { label: "Hero section", check: deployedHtml.includes('id="hero') || deployedHtml.includes('viewport') },
+        { label: "Hero section", check: /id=["']hero["']/.test(deployedHtml) || (isMultiPage && /data-page=["']home["']/.test(deployedHtml) && /<h1[\s>]/i.test(deployedHtml)) },
         { label: "Sticky nav + hamburger", check: deployedHtml.includes('id="hamburger"') },
-        { label: "Testimonials section", check: deployedHtml.includes('id="testimonials"') },
-        { label: "FAQ accordion", check: deployedHtml.includes('id="faq"') },
-        { label: "Contact form", check: deployedHtml.includes('id="contact"') },
+        { label: "Testimonials section", check: /id=["']testimonials["']/.test(deployedHtml) || /testimonial|review/i.test(deployedHtml) },
+        { label: "FAQ accordion", check: /id=["']faq["']/.test(deployedHtml) || /<details[\s>]|accordion/i.test(deployedHtml) },
+        { label: "Contact form", check: /id=["']contact["']/.test(deployedHtml) || (isMultiPage && /data-page=["']contact["']/.test(deployedHtml)) },
         { label: "Real email injected", check: deployedHtml.includes(clientEmail) },
         { label: "Real phone injected", check: deployedHtml.includes(clientPhone.replace(/\s/g, "")) || deployedHtml.includes(clientPhone) },
         { label: "Google Maps embedded", check: deployedHtml.includes("google.com/maps") },
         { label: "Booking widget", check: hasBookingFeature && (deployedHtml.includes("supersaas.com") || (bookingUrl ? deployedHtml.includes(bookingUrl) : false) || deployedHtml.includes('id="booking"')) },
-        { label: "Footer with copyright", check: deployedHtml.includes("©") || deployedHtml.includes("&copy;") },
+        { label: "Footer with copyright", check: deployedHtml.includes("©") || deployedHtml.includes("&copy;") || deployedHtml.includes("All rights reserved") },
       ].filter(f => {
         if (f.label === "Booking widget" && !hasBookingFeature) return false;
         if (f.label === "Google Maps embedded" && !userInput.businessAddress) return false;

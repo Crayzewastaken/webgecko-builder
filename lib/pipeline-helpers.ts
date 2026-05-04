@@ -248,6 +248,68 @@ export function checkAndFixLinks(html: string, pages: string[]): { html: string;
   return { html: fixed, report: issues };
 }
 
+// ─── repairHtml ──────────────────────────────────────────────────────────────
+// Conservative HTML structural repair. Ensures DOCTYPE, <html>, <head>, <body>,
+// closing </footer>, </body>, </html>. Does NOT rewrite content.
+// Call after Claude rebuild and before any downstream injection.
+
+export function repairHtml(html: string, businessName: string, year: number): string {
+  let out = html.trim();
+
+  // 1. Truncated trailing attribute — e.g. `<a href="` at end (Claude cut off mid-tag)
+  //    Strip anything after the last complete tag close before injected content lands.
+  out = out.replace(/<[a-zA-Z][^>]*$/, "");  // remove incomplete trailing open tag
+
+  // 2. Ensure DOCTYPE + html wrapper
+  if (!out.startsWith("<!DOCTYPE") && !out.startsWith("<!doctype")) {
+    if (!out.includes("<html")) {
+      out = `<!DOCTYPE html>\n<html lang="en">\n<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>\n<body>\n${out}\n</body>\n</html>`;
+    } else {
+      out = `<!DOCTYPE html>\n${out}`;
+    }
+  }
+
+  // 3. Ensure <head> exists
+  if (!out.includes("<head")) {
+    out = out.replace("<html", "<html").replace(/<html([^>]*)>/, `<html$1>\n<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>`);
+  }
+
+  // 4. Ensure <body> exists
+  if (!/<body[\s>]/.test(out)) {
+    out = out.replace("</head>", "</head>\n<body>");
+    if (!out.includes("</body>")) out += "\n</body>";
+  }
+
+  // 5. Ensure </footer> if <footer> exists
+  if (out.includes("<footer") && !out.includes("</footer>")) {
+    // Find position of last </body> or </html> and insert </footer> before it
+    const insertBefore = out.includes("</body>") ? "</body>" : "</html>";
+    out = out.replace(new RegExp(`(?=<\/body>|<\/html>)`, "i"), "</footer>\n");
+  }
+
+  // 6. Ensure copyright in footer if missing
+  if (!out.includes("©") && !out.includes("&copy;") && !out.includes("All rights reserved")) {
+    const copy = `<div style="text-align:center;padding:12px 0;font-size:12px;opacity:0.6;">© ${year} ${businessName}. All rights reserved.</div>`;
+    if (out.includes("</footer>")) {
+      out = out.replace("</footer>", copy + "\n</footer>");
+    } else if (out.includes("</body>")) {
+      out = out.replace("</body>", copy + "\n</body>");
+    }
+  }
+
+  // 7. Ensure </body></html> at end
+  const stripped = out.trimEnd();
+  if (!stripped.endsWith("</html>")) {
+    if (!stripped.endsWith("</body>")) {
+      out = stripped + "\n</body>\n</html>";
+    } else {
+      out = stripped + "\n</html>";
+    }
+  }
+
+  return out;
+}
+
 // ─── injectEssentials ─────────────────────────────────────────────────────────
 // Full version from original worker — includes navigateTo, hamburger, FAQ accordion,
 // cart toast, form handler, multi-page init

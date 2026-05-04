@@ -168,6 +168,30 @@ export async function auditAndFixSite(
     mark(AuditErrorType.MISSING_HAMBURGER);
   }
 
+  // Fix 3b: ensure required semantic IDs exist (hero, testimonials, faq) regardless of multi-page
+  // These are checked by the smoke test and checklist — add them if content exists but id is missing
+  const semanticIds: Array<{ id: string; patterns: RegExp[] }> = [
+    { id: "hero", patterns: [/class="[^"]*hero/i, /full.{0,10}viewport|min-height:\s*100vh|100vmin/i] },
+    { id: "testimonials", patterns: [/class="[^"]*(?:testimonial|review)/i, /what.*(?:client|customer).*say|our.*review/i] },
+    { id: "faq", patterns: [/class="[^"]*(?:faq|accordion)/i, /frequently.asked|common.question/i] },
+  ];
+  for (const { id, patterns } of semanticIds) {
+    if (fixed.includes(`id="${id}"`)) continue; // already present
+    for (const pat of patterns) {
+      // Find a section/div matching pattern, add id if it lacks one
+      let added = false;
+      fixed = fixed.replace(/<(section|div)(\s[^>]*)?>(?=[\s\S]{0,200}(?:class|style))/gi, (m: string) => {
+        if (added) return m;
+        if (!pat.test(m)) return m;
+        if (/\bid=/.test(m)) return m;
+        added = true;
+        console.log(`[Auditor] added id="${id}" via pattern match`);
+        return m.replace(/>$/, ` id="${id}">`);
+      });
+      if (added) break;
+    }
+  }
+
   // Fix 4: contact section
   if (has(AuditErrorType.MISSING_CONTACT)) {
     const onsubmit = "event.preventDefault();this.innerHTML='<p style=\"color:#22c55e;font-weight:bold;\">Thank you!</p>'";
@@ -204,17 +228,40 @@ export async function auditAndFixSite(
     mark(AuditErrorType.MISSING_TESTIMONIALS);
   }
 
-  // Fix 7: copyright
+  // Fix 7: copyright — only mark fixed if HTML actually changed after insert
   if (has(AuditErrorType.MISSING_COPYRIGHT)) {
+    const beforeCopy = fixed;
+    const copyDiv = '<div style="text-align:center;padding:12px 0;font-size:13px;opacity:0.7;">© ' + yr + ' ' + businessName + '. All rights reserved.</div>';
     if (fixed.includes("</footer>")) {
       fixed = fixed.replace(/([\s\S]*?)(<\/footer>)/i, (m: string, body: string, close: string) => {
         if (body.includes("©") || body.includes("&copy;")) return m;
-        return body + '\n<div style="text-align:center;padding:12px 0;font-size:13px;opacity:0.7;">© ' + yr + ' ' + businessName + '</div>\n' + close;
+        return body + '\n' + copyDiv + '\n' + close;
       });
+    } else if (fixed.includes("</body>")) {
+      fixed = fixed.replace("</body>", copyDiv + '\n</body>');
     } else {
-      fixed = fixed.replace("</body>", '<div style="text-align:center;padding:20px;font-size:13px;opacity:0.6;">© ' + yr + ' ' + businessName + '</div>\n</body>');
+      // No </body> — append safe closing structure
+      fixed = fixed.trimEnd() + '\n' + copyDiv + '\n</body>\n</html>';
     }
-    mark(AuditErrorType.MISSING_COPYRIGHT);
+    // Only mark as fixed if copyright is now actually present
+    if (fixed.includes("©") || fixed.includes("&copy;")) {
+      mark(AuditErrorType.MISSING_COPYRIGHT);
+    } else {
+      console.warn("[Auditor] MISSING_COPYRIGHT: could not inject copyright — no anchor found");
+    }
+  }
+
+  // Ensure </body></html> exists — append if missing (handles Claude truncation)
+  if (!fixed.includes("</body>") || !fixed.includes("</html>")) {
+    console.warn("[Auditor] Missing </body> or </html> — appending safe closing tags");
+    const stripped = fixed.trimEnd();
+    if (!stripped.endsWith("</html>")) {
+      if (!stripped.endsWith("</body>")) {
+        fixed = stripped + "\n</body>\n</html>";
+      } else {
+        fixed = stripped + "\n</html>";
+      }
+    }
   }
 
   // Fix 8: booking placeholder (step6c replaces with real component)
