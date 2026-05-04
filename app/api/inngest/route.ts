@@ -17,6 +17,7 @@ import {
   getServicesForIndustry,
   normalizePageId,
   repairHtml,
+  validateForDeploy,
 } from "@/lib/pipeline-helpers";
 import { createSuperSaasSchedule } from "@/lib/supersaas";
 import { createClientShopCatalogue } from "@/lib/square";
@@ -311,6 +312,9 @@ const buildWebsite = inngest.createFunction(
     // ── STEP 4b: Claude rewrites Stitch HTML — preserves visual style, guarantees structure ──
     // Stitch gives us the visual design. Claude rewrites it as clean, fully-functional HTML
     // with all required structural elements guaranteed (ids, mobile nav, booking iframe, etc.)
+    // requestedPageIds at outer scope so step7b-validate and other steps can use it
+    const requestedPageIds = (Array.isArray(userInput.pages) ? userInput.pages : ["Home"])
+      .map((p: string) => normalizePageId(p));
     const rebuiltHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step4b-claude-rebuild", async () => {
       // Extract ALL CSS blocks (some Stitch outputs have multiple <style> tags)
       const allCss = (stitchHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [])
@@ -337,41 +341,68 @@ const buildWebsite = inngest.createFunction(
 </section>`
         : "";
 
-      // MULTI-PAGE: Only skip Claude rebuild if Stitch output has valid [data-page] wrappers
-      // for ALL requested pages. Never rely on .page-section count — Stitch uses that class
-      // for visual styling and produces false positives.
-      const stitchDataPages = (stitchHtml.match(/\bdata-page=["'][^"']+["']/g) || []).length;
-      const stitchNavCalls = (stitchHtml.match(/navigateTo\s*\(/g) || []).length;
-      const requestedPageIds = (Array.isArray(userInput.pages) ? userInput.pages : ["Home"])
-        .map((p: string) => normalizePageId(p));
-      const allPagesPresent = requestedPageIds.every((id: string) =>
-        stitchHtml.includes(`data-page="${id}"`) || stitchHtml.includes(`id="${id}"`)
-      );
-      const stitchIsValidMultiPage = isMultiPage && stitchDataPages >= 2 && stitchNavCalls >= 2 && allPagesPresent;
-
-      if (stitchIsValidMultiPage) {
-        console.log("[Step4b] Multi-page: valid Stitch structure (" + stitchDataPages + " data-page wrappers, all pages present) — skipping Claude rebuild");
-        return stitchHtml;
-      }
+      // MULTI-PAGE: Always run Claude rebuild. Stitch is treated as visual reference only —
+      // it produces single-page anchor sites and cannot be trusted for multi-page structure.
+      // Single-page: skip Claude rebuild if Stitch output looks complete.
       if (isMultiPage) {
-        console.log("[Step4b] Multi-page: incomplete Stitch output (" + stitchDataPages + " data-page wrappers, allPagesPresent=" + allPagesPresent + ") — running Claude rebuild");
+        const stitchDataPages = (stitchHtml.match(/\bdata-page=["'][^"']+["']/g) || []).length;
+        console.log("[Step4b] Multi-page build: running Claude rebuild (Stitch had " + stitchDataPages + " data-page wrappers, need " + requestedPageIds.length + " pages: " + requestedPageIds.join(", ") + ")");
+      } else {
+        // Single-page shortcut: skip Claude if Stitch looks complete
+        const hasHero = stitchHtml.includes('id="hero"') || stitchHtml.includes("id='hero'");
+        const hasNav = stitchHtml.includes('id="hamburger"');
+        const isComplete = stitchHtml.length > 15000 && hasHero && hasNav;
+        if (isComplete) {
+          console.log("[Step4b] Single-page: valid Stitch output — skipping Claude rebuild");
+          return repairHtml(stitchHtml, userInput.businessName, new Date().getFullYear());
+        }
+        console.log("[Step4b] Single-page: Stitch output incomplete — running Claude rebuild");
       }
 
-      // For multi-page sites where Stitch gave incomplete output, Claude rebuilds as multi-page
+      // Build explicit per-page content instructions for Claude
+      const yr4b = new Date().getFullYear();
+      const pageContentMap: Record<string, string> = {
+        home:         'Full-viewport hero section (id="hero") with headline, subheadline, CTA. Brief services preview, and testimonials (id="testimonials") with 3+ Australian client reviews.',
+        about:        'Rich About Us: company story, mission, team intro, values.',
+        services:     'Services grid with 4-6 cards. Each card has icon, title, description, price if applicable.',
+        pricing:      'Pricing table with 2-3 tiers or per-service pricing. Include what\'s included in each.',
+        gallery:      'Responsive image gallery grid (use placehold.co or unsplash.com). Before/after layout if applicable.',
+        contact:      'Contact section with id="contact": form with name, email, phone, message fields. Real email and phone below. Include a Google Maps iframe.',
+        booking:      'Booking section with id="booking". Insert the booking iframe from the requirements below, or prominent call-to-action to phone.',
+        faq:          'FAQ accordion with id="faq". 6+ real questions and answers relevant to the industry.',
+        testimonials: 'Testimonials with id="testimonials". 4+ reviews from Australian clients with names, star ratings, quotes.',
+        shop:         'Product grid with 4-6 items. Each with image, name, price, Add to Cart button.',
+        blog:         'Blog post grid with 3-4 article cards. Each with image, title, excerpt, date.',
+        team:         'Team grid with 3-4 members. Each with photo (placehold.co), name, role, bio.',
+        menu:         'Restaurant menu with categories and items. Each item has name, description, price.',
+        location:     'Location/hours section with address and trading hours grid.',
+      };
+      const pageLines = requestedPageIds.map(function(id: string, i: number) {
+        const label = (Array.isArray(userInput.pages) ? userInput.pages[i] : id) || id;
+        const pgContent = pageContentMap[id] || ('Full rich content page for ' + label + ' relevant to ' + (userInput.industry || 'the business') + '.');
+        const firstClass = i === 0 ? 'class="page-section active"' : 'class="page-section"';
+        return '  PAGE "' + id + '": <div data-page="' + id + '" id="' + id + '" ' + firstClass + '>\n    ' + pgContent;
+      });
+      const pageInstructions = pageLines.join('\n');
+
+      const bookingIdLine = hasBookingFeature ? '- id="booking" — inside the booking page wrapper' : '';
       const multiPageNote = isMultiPage
-        ? `This is a MULTI-PAGE site. CRITICAL rules:
-- Each page wrapper MUST use BOTH data-page="id" AND id="id" AND class="page-section". Page ids (use exactly): ${requestedPageIds.join(", ")}.
-- First page: class="page-section active". All others: class="page-section". NO inline display style. NO .page-section CSS (injected automatically).
-- Nav links: onclick="navigateTo('page-id')". DO NOT define navigateTo() — it will be injected. A duplicate BREAKS navigation.
-- The Home page wrapper MUST contain a nested <section id="hero"> with a full-viewport hero (headline + CTA).
-- The site MUST contain <section id="testimonials"> (can be on Home or a dedicated page).
-- The site MUST contain <section id="faq"> with a real FAQ accordion.
-- Contact page MUST contain <section id="contact"> with a real form (name/email/phone/message).
-- Booking page/component MUST be <section id="booking"> or a wrapper with id="booking".
-- <footer> MUST include visible copyright: &copy; ${new Date().getFullYear()} ${userInput.businessName}. All rights reserved.
-- Output MUST end exactly with </body></html>. No trailing text after </html>.
-- Do NOT leave unfinished tags. Do NOT remove IDs that existed in the Stitch HTML.`
-        : `This is a SINGLE-PAGE site. Nav links use onclick="document.getElementById('SECTIONID')?.scrollIntoView({behavior:'smooth'})`;
+        ? ('This is a MULTI-PAGE site with ' + requestedPageIds.length + ' pages: ' + requestedPageIds.join(', ') + '.\n\n'
+          + 'CRITICAL STRUCTURE RULES — every rule is mandatory:\n'
+          + '1. Every page MUST be a wrapper: <div data-page="ID" id="ID" class="page-section"> ... </div>\n'
+          + '   First page: class="page-section active". ALL others: class="page-section". NO inline display style.\n'
+          + '2. Do NOT define navigateTo() — it is injected automatically. Do NOT add .page-section CSS rules.\n'
+          + '3. All nav links between pages MUST use: onclick="navigateTo(\'page-id\')"\n'
+          + '4. The required page IDs are EXACTLY: ' + requestedPageIds.join(', ') + '\n\n'
+          + 'REQUIRED PAGE CONTENT:\n' + pageInstructions + '\n\n'
+          + 'REQUIRED IDs that must exist somewhere in the output:\n'
+          + '- id="hero" — inside the home page wrapper\n'
+          + '- id="testimonials" — on home or about page\n'
+          + '- id="faq" — on home or a dedicated FAQ page\n'
+          + '- id="contact" — inside the contact page wrapper with a real form\n'
+          + bookingIdLine + '\n'
+          + '- <footer> must contain: &copy; ' + yr4b + ' ' + userInput.businessName + '. All rights reserved.')
+        : 'This is a SINGLE-PAGE site. Nav links: onclick="document.getElementById(\'SECTIONID\')?.scrollIntoView({behavior:\'smooth\'})"';
 
       const prompt = `You are a senior front-end developer. I have a Stitch-generated website design below. Your job is to rewrite it as a complete, production-ready HTML file that EXACTLY preserves the visual design (colors, fonts, layout, imagery style) but guarantees all structural and functional requirements.
 
@@ -441,14 +472,51 @@ RULES:
       // Repair structural issues (truncated tags, missing </footer></body></html>, missing copyright)
       extracted = repairHtml(extracted, userInput.businessName, new Date().getFullYear());
 
-      // Warn on missing required IDs — auditor will patch these in Step 5
-      const requiredIds = ['id="hamburger"', 'id="mobile-menu"', 'id="contact"', 'id="hero"'];
+      // For multi-page: validate ALL requested pages exist as data-page wrappers
+      // If any are missing, retry Claude once with explicit page list before giving up
+      if (isMultiPage) {
+        const missingPages = requestedPageIds.filter((id: string) => !extracted.includes(`data-page="${id}"`));
+        if (missingPages.length > 0) {
+          console.warn("[Step4b] Multi-page: missing pages after first Claude pass: " + missingPages.join(", ") + " — retrying with explicit instructions");
+
+          const wrapperLines = requestedPageIds.map(function(id: string) {
+            return '<div data-page="' + id + '" id="' + id + '" class="page-section">';
+          }).join('\n');
+          const retryPrompt = 'You are a front-end developer. Complete the following HTML by adding the missing page wrappers.\n\n'
+            + 'The site MUST have these data-page wrappers (some are missing):\n' + wrapperLines + '\n\n'
+            + 'MISSING pages that need to be added: ' + missingPages.join(', ') + '\n'
+            + 'Each must be: <div data-page="ID" id="ID" class="page-section"> ... rich content ... </div>\n\n'
+            + 'Existing HTML to extend (insert missing pages before </body>):\n'
+            + extracted.slice(0, 6000) + '\n...\n' + extracted.slice(-2000) + '\n\n'
+            + 'Return the COMPLETE fixed HTML starting with <!DOCTYPE html> ending with </body></html>.\n'
+            + 'Do NOT define navigateTo(). Do NOT add .page-section CSS.';
+
+          const retryResponse = await anthropic.messages.create({
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 16000,
+            messages: [{ role: "user", content: retryPrompt }],
+          });
+          const retryText = retryResponse.content[0]?.type === "text" ? retryResponse.content[0].text : "";
+          const retryStart = retryText.indexOf("<!DOCTYPE");
+          const retryExtracted = retryStart !== -1 ? retryText.slice(retryStart) : "";
+          if (retryExtracted.length > extracted.length && retryExtracted.includes("<html")) {
+            extracted = repairHtml(retryExtracted, userInput.businessName, new Date().getFullYear());
+            const stillMissing = requestedPageIds.filter((id: string) => !extracted.includes(`data-page="${id}"`));
+            console.log("[Step4b] Retry result: " + extracted.length + " chars. Still missing: " + (stillMissing.join(",") || "none"));
+          } else {
+            console.warn("[Step4b] Retry produced shorter/invalid output — keeping first pass");
+          }
+        }
+      }
+
+      // Warn on missing required IDs — auditor will patch in Step 5
+      const requiredIds = ['id="hamburger"', 'id="mobile-menu"', 'id="contact"'];
       const missingIds = requiredIds.filter(id => !extracted.includes(id));
       if (missingIds.length > 0) {
         console.warn("[Step4b] Claude output missing: " + missingIds.join(", ") + " — auditor will patch");
       }
 
-      console.log("[Step4b] Claude rebuilt HTML: " + extracted.length + " chars (Stitch was " + stitchHtml.length + " chars). Missing: " + (missingIds.join(",") || "none"));
+      console.log("[Step4b] Claude rebuilt HTML: " + extracted.length + " chars (Stitch was " + stitchHtml.length + " chars). Missing ids: " + (missingIds.join(",") || "none"));
       return extracted;
       });
 
@@ -762,6 +830,33 @@ RULES:
       return html;
     });
 
+    // ── STEP 7b: Pre-deploy validation ──────────────────────────────────────
+    const deployReady = await step.run("step7b-validate", async () => {
+      const failures = validateForDeploy(finalHtmlWithShop, requestedPageIds, isMultiPage, hasBookingFeature);
+      if (failures.length > 0) {
+        console.error("[Step7b] Pre-deploy validation FAILED:", failures.join("; "));
+        // Attempt structural repair and re-validate
+        const repaired = repairHtml(finalHtmlWithShop, userInput.businessName, new Date().getFullYear());
+        const failuresAfterRepair = validateForDeploy(repaired, requestedPageIds, isMultiPage, hasBookingFeature);
+        if (failuresAfterRepair.length > 0) {
+          console.error("[Step7b] Still failing after repair:", failuresAfterRepair.join("; "));
+          // Log to owner but continue — don't block deploy for non-critical missing IDs
+          resend.emails.send({
+            from: "WebGecko Pipeline <hello@webgecko.au>",
+            to: "crayzewastaken@gmail.com",
+            subject: "⚠️ Pre-deploy validation failed — " + userInput.businessName,
+            html: "<p>Build for <strong>" + userInput.businessName + "</strong> (job: " + jobId + ") has validation failures:<br><ul>" + failuresAfterRepair.map((f: string) => "<li>" + f + "</li>").join("") + "</ul></p>",
+          }).catch(() => {});
+          return { html: repaired, valid: false, failures: failuresAfterRepair };
+        }
+        console.log("[Step7b] Repaired HTML passes validation");
+        return { html: repaired, valid: true, failures: [] };
+      }
+      console.log("[Step7b] Pre-deploy validation passed");
+      return { html: finalHtmlWithShop, valid: true, failures: [] };
+    });
+    const deployHtml = deployReady.html;
+
     // ── STEP 8: Deploy to Vercel ──────────────────────────────────────────────
     const previewUrl = await step.run("step8-deploy", async () => {
       const deployRes = await fetch("https://api.vercel.com/v13/deployments", {
@@ -770,7 +865,7 @@ RULES:
         body: JSON.stringify({
           name: vercelProjectName,
           teamId: process.env.VERCEL_TEAM_ID || undefined,
-          files: [{ file: "index.html", data: finalHtmlWithShop, encoding: "utf-8" }],
+          files: [{ file: "index.html", data: deployHtml, encoding: "utf-8" }],
           projectSettings: { framework: null, outputDirectory: "./" },
         }),
       });
@@ -843,7 +938,7 @@ RULES:
     // Max 2 extra attempts. Each attempt: re-run auditor on finalHtmlWithShop,
     // patch what it finds, redeploy, re-smoke. Non-blocking if all retries fail.
     const MAX_FIX_ATTEMPTS = 2;
-    let loopHtml = finalHtmlWithShop;
+    let loopHtml = deployHtml;
     let loopPreviewUrl = previewUrl;
     let loopSmokeResults = smokeResults;
 

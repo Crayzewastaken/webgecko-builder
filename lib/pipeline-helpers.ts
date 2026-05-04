@@ -310,6 +310,50 @@ export function repairHtml(html: string, businessName: string, year: number): st
   return out;
 }
 
+// ─── validateForDeploy ───────────────────────────────────────────────────────
+// Final validation before deploy. Returns list of failures (empty = OK).
+export function validateForDeploy(
+  html: string,
+  requestedPageIds: string[],
+  isMultiPage: boolean,
+  hasBooking: boolean,
+): string[] {
+  const failures: string[] = [];
+
+  // Structural
+  if (!html.includes("</body>")) failures.push("Missing </body>");
+  if (!html.includes("</html>")) failures.push("Missing </html>");
+  if (html.length < 8000) failures.push(`HTML too short (${html.length} chars)`);
+
+  // Truncated trailing tag — e.g. ends with `<a href="`
+  if (/<[a-zA-Z][^>]*$/.test(html.trimEnd())) failures.push("Truncated trailing tag at end of HTML");
+
+  // Multi-page: every requested page must have data-page wrapper
+  if (isMultiPage) {
+    for (const id of requestedPageIds) {
+      if (!html.includes(`data-page="${id}"`)) {
+        failures.push(`Missing data-page="${id}" wrapper`);
+      }
+    }
+    if (!(html.match(/data-page=["'][^"']+["']/g) || []).length) {
+      failures.push("No data-page wrappers found at all");
+    }
+  }
+
+  // Required semantic IDs
+  if (!isMultiPage || requestedPageIds.includes("home")) {
+    if (!html.includes('id="hero"') && !html.includes("id='hero'")) {
+      // Only a warning for multi-page (hero may be inside home wrapper without separate id)
+      if (!isMultiPage) failures.push('Missing id="hero"');
+    }
+  }
+  if (hasBooking && !html.includes('id="booking"') && !html.includes("id='booking'")) {
+    failures.push('Missing id="booking"');
+  }
+
+  return failures;
+}
+
 // ─── injectEssentials ─────────────────────────────────────────────────────────
 // Full version from original worker — includes navigateTo, hamburger, FAQ accordion,
 // cart toast, form handler, multi-page init
