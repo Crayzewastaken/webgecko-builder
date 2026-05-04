@@ -1,6 +1,40 @@
 // lib/pipeline-helpers.ts
 // Shared helpers used by both worker/route.ts (intake) and pipeline/run/route.ts (build)
 
+// ─── normalizePageId ──────────────────────────────────────────────────────────
+// Converts a page label like "About Us" → "about", "Book Appointment" → "booking".
+// Canonical alias map ensures consistency across inngest, fix routes, and auditor.
+
+const PAGE_ALIASES: Record<string, string> = {
+  "about-us": "about",
+  "about-page": "about",
+  "contact-us": "contact",
+  "contact-page": "contact",
+  "book-appointment": "booking",
+  "book-now": "booking",
+  "book-online": "booking",
+  "appointments": "booking",
+  "our-services": "services",
+  "what-we-do": "services",
+  "service": "services",
+  "our-work": "gallery",
+  "portfolio": "gallery",
+  "photo-gallery": "gallery",
+  "our-prices": "pricing",
+  "price-list": "pricing",
+  "packages": "pricing",
+  "faq": "faq",
+  "faqs": "faq",
+  "frequently-asked-questions": "faq",
+  "home-page": "home",
+};
+
+export function normalizePageId(label: string): string {
+  const slug = label.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return PAGE_ALIASES[slug] ?? slug;
+}
+
+
 // ─── extractJson ──────────────────────────────────────────────────────────────
 
 export function extractJson(text: string) {
@@ -165,29 +199,40 @@ export function checkAndFixLinks(html: string, pages: string[]): { html: string;
       continue;
     }
 
-    // Strategy C: first unid'd page-section div in document order
+    // Strategy C: find [data-page="pageId"] wrapper missing its id, or first un-id'd .page-section
     let injectedC = false;
-    fixed = fixed.replace(/<div([^>]*class="[^"]*page-section[^"]*"[^>]*)>/g, (m, attrs) => {
-      if (injectedC || attrs.includes("id=")) return m;
-      injectedC = true;
-      console.log(`Link Fix [C]: id="${pageId}" on page-section`);
-      return `<div${attrs} id="${pageId}">`;
-    });
+    {
+      const dpRe = new RegExp(`<(div|section|article|main)([^>]*\\bdata-page=["']${pageId}["'][^>]*)>`, "i");
+      const dpM = dpRe.exec(fixed);
+      if (dpM && !/\bid=["']/.test(dpM[2])) {
+        fixed = fixed.slice(0, dpM.index) + `<${dpM[1]}${dpM[2]} id="${pageId}">` + fixed.slice(dpM.index + dpM[0].length);
+        injectedC = true;
+        console.log(`Link Fix [C-dp]: added id="${pageId}" to [data-page] wrapper`);
+      }
+    }
+    if (!injectedC && !fixed.includes(`id="${pageId}"`)) {
+      fixed = fixed.replace(/<div([^>]*class="[^"]*page-section[^"]*"[^>]*)>/g, (m: string, attrs: string) => {
+        if (injectedC || attrs.includes("id=")) return m;
+        injectedC = true;
+        console.log(`Link Fix [C-ps]: id="${pageId}" on first un-id'd page-section`);
+        return `<div${attrs} id="${pageId}">`;
+      });
+    }
     if (injectedC) continue;
 
     // Strategy D: inject a real styled section before </body>
     const sectionTemplates: Record<string, string> = {
-      contact: `<div class="page-section" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:600px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:8px;">Contact Us</h2><p style="color:#94a3b8;margin-bottom:24px;">Get in touch and we will respond within 24 hours.</p><form style="display:flex;flex-direction:column;gap:16px;" onsubmit="event.preventDefault();this.innerHTML='<p style=color:#22c55e;font-weight:bold;font-size:1.1rem;>Thank you! We will be in touch shortly.</p>'"><input type="text" placeholder="Your Name" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/><input type="email" placeholder="Your Email" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/><input type="tel" placeholder="Your Phone" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/><textarea placeholder="Your Message" rows="5" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;resize:vertical;"></textarea><button type="submit" style="background:#10b981;color:#fff;font-weight:700;padding:16px;border:none;border-radius:8px;font-size:1rem;cursor:pointer;">Send Message</button></form></div></div>`,
-      about: `<div class="page-section" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:16px;">About Us</h2><p style="color:#94a3b8;font-size:1.1rem;line-height:1.8;">We are a dedicated team committed to delivering exceptional results for our clients. With years of experience in the industry, we pride ourselves on quality, reliability, and customer satisfaction.</p></div></div>`,
-      services: `<div class="page-section" id="${pageId}" style="display:none;padding:80px 24px;background:#0a0f1a;"><div style="max-width:900px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Our Services</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:24px;"><div style="background:#1e293b;border-radius:12px;padding:28px;"><h3 style="color:#10b981;margin-bottom:8px;">Professional Service</h3><p style="color:#94a3b8;">High quality results delivered on time and on budget.</p></div></div></div></div>`,
-      pricing: `<div class="page-section" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Pricing</h2><p style="color:#94a3b8;">Contact us for a custom quote tailored to your needs.</p></div></div>`,
-      gallery: `<div class="page-section" id="${pageId}" style="display:none;padding:80px 24px;background:#0a0f1a;"><div style="max-width:1000px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Gallery</h2><p style="color:#94a3b8;">Our portfolio of recent work.</p></div></div>`,
+      contact: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:600px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:8px;">Contact Us</h2><p style="color:#94a3b8;margin-bottom:24px;">Get in touch and we will respond within 24 hours.</p><form style="display:flex;flex-direction:column;gap:16px;" onsubmit="event.preventDefault();this.innerHTML='<p style=color:#22c55e;font-weight:bold;font-size:1.1rem;>Thank you! We will be in touch shortly.</p>'"><input type="text" placeholder="Your Name" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/><input type="email" placeholder="Your Email" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/><input type="tel" placeholder="Your Phone" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/><textarea placeholder="Your Message" rows="5" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;resize:vertical;"></textarea><button type="submit" style="background:#10b981;color:#fff;font-weight:700;padding:16px;border:none;border-radius:8px;font-size:1rem;cursor:pointer;">Send Message</button></form></div></div>`,
+      about: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:16px;">About Us</h2><p style="color:#94a3b8;font-size:1.1rem;line-height:1.8;">We are a dedicated team committed to delivering exceptional results for our clients. With years of experience in the industry, we pride ourselves on quality, reliability, and customer satisfaction.</p></div></div>`,
+      services: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:none;padding:80px 24px;background:#0a0f1a;"><div style="max-width:900px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Our Services</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:24px;"><div style="background:#1e293b;border-radius:12px;padding:28px;"><h3 style="color:#10b981;margin-bottom:8px;">Professional Service</h3><p style="color:#94a3b8;">High quality results delivered on time and on budget.</p></div></div></div></div>`,
+      pricing: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Pricing</h2><p style="color:#94a3b8;">Contact us for a custom quote tailored to your needs.</p></div></div>`,
+      gallery: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:none;padding:80px 24px;background:#0a0f1a;"><div style="max-width:1000px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Gallery</h2><p style="color:#94a3b8;">Our portfolio of recent work.</p></div></div>`,
     };
 
     const templateKey = Object.keys(sectionTemplates).find(k => new RegExp(k, "i").test(pageId));
     const injectedHtml = templateKey
       ? sectionTemplates[templateKey]
-      : `<div class="page-section" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;text-align:center;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:16px;">${pageId.charAt(0).toUpperCase() + pageId.slice(1)}</h2><p style="color:#94a3b8;">Content coming soon.</p></div></div>`;
+      : `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;text-align:center;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:16px;">${pageId.charAt(0).toUpperCase() + pageId.slice(1)}</h2><p style="color:#94a3b8;">Content coming soon.</p></div></div>`;
 
     fixed = fixed.replace("</body>", `${injectedHtml}\n</body>`);
     console.log(`Link Fix [D]: injected "${templateKey || "generic"}" section for id="${pageId}"`);
@@ -272,14 +317,13 @@ window.navigateTo = function(pageId) {
   var overlay = document.getElementById("wg-overlay");
   if (overlay) overlay.style.display = "none";
 
-  // Multi-page: toggle .active class on .page-section elements
-  var sections = document.querySelectorAll(".page-section");
+  // Multi-page: [data-page] is the sole authority — no .page-section fallback.
+  var sections = document.querySelectorAll("[data-page]");
   if (sections.length > 1) {
     sections.forEach(function(s) { s.classList.remove("active"); });
-    var target = document.getElementById(pageId) || document.querySelector("[data-page='" + pageId + "']");
+    var target = document.querySelector("[data-page='" + pageId + "']") || document.getElementById(pageId);
     if (target) {
       target.classList.add("active");
-      target.style.display = "";
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
     return;
@@ -454,25 +498,20 @@ document.querySelectorAll("form").forEach(function(form) {
     form.querySelectorAll("input,textarea,select,button[type='submit']").forEach(function(el) { el.setAttribute("disabled", "true"); });
   });
 });
-// Multi-page init: activate first .page-section, deactivate all others.
-// Also injects failsafe CSS in case Claude omitted .page-section rules,
-// and clears any inline display style that would block the CSS from working.
+// Multi-page init: only fires when [data-page] wrappers exist. Never touches .page-section.
 (function() {
-  var pageSections = document.querySelectorAll(".page-section");
-  if (pageSections.length > 1) {
-    // Inject CSS guarantee if missing
-    if (!document.querySelector("style[data-wg-mp]")) {
-      var s = document.createElement("style");
-      s.setAttribute("data-wg-mp", "1");
-      s.textContent = ".page-section{display:none!important}.page-section.active{display:block!important}";
-      document.head.appendChild(s);
-    }
-    // Remove all active classes, then activate first section
-    pageSections.forEach(function(p) { p.classList.remove("active"); });
-    pageSections[0].classList.add("active");
-    pageSections[0].style.display = "";
-    console.log("[WG] Multi-page init: activated", pageSections[0].id || "section[0]");
+  var pages = document.querySelectorAll("[data-page]");
+  if (pages.length < 2) return;
+  if (!document.querySelector("style[data-wg-mp]")) {
+    var s = document.createElement("style");
+    s.setAttribute("data-wg-mp", "1");
+    s.textContent = "[data-page]{display:none!important}[data-page].active{display:block!important}";
+    document.head.appendChild(s);
   }
+  var active = document.querySelector("[data-page].active") || pages[0];
+  pages.forEach(function(p) { p.classList.remove("active"); });
+  active.classList.add("active");
+  console.log("[WG] Multi-page init: activated", active.getAttribute("data-page") || active.id, "of", pages.length);
 })()
 })();
 </script>`;

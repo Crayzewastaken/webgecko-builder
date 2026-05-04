@@ -1,5 +1,6 @@
 // lib/auditor.ts
 // Brain 3: Site Auditor — surgical fixes, typed error taxonomy.
+import { normalizePageId } from "@/lib/pipeline-helpers";
 
 export enum AuditErrorType {
   PLACEHOLDER_EMAIL    = "PLACEHOLDER_EMAIL",
@@ -79,17 +80,23 @@ export async function auditAndFixSite(
   if (clientPhone && !html.includes(clientPhone.replace(/\s/g, "")) && !html.includes(clientPhone)) add(AuditErrorType.PLACEHOLDER_PHONE, "Missing real phone: " + clientPhone);
   const hasHamburger = html.includes('id="hamburger"') || /data-icon=["']menu["']/.test(html) || /aria-label=["'](?:open menu|menu|toggle)["']/i.test(html);
   if (!hasHamburger) add(AuditErrorType.MISSING_HAMBURGER, 'Missing id="hamburger"');
-  // For valid multi-page sites (2+ page-sections + navigateTo nav), faq/testimonials/contact
-  // live inside page divs — skip top-level checks. If Stitch gave incomplete multi-page output,
-  // treat as single-page and inject everything.
-  const pageSectionCount = (html.match(/class="[^"]*page-section[^"]*"/g) || []).length;
+  // A valid multi-page site has 2+ [data-page] wrappers — our authoritative router marker.
+  // Never use .page-section count: Stitch uses that class for visual styling too.
+  const dataPageCount = (html.match(/\bdata-page=["'][^"']+["']/g) || []).length;
   const navCallCount = (html.match(/navigateTo\s*\(/g) || []).length;
-  const isValidMultiPage = isMultiPage && pageSectionCount >= 2 && navCallCount >= 2;
+  const isValidMultiPage = isMultiPage && dataPageCount >= 2 && navCallCount >= 2;
   if (!isValidMultiPage && !html.includes('id="contact"'))      add(AuditErrorType.MISSING_CONTACT,      'Missing id="contact"');
   if (!isValidMultiPage && !html.includes('id="faq"'))           add(AuditErrorType.MISSING_FAQ,          'Missing id="faq"');
   if (!isValidMultiPage && !html.includes('id="testimonials"'))  add(AuditErrorType.MISSING_TESTIMONIALS, 'Missing id="testimonials"');
   if (hasBooking && !html.includes('id="booking"')) add(AuditErrorType.MISSING_BOOKING, 'Missing id="booking"');
-  if (isMultiPage && html.includes('href="#')) add(AuditErrorType.BROKEN_NAV_LINKS, "Multi-page href=# links");
+  if (isMultiPage && html.includes('href="#')) {
+    const navTargets = [...html.matchAll(/navigateTo\(['"]([^'"]+)['"]/g)].map(m => m[1]);
+    const hasOrphans = navTargets.some(t =>
+      !new RegExp(`\\bid=["']${t}["']`).test(html) &&
+      !new RegExp(`\\bdata-page=["']${t}["']`).test(html)
+    );
+    if (hasOrphans || navTargets.length === 0) add(AuditErrorType.BROKEN_NAV_LINKS, "Multi-page href=# links with missing targets");
+  }
   if (html.includes("placeholder@") || html.includes("example.com") || html.includes("yourname@")) add(AuditErrorType.PLACEHOLDER_EMAIL, "Placeholder email found");
   if (html.includes("04XX") || html.includes("0400 000")) add(AuditErrorType.PLACEHOLDER_PHONE, "Placeholder phone found");
   if (!html.includes("©") && !html.includes("&copy;")) add(AuditErrorType.MISSING_COPYRIGHT, "Missing copyright in footer");
@@ -216,14 +223,15 @@ export async function auditAndFixSite(
     mark(AuditErrorType.MISSING_BOOKING);
   }
 
-  // Fix 9: multi-page broken nav links
+  // Fix 9: multi-page broken nav links — map text to normalized page id
   if (isMultiPage && has(AuditErrorType.BROKEN_NAV_LINKS)) {
-    const pageMap: Record<string,string> = { home:"home",about:"about",services:"services",contact:"contact",faq:"faq",gallery:"gallery",pricing:"pricing",shop:"shop",blog:"blog" };
+    const pageIds = context.pages.map((p: string) => normalizePageId(p));
     fixed = fixed.replace(/<a([^>]*)href="#"([^>]*)>([\s\S]*?)<\/a>/g, (m: string, before: string, after: string, inner: string) => {
       if (before.includes("onclick") || after.includes("onclick")) return m;
       const text = inner.replace(/<[^>]+>/g, "").trim().toLowerCase();
-      const target = Object.entries(pageMap).find(([k]) => text.includes(k))?.[1] || "home";
-      return "<a" + before + 'href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo(\'' + target + '\')"'  + after + ">" + inner + "</a>";
+      const matched = pageIds.find((id: string) => text.includes(id) || id.includes(text.replace(/\s+/g,"-")));
+      const target = matched || (text.includes("book") ? "booking" : text.includes("contact") ? "contact" : text.includes("about") ? "about" : text.includes("service") ? "services" : "home");
+      return "<a" + before + 'href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo(\'' + target + '\')"' + after + ">" + inner + "</a>";
     });
     mark(AuditErrorType.BROKEN_NAV_LINKS);
   }

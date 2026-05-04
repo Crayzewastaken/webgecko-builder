@@ -15,6 +15,7 @@ import {
   injectEssentials,
   injectImages,
   getServicesForIndustry,
+  normalizePageId,
 } from "@/lib/pipeline-helpers";
 import { createSuperSaasSchedule } from "@/lib/supersaas";
 import { createClientShopCatalogue } from "@/lib/square";
@@ -307,24 +308,29 @@ const buildWebsite = inngest.createFunction(
 </section>`
         : "";
 
-      // MULTI-PAGE: Only skip Claude rebuild if Stitch actually gave us a valid multi-page structure.
-      // Stitch sometimes generates page-section CSS but only one page with no navigateTo calls —
-      // in that case we must run Claude rebuild to get the full site structure.
-      const stitchPageSections = (stitchHtml.match(/class="[^"]*page-section[^"]*"/g) || []).length;
+      // MULTI-PAGE: Only skip Claude rebuild if Stitch output has valid [data-page] wrappers
+      // for ALL requested pages. Never rely on .page-section count — Stitch uses that class
+      // for visual styling and produces false positives.
+      const stitchDataPages = (stitchHtml.match(/\bdata-page=["'][^"']+["']/g) || []).length;
       const stitchNavCalls = (stitchHtml.match(/navigateTo\s*\(/g) || []).length;
-      const stitchIsValidMultiPage = isMultiPage && stitchPageSections >= 2 && stitchNavCalls >= 2;
+      const requestedPageIds = (Array.isArray(userInput.pages) ? userInput.pages : ["Home"])
+        .map((p: string) => normalizePageId(p));
+      const allPagesPresent = requestedPageIds.every((id: string) =>
+        stitchHtml.includes(`data-page="${id}"`) || stitchHtml.includes(`id="${id}"`)
+      );
+      const stitchIsValidMultiPage = isMultiPage && stitchDataPages >= 2 && stitchNavCalls >= 2 && allPagesPresent;
 
       if (stitchIsValidMultiPage) {
-        console.log("[Step4b] Multi-page site with valid Stitch structure (" + stitchPageSections + " pages, " + stitchNavCalls + " nav calls) — skipping Claude rebuild");
+        console.log("[Step4b] Multi-page: valid Stitch structure (" + stitchDataPages + " data-page wrappers, all pages present) — skipping Claude rebuild");
         return stitchHtml;
       }
       if (isMultiPage) {
-        console.log("[Step4b] Multi-page requested but Stitch gave incomplete structure (" + stitchPageSections + " page-sections, " + stitchNavCalls + " nav calls) — running Claude rebuild");
+        console.log("[Step4b] Multi-page: incomplete Stitch output (" + stitchDataPages + " data-page wrappers, allPagesPresent=" + allPagesPresent + ") — running Claude rebuild");
       }
 
       // For multi-page sites where Stitch gave incomplete output, Claude rebuilds as multi-page
       const multiPageNote = isMultiPage
-        ? `This is a MULTI-PAGE site with pages: ${pageList}. REQUIRED CSS inside your <style> tag (do not omit): .page-section{display:none!important} .page-section.active{display:block!important} — Each page is a <div class="page-section" id="PAGENAME" data-page="PAGENAME">. The FIRST page div gets class="page-section active", all others get class="page-section" only (no inline style). Nav links use onclick="navigateTo('PAGENAME')". DO NOT define a navigateTo() JS function — it will be injected automatically, and a duplicate will break navigation.`
+        ? `This is a MULTI-PAGE site. CRITICAL: each page wrapper MUST have data-page="id" AND id="id" AND class="page-section". Page ids (use exactly these): ${requestedPageIds.join(", ")}. First page gets class="page-section active", all others class="page-section" (no inline display style — router CSS is injected separately). Nav links: onclick="navigateTo('page-id')". DO NOT define navigateTo() — it will be injected and a duplicate breaks navigation. DO NOT add CSS for .page-section visibility.`
         : `This is a SINGLE-PAGE site. Nav links use onclick="document.getElementById('SECTIONID')?.scrollIntoView({behavior:'smooth'})`;
 
       const prompt = `You are a senior front-end developer. I have a Stitch-generated website design below. Your job is to rewrite it as a complete, production-ready HTML file that EXACTLY preserves the visual design (colors, fonts, layout, imagery style) but guarantees all structural and functional requirements.
@@ -343,7 +349,7 @@ ${bodySnippet}
 ABSOLUTE REQUIREMENTS — every single one must be present in your output:
 1. Sticky header with logo/business name + desktop nav links + hamburger button (id="hamburger") for mobile
 2. <div id="mobile-menu" style="display:none;position:fixed;top:0;right:0;width:80%;max-width:300px;height:100vh;z-index:9999;background:#fff;"> — mobile drawer with all nav links + close button
-${isMultiPage ? `3. MULTI-PAGE STRUCTURE: Each page is a <div class="page-section" id="PAGENAME" data-page="PAGENAME">. Pages: ${pageList.split(", ").map((p: string, i: number) => p.toLowerCase()).join(", ")}. First page has class="page-section active", all others class="page-section". CSS must include: .page-section{display:none} .page-section.active{display:block}
+${isMultiPage ? `3. MULTI-PAGE STRUCTURE: Each page wrapper: <div data-page="id" id="id" class="page-section">. Page ids: ${requestedPageIds.join(", ")}. First page: class="page-section active". Others: class="page-section". No inline display style. No .page-section CSS (injected automatically).
 4. DO NOT define a navigateTo() JS function — it will be injected automatically. DO define toggleDrawer() for the hamburger button.
 
 5. All nav links and CTA buttons that should navigate to a page must have onclick="navigateTo('PAGENAME')" with the correct page id.
@@ -516,9 +522,10 @@ RULES:
       // Create per-client Tawk.to property (Brain 1 — before Stitch)
       let tawktoPropertyId: string | undefined = undefined;
       if (features.includes("Live Chat")) {
-        const existingPropId = process.env.TAWKTO_PROPERTY_ID;
-        if (existingPropId) {
-          tawktoPropertyId = existingPropId;
+        // First check if we already created one for this job (rebuild case)
+        if (job.tawktoPropertyId) {
+          tawktoPropertyId = job.tawktoPropertyId;
+          console.log("[Step6] Tawk.to: reusing saved property:", tawktoPropertyId);
         } else {
           const propId = await createTawktoProperty(userInput.businessName);
           if (propId) {
@@ -580,9 +587,12 @@ RULES:
       if (cssVarMatch?.[1]) accentColor = cssVarMatch[1];
 
       // Build the fixed booking component — parameterised only by URL, name, color
+      const bookingOpenTag = isMultiPage
+        ? '<section id="booking" data-page="booking" class="page-section" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">'
+        : '<section id="booking" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">';
       const bookingComponent = bookingUrl
         ? [
-            '<section id="booking" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">',
+            bookingOpenTag,
             '  <div style="max-width:900px;margin:0 auto;text-align:center;">',
             '    <h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;margin:0 0 8px;">Book an Appointment</h2>',
             `    <p style="color:#94a3b8;margin:0 0 32px;">Schedule your appointment with ${userInput.businessName} online.</p>`,
@@ -594,7 +604,7 @@ RULES:
             '</section>',
           ].join("\n")
         : [
-            '<section id="booking" style="padding:80px 24px;background:#0a0f1a;text-align:center;scroll-margin-top:80px;">',
+            isMultiPage ? '<section id="booking" data-page="booking" class="page-section" style="padding:80px 24px;background:#0a0f1a;text-align:center;scroll-margin-top:80px;">' : '<section id="booking" style="padding:80px 24px;background:#0a0f1a;text-align:center;scroll-margin-top:80px;">',
             '  <div style="max-width:640px;margin:0 auto;">',
             '    <h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;margin:0 0 16px;">Book an Appointment</h2>',
             `    <p style="color:#94a3b8;margin:0 0 32px;">Contact us to schedule your appointment with ${userInput.businessName}.</p>`,
@@ -1002,19 +1012,23 @@ RULES:
       <table width="100%" cellpadding="0" cellspacing="0" style="background:#080c14;border-radius:8px;">${checklistHtml}</table>
     </div>
     ${hasBookingFeature && job.metadata?.supersaasSubEmail ? `<div style="background:#0a1628;border:1px solid rgba(0,200,150,0.2);border-radius:8px;padding:16px 20px;margin-bottom:20px;"><p style="color:#00c896;font-size:12px;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 8px;">📅 SuperSaas Sub-Account (client login)</p><p style="color:#94a3b8;font-size:13px;margin:0;">Login: <strong style="color:#e2e8f0;">${job.metadata.supersaasSubEmail}</strong> — Password: <strong style="color:#e2e8f0;">${job.metadata.supersaasSubPassword}</strong><br><span style="color:#475569;font-size:12px;">Client can log in at supersaas.com and manage only their own schedule</span></p></div>` : ""}
-    ${hasBookingFeature ? `<div style="background:#1a0a0a;border:1px solid rgba(239,68,68,0.4);border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+    ${hasBookingFeature && !job.supersaasId ? `<div style="background:#1a0a0a;border:1px solid rgba(239,68,68,0.4);border-radius:8px;padding:16px 20px;margin-bottom:20px;">
       <p style="color:#ef4444;font-size:12px;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 12px;">⚠️ Manual Action Required — SuperSaas Schedule</p>
-      <p style="color:#94a3b8;font-size:13px;margin:0 0 12px;">The booking iframe is embedded but the SuperSaas schedule must be created manually (SuperSaas does not support programmatic schedule creation).</p>
+      <p style="color:#94a3b8;font-size:13px;margin:0 0 12px;">The SuperSaas schedule could not be created automatically. You need to create it manually.</p>
       <ol style="color:#e2e8f0;font-size:13px;margin:0 0 12px;padding-left:20px;line-height:2;">
         <li>Go to <a href="https://www.supersaas.com/dashboard" style="color:#f87171;">supersaas.com/dashboard</a></li>
         <li>Click <strong>New Schedule</strong></li>
         <li>Name it exactly: <strong style="color:#fbbf24;font-family:monospace;">${fileName}</strong></li>
         <li>Configure hours, slot duration, notifications to <strong>${clientEmail}</strong></li>
-        ${userInput.bookingServices ? `<li>Add a <strong>Drop-down list</strong> field named "Service" with options: <strong>${userInput.bookingServices}</strong></li>` : ""}
+        ${userInput.bookingServices ? "<li>Add a <strong>Drop-down list</strong> field named &quot;Service&quot; with options: <strong>" + userInput.bookingServices + "</strong></li>" : ""}
         <li>Save — the booking iframe on the site will automatically use this schedule</li>
-        <li>Once done, click <a href="${base}/api/pipeline/run?jobId=${jobId}&secret=${secret}" style="color:#fbbf24;font-weight:700;">🔄 Rebuild Site</a> — the booking iframe will automatically use the new schedule</li>
+        <li>Once done, click <a href="${base}/api/pipeline/run?jobId=${jobId}&secret=${secret}" style="color:#fbbf24;font-weight:700;">🔄 Rebuild Site</a> to go live</li>
       </ol>
       <p style="color:#475569;font-size:12px;margin:0;">Schedule URL will be: <span style="color:#94a3b8;font-family:monospace;">supersaas.com/schedule/webgecko/${fileName}</span></p>
+    </div>` : ""}
+    ${hasBookingFeature && job.supersaasId ? `<div style="background:#0a1a0a;border:1px solid rgba(0,200,150,0.2);border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+      <p style="color:#00c896;font-size:12px;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 8px;">✅ SuperSaas Schedule Auto-Created</p>
+      <p style="color:#94a3b8;font-size:13px;margin:0;">Schedule <strong style="color:#e2e8f0;">${fileName}</strong> (ID: ${job.supersaasId}) was created automatically and embedded in the site.</p>
     </div>` : ""}
     <table cellpadding="0" cellspacing="0"><tr>
       <td style="padding-right:8px;padding-bottom:8px;"><a href="${releaseUrl}" style="background:#00c896;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📤 Release to Client</a></td>

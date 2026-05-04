@@ -53,6 +53,11 @@ export async function GET(req: NextRequest) {
         monthlyActive: !!c.square_subscription_id,
       },
       bookingCount: bookingsByJob[c.job_id] || 0,
+      supersaasId: job.supersaas_id || "",
+      supersaasUrl: job.supersaas_url || "",
+      bookingServices: userInput.bookingServices || "",
+      clientEmail: userInput.email || c.email || "",
+      clientPhone: userInput.phone || c.phone || "",
       metadata: job.metadata || null,
     };
   });

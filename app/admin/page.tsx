@@ -28,6 +28,11 @@ interface ClientAnalytics {
   bookingCount: number;
   hasBooking: boolean;
   builtAt?: string;
+  supersaasId?: string;
+  supersaasUrl?: string;
+  bookingServices?: string;
+  clientEmail?: string;
+  clientPhone?: string;
   metadata?: {
     scheduledReleaseAt?: string;
     scheduledReleaseDays?: number;
@@ -175,17 +180,81 @@ function SuperSaasChecklist({ client: c, secret, onActivated }: { client: Client
   const [activating, setActivating] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
+  const scheduleName = c.businessName?.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 40) || "schedule";
+
+  // Parse booking services into formatted list
+  const servicesRaw = c.bookingServices || "";
+  const servicesFormatted: string[] = servicesRaw
+    ? servicesRaw.split(/[,\n]+/).map((s: string) => s.trim()).filter(Boolean)
+    : [];
+
+  // Build checklist steps
+  const stepOffset = servicesFormatted.length > 0 ? 1 : 0;
   const items = [
-    { key: "schedule", label: `Created schedule named "${c.businessName?.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 40)}" in SuperSaas dashboard` },
-    { key: "hours", label: "Configured available hours & days in SuperSaas" },
-    { key: "services", label: "Added appointment types / services in SuperSaas" },
-    { key: "notifications", label: `Set notification email to client in SuperSaas` },
-    { key: "form", label: "Added service/treatment dropdown to booking form (Configure → Form)" },
-    { key: "privacy", label: "Set booking visibility to availability-only (Configure → Access Control)" },
-    { key: "tested", label: "Tested a booking end-to-end" },
+    {
+      key: "schedule",
+      required: true,
+      autoCompleted: !!c.supersaasId,
+      label: c.supersaasId
+        ? `\u2705 Schedule auto-created: "${scheduleName}" (ID: ${c.supersaasId})`
+        : `Step 1 \u2014 Create schedule named exactly: "${scheduleName}"`,
+      detail: c.supersaasId ? null : "Dashboard \u2192 New Schedule \u2192 set name \u2192 Save",
+    },
+    {
+      key: "hours",
+      required: true,
+      autoCompleted: false,
+      label: "Step 2 \u2014 Set available hours & days",
+      detail: `Configure \u2192 Availability \u2192 set the days/times ${c.businessName} takes bookings`,
+    },
+    {
+      key: "duration",
+      required: true,
+      autoCompleted: false,
+      label: "Step 3 \u2014 Set slot duration & advance booking limit",
+      detail: "Configure \u2192 Preferences \u2192 slot duration (e.g. 60 min), how far ahead clients can book",
+    },
+    ...(servicesFormatted.length > 0 ? [{
+      key: "services",
+      required: true,
+      autoCompleted: false,
+      label: "Step 4 \u2014 Add services as a drop-down field on the booking form",
+      detail: "Configure \u2192 Form \u2192 Add field \u2192 Drop-down list \u2192 name it \"Service\" \u2192 add the service options listed above",
+    }] : []),
+    {
+      key: "notifications",
+      required: true,
+      autoCompleted: false,
+      label: `Step ${4 + stepOffset} \u2014 Set notification email`,
+      detail: `Configure \u2192 Notifications \u2192 set confirmation email to: ${c.clientEmail || "client email"}`,
+    },
+    {
+      key: "phone",
+      required: false,
+      autoCompleted: false,
+      label: `Step ${5 + stepOffset} \u2014 (Optional) Add SMS notifications`,
+      detail: `Configure \u2192 Notifications \u2192 SMS \u2192 enter ${c.clientPhone || "client phone"} \u2014 requires SMS gateway in SuperSaas account settings`,
+    },
+    {
+      key: "privacy",
+      required: true,
+      autoCompleted: false,
+      label: `Step ${6 + stepOffset} \u2014 Set booking visibility`,
+      detail: "Configure \u2192 Access Control \u2192 set to 'Show availability only'",
+    },
+    {
+      key: "tested",
+      required: true,
+      autoCompleted: false,
+      label: `Step ${7 + stepOffset} \u2014 Test a booking end-to-end`,
+      detail: "Open the live site, click Book Now, complete a test booking, confirm notification arrives",
+    },
   ];
 
-  const allDone = items.every(i => checked[i.key]);
+  const effectiveChecked: Record<string, boolean> = { ...checked };
+  items.forEach(item => { if (item.autoCompleted) effectiveChecked[item.key] = true; });
+
+  const allRequiredDone = items.filter(i => i.required).every(i => effectiveChecked[i.key]);
 
   async function handleActivate() {
     setActivating(true);
@@ -206,41 +275,68 @@ function SuperSaasChecklist({ client: c, secret, onActivated }: { client: Client
   }
 
   return (
-    <div style={{ background: "#1a0e00", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 10, padding: "14px 16px", marginBottom: 14 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: "#fbbf24", marginBottom: 10, textTransform: "uppercase", letterSpacing: ".06em" }}>
-        ⚠️ SuperSaas Setup Checklist
+    <div style={{ background: "#1a0e00", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 10, padding: "16px 18px", marginBottom: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#fbbf24", textTransform: "uppercase", letterSpacing: ".06em" }}>
+          📅 SuperSaas Setup Checklist
+        </div>
+        <a href="https://www.supersaas.com/dashboard" target="_blank" rel="noopener noreferrer"
+          style={{ fontSize: 11, color: "#fbbf24", textDecoration: "none", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 5, padding: "4px 10px" }}>
+          Open SuperSaas \u2192
+        </a>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+
+      {servicesFormatted.length > 0 && (
+        <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: 7, padding: "10px 12px", marginBottom: 12, fontSize: 12 }}>
+          <div style={{ color: "#fbbf24", fontWeight: 600, marginBottom: 6 }}>Booking Services to configure:</div>
+          {servicesFormatted.map((s: string, i: number) => (
+            <div key={i} style={{ color: "#e2e8f0", lineHeight: 1.7, fontFamily: "monospace" }}>{s}</div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
         {items.map(item => (
-          <label key={item.key} style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", fontSize: 13 }}>
+          <label key={item.key} style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: item.autoCompleted ? "default" : "pointer" }}>
             <input
               type="checkbox"
-              checked={!!checked[item.key]}
-              onChange={e => setChecked(prev => ({ ...prev, [item.key]: e.target.checked }))}
-              style={{ marginTop: 2, accentColor: "#00c896", width: 14, height: 14, flexShrink: 0 }}
+              checked={!!effectiveChecked[item.key]}
+              disabled={item.autoCompleted}
+              onChange={e => !item.autoCompleted && setChecked(prev => ({ ...prev, [item.key]: e.target.checked }))}
+              style={{ marginTop: 3, accentColor: "#00c896", width: 14, height: 14, flexShrink: 0 }}
             />
-            <span style={{ color: checked[item.key] ? "#4a5568" : "#cbd5e1", textDecoration: checked[item.key] ? "line-through" : "none" }}>
-              {item.label}
-            </span>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 13, color: effectiveChecked[item.key] ? "#4a5568" : "#cbd5e1", textDecoration: effectiveChecked[item.key] ? "line-through" : "none" }}>
+                  {item.label}
+                </span>
+                {!item.required && (
+                  <span style={{ fontSize: 10, color: "#6b7280", background: "rgba(107,114,128,0.15)", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>optional</span>
+                )}
+              </div>
+              {item.detail && !effectiveChecked[item.key] && (
+                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2, lineHeight: 1.5 }}>{item.detail}</div>
+              )}
+            </div>
           </label>
         ))}
       </div>
+
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <a href="https://www.supersaas.com/dashboard" target="_blank" rel="noopener noreferrer"
-          style={{ fontSize: 12, color: "#fbbf24", textDecoration: "none", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 6, padding: "6px 12px" }}>
-          Open SuperSaas →
-        </a>
-        {allDone && !result && (
+        {allRequiredDone && !result && (
           <button
             onClick={handleActivate}
             disabled={activating}
             style={{ fontSize: 13, fontWeight: 700, color: "#000", background: activating ? "#555" : "#00c896", border: "none", borderRadius: 8, padding: "8px 18px", cursor: activating ? "not-allowed" : "pointer" }}>
-            {activating ? "Activating..." : "✅ Activate & Launch"}
+            {activating ? "Activating..." : "\u2705 Activate & Launch"}
           </button>
+        )}
+        {!allRequiredDone && (
+          <span style={{ fontSize: 11, color: "#6b7280" }}>Complete all required steps to activate</span>
         )}
         {result && (
           <div style={{ fontSize: 12, color: result.ok ? "#00c896" : "#ef4444", flex: 1 }}>
-            {result.ok ? "✓" : "✗"} {result.message}
+            {result.ok ? "\u2713" : "\u2717"} {result.message}
           </div>
         )}
       </div>
