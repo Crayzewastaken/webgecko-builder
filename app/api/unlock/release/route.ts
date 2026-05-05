@@ -33,24 +33,25 @@ export async function GET(req: NextRequest) {
     const businessName = job.userInput?.businessName || "your website";
     const portalUrl = "https://webgecko-builder.vercel.app/c/" + clientSlug;
 
-    // SuperSaas sub-account credentials — include in welcome email if set
+    // SuperSaas sub-account — include login info if sub-user email is known.
+    // Password is intentionally NOT stored in job metadata (security policy).
+    // The client received their password in the original intake email at sign-up.
     const ssSubEmail = (job as any).metadata?.supersaasSubEmail || "";
-    const ssSubPassword = (job as any).metadata?.supersaasSubPassword || "";
     const ssScheduleUrl = job.supersaasUrl
-      ? job.supersaasUrl.split("?")[0]  // plain URL without auto-login params
+      ? job.supersaasUrl.split("?")[0]  // plain URL without any credential params
       : "";
 
-    const bookingSection = (ssSubEmail && ssSubPassword && ssScheduleUrl) ? [
+    const bookingSection = (ssSubEmail && ssScheduleUrl) ? [
       '<tr><td style="padding:0 32px 24px;">',
       '<div style="background:#0a1628;border:1px solid rgba(0,200,150,0.25);border-radius:10px;padding:20px 24px;">',
-      '<p style="margin:0 0 8px;color:#00c896;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">📅 Your Booking System Login</p>',
-      '<p style="margin:0 0 4px;color:#94a3b8;font-size:13px;">Your clients book directly on your website — but you can also manage bookings directly at SuperSaas:</p>',
+      '<p style="margin:0 0 8px;color:#00c896;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">📅 Your Booking System</p>',
+      '<p style="margin:0 0 4px;color:#94a3b8;font-size:13px;">Your clients book directly on your website. You can also manage bookings at SuperSaas:</p>',
       '<table style="margin:12px 0;width:100%;" cellpadding="0" cellspacing="0">',
       '<tr><td style="padding:4px 0;color:#64748b;font-size:12px;width:80px;">Login URL</td><td style="padding:4px 0;"><a href="https://www.supersaas.com/account/login" style="color:#38bdf8;font-size:13px;">supersaas.com/account/login</a></td></tr>',
       '<tr><td style="padding:4px 0;color:#64748b;font-size:12px;">Username</td><td style="padding:4px 0;color:#e2e8f0;font-size:13px;font-weight:600;">' + ssSubEmail + '</td></tr>',
-      '<tr><td style="padding:4px 0;color:#64748b;font-size:12px;">Password</td><td style="padding:4px 0;color:#e2e8f0;font-size:13px;font-weight:600;">' + ssSubPassword + '</td></tr>',
+      '<tr><td style="padding:4px 0;color:#64748b;font-size:12px;">Password</td><td style="padding:4px 0;color:#94a3b8;font-size:13px;">Sent separately at sign-up</td></tr>',
       '</table>',
-      '<p style="margin:8px 0 0;color:#475569;font-size:11px;">You\'ll only see your own bookings — not anyone else\'s. Save this email.</p>',
+      '<p style="margin:8px 0 0;color:#475569;font-size:11px;">You\'ll only see your own bookings. Contact support if you need a password reset.</p>',
       '</div></td></tr>',
     ].join("") : "";
 

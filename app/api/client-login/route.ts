@@ -1,6 +1,40 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, getJob } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
+
+// ── Password hashing helpers ─────────────────────────────────────────────────
+// Uses Node crypto scrypt — no extra dependency.
+const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1 };
+const KEY_LEN = 64;
+const HASH_PREFIX = "scrypt:";
+
+/** Hash a plaintext password — returns "scrypt:<salt>:<hash>" */
+async function hashPassword(plaintext: string): Promise<string> {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = await new Promise<Buffer>((res, rej) =>
+    crypto.scrypt(plaintext, salt, KEY_LEN, SCRYPT_PARAMS, (e, k) => (e ? rej(e) : res(k)))
+  );
+  return HASH_PREFIX + salt + ":" + hash.toString("hex");
+}
+
+/** Timing-safe verify — handles both hashed and legacy plaintext passwords */
+async function verifyPassword(plaintext: string, stored: string): Promise<boolean> {
+  if (stored.startsWith(HASH_PREFIX)) {
+    const parts = stored.slice(HASH_PREFIX.length).split(":");
+    if (parts.length !== 2) return false;
+    const [salt, storedHash] = parts;
+    const hash = await new Promise<Buffer>((res, rej) =>
+      crypto.scrypt(plaintext, salt, KEY_LEN, SCRYPT_PARAMS, (e, k) => (e ? rej(e) : res(k)))
+    );
+    return crypto.timingSafeEqual(hash, Buffer.from(storedHash, "hex"));
+  }
+  // Legacy plaintext — constant-time comparison to prevent timing attacks
+  const a = Buffer.from(plaintext);
+  const b = Buffer.from(stored);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
 
 // POST - login with username + password
 export async function POST(req: NextRequest) {
@@ -17,8 +51,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
     }
 
-    if ((clientData as any).password !== password) {
+    const storedPassword = (clientData as Record<string, unknown>).password as string || "";
+    const valid = await verifyPassword(password, storedPassword);
+    if (!valid) {
       return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
+    }
+
+    // On-the-fly upgrade: if stored as plaintext, re-hash on successful login
+    if (!storedPassword.startsWith(HASH_PREFIX)) {
+      try {
+        const hashed = await hashPassword(password);
+        const { supabase } = await import("@/lib/supabase");
+        await supabase.from("clients").update({ password: hashed }).eq("slug", slug);
+      } catch (e) {
+        console.error("[client-login] Password upgrade failed (non-fatal):", e);
+      }
     }
 
     const response = NextResponse.json({ slug, jobId: clientData.job_id });
@@ -56,13 +103,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Portal not found" }, { status: 404 });
     }
 
-    const { password: _, ...safeData } = clientData as any;
+    const { password: _, ...safeData } = clientData as Record<string, unknown>;
 
     // Enrich with job-level data the portal needs (supersaasId, supersaasUrl, etc.)
     // These live on the jobs table, not clients
     if (safeData.job_id) {
       try {
-        const job = await getJob(safeData.job_id);
+        const job = await getJob(safeData.job_id as string);
         if (job) {
           if (job.supersaasId) safeData.supersaasId = job.supersaasId;
           if (job.supersaasUrl) safeData.supersaasUrl = job.supersaasUrl;
@@ -107,8 +154,9 @@ export async function PATCH(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch (err: any) {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Update failed";
     console.error("Client PATCH error:", err);
-    return NextResponse.json({ error: err.message || "Update failed" }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

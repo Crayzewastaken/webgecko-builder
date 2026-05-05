@@ -2,6 +2,7 @@
 // Permanently deletes a client and all their associated data from Supabase.
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -9,7 +10,7 @@ export async function DELETE(req: NextRequest) {
   const slug = searchParams.get("slug");
   const secret = searchParams.get("secret");
 
-  if (!secret || secret !== process.env.PROCESS_SECRET) {
+  if (!isAdminAuthedLegacy(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
   if (!jobId && !slug) {

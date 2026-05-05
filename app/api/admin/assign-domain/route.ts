@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJob, saveJob } from "@/lib/db";
 import { getClient, saveClient } from "@/lib/db";
+import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
   const domain = searchParams.get("domain");
   const secret = searchParams.get("secret");
 
-  if (!secret || secret !== process.env.PROCESS_SECRET) {
+  if (!isAdminAuthedLegacy(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
   if (!jobId || !domain) {

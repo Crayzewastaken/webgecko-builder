@@ -80,14 +80,37 @@ export async function auditAndFixSite(
   if (clientPhone && !html.includes(clientPhone.replace(/\s/g, "")) && !html.includes(clientPhone)) add(AuditErrorType.PLACEHOLDER_PHONE, "Missing real phone: " + clientPhone);
   const hasHamburger = html.includes('id="hamburger"') || /data-icon=["']menu["']/.test(html) || /aria-label=["'](?:open menu|menu|toggle)["']/i.test(html);
   if (!hasHamburger) add(AuditErrorType.MISSING_HAMBURGER, 'Missing id="hamburger"');
-  // A valid multi-page site has 2+ [data-page] wrappers — our authoritative router marker.
-  // Never use .page-section count: Stitch uses that class for visual styling too.
-  const dataPageCount = (html.match(/\bdata-page=["'][^"']+["']/g) || []).length;
-  const navCallCount = (html.match(/navigateTo\s*\(/g) || []).length;
-  const isValidMultiPage = isMultiPage && dataPageCount >= 2 && navCallCount >= 2;
-  if (!isValidMultiPage && !html.includes('id="contact"'))      add(AuditErrorType.MISSING_CONTACT,      'Missing id="contact"');
-  if (!isValidMultiPage && !html.includes('id="faq"'))           add(AuditErrorType.MISSING_FAQ,          'Missing id="faq"');
-  if (!isValidMultiPage && !html.includes('id="testimonials"'))  add(AuditErrorType.MISSING_TESTIMONIALS, 'Missing id="testimonials"');
+  // For multi-page sites: check required content inside the correct page wrappers,
+  // NOT just whether 2+ data-page wrappers exist. The old isValidMultiPage shortcut
+  // caused missing contact/FAQ/testimonials to go unfixed when wrapper count was ≥ 2.
+  const requestedPageIds = context.pages.map((p: string) => normalizePageId(p));
+
+  if (isMultiPage) {
+    // contact: id="contact" must exist somewhere, or the contact page must have a form
+    const hasContactId = html.includes('id="contact"');
+    const contactPageHasForm = requestedPageIds.includes("contact")
+      && html.includes('data-page="contact"')
+      && /<form[\s>]/i.test(html.slice(html.indexOf('data-page="contact"'), html.indexOf('data-page="contact"') + 8000));
+    if (!hasContactId && !contactPageHasForm) add(AuditErrorType.MISSING_CONTACT, 'Multi-page: id="contact" missing and no form in contact page');
+
+    // faq: id="faq" must exist, or the faq page must have FAQ content
+    const hasFaqId = html.includes('id="faq"');
+    const faqPageHasContent = requestedPageIds.includes("faq")
+      && html.includes('data-page="faq"')
+      && (html.slice(html.indexOf('data-page="faq"'), html.indexOf('data-page="faq"') + 4000).length > 400);
+    if (!hasFaqId && !faqPageHasContent) add(AuditErrorType.MISSING_FAQ, 'Multi-page: id="faq" missing');
+
+    // testimonials: id="testimonials" must exist, or testimonial content exists somewhere
+    const hasTestimonialsId = html.includes('id="testimonials"');
+    const hasTestimonialContent = /testimonial|what.*client.*say|what.*customer/i.test(html);
+    if (!hasTestimonialsId && !hasTestimonialContent) add(AuditErrorType.MISSING_TESTIMONIALS, 'Multi-page: id="testimonials" missing and no testimonial content found');
+  } else {
+    // Single-page: all content must be present as top-level sections
+    if (!html.includes('id="contact"'))      add(AuditErrorType.MISSING_CONTACT,      'Missing id="contact"');
+    if (!html.includes('id="faq"'))           add(AuditErrorType.MISSING_FAQ,          'Missing id="faq"');
+    if (!html.includes('id="testimonials"'))  add(AuditErrorType.MISSING_TESTIMONIALS, 'Missing id="testimonials"');
+  }
+
   if (hasBooking && !html.includes('id="booking"')) add(AuditErrorType.MISSING_BOOKING, 'Missing id="booking"');
   if (isMultiPage && html.includes('href="#')) {
     const navTargets = [...html.matchAll(/navigateTo\(['"]([^'"]+)['"]/g)].map(m => m[1]);
@@ -302,13 +325,13 @@ function addSectionIdSmart(html: string, id: string, classPatterns: RegExp[], he
     if (injected) { console.log('[Auditor] id="' + id + '" via class match'); return result; }
   }
   for (const hp of headingPatterns) {
-    const re = new RegExp("<h[1-4][^>]*>([^<]*)<\/h[1-4]>", "gi");
-    let hm; let pos = -1; let ht = "";
+    const re = new RegExp('<h[1-4][^>]*>([^<]*)<\/h[1-4]>', 'gi');
+    let hm; let pos = -1; let ht = '';
     re.lastIndex = 0;
     while ((hm = re.exec(html)) !== null) { if (hp.test(hm[1])) { pos = hm.index; ht = hm[1].trim(); break; } }
     if (pos === -1) continue;
-    const tagRe = new RegExp("<(section|div)(\\s[^>]*)?>", "gi");
-    let tm; let bStart = -1; let bStr = "";
+    const tagRe = new RegExp('<(section|div)(\s[^>]*)?>',  'gi');
+    let tm; let bStart = -1; let bStr = '';
     tagRe.lastIndex = 0;
     while ((tm = tagRe.exec(html)) !== null) {
       if (tm.index >= pos) break;
@@ -320,5 +343,5 @@ function addSectionIdSmart(html: string, id: string, classPatterns: RegExp[], he
     }
   }
   console.log('[Auditor] id="' + id + '" via fallback injection');
-  return html.replace("</body>", fallbackSection + "\n</body>");
+  return html.replace('</body>', fallbackSection + '\n</body>');
 }

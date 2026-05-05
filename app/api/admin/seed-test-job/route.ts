@@ -4,15 +4,17 @@
 // GET /api/admin/seed-test-job?secret=PROCESS_SECRET&trigger=1 => seed + trigger build
 
 import { NextRequest } from "next/server";
+import crypto from "crypto";
 import { saveJob, saveClient } from "@/lib/db";
 import { inngest } from "@/lib/inngest";
+import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 
 const TEST_JOB_ID = "job_test_webgecko_dev";
 const TEST_SLUG   = "testbusiness-dev";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  if (searchParams.get("secret") !== process.env.PROCESS_SECRET) {
+  if (!isAdminAuthedLegacy(req)) {
     return new Response("Forbidden", { status: 403 });
   }
   const trigger = searchParams.get("trigger") === "1";
@@ -60,7 +62,7 @@ export async function GET(req: NextRequest) {
     phone: userInput.phone,
     industry: userInput.industry,
     domain: userInput.domain,
-    password: "testpass123",
+    password: await (async () => { const s = crypto.randomBytes(16).toString("hex"); const h = await new Promise<Buffer>((r,j) => crypto.scrypt("testpass123", s, 64, {N:16384,r:8,p:1}, (e,k)=>e?j(e):r(k))); return "scrypt:"+s+":"+h.toString("hex"); })(),
     metadata: {},
   });
 
@@ -69,9 +71,10 @@ export async function GET(req: NextRequest) {
   }
 
   const base = new URL(req.url).origin;
-  const triggerUrl = `${base}/api/pipeline/run?jobId=${TEST_JOB_ID}&secret=${process.env.PROCESS_SECRET}`;
+  // Do NOT embed PROCESS_SECRET in rendered links — admin cookie auth is used instead.
+  const triggerUrl = `${base}/api/pipeline/run?jobId=${TEST_JOB_ID}`;
   const portalUrl  = `${base}/c/${TEST_SLUG}`;
-  const seedAndGo  = `${base}/api/admin/seed-test-job?secret=${searchParams.get("secret")}&trigger=1`;
+  const seedAndGo  = `${base}/api/admin/seed-test-job?trigger=1`;
 
   const html = [
     "<!DOCTYPE html><html><body style='font-family:sans-serif;background:#0f172a;color:white;padding:40px;max-width:640px;margin:0 auto;'>",

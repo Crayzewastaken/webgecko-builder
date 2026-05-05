@@ -184,6 +184,18 @@ export default function HomePage() {
   const [facebookPage, setFacebookPage] = useState("");
   const [existingBookingUrl, setExistingBookingUrl] = useState("");
   const [bookingServices, setBookingServices] = useState(""); // comma-sep list of services for SuperSaas dropdown
+  // Social media
+  const [instagramUrl, setInstagramUrl] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [tiktokUrl, setTiktokUrl] = useState("");
+  // Trust & Reviews
+  const [realTestimonials, setRealTestimonials] = useState(""); // real customer quotes from client
+  // Blog
+  const [blogTopics, setBlogTopics] = useState(""); // comma-sep list of blog topics
+  // Video background
+  const [videoUrl, setVideoUrl] = useState(""); // YouTube embed URL or MP4 direct URL
+  // Shop (when not using pricing flow)
+  const [shopProducts, setShopProducts] = useState(""); // product names + prices if shop selected without manual pricing
   const [confirmRemovePage, setConfirmRemovePage] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [heroFile, setHeroFile] = useState<File | null>(null);
@@ -282,8 +294,8 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    saveToStorage({ businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, businessAddress, facebookPage, existingBookingUrl, bookingServices, step });
-  }, [businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, businessAddress, facebookPage, existingBookingUrl, bookingServices, step]);
+    saveToStorage({ businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, businessAddress, facebookPage, existingBookingUrl, bookingServices, instagramUrl, linkedinUrl, tiktokUrl, realTestimonials, blogTopics, videoUrl, shopProducts, step });
+  }, [businessName, industry, usp, existingWebsite, targetAudience, goal, siteType, pages, selectedBundles, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, businessAddress, facebookPage, existingBookingUrl, bookingServices, instagramUrl, linkedinUrl, tiktokUrl, realTestimonials, blogTopics, videoUrl, shopProducts, step]);
 
   useEffect(() => {
     if (currentStepId !== 'contact') return;
@@ -388,7 +400,7 @@ export default function HomePage() {
 
     const formData = new FormData();
     const industryValue = industry === "Other" ? (industryOther.trim() || "Other") : industry;
-    const fields: Record<string, string> = { businessName, industry: industryValue, usp, existingWebsite, targetAudience, goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, ga4Id, businessAddress, facebookPage, existingBookingUrl, bookingServices, turnstileToken };
+    const fields: Record<string, string> = { businessName, industry: industryValue, usp, existingWebsite, targetAudience, goal, siteType, hasPricing, pricingType, pricingMethod, pricingDetails, pricingUrl, style, colorPrefs, references, hasLogo, hasContent, additionalNotes, name, email, phone, abn, domain, ga4Id, businessAddress, facebookPage, existingBookingUrl, bookingServices, instagramUrl, linkedinUrl, tiktokUrl, realTestimonials, blogTopics, videoUrl, shopProducts, turnstileToken };
     Object.entries(fields).forEach(([k, v]) => formData.append(k, v));
     formData.append("pages", JSON.stringify(pages));
     formData.append("features", JSON.stringify(features));
@@ -777,18 +789,83 @@ export default function HomePage() {
                 </div>
               </div>
               <TextAreaField icon="📌" label="Anything else we should know? (optional)" value={additionalNotes} onChange={(e: any) => setAdditionalNotes(e.target.value)} placeholder="Deadline, special requirements, competitors, links to pull content from..." />
+              {/* ── Social Media (Contact & Enquiries bundle) ── */}
+              {features.includes("Social Media Links") && (
+                <div className="space-y-3 p-4 rounded-2xl border border-white/8 bg-white/3">
+                  <p className="text-white font-semibold">📲 Social Media Links</p>
+                  <p className="text-slate-400 text-sm">We'll add these to your website footer and header. Leave blank for any you don't use.</p>
+                  <InputField icon="📘" label="Facebook (already entered above)" value={facebookPage} onChange={(e: any) => setFacebookPage(e.target.value)} placeholder="facebook.com/yourbusiness" />
+                  <InputField icon="📸" label="Instagram URL (optional)" value={instagramUrl} onChange={(e: any) => setInstagramUrl(e.target.value)} placeholder="instagram.com/yourbusiness" hint="e.g. instagram.com/yourbusiness or @yourbusiness" />
+                  <InputField icon="💼" label="LinkedIn URL (optional)" value={linkedinUrl} onChange={(e: any) => setLinkedinUrl(e.target.value)} placeholder="linkedin.com/company/yourbusiness" />
+                  <InputField icon="🎵" label="TikTok URL (optional)" value={tiktokUrl} onChange={(e: any) => setTiktokUrl(e.target.value)} placeholder="tiktok.com/@yourbusiness" />
+                </div>
+              )}
+
+              {/* ── Real Testimonials (Trust & Reviews bundle) ── */}
+              {features.includes("Reviews & Testimonials") && (
+                <div className="space-y-3 p-4 rounded-2xl border border-white/8 bg-white/3">
+                  <p className="text-white font-semibold">⭐ Customer Testimonials</p>
+                  <p className="text-slate-400 text-sm">Paste real reviews from your customers — we'll use these on your site instead of AI-generated ones. Leave blank and we'll create realistic placeholder reviews.</p>
+                  <TextAreaField icon="💬" label="Customer reviews (optional)" value={realTestimonials} onChange={(e: any) => setRealTestimonials(e.target.value)} placeholder={'e.g.\n"Amazing service, would highly recommend!" — Sarah M., Brisbane\n"Best in the business, 5 stars!" — John T., Gold Coast'} />
+                </div>
+              )}
+
+              {/* ── Blog Topics (Blog & Content bundle) ── */}
+              {features.includes("Blog") && (
+                <div className="space-y-3 p-4 rounded-2xl border border-white/8 bg-white/3">
+                  <p className="text-white font-semibold">📰 Blog Topics</p>
+                  <p className="text-slate-400 text-sm">We'll create placeholder blog posts on your site. Give us a few topics and we'll write relevant preview cards. Leave blank for AI-generated industry topics.</p>
+                  <InputField icon="✍️" label="Blog topics (optional)" value={blogTopics} onChange={(e: any) => setBlogTopics(e.target.value)} placeholder="e.g. Tips for saving water, 5 signs your pipes need fixing, DIY vs calling a plumber" hint="Comma-separated list of topics or post ideas." />
+                </div>
+              )}
+
+              {/* ── Video URL (Video Background bundle) ── */}
+              {features.includes("Video Background") && (
+                <div className="space-y-3 p-4 rounded-2xl border border-white/8 bg-white/3">
+                  <p className="text-white font-semibold">🎥 Hero Video</p>
+                  <p className="text-slate-400 text-sm">Provide a YouTube video URL or a direct .mp4 link for your hero background. Leave blank and we'll use a looping stock video matching your industry.</p>
+                  <InputField icon="🔗" label="Video URL (optional)" value={videoUrl} onChange={(e: any) => setVideoUrl(e.target.value)} placeholder="e.g. https://youtube.com/watch?v=xxxxx or https://cdn.example.com/video.mp4" hint="YouTube URLs are automatically converted to embed format." />
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+                    <p className="text-amber-400 text-xs">💡 For best performance: YouTube embeds load faster than direct MP4 files. Keep videos under 30 seconds for hero backgrounds.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Shop Products (Shop bundle without manual pricing flow) ── */}
+              {features.includes("Payments / Shop") && (
+                <div className="space-y-3 p-4 rounded-2xl border border-white/8 bg-white/3">
+                  <p className="text-white font-semibold">🛒 Online Shop Setup</p>
+                  <p className="text-slate-400 text-sm">Your shop will be built using Square. After your site goes live, you'll connect your Square account in your client portal so payments go directly to you.</p>
+                  {products.some(p => p.name) ? (
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
+                      <p className="text-emerald-400 text-xs">✓ Using the {products.filter(p => p.name).length} product(s) you entered in the pricing step.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <TextAreaField icon="🏷️" label="Products to sell (optional)" value={shopProducts} onChange={(e: any) => setShopProducts(e.target.value)} placeholder={"e.g.\nSourdough Loaf — $12\nCroissant — $5\nCoffee Subscription — $45/month"} />
+                      <p className="text-slate-500 text-xs">List products with prices — one per line. Leave blank and we'll build a demo shop you can customise later.</p>
+                    </>
+                  )}
+                  <div className="bg-slate-900/80 border border-white/10 rounded-xl p-3 space-y-1">
+                    <p className="text-white text-xs font-semibold">📋 What happens next:</p>
+                    <p className="text-slate-400 text-xs">1. We build your shop page with your products</p>
+                    <p className="text-slate-400 text-xs">2. After launch, connect your Square account in your client portal</p>
+                    <p className="text-slate-400 text-xs">3. All payments go directly to your Square account — we never touch your money</p>
+                  </div>
+                </div>
+              )}
+
               {features.includes("Booking System") && (
                 <div className="space-y-3 p-4 rounded-2xl border border-white/8 bg-white/3">
                   <p className="text-white font-semibold">📅 Booking System</p>
                   <p className="text-slate-400 text-sm">Do you already have a booking system set up (e.g. existing SuperSaas, Calendly, etc.)?</p>
                   <div className="flex gap-3">
-                    {["No — set it up for me", "Yes — I have one"].map(opt => (
-                      <SelectCard key={opt} selected={(existingBookingUrl ? "Yes — I have one" : (existingBookingUrl === "" && opt === "No — set it up for me" ? true : false)) as any} onClick={() => { if (opt === "No — set it up for me") setExistingBookingUrl(""); }} label={opt} />
-                    ))}
+                    <div onClick={() => setExistingBookingUrl("")} className={`cursor-pointer flex-1 rounded-2xl p-3 border-2 text-sm font-semibold text-center transition-all ${!existingBookingUrl ? "border-emerald-500 bg-emerald-500/10 text-white" : "border-white/10 bg-slate-900/50 text-slate-400"}`}>No — set it up for me</div>
+                    <div onClick={() => { if (!existingBookingUrl) setExistingBookingUrl("https://"); }} className={`cursor-pointer flex-1 rounded-2xl p-3 border-2 text-sm font-semibold text-center transition-all ${existingBookingUrl ? "border-emerald-500 bg-emerald-500/10 text-white" : "border-white/10 bg-slate-900/50 text-slate-400"}`}>Yes — I have one</div>
                   </div>
-                  {existingBookingUrl !== undefined && (
+                  {existingBookingUrl ? (
                     <InputField icon="🔗" label="Your booking link" value={existingBookingUrl} onChange={(e: any) => setExistingBookingUrl(e.target.value)} placeholder="e.g. https://supersaas.com/schedule/yourbusiness/appointments" hint="We'll embed this directly into your site." />
-                  )}
+                  ) : null}
                   <InputField icon="🗂️" label="Services offered (for booking dropdown)" value={bookingServices} onChange={(e: any) => setBookingServices(e.target.value)} placeholder="e.g. Haircut, Colour, Blowdry" hint="List the services clients can book — comma separated. These will be added as options in the booking form." />
                 </div>
               )}

@@ -10,6 +10,7 @@ import {
 } from "@/lib/pipeline-helpers";
 import { generateBookingWidget } from "@/lib/booking-widget";
 import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailability } from "@/lib/db";
+import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 
 export const maxDuration = 300;
 
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
   const jobId = searchParams.get("jobId");
   const secret = searchParams.get("secret");
 
-  if (!jobId || !secret || secret !== process.env.PROCESS_SECRET) {
+  if (!jobId || !isAdminAuthedLegacy(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 

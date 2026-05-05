@@ -1,12 +1,13 @@
 // app/api/admin/clients/route.ts
 import { NextRequest } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const secret = searchParams.get("secret");
 
-  if (secret !== process.env.PROCESS_SECRET) {
+  if (!isAdminAuthedLegacy(req)) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 

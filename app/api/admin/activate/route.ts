@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJob, saveJob } from "@/lib/db";
 import { inngest } from "@/lib/inngest";
+import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 
 export const maxDuration = 30;
 
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
   const jobId = searchParams.get("jobId");
   const secret = searchParams.get("secret");
 
-  if (!jobId || !secret || secret !== process.env.PROCESS_SECRET) {
+  if (!jobId || !isAdminAuthedLegacy(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 

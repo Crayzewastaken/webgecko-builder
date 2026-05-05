@@ -61,7 +61,7 @@ export function safeFileName(name: string): string {
 
 // ─── calculateQuote ───────────────────────────────────────────────────────────
 
-export function calculateQuote(userInput: any) {
+export function calculateQuote(userInput: Record<string, unknown>) {
   const pageCount = Array.isArray(userInput.pages) ? userInput.pages.length : 1;
   const features = Array.isArray(userInput.features) ? userInput.features : [];
   const isMultiPage = userInput.siteType === "multi";
@@ -330,25 +330,71 @@ export function validateForDeploy(
   if (/<[a-zA-Z][^>]*$/.test(html.trimEnd())) failures.push("Truncated trailing tag at end of HTML");
   if (/<[a-zA-Z][^>]*(?=<script\b)/i.test(html)) failures.push("Truncated tag before injected script");
 
-  // Multi-page: every requested page must have data-page wrapper
   if (isMultiPage) {
+    // 1. Every requested page must have a data-page wrapper
     for (const id of requestedPageIds) {
       if (!html.includes(`data-page="${id}"`)) {
         failures.push(`Missing data-page="${id}" wrapper`);
       }
     }
-    if (!(html.match(/\bdata-page=["'][^"']+["']/g) || []).length) {
+
+    // 2. Must have some data-page wrappers at all
+    const allDataPages = (html.match(/\bdata-page=["']([^"']+)["']/g) || []);
+    if (allDataPages.length === 0) {
       failures.push("No data-page wrappers found at all");
+    }
+
+    // 3. No duplicate data-page values
+    const dpValues = allDataPages.map(m => (m.match(/data-page=["']([^"']+)["']/) || [])[1]).filter(Boolean);
+    const seen = new Set<string>();
+    for (const v of dpValues) {
+      if (seen.has(v)) failures.push(`Duplicate data-page="${v}"`);
+      seen.add(v);
+    }
+
+    // 4. Exactly one wrapper must have class="... active ..."
+    const activeCount = (html.match(/\bdata-page=["'][^"']+["'][^>]*class="[^"]*\bactive\b/g) || []).length
+      + (html.match(/\bclass="[^"]*\bactive\b[^"]*"[^>]*data-page=/g) || []).length;
+    if (activeCount === 0) failures.push("No data-page wrapper has class 'active'");
+    if (activeCount > 1)   failures.push(`Multiple data-page wrappers (${activeCount}) have class 'active'`);
+
+    // 5. No requested page wrapper should be empty/tiny (< 300 stripped chars)
+    for (const id of requestedPageIds) {
+      const wrapperRe = new RegExp(`data-page=["']${id}["'][\\s\\S]{0,5000}`, "i");
+      const wm = wrapperRe.exec(html);
+      if (wm) {
+        const textContent = wm[0].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+        if (textContent.length < 300) failures.push(`data-page="${id}" appears empty or very thin (${textContent.length} visible chars)`);
+      }
+    }
+
+    // 6. No navigateTo() target that points to a page NOT in requestedPageIds
+    const navTargets = [...html.matchAll(/navigateTo\(['"]([^'"]+)['"]\)/g)].map(m => m[1]);
+    for (const t of navTargets) {
+      if (!requestedPageIds.includes(t)) {
+        failures.push(`navigateTo('${t}') points to page not in requestedPageIds`);
+      }
+    }
+
+    // 7. Booking page must not exist unless booking was requested
+    if (!hasBooking && !requestedPageIds.includes("booking") && html.includes('data-page="booking"')) {
+      failures.push('Surprise data-page="booking" exists but booking was not requested');
+    }
+
+    // 8. Required semantic IDs
+    if (requestedPageIds.includes("contact") && !html.includes('id="contact"')) {
+      failures.push('Contact page requested but id="contact" is missing inside it');
+    }
+    if (requestedPageIds.includes("faq") && !html.includes('id="faq"')) {
+      failures.push('FAQ page requested but id="faq" is missing');
+    }
+  } else {
+    // Single-page: hero ID required
+    if (!html.includes('id="hero"') && !html.includes("id='hero'")) {
+      failures.push('Missing id="hero"');
     }
   }
 
-  // Required semantic IDs
-  if (!isMultiPage || requestedPageIds.includes("home")) {
-    if (!html.includes('id="hero"') && !html.includes("id='hero'")) {
-      // Only a warning for multi-page (hero may be inside home wrapper without separate id)
-      if (!isMultiPage) failures.push('Missing id="hero"');
-    }
-  }
   if (hasBooking && !html.includes('id="booking"') && !html.includes("id='booking'")) {
     failures.push('Missing id="booking"');
   }
@@ -356,10 +402,385 @@ export function validateForDeploy(
   return failures;
 }
 
-// ─── injectEssentials ─────────────────────────────────────────────────────────
-// Full version from original worker — includes navigateTo, hamburger, FAQ accordion,
-// cart toast, form handler, multi-page init
+// ─── extractStitchSections ────────────────────────────────────────────────────
+// Pull named sections out of Stitch HTML by id or class. Used to build a
+// structured section inventory even when the full body is too large to send.
+export interface StitchSection {
+  id: string;
+  tag: string;
+  outerHtml: string;  // full element HTML (may be large)
+  snippet: string;    // first 600 chars of content text for inventory
+}
 
+export function extractStitchSections(html: string): StitchSection[] {
+  const KNOWN_SECTIONS = [
+    "hero", "services", "about", "testimonials", "faq", "contact",
+    "booking", "gallery", "pricing", "shop", "team", "menu", "blog",
+    "location", "footer",
+  ];
+  const found: StitchSection[] = [];
+  const seen = new Set<string>();
+
+  for (const sectionId of KNOWN_SECTIONS) {
+    if (seen.has(sectionId)) continue;
+    // Match <section|div|article|main id="sectionId" ...> or <... class="...sectionId..."
+    const byId = new RegExp(`<(section|div|article|main)([^>]*\\bid=["']${sectionId}["'][^>]*)>`, "i").exec(html);
+    const byClass = !byId
+      ? new RegExp(`<(section|div|article|main)([^>]*\\bclass=["'][^"']*\\b${sectionId}\\b[^"']*["'][^>]*)>`, "i").exec(html)
+      : null;
+    const match = byId || byClass;
+    if (!match) continue;
+
+    const tagName = match[1].toLowerCase();
+    const startIdx = match.index;
+    // Walk forward to find the matching closing tag
+    let depth = 1;
+    let pos = startIdx + match[0].length;
+    const openRe = new RegExp(`<${tagName}[\\s>]`, "gi");
+    const closeRe = new RegExp(`<\\/${tagName}>`, "gi");
+    let endIdx = pos;
+    while (depth > 0 && pos < html.length && pos < startIdx + 80000) {
+      openRe.lastIndex = pos;
+      closeRe.lastIndex = pos;
+      const nextOpen = openRe.exec(html);
+      const nextClose = closeRe.exec(html);
+      if (!nextClose) break;
+      if (nextOpen && nextOpen.index < nextClose.index) {
+        depth++;
+        pos = nextOpen.index + nextOpen[0].length;
+      } else {
+        depth--;
+        pos = nextClose.index + nextClose[0].length;
+        if (depth === 0) endIdx = pos;
+      }
+    }
+    const outerHtml = html.slice(startIdx, endIdx);
+    const snippet = outerHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 600);
+    found.push({ id: sectionId, tag: tagName, outerHtml, snippet });
+    seen.add(sectionId);
+  }
+
+  return found;
+}
+
+// ─── buildSectionInventory ────────────────────────────────────────────────────
+// Builds a human-readable section inventory for the Claude prompt when the full
+// Stitch body is too large to include in full.
+export function buildSectionInventory(sections: StitchSection[], totalBodyChars: number): string {
+  if (sections.length === 0) return "(No named sections found — Stitch output may be single-block)";
+  const lines = [
+    `SECTION INVENTORY (${sections.length} sections found, full body ${totalBodyChars} chars):`,
+    "",
+  ];
+  for (const s of sections) {
+    lines.push(`[${s.id.toUpperCase()}] tag=<${s.tag}> size=${s.outerHtml.length}chars`);
+    lines.push(`  Preview: ${s.snippet.slice(0, 250)}`);
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+
+// ─── ensureMultiPageStructure ─────────────────────────────────────────────────
+// Deterministic post-processor that guarantees every requested page has exactly
+// one top-level data-page wrapper, exactly one 'active' class, clean nav targets,
+// and required semantic IDs. Call after Step4b and again before validateForDeploy.
+//
+// Returns { html, report } where report lists every repair made.
+
+export interface MultiPageRepairReport {
+  repairs: string[];
+  missingPagesAdded: string[];
+  duplicatesRemoved: string[];
+  navTargetsFixed: string[];
+}
+
+const FALLBACK_PAGE_CONTENT: Record<string, (businessName: string, accentColor: string) => string> = {
+  home: (biz, ac) => `
+    <section id="hero" style="min-height:80vh;display:flex;align-items:center;justify-content:center;padding:80px 24px;background:linear-gradient(135deg,#0a0f1a 0%,#1e293b 100%);text-align:center;">
+      <div><h1 style="color:#f1f5f9;font-size:3rem;font-weight:900;margin:0 0 16px;">${biz}</h1>
+      <p style="color:#94a3b8;font-size:1.2rem;margin:0 0 32px;">Quality service you can trust.</p>
+      <a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('contact')" style="display:inline-block;background:${ac};color:#fff;font-weight:700;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:1.1rem;">Get Started</a></div>
+    </section>
+    <section id="testimonials" style="padding:80px 24px;background:#0f172a;">
+      <div style="max-width:900px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;text-align:center;margin-bottom:40px;">What Our Clients Say</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;">
+        <div style="background:#1e293b;border-radius:12px;padding:24px;border:1px solid #334155;"><p style="color:#e2e8f0;margin-bottom:12px;">"Absolutely fantastic service!"</p><p style="color:${ac};font-weight:700;">— Sarah M.</p></div>
+        <div style="background:#1e293b;border-radius:12px;padding:24px;border:1px solid #334155;"><p style="color:#e2e8f0;margin-bottom:12px;">"Highly recommend to anyone."</p><p style="color:${ac};font-weight:700;">— James T.</p></div>
+        <div style="background:#1e293b;border-radius:12px;padding:24px;border:1px solid #334155;"><p style="color:#e2e8f0;margin-bottom:12px;">"Professional and reliable."</p><p style="color:${ac};font-weight:700;">— Emily R.</p></div>
+      </div></div>
+    </section>`,
+  about: (_biz, ac) => `
+    <div style="padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;">
+      <h2 style="color:#f1f5f9;font-size:2.5rem;font-weight:900;margin-bottom:24px;">About Us</h2>
+      <p style="color:#94a3b8;font-size:1.1rem;line-height:1.8;margin-bottom:20px;">We are a dedicated team committed to delivering exceptional results for our clients. With years of experience in the industry, we pride ourselves on quality, reliability, and customer satisfaction.</p>
+      <p style="color:#94a3b8;font-size:1.1rem;line-height:1.8;">Our mission is to provide outstanding service that exceeds expectations every time.</p>
+      <div style="margin-top:48px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:32px;">
+        <div style="text-align:center;"><div style="font-size:2.5rem;font-weight:900;color:${ac};">10+</div><div style="color:#94a3b8;">Years Experience</div></div>
+        <div style="text-align:center;"><div style="font-size:2.5rem;font-weight:900;color:${ac};">500+</div><div style="color:#94a3b8;">Happy Clients</div></div>
+        <div style="text-align:center;"><div style="font-size:2.5rem;font-weight:900;color:${ac};">100%</div><div style="color:#94a3b8;">Satisfaction</div></div>
+      </div>
+    </div></div>`,
+  services: (_biz, ac) => `
+    <div style="padding:80px 24px;background:#0a0f1a;"><div style="max-width:1000px;margin:0 auto;">
+      <h2 style="color:#f1f5f9;font-size:2.5rem;font-weight:900;text-align:center;margin-bottom:48px;">Our Services</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:28px;">
+        <div style="background:#1e293b;border-radius:16px;padding:32px;border:1px solid #334155;"><div style="font-size:2rem;margin-bottom:16px;">⭐</div><h3 style="color:${ac};font-size:1.3rem;font-weight:700;margin-bottom:12px;">Premium Service</h3><p style="color:#94a3b8;line-height:1.7;">High quality results delivered on time and on budget.</p></div>
+        <div style="background:#1e293b;border-radius:16px;padding:32px;border:1px solid #334155;"><div style="font-size:2rem;margin-bottom:16px;">🎯</div><h3 style="color:${ac};font-size:1.3rem;font-weight:700;margin-bottom:12px;">Expert Consultation</h3><p style="color:#94a3b8;line-height:1.7;">Tailored advice and guidance for your unique needs.</p></div>
+        <div style="background:#1e293b;border-radius:16px;padding:32px;border:1px solid #334155;"><div style="font-size:2rem;margin-bottom:16px;">🏆</div><h3 style="color:${ac};font-size:1.3rem;font-weight:700;margin-bottom:12px;">Ongoing Support</h3><p style="color:#94a3b8;line-height:1.7;">We're here for you every step of the way.</p></div>
+      </div>
+    </div></div>`,
+  contact: (biz, ac) => `
+    <div style="padding:80px 24px;background:#0f172a;"><div style="max-width:640px;margin:0 auto;">
+      <h2 id="contact" style="color:#f1f5f9;font-size:2.5rem;font-weight:900;margin-bottom:8px;">Contact Us</h2>
+      <p style="color:#94a3b8;margin-bottom:32px;">Get in touch with ${biz} — we respond within 24 hours.</p>
+      <form style="display:flex;flex-direction:column;gap:16px;" onsubmit="event.preventDefault();this.innerHTML='<p style=color:#22c55e;font-weight:bold;font-size:1.1rem;>Thank you! We will be in touch shortly.</p>'">
+        <input type="text" placeholder="Your Name" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/>
+        <input type="email" placeholder="Your Email" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/>
+        <input type="tel" placeholder="Your Phone" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/>
+        <textarea placeholder="Your Message" rows="5" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;resize:vertical;"></textarea>
+        <button type="submit" style="background:${ac};color:#fff;font-weight:700;padding:16px;border:none;border-radius:8px;font-size:1rem;cursor:pointer;">Send Message</button>
+      </form>
+    </div></div>`,
+  booking: (biz, ac) => `
+    <div style="padding:80px 24px;background:#0a0f1a;text-align:center;"><div style="max-width:640px;margin:0 auto;">
+      <h2 style="color:#f1f5f9;font-size:2.5rem;font-weight:900;margin-bottom:16px;">Book an Appointment</h2>
+      <p style="color:#94a3b8;margin-bottom:32px;">Schedule your appointment with ${biz} online.</p>
+      <a href="#" onclick="event.preventDefault();" style="display:inline-block;background:${ac};color:#fff;font-weight:700;font-size:1.1rem;padding:18px 48px;border-radius:10px;text-decoration:none;">Book Now</a>
+    </div></div>`,
+  faq: (_biz, ac) => `
+    <div style="padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;">
+      <h2 id="faq" style="color:#f1f5f9;font-size:2.5rem;font-weight:900;margin-bottom:40px;">Frequently Asked Questions</h2>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <details style="background:#1e293b;border-radius:10px;padding:20px;border:1px solid #334155;"><summary style="color:${ac};font-weight:700;cursor:pointer;font-size:1.05rem;">How do I get started?</summary><p style="color:#94a3b8;margin-top:12px;line-height:1.7;">Simply contact us via the form or phone and we'll be in touch within 24 hours to discuss your needs.</p></details>
+        <details style="background:#1e293b;border-radius:10px;padding:20px;border:1px solid #334155;"><summary style="color:${ac};font-weight:700;cursor:pointer;font-size:1.05rem;">What are your hours?</summary><p style="color:#94a3b8;margin-top:12px;line-height:1.7;">We're available Monday to Friday, 9am–5pm. We also offer flexible appointment times.</p></details>
+        <details style="background:#1e293b;border-radius:10px;padding:20px;border:1px solid #334155;"><summary style="color:${ac};font-weight:700;cursor:pointer;font-size:1.05rem;">Do you offer a free consultation?</summary><p style="color:#94a3b8;margin-top:12px;line-height:1.7;">Yes! We offer a complimentary initial consultation to understand your needs before any commitment.</p></details>
+        <details style="background:#1e293b;border-radius:10px;padding:20px;border:1px solid #334155;"><summary style="color:${ac};font-weight:700;cursor:pointer;font-size:1.05rem;">What areas do you service?</summary><p style="color:#94a3b8;margin-top:12px;line-height:1.7;">We service the greater metropolitan area and surrounding suburbs. Contact us to confirm coverage in your area.</p></details>
+        <details style="background:#1e293b;border-radius:10px;padding:20px;border:1px solid #334155;"><summary style="color:${ac};font-weight:700;cursor:pointer;font-size:1.05rem;">How do I pay?</summary><p style="color:#94a3b8;margin-top:12px;line-height:1.7;">We accept all major payment methods including credit card, bank transfer, and cash.</p></details>
+        <details style="background:#1e293b;border-radius:10px;padding:20px;border:1px solid #334155;"><summary style="color:${ac};font-weight:700;cursor:pointer;font-size:1.05rem;">Do you offer a warranty or guarantee?</summary><p style="color:#94a3b8;margin-top:12px;line-height:1.7;">Absolutely. We stand behind our work with a satisfaction guarantee. If you're not happy, we'll make it right.</p></details>
+      </div>
+    </div></div>`,
+  pricing: (_biz, ac) => `
+    <div style="padding:80px 24px;background:#0a0f1a;"><div style="max-width:900px;margin:0 auto;text-align:center;">
+      <h2 style="color:#f1f5f9;font-size:2.5rem;font-weight:900;margin-bottom:48px;">Pricing</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:28px;">
+        <div style="background:#1e293b;border-radius:16px;padding:36px;border:1px solid #334155;"><h3 style="color:#f1f5f9;font-weight:700;margin-bottom:8px;">Starter</h3><div style="color:${ac};font-size:2.5rem;font-weight:900;margin-bottom:16px;">$99</div><p style="color:#94a3b8;">Perfect for individuals getting started.</p></div>
+        <div style="background:${ac};border-radius:16px;padding:36px;border:1px solid ${ac};"><h3 style="color:#fff;font-weight:700;margin-bottom:8px;">Professional</h3><div style="color:#fff;font-size:2.5rem;font-weight:900;margin-bottom:16px;">$199</div><p style="color:rgba(255,255,255,0.8);">Most popular for growing businesses.</p></div>
+        <div style="background:#1e293b;border-radius:16px;padding:36px;border:1px solid #334155;"><h3 style="color:#f1f5f9;font-weight:700;margin-bottom:8px;">Enterprise</h3><div style="color:${ac};font-size:2.5rem;font-weight:900;margin-bottom:16px;">Custom</div><p style="color:#94a3b8;">Tailored solutions for larger organisations.</p></div>
+      </div>
+    </div></div>`,
+  gallery: (_biz, _ac) => `
+    <div style="padding:80px 24px;background:#0f172a;"><div style="max-width:1100px;margin:0 auto;">
+      <h2 style="color:#f1f5f9;font-size:2.5rem;font-weight:900;text-align:center;margin-bottom:48px;">Our Gallery</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;">
+        ${[1,2,3,4,5,6].map(i => `<div style="border-radius:12px;overflow:hidden;aspect-ratio:4/3;"><img src="https://placehold.co/400x300/1e293b/94a3b8?text=Photo+${i}" alt="Gallery image ${i}" style="width:100%;height:100%;object-fit:cover;"/></div>`).join("")}
+      </div>
+    </div></div>`,
+};
+
+function getFallbackContent(pageId: string, businessName: string, accentColor: string): string {
+  const gen = FALLBACK_PAGE_CONTENT[pageId];
+  if (gen) return gen(businessName, accentColor);
+  // Generic fallback
+  const label = pageId.charAt(0).toUpperCase() + pageId.slice(1).replace(/-/g, " ");
+  return `
+    <div style="padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;text-align:center;">
+      <h2 style="color:#f1f5f9;font-size:2.5rem;font-weight:900;margin-bottom:16px;">${label}</h2>
+      <p style="color:#94a3b8;font-size:1.1rem;">This page is coming soon. Please check back later.</p>
+    </div></div>`;
+}
+
+export function ensureMultiPageStructure(
+  html: string,
+  requestedPageIds: string[],
+  options: {
+    businessName?: string;
+    accentColor?: string;
+    hasBooking?: boolean;
+  } = {}
+): { html: string; report: MultiPageRepairReport } {
+  const report: MultiPageRepairReport = {
+    repairs: [],
+    missingPagesAdded: [],
+    duplicatesRemoved: [],
+    navTargetsFixed: [],
+  };
+
+  const businessName = options.businessName || "Business";
+  const accentColor = options.accentColor || "#10b981";
+  const hasBooking = options.hasBooking ?? false;
+
+  let out = html;
+
+  // ── 1. Detect which requested pages already have data-page wrappers ──────────
+  const presentPages = requestedPageIds.filter(id => out.includes(`data-page="${id}"`));
+  const missingPages = requestedPageIds.filter(id => !out.includes(`data-page="${id}"`));
+
+  console.log(`[ensureMultiPage] Requested: [${requestedPageIds.join(",")}] | Present: [${presentPages.join(",")}] | Missing: [${missingPages.join(",")}]`);
+
+  // ── 2. Try to wrap existing Stitch sections that have matching ids ────────────
+  //    e.g. <section id="services"> → wrap in <div data-page="services" id="services" class="page-section">
+  const stillMissing: string[] = [];
+  for (const pageId of missingPages) {
+    // Check if there's an element with id="pageId" that could be wrapped
+    const idRe = new RegExp(`<(section|div|article|main)([^>]*\\bid=["']${pageId}["'][^>]*)>`, "i");
+    const m = idRe.exec(out);
+    if (m) {
+      // Found the element — add data-page attribute to it instead of wrapping
+      const fullTag = m[0];
+      const newTag = fullTag.includes("data-page=")
+        ? fullTag
+        : fullTag.replace(/>$/, ` data-page="${pageId}">`);
+      // Also ensure class="page-section" (or add it)
+      const withClass = newTag.includes("page-section")
+        ? newTag
+        : newTag.replace(/>$/, ` class="page-section">`).replace(/class="([^"]*)"/, `class="$1 page-section"`);
+      out = out.slice(0, m.index) + withClass + out.slice(m.index + fullTag.length);
+      report.repairs.push(`Promoted id="${pageId}" element to data-page wrapper`);
+    } else {
+      // Try to find by class containing page name
+      const classRe = new RegExp(`<(section|div|article|main)([^>]*class=["'][^"']*\\b${pageId}\\b[^"']*["'][^>]*)>`, "i");
+      const cm = classRe.exec(out);
+      if (cm && !cm[0].includes("data-page=")) {
+        const hasId = /\bid=/.test(cm[2]);
+        const newTag = cm[0]
+          .replace(/>$/, ` data-page="${pageId}"${hasId ? "" : ` id="${pageId}"`}>`);
+        out = out.slice(0, cm.index) + newTag + out.slice(cm.index + cm[0].length);
+        report.repairs.push(`Promoted class-matched element to data-page="${pageId}" wrapper`);
+      } else {
+        stillMissing.push(pageId);
+      }
+    }
+  }
+
+  // ── 3. Inject fallback pages for anything still missing ──────────────────────
+  for (const pageId of stillMissing) {
+    const isFirst = requestedPageIds[0] === pageId;
+    const activeClass = isFirst ? " active" : "";
+    const innerContent = getFallbackContent(pageId, businessName, accentColor);
+    const wrapper = `<div data-page="${pageId}" id="${pageId}" class="page-section${activeClass}">${innerContent}</div>`;
+    out = out.replace("</body>", wrapper + "\n</body>");
+    report.missingPagesAdded.push(pageId);
+    report.repairs.push(`Injected fallback page wrapper for data-page="${pageId}"`);
+    console.log(`[ensureMultiPage] Injected fallback for "${pageId}"`);
+  }
+
+  // ── 4. Remove inline display:none / display:block from data-page wrappers ────
+  //    The CSS rule [data-page]{display:none!important}[data-page].active{display:block!important}
+  //    is the sole authority — inline styles fight it and cause blank pages.
+  out = out.replace(/(<(?:div|section|article|main)[^>]*\bdata-page=["'][^"']+["'][^>]*)(\bstyle="([^"]*)")([^>]*>)/gi,
+    (_m, before, _styleAttr, styleContent, after) => {
+      const cleaned = styleContent
+        .replace(/\bdisplay\s*:\s*(none|block|flex|grid)\s*;?/gi, "")
+        .replace(/^\s*;\s*/, "")
+        .trim();
+      const newStyle = cleaned ? ` style="${cleaned}"` : "";
+      report.repairs.push("Removed inline display from data-page wrapper");
+      return before + newStyle + after;
+    }
+  );
+
+  // ── 5. Ensure exactly one 'active' class — activate the first requested page ─
+  const activePages = [...out.matchAll(/data-page=["']([^"']+)["'][^>]*class="[^"]*\bactive\b/g)].map(m => m[1]);
+  const activeFromClass = [...out.matchAll(/class="[^"]*\bactive\b[^"]*"[^>]*data-page=["']([^"']+)["']/g)].map(m => m[1]);
+  const allActive = [...new Set([...activePages, ...activeFromClass])];
+
+  if (allActive.length === 0) {
+    // No active wrapper — activate the first requested page
+    const firstId = requestedPageIds[0];
+    const dpRe = new RegExp(`(data-page=["']${firstId}["'][^>]*class=")([^"]*)(")`);
+    if (dpRe.test(out)) {
+      out = out.replace(dpRe, (_m, pre, cls, post) => pre + cls.replace(/\bactive\b/, "").trim() + " active" + post);
+    } else {
+      // Try other attribute order
+      const dpRe2 = new RegExp(`(class=")([^"]*)"([^>]*data-page=["']${firstId}["'])`);
+      if (dpRe2.test(out)) {
+        out = out.replace(dpRe2, (_m, pre, cls, rest) => pre + cls.replace(/\bactive\b/, "").trim() + " active\"" + rest);
+      } else {
+        // Brute force: add active to the first occurrence of data-page="firstId"
+        out = out.replace(
+          new RegExp(`(<(?:div|section|article|main)[^>]*data-page=["']${firstId}["'][^>]*class=")([^"]*)`),
+          (_m, pre, cls) => pre + cls.replace(/\bactive\b/g, "").trim() + " active"
+        );
+      }
+    }
+    report.repairs.push(`Activated first page: data-page="${firstId}"`);
+    console.log(`[ensureMultiPage] Activated first page: "${firstId}"`);
+  } else if (allActive.length > 1) {
+    // Multiple active wrappers — keep only the first requested one, deactivate others
+    const keepActive = requestedPageIds.find(id => allActive.includes(id)) || allActive[0];
+    for (const activeId of allActive) {
+      if (activeId === keepActive) continue;
+      out = out.replace(
+        new RegExp(`(data-page=["']${activeId}["'][^>]*class=")([^"]*active[^"]*)(")`),
+        (_m, pre, cls, post) => pre + cls.replace(/\bactive\b/g, "").replace(/\s+/g, " ").trim() + post
+      );
+      report.repairs.push(`Removed spurious 'active' from data-page="${activeId}"`);
+    }
+  }
+
+  // ── 6. Fix nav link targets that don't match requestedPageIds ────────────────
+  const validIds = new Set(requestedPageIds);
+  out = out.replace(/navigateTo\(['"]([^'"]+)['"]\)/g, (m, target) => {
+    if (validIds.has(target)) return m;
+    // Try to find the closest matching page id
+    const lower = target.toLowerCase();
+    const matched = requestedPageIds.find(id =>
+      id.includes(lower) || lower.includes(id) || id.startsWith(lower.slice(0, 4))
+    );
+    if (matched) {
+      report.navTargetsFixed.push(`navigateTo('${target}') → navigateTo('${matched}')`);
+      return `navigateTo('${matched}')`;
+    }
+    // Default to home
+    report.navTargetsFixed.push(`navigateTo('${target}') → navigateTo('home') [no match]`);
+    return `navigateTo('home')`;
+  });
+
+  // ── 7. Ensure required semantic IDs inside their page wrappers ───────────────
+  // 7a. id="contact" inside contact page
+  if (requestedPageIds.includes("contact") && out.includes('data-page="contact"') && !out.includes('id="contact"')) {
+    // Add id="contact" to the h2 or first div inside the contact page
+    const contactPageRe = /(<(?:div|section)[^>]*data-page="contact"[^>]*>)([\s\S]{0,5000}?)(<h2)/i;
+    if (contactPageRe.test(out)) {
+      out = out.replace(contactPageRe, (_m, open, body, h2) => open + body + h2.replace("<h2", '<h2 id="contact"'));
+      report.repairs.push('Added id="contact" to h2 inside contact page');
+    }
+  }
+
+  // 7b. id="faq" inside faq page
+  if (requestedPageIds.includes("faq") && out.includes('data-page="faq"') && !out.includes('id="faq"')) {
+    const faqPageRe = /(<(?:div|section)[^>]*data-page="faq"[^>]*>)([\s\S]{0,2000}?)(<h2)/i;
+       if (faqPageRe.test(out)) {
+      out = out.replace(faqPageRe, (_m: string, open: string, body: string, h2: string) => open + body + h2.replace('<h2', '<h2 id="faq"'));
+      report.repairs.push('Added id="faq" to h2 inside faq page');
+    }
+  }
+
+  // 7c. id="hero" inside home page
+  if (requestedPageIds.includes('home') && out.includes('data-page="home"') && !out.includes('id="hero"')) {
+    const heroRe = /(<(?:div|section)[^>]*data-page="home"[^>]*>)([\s\S]{0,1000}?)(<(?:section|div)[^>]*(?:class="[^"]*hero|min-height))/i;
+    if (heroRe.test(out)) {
+      out = out.replace(heroRe, (_m: string, dpOpen: string, body: string, heroTag: string) => {
+        const newHeroTag = /id=/.test(heroTag) ? heroTag : heroTag.replace(/<((?:section|div)[^>]*)>$/, '<$1 id="hero">');
+        return dpOpen + body + newHeroTag;
+      });
+      report.repairs.push('Added id="hero" to hero section inside home page');
+    }
+  }
+
+  // 8. Booking page guard
+  if (!hasBooking && !requestedPageIds.includes('booking')) {
+    const bookingDpCount = (out.match(/data-page="booking"/g) || []).length;
+    if (bookingDpCount > 0) {
+      out = out.replace(/\s*data-page="booking"/g, '');
+      report.repairs.push(`Removed ${bookingDpCount} stray data-page="booking" attribute(s) (booking not requested)`);
+      console.log(`[ensureMultiPage] Removed ${bookingDpCount} stray data-page="booking" attributes`);
+    }
+  }
+
+  console.log(`[ensureMultiPage] Done. Repairs: ${report.repairs.length}, Added pages: [${report.missingPagesAdded.join(',')}], Nav fixes: ${report.navTargetsFixed.length}`);
+  return { html: out, report };
+}
 export function injectEssentials(html: string, email: string, phone: string, jobId?: string, ga4Id?: string, tawktoPropertyId?: string): string {
   let processed = html;
 
@@ -694,7 +1115,7 @@ export function injectImages(
   photoUrls: string[],
   products: { name: string; price: string; photoUrl?: string }[]
 ): string {
-  let processed = html;
+  const processed = html;
   const script = `
 <script>
 (function() {

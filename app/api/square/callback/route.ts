@@ -4,10 +4,46 @@
 // then redirects them back to their client portal.
 
 import { NextRequest } from "next/server";
+import crypto from "crypto";
 import { supabase } from "@/lib/supabase";
-import { getJob, saveJob } from "@/lib/db";
+import { getJob, saveJob, getClient } from "@/lib/db";
 
 export const runtime = "nodejs";
+
+const STATE_MAX_AGE_MS = 15 * 60 * 1000; // 15 minutes
+
+/** Verify a state token built by buildOAuthState() in connect/route.ts */
+function verifyOAuthState(
+  token: string,
+  secret: string,
+): { slug: string; jobId: string; ts: number } | null {
+  const dot = token.lastIndexOf(".");
+  if (dot === -1) return null;
+  const body = token.slice(0, dot);
+  const sig = token.slice(dot + 1);
+  const expected = crypto.createHmac("sha256", secret).update(body).digest("base64url");
+  // Constant-time comparison
+  if (!crypto.timingSafeEqual(Buffer.from(sig, "base64url"), Buffer.from(expected, "base64url"))) {
+    return null;
+  }
+  try {
+    return JSON.parse(Buffer.from(body, "base64url").toString("utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+function failPage(msg: string, backSlug = "") {
+  return new Response(
+    `<!DOCTYPE html><html><head><title>Square Connection Failed</title></head>
+    <body style="font-family:sans-serif;background:#0a0f1a;color:#e2e8f0;padding:60px 24px;text-align:center;">
+      <h1 style="color:#ef4444;">Connection Failed</h1>
+      <p>${msg}</p>
+      ${backSlug ? `<a href="/c/${backSlug}" style="color:#00c896;">← Back to dashboard</a>` : "<p>Please go back and try again.</p>"}
+    </body></html>`,
+    { headers: { "Content-Type": "text/html" } }
+  );
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -15,33 +51,39 @@ export async function GET(req: NextRequest) {
   const stateParam = searchParams.get("state");
   const error = searchParams.get("error");
 
-  // User denied access
   if (error || !code || !stateParam) {
-    const reason = error || "missing_code";
-    return new Response(
-      `<!DOCTYPE html><html><head><title>Square Connection Failed</title></head>
-      <body style="font-family:sans-serif;background:#0a0f1a;color:#e2e8f0;padding:60px 24px;text-align:center;">
-        <h1 style="color:#ef4444;">Connection Failed</h1>
-        <p>Could not connect your Square account. Reason: ${reason}</p>
-        <p>Please go back and try again.</p>
-      </body></html>`,
-      { headers: { "Content-Type": "text/html" } }
-    );
+    return failPage(`Could not connect your Square account. Reason: ${error || "missing_code"}`);
   }
 
-  // Decode state to get slug + jobId
-  let slug = "";
-  let jobId = "";
-  try {
-    const decoded = JSON.parse(Buffer.from(stateParam, "base64url").toString("utf-8"));
-    slug = decoded.slug || "";
-    jobId = decoded.jobId || "";
-  } catch {
-    return new Response("Invalid state parameter", { status: 400 });
+  const stateSecret = process.env.OAUTH_STATE_SECRET || process.env.PROCESS_SECRET;
+  if (!stateSecret) {
+    console.error("[Square OAuth] OAUTH_STATE_SECRET not configured");
+    return failPage("Server configuration error.");
+  }
+
+  // Verify HMAC signature and parse payload
+  const payload = verifyOAuthState(stateParam, stateSecret);
+  if (!payload) {
+    return new Response("Invalid or tampered state parameter", { status: 400 });
+  }
+
+  const { slug, jobId, ts } = payload;
+
+  // Reject stale states (replay protection)
+  if (Date.now() - ts > STATE_MAX_AGE_MS) {
+    return new Response("State token expired — please try connecting again", { status: 400 });
   }
 
   if (!slug || !jobId) {
     return new Response("Invalid state: missing slug or jobId", { status: 400 });
+  }
+
+  // Verify slug+jobId belong together (prevents state manipulation pointing at another client)
+  const client = await getClient(slug);
+  const clientJobId = (client as Record<string, unknown> | null)?.job_id as string | undefined;
+  if (!client || clientJobId !== jobId) {
+    console.error(`[Square OAuth] slug/jobId mismatch: slug=${slug} job_id=${clientJobId} vs jobId=${jobId}`);
+    return new Response("slug/jobId mismatch", { status: 403 });
   }
 
   // Exchange code for access token
@@ -83,16 +125,9 @@ export async function GET(req: NextRequest) {
     merchantId = tokenData.merchant_id || "";
     refreshToken = tokenData.refresh_token || "";
     expiresAt = tokenData.expires_at || "";
-  } catch (e: any) {
-    return new Response(
-      `<!DOCTYPE html><html><head><title>Square Connection Failed</title></head>
-      <body style="font-family:sans-serif;background:#0a0f1a;color:#e2e8f0;padding:60px 24px;text-align:center;">
-        <h1 style="color:#ef4444;">Connection Failed</h1>
-        <p>${e.message || "Could not exchange authorisation code."}</p>
-        <a href="/c/${slug}" style="color:#00c896;">← Back to dashboard</a>
-      </body></html>`,
-      { headers: { "Content-Type": "text/html" } }
-    );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Could not exchange authorisation code.";
+    return failPage(msg, slug);
   }
 
   // Get the merchant's primary location ID
@@ -104,15 +139,13 @@ export async function GET(req: NextRequest) {
         "Square-Version": "2024-11-20",
       },
     });
-    const locData = await locRes.json();
-    // Pick the first active location
-    const locations: any[] = locData.locations || [];
-    const active = locations.find((l: any) => l.status === "ACTIVE") || locations[0];
+    const locData = await locRes.json() as { locations?: { status: string; id: string }[] };
+    const locations = locData.locations || [];
+    const active = locations.find((l) => l.status === "ACTIVE") || locations[0];
     locationId = active?.id || "";
     console.log(`[Square OAuth] Merchant ${merchantId} has ${locations.length} location(s), using: ${locationId}`);
   } catch (e) {
     console.error("[Square OAuth] Could not fetch locations:", e);
-    // Non-fatal — payment links can still be created with a fallback
   }
 
   // Save credentials to the job
@@ -129,7 +162,6 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Also save to clients table for easy lookup
     await supabase
       .from("clients")
       .update({
@@ -143,20 +175,12 @@ export async function GET(req: NextRequest) {
       .eq("slug", slug);
 
     console.log(`[Square OAuth] Connected: job=${jobId} slug=${slug} merchant=${merchantId} location=${locationId}`);
-  } catch (e: any) {
+  } catch (e) {
     console.error("[Square OAuth] Failed to save credentials:", e);
-    return new Response(
-      `<!DOCTYPE html><html><head><title>Square Connection Failed</title></head>
-      <body style="font-family:sans-serif;background:#0a0f1a;color:#e2e8f0;padding:60px 24px;text-align:center;">
-        <h1 style="color:#ef4444;">Save Failed</h1>
-        <p>Your Square account was authorised but we could not save the credentials. Please contact support.</p>
-        <a href="/c/${slug}" style="color:#00c896;">← Back to dashboard</a>
-      </body></html>`,
-      { headers: { "Content-Type": "text/html" } }
-    );
+    return failPage("Your Square account was authorised but we could not save the credentials. Please contact support.", slug);
   }
 
-  // Trigger a pipeline rebuild so shop payment links get wired into the site automatically
+  // Trigger pipeline rebuild so shop payment links get wired in automatically
   try {
     await fetch(`${appUrl}/api/pipeline/run`, {
       method: "POST",
@@ -166,9 +190,7 @@ export async function GET(req: NextRequest) {
     console.log(`[Square OAuth] Pipeline rebuild triggered for job ${jobId}`);
   } catch (e) {
     console.error("[Square OAuth] Could not trigger rebuild:", e);
-    // Non-fatal — client can trigger manually from admin if needed
   }
 
-  // Redirect back to client portal with success flag
   return Response.redirect(`${appUrl}/c/${slug}?square=connected`);
 }

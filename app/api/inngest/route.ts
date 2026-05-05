@@ -25,7 +25,7 @@ import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailabili
 import { supabase } from "@/lib/supabase";
 import { createTawktoProperty } from "@/lib/tawkto";
 import { subscribeToNewsletter } from "@/lib/beehiiv";
-import { generateSiteBlueprint } from "@/lib/gemini";
+import { generateSiteBlueprint, requestGoogleIndexing } from "@/lib/blueprint";
 import { auditAndFixSite } from "@/lib/auditor";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
@@ -142,7 +142,6 @@ const buildWebsite = inngest.createFunction(
           metadata: {
             ...(job.userInput || {}),
             supersaasSubEmail: schedule.subUserEmail,
-            supersaasSubPassword: schedule.subUserPassword,
           },
         });
         if (schedule.subUserEmail) {
@@ -371,8 +370,8 @@ const buildWebsite = inngest.createFunction(
         booking:      'Booking section with id="booking". Insert the booking iframe from the requirements below, or prominent call-to-action to phone.',
         faq:          'FAQ accordion with id="faq". 6+ real questions and answers relevant to the industry.',
         testimonials: 'Testimonials with id="testimonials". 4+ reviews from Australian clients with names, star ratings, quotes.',
-        shop:         'Product grid with 4-6 items. Each with image, name, price, Add to Cart button.',
-        blog:         'Blog post grid with 3-4 article cards. Each with image, title, excerpt, date.',
+        shop:         `Product shop grid. ${(productsWithPhotos && productsWithPhotos.length > 0) ? "Products: " + productsWithPhotos.map((p: any) => p.name + " — " + p.price).join(", ") + "." : userInput.shopProducts ? "Products: " + userInput.shopProducts + "." : "Use 4-6 sample products relevant to " + (userInput.industry || "the business") + "."} Each card has image, name, price, and a Buy Now button with class=wg-buy-btn.`,
+        blog:         `Blog post grid with 3-4 article cards. Each with image, title, excerpt, date, "Read More" button. Topics: ${userInput.blogTopics || "industry tips, news and advice relevant to " + (userInput.industry || "the business")}.`,
         team:         'Team grid with 3-4 members. Each with photo (placehold.co), name, role, bio.',
         menu:         'Restaurant menu with categories and items. Each item has name, description, price.',
         location:     'Location/hours section with address and trading hours grid.',
@@ -404,6 +403,26 @@ const buildWebsite = inngest.createFunction(
           + '- <footer> must contain: &copy; ' + yr4b + ' ' + userInput.businessName + '. All rights reserved.')
         : 'This is a SINGLE-PAGE site. Nav links: onclick="document.getElementById(\'SECTIONID\')?.scrollIntoView({behavior:\'smooth\'})"';
 
+      // Extra feature context for Claude
+      const videoInstruction = features.includes("Video Background") && userInput.videoUrl
+        ? `HERO VIDEO: The hero section MUST have a full-viewport video background. Use this video URL: ${userInput.videoUrl}. Add a <video autoplay muted loop playsinline> element (or YouTube iframe if YouTube URL) with position:absolute, covering 100% width and height of the hero. Add a dark overlay div (rgba 0,0,0,0.55) on top so text is readable. Hero content must have position:relative;z-index:2.`
+        : features.includes("Video Background")
+        ? "HERO VIDEO: Use a looping background video in the hero section. Add a <video autoplay muted loop playsinline src='https://coverr.co/videos/city-morning/mp4'> with position:absolute, 100% width/height, object-fit:cover. Add dark overlay. Hero text must be position:relative;z-index:2."
+        : "";
+      const realTestimonialsInstruction = userInput.realTestimonials
+        ? `REAL TESTIMONIALS — use EXACTLY these quotes inside id="testimonials", do NOT invent new ones:
+${userInput.realTestimonials}`
+        : "";
+      const socialInstruction = [
+        userInput.facebookPage ? `Facebook: ${userInput.facebookPage}` : "",
+        userInput.instagramUrl ? `Instagram: ${userInput.instagramUrl}` : "",
+        userInput.linkedinUrl ? `LinkedIn: ${userInput.linkedinUrl}` : "",
+        userInput.tiktokUrl ? `TikTok: ${userInput.tiktokUrl}` : "",
+      ].filter(Boolean).join(" | ");
+      const socialLinksInstruction = socialInstruction
+        ? `SOCIAL MEDIA LINKS: Add these to the footer and header: ${socialInstruction}`
+        : "";
+
       const prompt = `You are a senior front-end developer. I have a Stitch-generated website design below. Your job is to rewrite it as a complete, production-ready HTML file that EXACTLY preserves the visual design (colors, fonts, layout, imagery style) but guarantees all structural and functional requirements.
 
 BUSINESS: ${userInput.businessName}
@@ -434,6 +453,10 @@ ${hasBookingFeature && bookingUrl ? "9. Insert this EXACT booking section inside
 7. <section id="contact"> — form with name/email/phone/message fields. Real email: ${clientEmail}, phone: ${clientPhone}
 8. <footer> — copyright © ${new Date().getFullYear()} ${userInput.businessName}
 ${hasBookingFeature && bookingUrl ? "9. Insert this EXACT booking section as-is (do not modify the iframe src):\n" + bookingBlock : hasBookingFeature ? "9. <section id=\"booking\"> with a prominent Book Now CTA" : ""}`}
+
+${videoInstruction ? "\n" + videoInstruction : ""}
+${realTestimonialsInstruction ? "\n" + realTestimonialsInstruction : ""}
+${socialLinksInstruction ? "\n" + socialLinksInstruction : ""}
 
 RULES:
 - Return ONLY the complete HTML starting with <!DOCTYPE html> — no explanation, no markdown
@@ -599,6 +622,121 @@ RULES:
             // Last resort: inject map block before </body>
             html = html.replace("</body>", `<div style="padding:40px 24px;background:#0a0f1a;">${mapsEmbed}</div>\n</body>`);
           }
+        }
+      }
+
+      // ── Video Background injection ──────────────────────────────────────────
+      if (features.includes("Video Background")) {
+        const rawVideoUrl = (userInput.videoUrl || "").trim();
+        let embedVideoUrl = rawVideoUrl;
+        // Convert youtube.com/watch?v=ID or youtu.be/ID to embed URL
+        const ytMatch = rawVideoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+        if (ytMatch) {
+          embedVideoUrl = `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&muted=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&rel=0`;
+        }
+        // If no video URL provided, use a relevant Coverr stock video
+        const stockVideoMap: Record<string, string> = {
+          "food": "https://coverr.co/videos/chef-cooking/mp4",
+          "hospitality": "https://coverr.co/videos/restaurant-table/mp4",
+          "health": "https://coverr.co/videos/gym-workout/mp4",
+          "fitness": "https://coverr.co/videos/gym-workout/mp4",
+          "beauty": "https://coverr.co/videos/spa-relax/mp4",
+          "construction": "https://coverr.co/videos/construction-site/mp4",
+          "real estate": "https://coverr.co/videos/modern-house/mp4",
+          "technology": "https://coverr.co/videos/coding/mp4",
+        };
+        const industryLower = (userInput.industry || "").toLowerCase();
+        const stockUrl = Object.entries(stockVideoMap).find(([k]) => industryLower.includes(k))?.[1]
+          || "https://coverr.co/videos/city-morning/mp4";
+
+        if (!html.includes('id="hero-video"') && !html.includes("id='hero-video'")) {
+          if (ytMatch && embedVideoUrl) {
+            // YouTube iframe overlay on hero
+            const iframeBlock = `<iframe id="hero-video" src="${embedVideoUrl}" frameborder="0" allow="autoplay;muted" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:100vw;height:56.25vw;min-height:100%;min-width:177.77vh;z-index:0;pointer-events:none;" title="Hero background video"></iframe><div style="position:absolute;inset:0;background:rgba(0,0,0,0.55);z-index:1;"></div>`;
+            html = html.replace(/(<(?:section|div)[^>]*id="hero"[^>]*>)/, (_m: string, open: string) => {
+              return open.replace(/>$/, ` style="position:relative;overflow:hidden;">`) + iframeBlock;
+            });
+          } else {
+            // MP4 or stock video
+            const videoSrc = embedVideoUrl || stockUrl;
+            const videoBlock = `<video id="hero-video" autoplay muted loop playsinline style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;" src="${videoSrc}"></video><div style="position:absolute;inset:0;background:rgba(0,0,0,0.55);z-index:1;"></div>`;
+            html = html.replace(/(<(?:section|div)[^>]*id="hero"[^>]*>)/, (_m: string, open: string) => {
+              return open.replace(/>$/, ` style="position:relative;overflow:hidden;">`) + videoBlock;
+            });
+          }
+          // Ensure hero content sits above video (z-index:2)
+          html = html.replace(/(<(?:section|div)[^>]*id="hero"[^>]*>[\s\S]{0,200}?)(<(?:div|h1|h2|p|button|a)[^>]*(?:class|style)=)/, (_m: string, before: string, tag: string) => {
+            return before + tag.replace(/style="/, 'style="position:relative;z-index:2;');
+          });
+          console.log(`[Step5] Video background injected: ${embedVideoUrl || stockUrl}`);
+        }
+      }
+
+      // ── Social media links injection ─────────────────────────────────────────
+      const socialLinks = [
+        userInput.facebookPage ? { name: "Facebook", url: userInput.facebookPage.startsWith("http") ? userInput.facebookPage : `https://${userInput.facebookPage}`, icon: "f", color: "#1877F2" } : null,
+        userInput.instagramUrl ? { name: "Instagram", url: userInput.instagramUrl.startsWith("http") ? userInput.instagramUrl : `https://instagram.com/${userInput.instagramUrl.replace(/^@/, "")}`, icon: "in", color: "#E1306C" } : null,
+        userInput.linkedinUrl ? { name: "LinkedIn", url: userInput.linkedinUrl.startsWith("http") ? userInput.linkedinUrl : `https://${userInput.linkedinUrl}`, icon: "li", color: "#0A66C2" } : null,
+        userInput.tiktokUrl ? { name: "TikTok", url: userInput.tiktokUrl.startsWith("http") ? userInput.tiktokUrl : `https://tiktok.com/@${userInput.tiktokUrl.replace(/^@/, "")}`, icon: "tt", color: "#010101" } : null,
+      ].filter(Boolean) as { name: string; url: string; icon: string; color: string }[];
+
+      if (socialLinks.length > 0) {
+        const socialHtml = socialLinks.map(s =>
+          `<a href="${s.url}" target="_blank" rel="noopener noreferrer" aria-label="${s.name}" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:${s.color};color:#fff;text-decoration:none;font-size:12px;font-weight:700;margin:0 4px;">${s.icon}</a>`
+        ).join("");
+        const socialBlock = `<div class="wg-social-links" style="display:flex;align-items:center;gap:4px;margin-top:8px;">${socialHtml}</div>`;
+        // Replace existing placeholder social links in footer
+        html = html.replace(/<div[^>]*class="[^"]*(?:social|social-links|socials)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, (_m: string) => {
+          if (_m.includes("wg-social-links")) return _m;
+          return socialBlock;
+        });
+        // If no social links div found, inject into footer
+        if (!html.includes("wg-social-links")) {
+          html = html.replace(/<footer/i, socialBlock + "\n<footer");
+        }
+      }
+
+      // ── Newsletter signup form injection ──────────────────────────────────────
+      if (features.includes("Newsletter Signup") && !html.includes('id="newsletter-form"')) {
+        const newsletterSection = `
+<section id="newsletter" style="padding:64px 24px;background:linear-gradient(135deg,#0f1623 0%,#1a2332 100%);text-align:center;">
+  <div style="max-width:600px;margin:0 auto;">
+    <h2 style="color:#ffffff;font-size:2rem;font-weight:900;margin:0 0 12px;">Stay in the Loop</h2>
+    <p style="color:#94a3b8;font-size:1rem;margin:0 0 32px;">Get tips, updates and exclusive offers from ${userInput.businessName} straight to your inbox.</p>
+    <form id="newsletter-form" onsubmit="(function(e){e.preventDefault();var em=e.target.querySelector('input[type=email]');if(em&&em.value){var btn=e.target.querySelector('button');if(btn){btn.textContent='✓ Subscribed!';btn.style.background='#10b981';}em.disabled=true;}})(event)" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:480px;margin:0 auto;">
+      <input type="email" name="email" placeholder="your@email.com.au" required style="flex:1;min-width:220px;padding:14px 20px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#ffffff;font-size:0.95rem;outline:none;">
+      <button type="submit" style="padding:14px 28px;border-radius:10px;background:#10b981;color:#000000;font-weight:700;font-size:0.95rem;border:none;cursor:pointer;white-space:nowrap;">Subscribe</button>
+    </form>
+    <p style="color:#475569;font-size:0.75rem;margin-top:16px;">No spam. Unsubscribe any time.</p>
+  </div>
+</section>`;
+        // Inject before </body>
+        html = html.replace("</body>", newsletterSection + "\n</body>");
+        console.log("[Step5] Newsletter signup section injected");
+      }
+
+      // ── Swap real testimonials in if provided ─────────────────────────────────
+      if (userInput.realTestimonials && userInput.realTestimonials.trim()) {
+        // Parse lines like: "Quote text" — Name, Location
+        const testimonialLines = userInput.realTestimonials.split(/\n+/).filter((l: string) => l.trim().length > 10);
+        if (testimonialLines.length > 0) {
+          const cards = testimonialLines.map((line: string) => {
+            const match = line.match(/[""](.+)[""][\s—-]+(.+)/);
+            const quote = match ? match[1] : line.replace(/^[""]|[""]$/g, "").trim();
+            const author = match ? match[2].trim() : "Verified Customer";
+            return `<div style="background:rgba(255,255,255,0.06);border-radius:16px;padding:28px;border:1px solid rgba(255,255,255,0.1);">
+  <div style="color:#f59e0b;font-size:1.1rem;margin-bottom:12px;">★★★★★</div>
+  <p style="color:#e2e8f0;font-size:0.95rem;line-height:1.7;margin:0 0 16px;">"${quote}"</p>
+  <p style="color:#10b981;font-weight:700;font-size:0.85rem;margin:0;">— ${author}</p>
+</div>`;
+          }).join("\n");
+          const realTestimonialsSection = `<div class="wg-real-testimonials" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;padding:0 0 24px;">${cards}</div>`;
+          // Replace existing testimonials content inside id="testimonials"
+          html = html.replace(/(<(?:section|div)[^>]*id="testimonials"[^>]*>)([\s\S]*?)(<\/(?:section|div)>)/i, (_m: string, open: string, _body: string, close: string) => {
+            if (_m.includes("wg-real-testimonials")) return _m;
+            return open + realTestimonialsSection + close;
+          });
+          console.log(`[Step5] Real testimonials injected (${testimonialLines.length} reviews)`);
         }
       }
 
@@ -885,7 +1023,10 @@ RULES:
         }),
       });
       if (!deployRes.ok) { console.error("[Inngest] Deploy failed:", await deployRes.text()); return ""; }
-      return `https://${vercelProjectName}.vercel.app`;
+      const siteUrl = `https://${vercelProjectName}.vercel.app`;
+      // Fire-and-forget Google Indexing API ping — never blocks deploy
+      requestGoogleIndexing(siteUrl).catch(() => {});
+      return siteUrl;
     });
 
     // ── STEP 8b: Smoke test — fetch live URL and verify critical elements ─────

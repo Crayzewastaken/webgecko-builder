@@ -7,7 +7,7 @@ const SS_ACCOUNT = process.env.SUPERSAAS_ACCOUNT_NAME!;
 const SS_API_KEY  = process.env.SUPERSAAS_API_KEY!;
 const SS_BASE     = "https://www.supersaas.com/api";
 
-async function ssRequest(path: string, method = "GET", body?: Record<string, any>) {
+async function ssRequest(path: string, method = "GET", body?: Record<string, unknown>) {
   const url = `${SS_BASE}${path}.json?account=${encodeURIComponent(SS_ACCOUNT)}&api_key=${encodeURIComponent(SS_API_KEY)}`;
   const basicAuth = Buffer.from(`${SS_ACCOUNT}:${SS_API_KEY}`).toString("base64");
   const res = await fetch(url, {
@@ -30,11 +30,9 @@ export interface SuperSaasSchedule {
   name: string;
   embedUrl: string;
   bookUrl: string;
-  // Sub-user credentials — give these to the client so they can log into SuperSaas
-  // and manage their own bookings without seeing the master account
+  // Sub-user identifiers — password is never stored in this struct or in job records.
   subUserId?: number;
   subUserEmail?: string;
-  subUserPassword?: string;
 }
 
 /**
@@ -95,7 +93,6 @@ export async function createSuperSaasSchedule(params: {
     const subPassword = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6).toUpperCase() + "!2";
     let subUserId: number | undefined;
     let subUserEmail: string | undefined;
-    let subUserPassword: string | undefined;
 
     // Skip sub-user creation if the client email is the master account owner —
     // SuperSaas won't let you register the account owner as a sub-user.
@@ -112,21 +109,19 @@ export async function createSuperSaasSchedule(params: {
       //   1. POST with schedules:[id] (numeric ID) and role:"user"
       //   2. POST without schedules field
       //   3. GET /users to find the existing user by email (if email already registered)
-      const subPassForEmbed = subPassword; // save for embed URL regardless of which path succeeds
-
-      const tryCreate = async (payload: Record<string, any>) => {
+      const tryCreate = async (payload: Record<string, unknown>) => {
         // Log the exact payload so we can debug 400s
         console.log("[SuperSaas] POST /users payload:", JSON.stringify({ user: payload }).slice(0, 300));
         return ssRequest("/users", "POST", { user: payload });
       };
 
-      let userResult: any;
+      let userResult: Record<string, unknown> | Record<string, unknown>[];
       // SuperSaas API field notes (from docs):
       //   name     = login name (must be email address if account uses email login)
       //   email    = separate email field (optional if name is already the email)
       //   role     = integer: 3=regular user, 4=superuser, -1=blocked (NOT a string)
       //   full_name = display name
-      const basePayload: Record<string, any> = {
+      const basePayload: Record<string, unknown> = {
         name: params.clientEmail,       // login name = email address
         full_name: params.businessName, // display name
         email: params.clientEmail,
@@ -152,8 +147,8 @@ export async function createSuperSaasSchedule(params: {
             console.log("[SuperSaas] Trying to find existing user by email...");
             try {
               const usersResp = await ssRequest("/users", "GET");
-              const allUsers: any[] = Array.isArray(usersResp) ? usersResp : (usersResp?.users || []);
-              const existing = allUsers.find((u: any) => u.email === params.clientEmail);
+              const allUsers: Record<string, unknown>[] = Array.isArray(usersResp) ? usersResp : ((usersResp as Record<string, unknown>)?.users as Record<string, unknown>[] || []);
+              const existing = allUsers.find((u) => u.email === params.clientEmail);
               if (existing) {
                 console.log(`[SuperSaas] Found existing user id=${existing.id} — reusing with new password`);
                 // Update their password so we know what it is for the embed URL
@@ -175,10 +170,9 @@ export async function createSuperSaasSchedule(params: {
         }
       }
 
-      const user = Array.isArray(userResult) ? userResult[0] : (userResult?.user || userResult);
-      subUserId = user?.id;
+      const user = Array.isArray(userResult) ? userResult[0] : ((userResult as Record<string, unknown>)?.user || userResult) as Record<string, unknown>;
+      subUserId = user?.id as number | undefined;
       subUserEmail = params.clientEmail;
-      subUserPassword = subPassForEmbed;
       console.log(`[SuperSaas] Sub-user ready: id=${subUserId} email=${params.clientEmail}`);
     } catch (userErr) {
       // Sub-user creation is non-fatal — schedule still works without it
@@ -189,21 +183,24 @@ export async function createSuperSaasSchedule(params: {
     // Base schedule URL (master account owns the schedule)
     const baseUrl = `https://www.supersaas.com/schedule/${encodeURIComponent(SS_ACCOUNT)}/${encodeURIComponent(actualName)}`;
 
-    // If we created a sub-user, embed with their credentials so the iframe auto-logs-in
-    // as THEM — they see only their schedule, not the master webgecko account view.
-    // ?user=email&password=xxx is SuperSaas's SSO/auto-login mechanism for embeds.
-    const embedUrl = (subUserEmail && subUserPassword)
-      ? `${baseUrl}?user=${encodeURIComponent(subUserEmail)}&password=${encodeURIComponent(subUserPassword)}`
-      : baseUrl;
+    // Security: do NOT embed credentials in public iframe/booking URLs.
+    // ?user=email&password=xxx in the URL exposes the sub-user password in:
+    //   - browser history, server logs, referrer headers, the generated HTML, and emails.
+    // The plain baseUrl is sufficient for the public booking iframe — SuperSaas shows it
+    // without requiring login. The sub-user credentials are returned separately so they
+    // can be given to the client privately (e.g. welcome email) for their admin login only.
+    const embedUrl = baseUrl;
 
     return {
       id,
       name: actualName,
       embedUrl,
-      bookUrl: baseUrl,   // plain URL for direct link (no credentials in address bar)
+      bookUrl: baseUrl,
       subUserId,
       subUserEmail,
-      subUserPassword,
+      // subUserPassword is intentionally omitted from the return value to prevent it
+      // from leaking into job records, HTML, or URLs. It is only used above during
+      // sub-user creation and is not stored anywhere downstream.
     };
   } catch (err) {
     console.error("[SuperSaas] Failed to create schedule:", err);
@@ -247,18 +244,18 @@ export interface SuperSaasAppointment {
   createdOn: string;
 }
 
-function parseAppointment(a: any): SuperSaasAppointment {
+function parseAppointment(a: Record<string, unknown>): SuperSaasAppointment {
   return {
-    id:         a.id,
-    scheduleId: a.schedule_id,
-    start:      a.start || a.slot_start || "",
-    finish:     a.finish || a.slot_end || "",
-    status:     a.status || "confirmed",
-    fullName:   a.full_name || a.name || "",
-    email:      a.email || "",
-    phone:      a.mobile || a.phone || "",
-    description: a.description || "",
-    createdOn:  a.created_on || "",
+    id:         a.id as number,
+    scheduleId: a.schedule_id as number,
+    start:      (a.start || a.slot_start || "") as string,
+    finish:     (a.finish || a.slot_end || "") as string,
+    status:     (a.status || "confirmed") as string,
+    fullName:   (a.full_name || a.name || "") as string,
+    email:      (a.email || "") as string,
+    phone:      (a.mobile || a.phone || "") as string,
+    description: (a.description || "") as string,
+    createdOn:  (a.created_on || "") as string,
   };
 }
 
@@ -305,8 +302,7 @@ export async function rescheduleAppointment(appointmentId: number, params: {
       appointment: { start: params.start, finish: params.finish },
     });
     return true;
-  } catch (err) {
-    console.error("[SuperSaas] rescheduleAppointment failed:", err);
+  } catch {
     return false;
   }
 }

@@ -37,6 +37,17 @@ async function uploadToCloudinary(buffer: Buffer, folder: string, filename: stri
   });
 }
 
+// ── Password hashing (scrypt, no extra deps) ────────────────────────────────
+const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1 };
+const SCRYPT_KEY_LEN = 64;
+async function hashClientPassword(plaintext: string): Promise<string> {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = await new Promise<Buffer>((res, rej) =>
+    crypto.scrypt(plaintext, salt, SCRYPT_KEY_LEN, SCRYPT_PARAMS, (e, k) => (e ? rej(e) : res(k)))
+  );
+  return "scrypt:" + salt + ":" + hash.toString("hex");
+}
+
 export async function POST(req: Request) {
   try {
     console.log("INTAKE: Request received");
@@ -44,17 +55,24 @@ export async function POST(req: Request) {
     const getString = (key: string) => formData.get(key)?.toString() || "";
     const getJson = (key: string) => { try { return JSON.parse(getString(key)); } catch { return []; } };
 
-    // Verify Turnstile
+    // Verify Turnstile — in production, missing or failed token blocks intake entirely.
+    // TURNSTILE_BYPASS is only honoured outside production (dev/test).
     const turnstileToken = getString("turnstileToken");
-    if (turnstileToken) {
+    const isProduction = process.env.NODE_ENV === "production";
+    const bypassAllowed = !isProduction && !!process.env.TURNSTILE_BYPASS;
+    if (!bypassAllowed) {
+      if (!turnstileToken) {
+        return NextResponse.json({ error: "Bot verification required" }, { status: 403 });
+      }
       const turnstileVerify = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ secret: process.env.TURNSTILE_SECRET_KEY, response: turnstileToken }),
       });
       const turnstileResult = await turnstileVerify.json();
-      if (!turnstileResult.success && process.env.NODE_ENV === "production" && !process.env.TURNSTILE_BYPASS) {
-        console.log("Turnstile failed:", turnstileResult);
+      if (!turnstileResult.success) {
+        console.warn("Turnstile verification failed:", turnstileResult["error-codes"]);
+        return NextResponse.json({ error: "Bot verification failed" }, { status: 403 });
       }
     }
 
@@ -90,6 +108,13 @@ export async function POST(req: Request) {
       ga4Id: getString("ga4Id"),
       existingBookingUrl: getString("existingBookingUrl"),
       bookingServices: getString("bookingServices"),
+      instagramUrl: getString("instagramUrl"),
+      linkedinUrl: getString("linkedinUrl"),
+      tiktokUrl: getString("tiktokUrl"),
+      realTestimonials: getString("realTestimonials"),
+      blogTopics: getString("blogTopics"),
+      videoUrl: getString("videoUrl"),
+      shopProducts: getString("shopProducts"),
     };
 
     // Auto-populate bookingServices from industry defaults when user left it blank or said "generate"
@@ -115,9 +140,24 @@ export async function POST(req: Request) {
     const productsWithPhotos: { name: string; price: string; photoUrl?: string }[] =
       Array.isArray(userInput.products) ? [...userInput.products] : [];
 
+    // Upload guards: max 10 MB per file, images only, max 17 files total.
+    const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+    const ALLOWED_MIME = /^image\/(jpeg|jpg|png|webp|gif|avif)$/i;
+    function validateUpload(f: File | null, label: string): string | null {
+      if (!f || f.size === 0) return null;
+      if (f.size > MAX_FILE_BYTES) return `${label} exceeds 10 MB limit`;
+      if (!ALLOWED_MIME.test(f.type)) return `${label} must be an image (jpg/png/webp/gif/avif)`;
+      return null;
+    }
+
     const logoFile = formData.get("logo") as File | null;
     const heroFile = formData.get("hero") as File | null;
     const uploadPromises: Promise<void>[] = [];
+
+    const logoErr = validateUpload(logoFile, "Logo");
+    if (logoErr) return NextResponse.json({ error: logoErr }, { status: 400 });
+    const heroErr = validateUpload(heroFile, "Hero image");
+    if (heroErr) return NextResponse.json({ error: heroErr }, { status: 400 });
 
     if (logoFile && logoFile.size > 0) {
       uploadPromises.push(logoFile.arrayBuffer().then(buf =>
@@ -131,6 +171,8 @@ export async function POST(req: Request) {
     }
     for (let i = 0; i < 5; i++) {
       const f = formData.get(`photo_${i}`) as File | null;
+      const ferr = validateUpload(f, `Photo ${i}`);
+      if (ferr) return NextResponse.json({ error: ferr }, { status: 400 });
       if (f && f.size > 0) {
         uploadPromises.push(f.arrayBuffer().then(buf =>
           uploadToCloudinary(Buffer.from(buf), folder, `photo_${i}`).then(url => { photoUrls.push(url); })
@@ -139,6 +181,8 @@ export async function POST(req: Request) {
     }
     for (let i = 0; i < 12; i++) {
       const f = formData.get(`product_photo_${i}`) as File | null;
+      const ferr2 = validateUpload(f, `Product photo ${i}`);
+      if (ferr2) return NextResponse.json({ error: ferr2 }, { status: 400 });
       if (f && f.size > 0) {
         const index = i;
         uploadPromises.push(f.arrayBuffer().then(buf =>
@@ -153,7 +197,8 @@ export async function POST(req: Request) {
 
     const jobId = `job_${Date.now()}`;
     const clientSlug = safeFileName(userInput.businessName);
-    const clientPassword = crypto.randomBytes(5).toString("hex");
+    const clientPasswordPlain = crypto.randomBytes(5).toString("hex");
+    const clientPassword = await hashClientPassword(clientPasswordPlain);
     const clientPortalUrl = `https://webgecko-builder.vercel.app/c/${clientSlug}`;
 
     // Save job to Supabase
@@ -265,7 +310,7 @@ export async function POST(req: Request) {
                 <p style="margin:10px 0 4px;color:#64748b;font-size:11px;text-transform:uppercase;">Username</p>
                 <p style="color:#e2e8f0;font-weight:600;font-size:14px;margin:0;">${clientSlug}</p>
                 <p style="margin:10px 0 4px;color:#64748b;font-size:11px;text-transform:uppercase;">Password</p>
-                <p style="color:#e2e8f0;font-weight:600;font-size:14px;margin:0;font-family:monospace;">${clientPassword}</p>
+                <p style="color:#e2e8f0;font-weight:600;font-size:14px;margin:0;font-family:monospace;">${clientPasswordPlain}</p>
               </div>
             </div>
           </div>
@@ -317,8 +362,9 @@ export async function POST(req: Request) {
       message: "Thank you! Your quote is ready. Check your email to pay your deposit and start your build.",
     });
 
-  } catch (error: any) {
-    console.error("INTAKE FAILED:", error.message);
-    return NextResponse.json({ success: false, message: error.message });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "An unexpected error occurred";
+    console.error("INTAKE FAILED:", msg);
+    return NextResponse.json({ success: false, message: msg });
   }
 }
