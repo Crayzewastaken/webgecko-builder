@@ -18,6 +18,7 @@ import {
   normalizePageId,
   repairHtml,
   validateForDeploy,
+  ensureMultiPageStructure,
 } from "@/lib/pipeline-helpers";
 import { createSuperSaasSchedule } from "@/lib/supersaas";
 import { createClientShopCatalogue } from "@/lib/square";
@@ -540,6 +541,18 @@ RULES:
       }
 
       console.log("[Step4b] Claude rebuilt HTML: " + extracted.length + " chars (Stitch was " + stitchHtml.length + " chars). Missing ids: " + (missingIds.join(",") || "none"));
+
+      // Final structural guarantee: call ensureMultiPageStructure so code (not Claude)
+      // guarantees every requested page wrapper exists before we continue.
+      if (isMultiPage) {
+        const { html: ensuredHtml, report } = ensureMultiPageStructure(extracted, requestedPageIds, {
+          businessName: userInput.businessName,
+        });
+        if (report.repairs.length > 0) {
+          console.warn("[Step4b] ensureMultiPageStructure applied " + report.repairs.length + " repairs. Added: [" + report.missingPagesAdded.join(",") + "]");
+        }
+        return ensuredHtml;
+      }
       return extracted;
       });
 
@@ -698,12 +711,13 @@ RULES:
 
       // ── Newsletter signup form injection ──────────────────────────────────────
       if (features.includes("Newsletter Signup") && !html.includes('id="newsletter-form"')) {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
         const newsletterSection = `
 <section id="newsletter" style="padding:64px 24px;background:linear-gradient(135deg,#0f1623 0%,#1a2332 100%);text-align:center;">
   <div style="max-width:600px;margin:0 auto;">
     <h2 style="color:#ffffff;font-size:2rem;font-weight:900;margin:0 0 12px;">Stay in the Loop</h2>
     <p style="color:#94a3b8;font-size:1rem;margin:0 0 32px;">Get tips, updates and exclusive offers from ${userInput.businessName} straight to your inbox.</p>
-    <form id="newsletter-form" onsubmit="(function(e){e.preventDefault();var em=e.target.querySelector('input[type=email]');if(em&&em.value){var btn=e.target.querySelector('button');if(btn){btn.textContent='✓ Subscribed!';btn.style.background='#10b981';}em.disabled=true;}})(event)" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:480px;margin:0 auto;">
+    <form id="newsletter-form" onsubmit="(function(e){e.preventDefault();var form=e.target;var em=form.querySelector(\'input[type=email]\');var btn=form.querySelector(\'button\');if(!em||!em.value)return;btn.textContent=\'Subscribing...\';btn.disabled=true;fetch(\'${appUrl}/api/newsletter-subscribe\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({email:em.value})}).then(function(r){return r.json();}).then(function(){btn.textContent=\'✓ Subscribed!\';btn.style.background=\'#10b981\';em.disabled=true;}).catch(function(){btn.textContent=\'Try again\';btn.disabled=false;});})(event)" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:480px;margin:0 auto;">
       <input type="email" name="email" placeholder="your@email.com.au" required style="flex:1;min-width:220px;padding:14px 20px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#ffffff;font-size:0.95rem;outline:none;">
       <button type="submit" style="padding:14px 28px;border-radius:10px;background:#10b981;color:#000000;font-weight:700;font-size:0.95rem;border:none;cursor:pointer;white-space:nowrap;">Subscribe</button>
     </form>
@@ -713,6 +727,38 @@ RULES:
         // Inject before </body>
         html = html.replace("</body>", newsletterSection + "\n</body>");
         console.log("[Step5] Newsletter signup section injected");
+      }
+
+      // -- Pop-up Form -- timed lead-capture overlay (15s delay + exit intent) ---
+      if (features.includes("Pop-up Form") && !html.includes('id="wg-popup"')) {
+        const appUrl2 = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
+        const popupHtml = `
+<div id="wg-popup" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+  <div style="background:#1a2332;border:1px solid rgba(255,255,255,0.12);border-radius:20px;padding:48px 40px;max-width:440px;width:90%;position:relative;box-shadow:0 24px 64px rgba(0,0,0,0.5);">
+    <button onclick="document.getElementById('wg-popup').style.display='none';sessionStorage.setItem('wg-popup-closed','1');" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#94a3b8;font-size:1.4rem;cursor:pointer;line-height:1;">&times;</button>
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:2.2rem;margin-bottom:12px;">&#128293;</div>
+      <h3 style="color:#ffffff;font-size:1.5rem;font-weight:900;margin:0 0 8px;">Don\'t Miss Out!</h3>
+      <p style="color:#94a3b8;font-size:0.95rem;margin:0;">Join our list and get exclusive offers from ${userInput.businessName}.</p>
+    </div>
+    <form id="wg-popup-form" onsubmit="(function(e){e.preventDefault();var em=e.target.querySelector(\'input[type=email]\');var btn=e.target.querySelector(\'button[type=submit]\');if(!em||!em.value)return;btn.textContent=\'Subscribing...\';btn.disabled=true;fetch(\'${appUrl2}/api/newsletter-subscribe\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({email:em.value})}).then(function(){btn.textContent=\'Thanks! Check your inbox\';btn.style.background=\'#10b981\';em.disabled=true;setTimeout(function(){document.getElementById(\'wg-popup\').style.display=\'none\';sessionStorage.setItem(\'wg-popup-closed\',\'1\');},2000);}).catch(function(){btn.textContent=\'Try again\';btn.disabled=false;});})(event)">
+      <input type="email" placeholder="your@email.com.au" required style="width:100%;box-sizing:border-box;padding:14px 18px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#ffffff;font-size:0.95rem;margin-bottom:12px;outline:none;">
+      <button type="submit" style="width:100%;padding:14px;border-radius:10px;background:#10b981;color:#000000;font-weight:800;font-size:1rem;border:none;cursor:pointer;">Get Exclusive Offers</button>
+    </form>
+    <p style="color:#475569;font-size:0.72rem;text-align:center;margin-top:14px;">No spam. Unsubscribe any time.</p>
+  </div>
+</div>
+<script>
+(function(){
+  if(sessionStorage.getItem('wg-popup-closed'))return;
+  var shown=false;
+  function showPopup(){if(shown)return;shown=true;document.getElementById('wg-popup').style.display='flex';}
+  setTimeout(showPopup,15000);
+  document.addEventListener('mouseleave',function(e){if(e.clientY<=0)showPopup();});
+})();
+</script>`;
+        html = html.replace("</body>", popupHtml + "\n</body>");
+        console.log("[Step5] Pop-up form injected");
       }
 
       // ── Swap real testimonials in if provided ─────────────────────────────────
@@ -765,6 +811,40 @@ RULES:
           return `navigateTo('${pageId.toLowerCase()}')`;
         });
         console.log(`[Step5] Replaced ${showPageCount} showPage() calls with navigateTo()`);
+      }
+
+      // ── SEO meta tags + Open Graph injection ─────────────────────────────────
+      // Inject into <head> if not already present (rebuild-safe: check for og:title)
+      if (!html.includes('property="og:title"')) {
+        const pageTitle = spec.projectTitle || userInput.businessName;
+        const metaDesc = (`${userInput.businessName} — ${userInput.usp || userInput.industry} in ${userInput.businessAddress || "Australia"}. ${userInput.goal || ""}`).slice(0, 160).trim();
+        const lsiStr = Array.isArray(spec.lsiKeywords) && spec.lsiKeywords.length > 0
+          ? spec.lsiKeywords.slice(0, 10).join(", ")
+          : userInput.industry;
+        const siteUrl = userInput.customDomain ? `https://${userInput.customDomain}` : "";
+        const seoMeta = `
+  <!-- SEO: WebGecko auto-generated -->
+  <meta name="description" content="${metaDesc.replace(/"/g, "&quot;")}">
+  <meta name="keywords" content="${lsiStr.replace(/"/g, "&quot;")}">
+  <meta name="robots" content="index, follow">
+  ${siteUrl ? `<link rel="canonical" href="${siteUrl}">` : ""}
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="${pageTitle.replace(/"/g, "&quot;")}">
+  <meta property="og:description" content="${metaDesc.replace(/"/g, "&quot;")}">
+  ${siteUrl ? `<meta property="og:url" content="${siteUrl}">` : ""}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${pageTitle.replace(/"/g, "&quot;")}">
+  <meta name="twitter:description" content="${metaDesc.replace(/"/g, "&quot;")}`;
+        // Inject after <head> or <meta charset=...>
+        if (html.includes("<head>")) {
+          html = html.replace("<head>", "<head>" + seoMeta);
+        } else {
+          const charsetMatch = html.match(/<meta[^>]*charset[^>]*>/i);
+          if (charsetMatch) {
+            html = html.replace(charsetMatch[0], charsetMatch[0] + seoMeta);
+          }
+        }
+        console.log("[Step5] SEO meta tags injected");
       }
 
       return html;
@@ -988,12 +1068,24 @@ RULES:
       const failures = validateForDeploy(finalHtmlWithShop, requestedPageIds, isMultiPage, hasBookingFeature);
       if (failures.length > 0) {
         console.error("[Step7b] Pre-deploy validation FAILED:", failures.join("; "));
-        // Attempt structural repair and re-validate
-        const repaired = repairHtml(finalHtmlWithShop, userInput.businessName, new Date().getFullYear());
+
+        // Pass 1: structural repair (truncated tags, missing footer/body/html)
+        let repaired = repairHtml(finalHtmlWithShop, userInput.businessName, new Date().getFullYear());
+
+        // Pass 2: for multi-page, run ensureMultiPageStructure to guarantee all page wrappers
+        if (isMultiPage) {
+          const { html: ensuredHtml, report } = ensureMultiPageStructure(repaired, requestedPageIds, {
+            businessName: userInput.businessName,
+          });
+          if (report.repairs.length > 0) {
+            console.warn("[Step7b] ensureMultiPageStructure applied " + report.repairs.length + " emergency repairs. Added: [" + report.missingPagesAdded.join(",") + "]");
+          }
+          repaired = ensuredHtml;
+        }
+
         const failuresAfterRepair = validateForDeploy(repaired, requestedPageIds, isMultiPage, hasBookingFeature);
         if (failuresAfterRepair.length > 0) {
           console.error("[Step7b] Still failing after repair:", failuresAfterRepair.join("; "));
-          // Log to owner but continue — don't block deploy for non-critical missing IDs
           resend.emails.send({
             from: "WebGecko Pipeline <hello@webgecko.au>",
             to: "crayzewastaken@gmail.com",
@@ -1018,7 +1110,18 @@ RULES:
         body: JSON.stringify({
           name: vercelProjectName,
           teamId: process.env.VERCEL_TEAM_ID || undefined,
-          files: [{ file: "index.html", data: deployHtml, encoding: "utf-8" }],
+          files: (() => {
+            const siteUrl = `https://${vercelProjectName}.vercel.app`;
+            const customUrl = userInput.customDomain ? `https://${userInput.customDomain}` : siteUrl;
+            const now = new Date().toISOString().split("T")[0];
+            const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>${customUrl}/</loc>\n    <lastmod>${now}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>1.0</priority>\n  </url>\n</urlset>`;
+            const robots = `User-agent: *\nAllow: /\nSitemap: ${customUrl}/sitemap.xml`;
+            return [
+              { file: "index.html", data: deployHtml, encoding: "utf-8" },
+              { file: "sitemap.xml", data: sitemap, encoding: "utf-8" },
+              { file: "robots.txt", data: robots, encoding: "utf-8" },
+            ];
+          })(),
           projectSettings: { framework: null, outputDirectory: "./" },
         }),
       });
