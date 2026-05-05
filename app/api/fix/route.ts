@@ -103,13 +103,20 @@ export async function GET(request: NextRequest) {
 
     // ── showPage → navigateTo (multi-page) ────────────────────────────────────
     if (isMultiPage) {
-      html = html.replace(/\bshowPage\s*\(\s*['"]([ ^'"]+)['"]\s*\)/g, (_m: string, pageId: string) => "navigateTo('" + pageId.toLowerCase() + "')");
+      html = html.replace(/\bshowPage\s*\(\s*['"]([^'"]+)['"]\s*\)/g, (_m: string, pageId: string) => "navigateTo('" + pageId.toLowerCase() + "')");
     }
 
     // ── Essentials + images ───────────────────────────────────────────────────
+    // The saved HTML may already have our injected script block from a previous build/fix.
+    // Strip it before re-injecting so we don't end up with two navigateTo definitions,
+    // two multi-page init IIFEs, etc. The WG script block is always a single <script>
+    // starting with the IIFE comment marker we write in injectEssentials.
+    html = html.replace(/<script>\s*\(function\(\)\s*\{[\s\S]*?\/\/ Multi-page init[\s\S]*?\}\)\(\)[\s\S]*?<\/script>/g, "");
+    // Also strip the WG analytics tracker script (contains WG_JOB sentinel)
+    html = html.replace(/<script>\s*\(function\(\)\s*\{[\s\S]*?var WG_JOB=["'][^"']*["'][\s\S]*?\}\)\(\)[\s\S]*?<\/script>/g, "");
     const { html: checkedHtml } = checkAndFixLinks(html, Array.isArray(userInput?.pages) ? userInput.pages : []);
     const ga4Id = job.ga4Id || userInput?.ga4Id || "";
-    html = injectEssentials(checkedHtml, clientEmail, clientPhone, jobId, ga4Id);
+    html = injectEssentials(checkedHtml, clientEmail, clientPhone, jobId, ga4Id, job.tawktoPropertyId);
     html = injectImages(html, logoUrl, heroUrl, photoUrls, productsWithPhotos);
 
     // ── V2 Auditor — Brain 3 surgical fixes ───────────────────────────────────
@@ -135,9 +142,13 @@ export async function GET(request: NextRequest) {
         const m = html.match(/--(?:primary|accent|brand|color-primary)[^:]*:\s*(#[0-9a-fA-F]{3,8})/);
         return m?.[1] || "#10b981";
       })();
+      // Multi-page booking MUST have data-page="booking" so the router can show/hide it
+      const bookingOpenTag = isMultiPage
+        ? '<section id="booking" data-page="booking" class="page-section" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">'
+        : '<section id="booking" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">';
       const bookingComponent = bookingUrl
         ? [
-            '<section id="booking" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">',
+            bookingOpenTag,
             '  <div style="max-width:900px;margin:0 auto;text-align:center;">',
             '    <h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;margin:0 0 8px;">Book an Appointment</h2>',
             '    <p style="color:#94a3b8;margin:0 0 32px;">Schedule your appointment with ' + (userInput?.businessName || "") + ' online.</p>',
@@ -148,7 +159,7 @@ export async function GET(request: NextRequest) {
             '  </div>',
             '</section>',
           ].join("\n")
-        : (isMultiPage ? '<section id="booking" data-page="booking" class="page-section" style="padding:80px 24px;background:#0a0f1a;text-align:center;">' : '<section id="booking" style="padding:80px 24px;background:#0a0f1a;text-align:center;">') + '<div style="max-width:640px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;">Book an Appointment</h2><a href="tel:' + clientPhone + '" style="display:inline-block;margin-top:24px;background:' + accentColor + ';color:#fff;font-weight:700;padding:16px 36px;border-radius:10px;text-decoration:none;font-size:1.1rem;">Call ' + clientPhone + '</a></div></section>';
+        : bookingOpenTag + '<div style="max-width:640px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;">Book an Appointment</h2><a href="tel:' + clientPhone + '" style="display:inline-block;margin-top:24px;background:' + accentColor + ';color:#fff;font-weight:700;padding:16px 36px;border-radius:10px;text-decoration:none;font-size:1.1rem;">Call ' + clientPhone + '</a></div></section>';
 
       // Replace existing booking section or append
       const bookingOpenMatch = html.match(/<(section|div|header|article|main)([^>]*\bid="booking"[^>]*)>/i);

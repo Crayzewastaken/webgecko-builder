@@ -602,18 +602,23 @@ RULES:
         }
       }
 
-      // Strip ALL Stitch scripts defining navigateTo or page-switching.
-      // injectEssentials (Step 6) always injects our authoritative navigateTo
-      // which handles both multi-page (.active toggling) and single-page (scroll).
-      html = html.replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, (m: string, body: string) => {
-        const definesNavigateTo = /function\s+navigateTo/.test(body) || /window\.navigateTo\s*=/.test(body) || /var\s+navigateTo\s*=/.test(body);
-        const definesPageSwitch = /function\s+showPage/.test(body) || /function\s+switchPage/.test(body) || /\.page-section['\"\s]*[,{]/.test(body);
-        if (definesNavigateTo || definesPageSwitch) {
-          console.log("[Step5] Stripped Stitch script (" + body.length + " chars, navigateTo=" + definesNavigateTo + " pageSwitch=" + definesPageSwitch + ")");
-          return "";
-        }
-        return m;
-      });
+      // Strip Stitch scripts that define navigateTo or page-switching.
+      // Skip this on rebuild — the saved HTML already has our authoritative scripts;
+      // stripping them causes the router to be missing until Step 6 re-injects it,
+      // and any step in between that reads [data-page] count will get wrong results.
+      if (!savedHtmlForRebuild) {
+        html = html.replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, (m: string, body: string) => {
+          const definesNavigateTo = /function\s+navigateTo/.test(body) || /window\.navigateTo\s*=/.test(body) || /var\s+navigateTo\s*=/.test(body);
+          const definesPageSwitch = /function\s+showPage/.test(body) || /function\s+switchPage/.test(body) || /\.page-section['"\s]*[,{]/.test(body);
+          if (definesNavigateTo || definesPageSwitch) {
+            console.log("[Step5] Stripped Stitch script (" + body.length + " chars, navigateTo=" + definesNavigateTo + " pageSwitch=" + definesPageSwitch + ")");
+            return "";
+          }
+          return m;
+        });
+      } else {
+        console.log("[Step5] Rebuild mode — skipping script strip to preserve injected navigateTo");
+      }
 
       // Replace any showPage('id') calls with navigateTo('id') — all site types.
       const showPageCount = (html.match(/showPage\s*\(/g) || []).length;
@@ -632,6 +637,16 @@ RULES:
       const { html: checkedHtml } = checkAndFixLinks(fixedHtml, Array.isArray(userInput.pages) ? userInput.pages : []);
       const navFixedHtml = fixNavigateToTargets(checkedHtml);
       const ga4Id = job.ga4Id || userInput.ga4Id || "";
+
+      // On rebuild, the saved HTML already has our injected scripts (navigateTo, multi-page
+      // init, hamburger JS, etc.) from the original build. Re-running injectEssentials would
+      // produce double <script> blocks. Skip it and only re-inject images.
+      if (savedHtmlForRebuild) {
+        console.log("[Step6] Rebuild mode — skipping injectEssentials (scripts already present), re-injecting images only");
+        const html = injectImages(navFixedHtml, logoUrl, heroUrl, photoUrls, productsWithPhotos);
+        return html;
+      }
+
       // Create per-client Tawk.to property (Brain 1 — before Stitch)
       let tawktoPropertyId: string | undefined = undefined;
       if (features.includes("Live Chat")) {
