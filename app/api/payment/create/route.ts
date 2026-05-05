@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     const remainingBalance = Math.round((totalPrice - depositAmount) * 100) / 100;
     const finalAmount = Math.round((remainingBalance + monthlyPrice) * 100) / 100;
 
-    const redirectUrl = `https://webgecko-builder.vercel.app/c/${slug}?payment=done`;
+    const redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app"}/c/${slug}?payment=done`;
 
     const rawPs = await getPaymentState(jobId);
     const ps = {

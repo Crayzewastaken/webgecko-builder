@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   const clientSlug = job?.clientSlug || "";
   const clientEmail = job?.userInput?.email || "";
   const businessName = job?.userInput?.businessName || "your website";
-  const portalUrl = `https://webgecko-builder.vercel.app/c/${clientSlug}`;
+  const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app"}/c/${clientSlug}`;
 
   if (clientEmail) {
     try {

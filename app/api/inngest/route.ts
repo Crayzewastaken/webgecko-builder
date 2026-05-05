@@ -1198,16 +1198,33 @@ RULES:
 
     // ── STEP 9: Save to Supabase ──────────────────────────────────────────────
     await step.run("step9-save", async () => {
+      // Re-read job to get latest metadata (webhook may have set scheduledReleaseAt after load-job ran)
+      const latestJob = await getJob(jobId) || job;
       await saveJob(jobId, {
-        ...job,
+        ...latestJob,
         html: deployedHtml,
         title: spec.projectTitle,
         fileName,
         domainSlug,
         vercelProjectName,
-        status: "complete",
+        status: "completed",  // autoRelease filters for "completed"
         previewUrl: deployedUrl,
         builtAt: new Date().toISOString(),
+        metadata: {
+          ...(latestJob.metadata || {}),
+          // Preserve scheduledReleaseAt set by webhook; set it now if missing (e.g. admin-activated jobs)
+          scheduledReleaseAt: latestJob.metadata?.scheduledReleaseAt || (() => {
+            const relDays = (() => {
+              const feats: string[] = Array.isArray(latestJob.userInput?.features) ? latestJob.userInput.features : [];
+              const pgs: string[] = Array.isArray(latestJob.userInput?.pages) ? latestJob.userInput.pages : [];
+              let d = 10;
+              if (latestJob.userInput?.siteType === "multi" || pgs.length > 3) d += 1;
+              if (feats.length > 3) d += 1;
+              return Math.min(d, 12);
+            })();
+            return new Date(Date.now() + relDays * 24 * 60 * 60 * 1000).toISOString();
+          })(),
+        },
       });
 
       if (clientSlug) {
@@ -1253,7 +1270,7 @@ RULES:
 
     // ── STEP 10: Email owner ──────────────────────────────────────────────────
     await step.run("step10-email", async () => {
-      const base = "https://webgecko-builder.vercel.app";
+      const base = (process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app");
       const secret = encodeURIComponent(process.env.PROCESS_SECRET || "");
       const releaseUrl = `${base}/api/unlock/release?jobId=${jobId}&secret=${secret}`;
       const fixUrl = `${base}/api/admin/fix-proxy?jobId=${jobId}&secret=${secret}`;
@@ -1440,7 +1457,7 @@ const autoRelease = inngest.createFunction(
 
         console.log("[AutoRelease] Releasing job", job.id, "scheduled for", releaseAt);
         try {
-          const base = "https://webgecko-builder.vercel.app";
+          const base = (process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app");
           const secret = encodeURIComponent(process.env.PROCESS_SECRET || "");
           const res = await fetch(`${base}/api/unlock/release?jobId=${job.id}&secret=${secret}`);
           if (res.ok) {

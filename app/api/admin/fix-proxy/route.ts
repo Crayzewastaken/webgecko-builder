@@ -147,7 +147,7 @@ export async function GET(req: NextRequest) {
           jobId, businessName: userInput?.businessName || "",
           timezone: "Australia/Brisbane", services,
           primaryColor: accentColor,
-          apiBase: "https://webgecko-builder.vercel.app",
+          apiBase: (process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app"),
         });
         html = html.replace(/<section([^>]*)>([\s\S]*?(?:forge integration|booking system.*?recalibrat|advanced booking.*?recalibrat)[\s\S]*?)<\/section>/gi,
           (_m: string, attrs: string) => {

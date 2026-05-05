@@ -77,7 +77,7 @@ export async function DELETE(req: NextRequest) {
   // Clear feedback after submission
   await supabase.from("feedback").delete().eq("job_id", jobId);
 
-  const base = "https://webgecko-builder.vercel.app";
+  const base = (process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app");
   const processSecret = process.env.PROCESS_SECRET || "";
   const releaseUrl = `${base}/api/unlock/release?jobId=${jobId}&secret=${encodeURIComponent(processSecret)}`;
   const fixUrl = `${base}/api/admin/fix-proxy?jobId=${jobId}&secret=${encodeURIComponent(processSecret)}`;
