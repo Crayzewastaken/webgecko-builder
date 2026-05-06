@@ -227,30 +227,47 @@ const buildWebsite = inngest.createFunction(
       }
 
       // getHtml() returns empty when htmlCode isn't cached on the generation response.
-      // Retry with backoff: Stitch sometimes needs a few seconds to commit the screen.
+      // Retry with generous backoff — Stitch can take 30-60s to commit the screen.
       let url = await screen.getHtml();
       if (!url) {
-        for (let i = 1; i <= 4; i++) {
-          await sleep(3000 * i);
-          console.log(`[Inngest] STEP 3: getHtml() empty — retry ${i} via getScreen + list_screens`);
+        // Waits: 8s, 15s, 20s, 25s, 30s = ~98s total
+        const waits = [8000, 15000, 20000, 25000, 30000];
+        for (let i = 0; i < waits.length; i++) {
+          await sleep(waits[i]);
+          console.log(`[Inngest] STEP 3: getHtml() empty — retry ${i + 1} (waited ${waits[i]}ms)`);
           try {
-            // Try fetching the specific screen by ID first
             const project = stitchSdk.project(projectId);
             const fetched = await project.getScreen(screen.screenId);
             url = await fetched.getHtml();
-            if (url) { console.log(`[Inngest] STEP 3: got url via getScreen (retry ${i})`); break; }
-          } catch (_) { /* fall through to list_screens */ }
+            if (url) { console.log(`[Inngest] STEP 3: got url via getScreen (retry ${i + 1})`); break; }
+          } catch (_) {}
           try {
             const project = stitchSdk.project(projectId);
             const screens = await project.screens();
             console.log(`[Inngest] STEP 3: list_screens returned ${screens.length} screens`);
-            const match = screens.find((s: any) => s.screenId === screen.screenId) || screens[screens.length - 1];
-            if (match) { url = await match.getHtml(); }
-            if (url) { console.log(`[Inngest] STEP 3: got url via list_screens (retry ${i})`); break; }
-          } catch (_) { /* continue */ }
+            if (screens.length > 0) {
+              const match = screens.find((s: any) => s.screenId === screen.screenId) || screens[screens.length - 1];
+              if (match) { url = await match.getHtml(); }
+              if (url) { console.log(`[Inngest] STEP 3: got url via list_screens (retry ${i + 1})`); break; }
+            }
+          } catch (_) {}
         }
       }
-      if (!url) throw new Error("Stitch: no downloadUrl after generate + getScreen + list_screens retries");
+      // Last-resort: re-generate from scratch with the same prompt
+      if (!url) {
+        console.warn("[Inngest] STEP 3: all retries failed — re-generating with fresh Stitch call");
+        await sleep(5000);
+        const project2 = stitchSdk.project(projectId);
+        const screen2 = await project2.generate(spec.stitchPrompt, "DESKTOP");
+        await sleep(20000);
+        url = await screen2.getHtml();
+        if (!url) {
+          const screens2 = await project2.screens();
+          const match2 = screens2[screens2.length - 1];
+          if (match2) url = await match2.getHtml();
+        }
+        if (!url) throw new Error("Stitch: no downloadUrl after generate + retries + re-generate");
+      }
 
       // Fetch immediately — URL is a short-lived signed link, don't store it
       const html = await fetch(url).then(r => r.text()).catch(() => "");

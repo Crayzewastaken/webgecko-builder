@@ -356,6 +356,11 @@ CONTENT:
    - Hook readers in hero copy with a punchy, specific opening (avoid generic "welcome to our website")
    - Keep paragraphs short (2-3 sentences) — highly skimmable with bolded key phrases
 
+HERO COPY RULES (critical):
+- heroHeadline: punchy benefit-led headline, max 8 words, NO business name, NO address
+- heroSubheadline: 1-2 sentence value proposition only — NO address, NO suburb, NO postcode, NO street name
+- The address ONLY appears in the contact section of the stitchPrompt, never in hero copy
+
 Return exactly this JSON shape (no other text):
 {
   "projectTitle": "...",
@@ -363,8 +368,8 @@ Return exactly this JSON shape (no other text):
   "typography": {"headingFont":"Name","bodyFont":"Name","heroSize":"72px"},
   "sections": ["hero","about","services","testimonials","faq","contact"],
   "tone": "...",
-  "heroHeadline": "...",
-  "heroSubheadline": "...",
+  "heroHeadline": "punchy benefit headline, max 8 words, NO address",
+  "heroSubheadline": "1-2 sentences value prop only, NO address or suburb",
   "ctaText": "...",
   "uniqueDesignIdea": "...",
   "stitchPrompt": "minimum 800 words, single quotes only inside"
@@ -482,6 +487,18 @@ export async function requestGoogleIndexing(url: string): Promise<void> {
       },
       body: JSON.stringify({ url, type: "URL_UPDATED" }),
     });
+
+    if (indexRes.ok) {
+      console.log(`[Indexing] ✅ Submitted ${url} to Google Indexing API`);
+    } else {
+      const errText = await indexRes.text();
+      console.warn(`[Indexing] API returned ${indexRes.status}: ${errText.slice(0, 200)}`);
+    }
+  } catch (e) {
+    console.warn("[Indexing] Failed (non-fatal):", e instanceof Error ? e.message : String(e));
+  }
+}
+: "https://schema.org/WebPage" }), });
 
     if (indexRes.ok) {
       console.log(`[Indexing] ✅ Submitted ${url} to Google Indexing API`);

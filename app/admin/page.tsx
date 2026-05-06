@@ -622,15 +622,8 @@ function ClientDashboard({ c, secret, onClose, dark = false }: { c: ClientAnalyt
                 </div>
                 <div style={G.raisedCard}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: T.amber, marginBottom: 5 }}>Rebuild site</div>
-                  <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 12, lineHeight: 1.5 }}>Full rebuild — reruns Stitch and regenerates design. 5–10 min.</div>
-                  <ActionBtn label="Rebuild site" color={T.amber} confirm={`Fully rebuild ${c.businessName} from scratch? This will regenerate the Stitch design.`} onConfirm={() => api(`/api/pipeline/run?jobId=${jid}&secret=${sec}&fullRebuild=true`)} />
-                </div>
-                <div style={{ ...G.raisedCard, border: `1px solid ${T.red}22` }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: T.red, marginBottom: 5 }}>Force reset &amp; rebuild</div>
-                  <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
-                    Clears a stuck <span style={{ color: T.amber, fontWeight: 600 }}>building</span> status then queues a fast rebuild. Use when Inngest shows "Already building".
-                  </div>
-                  <ActionBtn label="Force reset & rebuild" color={T.red} confirm={`Force-reset the build lock on ${c.businessName} and queue a rebuild?`} onConfirm={() => api(`/api/admin/reset-job`, "POST", { jobId: jid, action: "reset-and-rebuild", secret: sec })} />
+                  <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 12, lineHeight: 1.5 }}>Full rebuild — clears any stuck state, reruns Stitch and regenerates design from scratch. 5–10 min.</div>
+                  <ActionBtn label="Rebuild site" color={T.amber} confirm={`Fully rebuild ${c.businessName} from scratch? This will clear any stuck state and regenerate the Stitch design.`} onConfirm={async () => { await api(`/api/admin/reset-job`, "POST", { jobId: jid, action: "reset-and-rebuild", secret: sec }); }} />
                 </div>
                 {c.metadata?.lastGoodAt && (
                   <div style={{ ...G.raisedCard, border: `1px solid ${T.purple}22` }}>

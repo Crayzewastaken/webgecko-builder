@@ -1119,7 +1119,8 @@ export default function ClientPortal() {
                     {client.previewUrl && <a href={client.previewUrl} target="_blank" rel="noopener noreferrer" style={{ color: C.accentBlue, fontSize: 12, textDecoration: "none" }}>Open in new tab ↗</a>}
                   </div>
                   <iframe
-                    src={`/api/preview/proxy?slug=${slug}`}
+                    key={`preview-${client.jobId}`}
+                    src={`/api/preview/proxy?slug=${slug}&v=${client.jobId?.slice(-6) || Date.now()}`}
                     style={{ position: "absolute", top: 42, left: 0, width: "100%", height: "calc(100% - 42px)", border: "none" }}
                     title="Site Preview"
                   />

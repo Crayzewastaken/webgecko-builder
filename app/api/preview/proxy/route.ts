@@ -26,11 +26,9 @@ export async function GET(req: NextRequest) {
   return new Response(html, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-          // Sandbox the preview so it cannot access WebGecko origin cookies/storage or
-      // run same-origin privileged scripts. allow-popups-to-escape-sandbox lets the
-      // booking iframe open SuperSaas in a new tab if needed.
+      // allow-same-origin lets anchor scroll + JS work inside the preview iframe
       "Content-Security-Policy": [
-        "sandbox allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox",
+        "sandbox allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin",
         "default-src 'self' https: data: blob:",
         "img-src https: data: blob:",
         "style-src 'unsafe-inline' https:",
@@ -39,6 +37,8 @@ export async function GET(req: NextRequest) {
       ].join("; "),
       "Referrer-Policy": "no-referrer",
       "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Pragma": "no-cache",
     },
   });
 }
