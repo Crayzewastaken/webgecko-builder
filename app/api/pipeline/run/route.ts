@@ -9,8 +9,8 @@ import { inngest } from "@/lib/inngest";
 import { getJob } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 
-export async function runPipeline(jobId: string): Promise<{ success: boolean; error?: string }> {
-  await inngest.send({ name: "build/website", data: { jobId, isRebuild: true } });
+export async function runPipeline(jobId: string, fullRebuild = false): Promise<{ success: boolean; error?: string }> {
+  await inngest.send({ name: "build/website", data: { jobId, isRebuild: !fullRebuild } });
   return { success: true };
 }
 
@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const jobId = searchParams.get("jobId") || searchParams.get("id");
   const secret = searchParams.get("secret");
+  const fullRebuild = searchParams.get("fullRebuild") === "true";
 
   if (!jobId || secret !== process.env.PROCESS_SECRET) {
     return new Response("Forbidden", { status: 403 });
@@ -33,12 +34,13 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  await inngest.send({ name: "build/website", data: { jobId, isRebuild: true } });
+  await inngest.send({ name: "build/website", data: { jobId, isRebuild: !fullRebuild } });
 
   return new Response(
     `<!DOCTYPE html><html><body style="font-family:sans-serif;background:#0f172a;color:white;padding:40px;text-align:center;">
       <h1 style="color:#22c55e">✅ Build Queued</h1>
       <p>Pipeline started for: <strong>${job.userInput?.businessName || jobId}</strong></p>
+      <p style="color:#94a3b8;font-size:14px;">${fullRebuild ? "⚡ Full rebuild — Stitch will regenerate the design from scratch." : "🔧 Fast rebuild — reusing existing design, re-running fixes only."}</p>
       <p style="color:#94a3b8;font-size:14px;">Inngest will run each step independently. You'll receive an email when complete (typically 5–10 minutes).</p>
       <p style="color:#475569;font-size:12px;margin-top:24px;">Job ID: ${jobId}</p>
     </body></html>`,
@@ -48,9 +50,14 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const { jobId, secret } = body;
+  const { jobId, secret, fullRebuild } = body;
 
   const hasAdminSecret = secret === process.env.PROCESS_SECRET;
+  // Only admins can trigger a full rebuild (hits Stitch again)
+  if (fullRebuild && !hasAdminSecret) {
+    return NextResponse.json({ error: "Forbidden: fullRebuild requires admin secret" }, { status: 403 });
+  }
+
   let hasClientAuth = false;
   if (!hasAdminSecret && jobId) {
     const sessionSlug = req.cookies.get("wg_client_slug")?.value;
@@ -68,6 +75,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  await inngest.send({ name: "build/website", data: { jobId, isRebuild: true } });
-  return NextResponse.json({ success: true, queued: true, jobId });
+  await inngest.send({ name: "build/website", data: { jobId, isRebuild: !fullRebuild } });
+  return NextResponse.json({ success: true, queued: true, jobId, fullRebuild: !!fullRebuild });
 }

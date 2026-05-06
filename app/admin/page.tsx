@@ -362,8 +362,8 @@ function ClientDashboard({ c, secret, onClose }: { c: ClientAnalytics; secret: s
                 </div>
                 <div style={{ background: "#08090b", borderRadius: 10, padding: "14px 16px" }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#f97316", marginBottom: 6 }}>Rebuild Site</div>
-                  <div style={{ fontSize: 11, color: "#444", marginBottom: 10 }}>Full rebuild from scratch. 5-10 minutes.</div>
-                  <ActionBtn label="Rebuild Site" color="#f97316" confirm={`Fully rebuild ${c.businessName} from scratch?`} onConfirm={() => api(`/api/pipeline/run?jobId=${jid}&secret=${sec}`)} />
+                  <div style={{ fontSize: 11, color: "#444", marginBottom: 10 }}>Full rebuild — reruns Stitch and regenerates design from scratch. 5-10 min.</div>
+                  <ActionBtn label="Rebuild Site" color="#f97316" confirm={`Fully rebuild ${c.businessName} from scratch? This will regenerate the Stitch design.`} onConfirm={() => api(`/api/pipeline/run?jobId=${jid}&secret=${sec}&fullRebuild=true`)} />
                 </div>
                 <div style={{ background: "#08090b", borderRadius: 10, padding: "14px 16px" }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#8b5cf6", marginBottom: 6 }}>Unlock Booking</div>
@@ -564,8 +564,8 @@ function AdminDashboard() {
 
 export default function AdminPage() {
   return (
-    <Suspense fallback={<div style={{ color: "#333", padding: 40 }}>Loading...</div>}>
-      <AdminDashboard />
-    </Suspense>
+    <Suspense fallback={<div style={{ color: "#fff", padding: 40 }}>Loading...</div>}>
+    <AdminDashboard />
+  </Suspense>
   );
 }
