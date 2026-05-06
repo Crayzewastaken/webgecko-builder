@@ -26,6 +26,7 @@ import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailabili
 import { supabase } from "@/lib/supabase";
 import { createTawktoProperty } from "@/lib/tawkto";
 import { subscribeToNewsletter } from "@/lib/beehiiv";
+import { provisionClientDomain } from "@/lib/synergy";
 import { generateSiteBlueprint, requestGoogleIndexing } from "@/lib/blueprint";
 import { auditAndFixSite } from "@/lib/auditor";
 
@@ -821,7 +822,7 @@ RULES:
         const lsiStr = Array.isArray(spec.lsiKeywords) && spec.lsiKeywords.length > 0
           ? spec.lsiKeywords.slice(0, 10).join(", ")
           : userInput.industry;
-        const siteUrl = userInput.customDomain ? `https://${userInput.customDomain}` : "";
+        const siteUrl = rawDomain ? `https://${rawDomain}` : "";
         const seoMeta = `
   <!-- SEO: WebGecko auto-generated -->
   <meta name="description" content="${metaDesc.replace(/"/g, "&quot;")}">
@@ -1112,7 +1113,7 @@ RULES:
           teamId: process.env.VERCEL_TEAM_ID || undefined,
           files: (() => {
             const siteUrl = `https://${vercelProjectName}.vercel.app`;
-            const customUrl = userInput.customDomain ? `https://${userInput.customDomain}` : siteUrl;
+            const customUrl = rawDomain ? `https://${rawDomain}` : siteUrl;
             const now = new Date().toISOString().split("T")[0];
             const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>${customUrl}/</loc>\n    <lastmod>${now}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>1.0</priority>\n  </url>\n</urlset>`;
             const robots = `User-agent: *\nAllow: /\nSitemap: ${customUrl}/sitemap.xml`;
@@ -1368,6 +1369,42 @@ RULES:
             services: getServicesForIndustry(userInput.industry),
           });
         }
+      }
+    });
+
+        // -- STEP 9b: Domain provisioning via Synergy Wholesale (non-blocking) ------
+    // Runs only if client supplied a customDomain. SYNERGY_DEMO=true = dry-run.
+    await step.run("step9b-domain", async () => {
+      const rawDomain = (userInput.domain || "").trim().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+      if (!rawDomain || !rawDomain.includes(".")) {
+        console.log("[Step9b] No custom domain requested -- skipping");
+        return;
+      }
+      try {
+        const result = await provisionClientDomain({
+          domainName: rawDomain,
+          businessName: userInput.businessName,
+          contactFirstName: userInput.businessName.split(" ")[0] || "Contact",
+          contactLastName: userInput.businessName.split(" ").slice(1).join(" ") || "Name",
+          contactEmail: clientEmail,
+          contactPhone: clientPhone.replace(/[^0-9+]/g, "").replace(/^0/, "+61") || "+61.400000000",
+          contactAddress: userInput.businessAddress || "Australia",
+          contactCity: (userInput.businessAddress || "").split(",")[0] || "Sydney",
+          contactState: "NSW",
+          contactPostcode: "2000",
+          auEligibilityType: "ABN",
+          auEligibilityName: userInput.businessName,
+          auEligibilityId: userInput.abn || undefined,
+        });
+        const latestJob2 = await getJob(jobId) || job;
+        await saveJob(jobId, {
+          ...latestJob2,
+          domain: rawDomain,
+          metadata: { ...(latestJob2.metadata || {}), domainStatus: result.status, domainUrl: result.url },
+        });
+        console.log("[Step9b] Domain provisioned:", result.url, "status:", result.status);
+      } catch (e) {
+        console.error("[Step9b] Domain provisioning failed (non-fatal):", e);
       }
     });
 
