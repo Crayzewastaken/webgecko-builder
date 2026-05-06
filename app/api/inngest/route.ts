@@ -949,6 +949,16 @@ const buildWebsite = inngest.createFunction(
         // Pass 1: structural repair (truncated tags, missing footer/body/html)
         let repaired = repairHtml(finalHtmlWithShop, userInput.businessName, new Date().getFullYear());
 
+
+        // Pass 1b: force-inject id="hero" on first section/div if still missing
+        if (!repaired.includes('id="hero"') && !repaired.includes("id='hero'")) {
+          repaired = repaired.replace(
+            /(<(?:section|div)\b)([^>]*)(>)/,
+            (m: string, tag: string, attrs: string, close: string) =>
+              attrs.includes("id=") ? m : tag + attrs + ' id="hero"' + close
+          );
+          console.warn("[Step7b] Force-injected id=hero on first section/div");
+        }
         // Pass 2: for multi-page, run ensureMultiPageStructure to guarantee all page wrappers
         if (isMultiPage) {
           const { html: ensuredHtml, report } = ensureMultiPageStructure(repaired, requestedPageIds, {
