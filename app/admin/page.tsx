@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
 interface SeoData {
@@ -859,17 +858,6 @@ function ClientRow({ c, secret, dark = false }: { c: ClientAnalytics; secret: st
 }
 
 function AdminDashboard() {
-  const searchParams = useSearchParams();
-  const urlSecret = searchParams.get("secret") || "";
-  const [secret, setSecret] = useState<string>(() => {
-    if (urlSecret) return urlSecret;
-    if (typeof window !== "undefined") return sessionStorage.getItem("wg_admin_secret") || "";
-    return "";
-  });
-  const [loginInput, setLoginInput] = useState("");
-  const [loginError, setLoginError] = useState("");
-  const [loggedIn, setLoggedIn] = useState(!!urlSecret || (typeof window !== "undefined" && !!sessionStorage.getItem("wg_admin_secret")));
-
   // ── Theme ──────────────────────────────────────────────────────────────────
   const [dark, setDark] = useState(false);
   useEffect(() => { setDark(localStorage.getItem("wg_admin_theme") === "dark"); }, []);
@@ -886,73 +874,24 @@ function AdminDashboard() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "building" | "unpaid">("all");
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmed = loginInput.trim();
-    if (!trimmed) { setLoginError("Enter your admin password."); return; }
-    const res = await fetch(`/api/admin/clients?secret=${encodeURIComponent(trimmed)}`);
-    if (res.status === 403) { setLoginError("Incorrect password."); return; }
-    sessionStorage.setItem("wg_admin_secret", trimmed);
-    setSecret(trimmed); setLoggedIn(true);
+  async function handleLogout() {
+    await fetch("/api/admin/login", { method: "DELETE" });
+    window.location.href = "/admin/login";
   }
 
-  function handleLogout() {
-    sessionStorage.removeItem("wg_admin_secret");
-    setLoggedIn(false); setSecret(""); setLoginInput(""); setClients([]);
-  }
-
-  useEffect(() => { if (!loggedIn || !secret) return; loadDashboard(); }, [loggedIn, secret]);
+  useEffect(() => { loadDashboard(); }, []);
 
   async function loadDashboard() {
     setLoading(true); setError("");
     try {
-      const res = await fetch("/api/admin/clients?secret=" + encodeURIComponent(secret));
-      if (res.status === 403) { handleLogout(); return; }
+      const res = await fetch("/api/admin/clients");
+      if (res.status === 403) { window.location.href = "/admin/login"; return; }
       if (!res.ok) throw new Error("Failed to load clients");
       const data = await res.json();
       setClients(data.clients || []);
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to load"); }
     finally { setLoading(false); }
   }
-
-  if (!loggedIn) return (
-    <div style={{ ...G.page, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: "100%", maxWidth: 360, padding: "0 16px" }}>
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: 8,
-              background: `linear-gradient(135deg, ${T.green}, #0ea5e9)`,
-            }} />
-            <span style={{ fontSize: 16, fontWeight: 600, color: T.textPrimary }}>WebGecko</span>
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 600, color: T.textPrimary, letterSpacing: "-0.02em" }}>Admin portal</div>
-          <div style={{ fontSize: 13, color: T.textMuted, marginTop: 4 }}>Sign in to manage your clients.</div>
-        </div>
-        <form onSubmit={handleLogin} style={{ ...G.card, padding: "28px 24px" }}>
-          <label style={{ ...G.label, display: "block", marginBottom: 6 }}>Password</label>
-          <input
-            type="password"
-            placeholder="Enter admin password"
-            value={loginInput}
-            onChange={e => setLoginInput(e.target.value)}
-            autoFocus
-            style={{
-              width: "100%", background: T.bg, border: `1px solid ${loginError ? T.red : T.border}`,
-              borderRadius: 8, padding: "10px 14px", color: T.textPrimary, fontSize: 14,
-              outline: "none", boxSizing: "border-box", marginBottom: loginError ? 6 : 16,
-              fontFamily: "inherit",
-            }}
-          />
-          {loginError && <div style={{ color: T.red, fontSize: 12, marginBottom: 14 }}>{loginError}</div>}
-          <button type="submit" style={{
-            width: "100%", background: T.green, color: "#000", fontWeight: 600,
-            fontSize: 14, padding: "10px", border: "none", borderRadius: 8, cursor: "pointer",
-          }}>Sign in →</button>
-        </form>
-      </div>
-    </div>
-  );
 
   const filtered = clients.filter(c => {
     const matchSearch = !search || c.businessName.toLowerCase().includes(search.toLowerCase()) || c.industry?.toLowerCase().includes(search.toLowerCase());
@@ -1053,7 +992,7 @@ function AdminDashboard() {
         {loading && (
           <div style={{ color: T.textMuted, textAlign: "center", padding: 80, fontSize: 13 }}>Loading clients…</div>
         )}
-        {!loading && filtered.map(c => <ClientRow key={c.slug} c={c} secret={secret} dark={dark} />)}
+        {!loading && filtered.map(c => <ClientRow key={c.slug} c={c} secret="" dark={dark} />)}
         {!loading && filtered.length === 0 && (
           <div style={{ color: T.textMuted, textAlign: "center", padding: 80, fontSize: 13 }}>No clients found.</div>
         )}
