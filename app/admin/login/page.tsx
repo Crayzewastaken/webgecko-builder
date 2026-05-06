@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -20,7 +18,7 @@ export default function AdminLoginPage() {
         body: JSON.stringify({ password }),
       });
       if (res.ok) {
-        router.push("/admin");
+        window.location.href = "/admin";
       } else {
         const data = await res.json().catch(() => ({}));
         setError(data.error || "Incorrect password");
@@ -50,7 +48,6 @@ export default function AdminLoginPage() {
         maxWidth: "400px",
         boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
       }}>
-        {/* Logo / Brand */}
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
           <div style={{
             display: "inline-flex",
@@ -62,7 +59,7 @@ export default function AdminLoginPage() {
             borderRadius: "14px",
             marginBottom: "16px",
           }}>
-            <span style={{ fontSize: "26px" }}>🦎</span>
+            <span style={{ fontSize: "26px" }}>&#x1F98E;</span>
           </div>
           <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 700, color: "#111827", letterSpacing: "-0.3px" }}>
             WebGecko Admin
@@ -80,7 +77,6 @@ export default function AdminLoginPage() {
               fontWeight: 600,
               color: "#374151",
               marginBottom: "6px",
-              letterSpacing: "0.01em",
             }}>
               Password
             </label>
@@ -101,10 +97,7 @@ export default function AdminLoginPage() {
                 background: "#f9fafb",
                 color: "#111827",
                 boxSizing: "border-box",
-                transition: "border-color 0.15s",
               }}
-              onFocus={e => { if (!error) e.target.style.borderColor = "#16a34a"; }}
-              onBlur={e => { if (!error) e.target.style.borderColor = "#e5e7eb"; }}
             />
             {error && (
               <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#ef4444" }}>
@@ -126,13 +119,9 @@ export default function AdminLoginPage() {
               border: "none",
               borderRadius: "10px",
               cursor: loading || !password ? "not-allowed" : "pointer",
-              transition: "background 0.15s, transform 0.1s",
-              letterSpacing: "0.01em",
             }}
-            onMouseEnter={e => { if (!loading && password) (e.target as HTMLButtonElement).style.background = "#15803d"; }}
-            onMouseLeave={e => { if (!loading && password) (e.target as HTMLButtonElement).style.background = "#16a34a"; }}
           >
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
       </div>
