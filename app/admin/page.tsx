@@ -44,43 +44,73 @@ interface ClientAnalytics {
     scheduledReleaseAt?: string; scheduledReleaseDays?: number;
     checklistCompletedAt?: string; alreadyReleased?: boolean;
     seo?: SeoData; domainStatus?: string; domainUrl?: string;
+    lastGoodAt?: string; lastGoodUrl?: string; lastGoodHtml?: string;
+    rolledBackAt?: string;
   };
 }
 
-// ─── Design tokens ─────────────────────────────────────────────────────────────
-const T = {
-  // Surfaces
-  bg:       "#0a0a0b",
-  surface:  "#111113",
-  raised:   "#18181b",
-  border:   "#27272a",
-  borderMd: "#3f3f46",
-  // Text
-  textPrimary:   "#fafafa",
-  textSecondary: "#a1a1aa",
-  textMuted:     "#52525b",
-  // Accent
-  green:   "#22c55e",
-  greenDim: "#16a34a",
-  blue:    "#3b82f6",
-  amber:   "#f59e0b",
-  red:     "#ef4444",
-  purple:  "#a855f7",
-  cyan:    "#06b6d4",
+// ─── Design tokens — light (default) + dark ──────────────────────────────────
+const T_LIGHT = {
+  bg:            "#f5f6fa",
+  surface:       "#ffffff",
+  raised:        "#f0f2f8",
+  border:        "#e2e5ef",
+  borderMd:      "#c8cedd",
+  textPrimary:   "#0d0f1a",
+  textSecondary: "#3a4260",
+  textMuted:     "#8892aa",
+  green:         "#15803d",
+  greenDim:      "#166534",
+  blue:          "#1d4ed8",
+  amber:         "#b45309",
+  red:           "#b91c1c",
+  purple:        "#7c3aed",
+  cyan:          "#0e7490",
+  navBg:         "#ffffff",
+  navBorder:     "#e2e5ef",
+  shadow:        "0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04)",
+  shadowMd:      "0 4px 14px rgba(0,0,0,0.09)",
 };
 
-const G = {
+const T_DARK = {
+  bg:            "#0a0a0d",
+  surface:       "#111116",
+  raised:        "#18181e",
+  border:        "#27272f",
+  borderMd:      "#3e3e4a",
+  textPrimary:   "#f4f4f8",
+  textSecondary: "#a0a0b8",
+  textMuted:     "#525268",
+  green:         "#4ade80",
+  greenDim:      "#22c55e",
+  blue:          "#60a5fa",
+  amber:         "#fbbf24",
+  red:           "#f87171",
+  purple:        "#c084fc",
+  cyan:          "#22d3ee",
+  navBg:         "#111116",
+  navBorder:     "#27272f",
+  shadow:        "0 1px 3px rgba(0,0,0,0.35)",
+  shadowMd:      "0 4px 14px rgba(0,0,0,0.45)",
+};
+
+let T = T_LIGHT;
+
+function makeG(T: typeof T_LIGHT) { return {
   page: {
     minHeight: "100vh",
     background: T.bg,
     color: T.textPrimary,
     fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    transition: "background 0.25s ease, color 0.25s ease",
   } as React.CSSProperties,
 
   card: {
     background: T.surface,
     border: `1px solid ${T.border}`,
-    borderRadius: 12,
+    borderRadius: 14,
+    boxShadow: T.shadow,
+    transition: "background 0.25s ease, border-color 0.25s ease",
   } as React.CSSProperties,
 
   raisedCard: {
@@ -88,16 +118,17 @@ const G = {
     border: `1px solid ${T.border}`,
     borderRadius: 10,
     padding: "16px 18px",
+    transition: "background 0.25s ease",
   } as React.CSSProperties,
 
   pill: (color: string): React.CSSProperties => ({
     display: "inline-flex",
     alignItems: "center",
-    background: color + "15",
+    background: color + "18",
     color,
     border: `1px solid ${color}30`,
     borderRadius: 6,
-    padding: "2px 8px",
+    padding: "2px 9px",
     fontSize: 11,
     fontWeight: 600,
     letterSpacing: "0.02em",
@@ -106,22 +137,24 @@ const G = {
   statBox: (color: string): React.CSSProperties => ({
     background: T.surface,
     border: `1px solid ${T.border}`,
-    borderRadius: 10,
-    padding: "16px 18px",
+    borderRadius: 12,
+    padding: "18px 20px",
     minWidth: 110,
+    boxShadow: T.shadow,
+    transition: "background 0.25s ease",
   }),
 
   btn: (color: string, fill = false): React.CSSProperties => ({
     background: fill ? color : "transparent",
-    color: fill ? (color === T.amber || color === T.green ? "#000" : "#fff") : color,
-    border: `1px solid ${fill ? color : color + "50"}`,
+    color: fill ? "#fff" : color,
+    border: `1px solid ${fill ? color : color + "55"}`,
     borderRadius: 7,
-    padding: "6px 13px",
+    padding: "6px 14px",
     fontSize: 12,
     fontWeight: 500,
     cursor: "pointer",
     letterSpacing: "0.01em",
-    transition: "opacity 0.15s",
+    transition: "opacity 0.15s ease, background 0.15s ease",
   }),
 
   tab: (active: boolean): React.CSSProperties => ({
@@ -131,17 +164,18 @@ const G = {
     borderRadius: 6,
     padding: "5px 12px",
     fontSize: 12,
-    fontWeight: active ? 500 : 400,
+    fontWeight: active ? 600 : 400,
     cursor: "pointer",
     letterSpacing: "0.01em",
+    transition: "background 0.15s ease, color 0.15s ease",
   }),
 
   label: {
     fontSize: 10,
     color: T.textMuted,
     textTransform: "uppercase" as const,
-    letterSpacing: "0.08em",
-    fontWeight: 600,
+    letterSpacing: "0.09em",
+    fontWeight: 700,
     marginBottom: 4,
   },
 
@@ -169,7 +203,10 @@ const G = {
     background: T.border,
     margin: "18px 0",
   } as React.CSSProperties,
-};
+}; }
+
+// Module-level G — gets reassigned inside components when theme changes
+let G = makeG(T_LIGHT);
 
 function Stat({ label, value, color }: { label: string; value: string | number; color: string }) {
   return (
@@ -232,7 +269,8 @@ function ActionBtn({ label, color, confirm, onConfirm, fill = false }: {
   );
 }
 
-function ClientDashboard({ c, secret, onClose }: { c: ClientAnalytics; secret: string; onClose: () => void }) {
+function ClientDashboard({ c, secret, onClose, dark = false }: { c: ClientAnalytics; secret: string; onClose: () => void; dark?: boolean }) {
+  T = dark ? T_DARK : T_LIGHT; G = makeG(T);
   const [tab, setTab] = useState<"overview" | "analytics" | "seo" | "site" | "payments" | "actions" | "requests">("overview");
   const [featureRequests, setFeatureRequests] = useState<any[]>([]);
   const [frLoading, setFrLoading] = useState(false);
@@ -262,10 +300,12 @@ function ClientDashboard({ c, secret, onClose }: { c: ClientAnalytics; secret: s
     finally { setFrLoading(false); }
   }
 
-  async function updateRequestStatus(requestId: string, status: string, draftUrl?: string) {
+  const [feeInputs, setFeeInputs] = useState<Record<string, string>>({});
+
+  async function updateRequestStatus(requestId: string, status: string, draftUrl?: string, quotedFee?: number) {
     setFrUpdating(requestId);
     try {
-      await api("/api/feature-requests", "PATCH", { jobId: jid, requestId, status, draftUrl });
+      await api("/api/feature-requests", "PATCH", { jobId: jid, requestId, status, draftUrl, ...(quotedFee !== undefined ? { quotedFee } : {}) });
       await loadFeatureRequests();
     } catch (e) { alert("Failed: " + (e instanceof Error ? e.message : "Error")); }
     finally { setFrUpdating(null); }
@@ -585,6 +625,22 @@ function ClientDashboard({ c, secret, onClose }: { c: ClientAnalytics; secret: s
                   <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 12, lineHeight: 1.5 }}>Full rebuild — reruns Stitch and regenerates design. 5–10 min.</div>
                   <ActionBtn label="Rebuild site" color={T.amber} confirm={`Fully rebuild ${c.businessName} from scratch? This will regenerate the Stitch design.`} onConfirm={() => api(`/api/pipeline/run?jobId=${jid}&secret=${sec}&fullRebuild=true`)} />
                 </div>
+                <div style={{ ...G.raisedCard, border: `1px solid ${T.red}22` }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: T.red, marginBottom: 5 }}>Force reset &amp; rebuild</div>
+                  <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
+                    Clears a stuck <span style={{ color: T.amber, fontWeight: 600 }}>building</span> status then queues a fast rebuild. Use when Inngest shows "Already building".
+                  </div>
+                  <ActionBtn label="Force reset & rebuild" color={T.red} confirm={`Force-reset the build lock on ${c.businessName} and queue a rebuild?`} onConfirm={() => api(`/api/admin/reset-job`, "POST", { jobId: jid, action: "reset-and-rebuild", secret: sec })} />
+                </div>
+                {c.metadata?.lastGoodAt && (
+                  <div style={{ ...G.raisedCard, border: `1px solid ${T.purple}22` }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: T.purple, marginBottom: 5 }}>Rollback to last good build</div>
+                    <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
+                      Restores the previous working site snapshot.{` Saved ${new Date(c.metadata.lastGoodAt).toLocaleDateString("en-AU")}.`}
+                    </div>
+                    <ActionBtn label="Rollback" color={T.purple} confirm={`Roll back ${c.businessName} to the last good build?`} onConfirm={() => api(`/api/admin/reset-job`, "POST", { jobId: jid, action: "rollback", secret: sec })} />
+                  </div>
+                )}
                 {c.hasBooking && (
                   <div style={G.raisedCard}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: T.purple, marginBottom: 5 }}>Unlock booking</div>
@@ -644,20 +700,30 @@ function ClientDashboard({ c, secret, onClose }: { c: ClientAnalytics; secret: s
                     const isUpdating = frUpdating === req.id;
                     return (
                       <div key={req.id} style={{
-                        background: T.raised, border: `1px solid ${T.border}`,
-                        borderRadius: 10, padding: "14px 16px",
+                        background: T.surface, border: `1px solid ${T.border}`,
+                        borderRadius: 12, padding: "16px 18px",
                         borderLeft: `3px solid ${sc}`,
+                        boxShadow: T.shadow,
+                        transition: "background 0.2s ease",
                       }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{req.featureId}</span>
                             <span style={G.pill(sc)}>{req.status}</span>
+                            {req.quotedFee && (
+                              <span style={{ ...G.pill(T.amber), fontSize: 11 }}>💰 ${req.quotedFee} quoted</span>
+                            )}
                           </div>
                           <div style={{ fontSize: 11, color: T.textMuted }}>{new Date(req.createdAt).toLocaleDateString("en-AU")}</div>
                         </div>
                         {req.message && (
                           <div style={{ fontSize: 12, color: T.textSecondary, marginBottom: 10, lineHeight: 1.6, fontStyle: "italic" }}>
                             "{req.message}"
+                          </div>
+                        )}
+                        {req.adminNote && (
+                          <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 10, background: T.raised, borderRadius: 6, padding: "6px 10px" }}>
+                            📝 {req.adminNote}
                           </div>
                         )}
                         {req.draftUrl && (
@@ -667,9 +733,34 @@ function ClientDashboard({ c, secret, onClose }: { c: ClientAnalytics; secret: s
                             </a>
                           </div>
                         )}
+                        {/* Fee input — shown for pending/processing */}
+                        {(req.status === "pending" || req.status === "processing") && (
+                          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
+                            <span style={{ fontSize: 11, color: T.textMuted, flexShrink: 0 }}>Quote fee (AUD):</span>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="e.g. 250"
+                              value={feeInputs[req.id] ?? (req.quotedFee ?? "")}
+                              onChange={e => setFeeInputs(prev => ({ ...prev, [req.id]: e.target.value }))}
+                              style={{
+                                width: 100, background: T.raised, border: `1px solid ${T.border}`,
+                                borderRadius: 6, padding: "5px 10px", color: T.textPrimary,
+                                fontSize: 12, outline: "none", fontFamily: "inherit",
+                              }}
+                            />
+                            <button
+                              disabled={isUpdating || !feeInputs[req.id]}
+                              onClick={() => updateRequestStatus(req.id, req.status, undefined, parseFloat(feeInputs[req.id] || "0"))}
+                              style={{ ...G.btn(T.amber, true), fontSize: 11, opacity: (!feeInputs[req.id] || isUpdating) ? 0.5 : 1 }}
+                            >
+                              Send fee to client
+                            </button>
+                          </div>
+                        )}
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                           {req.status === "pending" && (
-                            <button disabled={isUpdating} onClick={() => updateRequestStatus(req.id, "approved")}
+                            <button disabled={isUpdating} onClick={() => updateRequestStatus(req.id, "approved", undefined, req.quotedFee)}
                               style={{ ...G.btn(T.green, true), opacity: isUpdating ? 0.5 : 1, fontSize: 11 }}>
                               {isUpdating ? "…" : "Approve & build draft"}
                             </button>
@@ -680,7 +771,7 @@ function ClientDashboard({ c, secret, onClose }: { c: ClientAnalytics; secret: s
                               {isUpdating ? "…" : "Confirm → push live"}
                             </button>
                           )}
-                          {(req.status === "pending" || req.status === "draft") && (
+                          {(req.status === "pending" || req.status === "draft" || req.status === "processing") && (
                             <button disabled={isUpdating} onClick={() => updateRequestStatus(req.id, "rejected")}
                               style={{ ...G.btn(T.red), opacity: isUpdating ? 0.5 : 1, fontSize: 11 }}>
                               Reject
@@ -705,7 +796,8 @@ function ClientDashboard({ c, secret, onClose }: { c: ClientAnalytics; secret: s
   );
 }
 
-function ClientRow({ c, secret }: { c: ClientAnalytics; secret: string }) {
+function ClientRow({ c, secret, dark = false }: { c: ClientAnalytics; secret: string; dark?: boolean }) {
+  T = dark ? T_DARK : T_LIGHT; G = makeG(T);
   const [open, setOpen] = useState(false);
   const statusColor =
     c.buildStatus === "completed" || c.buildStatus === "complete" ? T.green :
@@ -715,7 +807,7 @@ function ClientRow({ c, secret }: { c: ClientAnalytics; secret: string }) {
 
   return (
     <>
-      {open && <ClientDashboard c={c} secret={secret} onClose={() => setOpen(false)} />}
+      {open && <ClientDashboard c={c} secret={secret} onClose={() => setOpen(false)} dark={dark} />}
       <div
         onClick={() => setOpen(true)}
         style={{
@@ -784,6 +876,17 @@ function AdminDashboard() {
   const [loginInput, setLoginInput] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loggedIn, setLoggedIn] = useState(!!urlSecret || (typeof window !== "undefined" && !!sessionStorage.getItem("wg_admin_secret")));
+
+  // ── Theme ──────────────────────────────────────────────────────────────────
+  const [dark, setDark] = useState(false);
+  useEffect(() => { setDark(localStorage.getItem("wg_admin_theme") === "dark"); }, []);
+  function toggleTheme() {
+    const next = !dark;
+    setDark(next);
+    localStorage.setItem("wg_admin_theme", next ? "dark" : "light");
+  }
+  T = dark ? T_DARK : T_LIGHT;
+  G = makeG(T);
   const [clients, setClients] = useState<ClientAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -874,27 +977,35 @@ function AdminDashboard() {
 
   return (
     <div style={{ ...G.page, padding: "0" }}>
-      {/* Sidebar-style top nav */}
+      {/* Top nav */}
       <div style={{
-        background: T.surface,
-        borderBottom: `1px solid ${T.border}`,
+        background: T.navBg,
+        borderBottom: `1px solid ${T.navBorder}`,
         padding: "0 24px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        height: 52, position: "sticky", top: 0, zIndex: 100,
+        height: 56, position: "sticky", top: 0, zIndex: 100,
+        boxShadow: T.shadow,
+        transition: "background 0.25s ease, border-color 0.25s ease",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{
-            width: 26, height: 26, borderRadius: 7,
+            width: 28, height: 28, borderRadius: 8,
             background: `linear-gradient(135deg, ${T.green}, #0ea5e9)`,
+            flexShrink: 0,
           }} />
-          <span style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>WebGecko</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary, letterSpacing: "-0.02em" }}>WebGecko</span>
           <span style={{
             fontSize: 10, color: T.textMuted, background: T.raised, border: `1px solid ${T.border}`,
-            borderRadius: 4, padding: "2px 6px", fontWeight: 600, letterSpacing: "0.06em",
+            borderRadius: 5, padding: "2px 7px", fontWeight: 700, letterSpacing: "0.07em",
           }}>ADMIN</span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <button onClick={loadDashboard} style={G.btn(T.textMuted)}>Refresh</button>
+          <button
+            onClick={toggleTheme}
+            title={dark ? "Light mode" : "Dark mode"}
+            style={{ ...G.btn(T.textMuted), width: 32, height: 32, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}
+          >{dark ? "☀️" : "🌙"}</button>
           <button onClick={handleLogout} style={G.btn(T.textMuted)}>Sign out</button>
         </div>
       </div>
@@ -949,7 +1060,7 @@ function AdminDashboard() {
         {loading && (
           <div style={{ color: T.textMuted, textAlign: "center", padding: 80, fontSize: 13 }}>Loading clients…</div>
         )}
-        {!loading && filtered.map(c => <ClientRow key={c.slug} c={c} secret={secret} />)}
+        {!loading && filtered.map(c => <ClientRow key={c.slug} c={c} secret={secret} dark={dark} />)}
         {!loading && filtered.length === 0 && (
           <div style={{ color: T.textMuted, textAlign: "center", padding: 80, fontSize: 13 }}>No clients found.</div>
         )}

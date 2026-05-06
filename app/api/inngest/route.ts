@@ -1175,6 +1175,10 @@ const buildWebsite = inngest.createFunction(
         builtAt: new Date().toISOString(),
         metadata: {
           ...(latestJob.metadata || {}),
+          // Store last good HTML snapshot for rollback
+          lastGoodHtml: deployedHtml,
+          lastGoodUrl: deployedUrl,
+          lastGoodAt: new Date().toISOString(),
           // Preserve scheduledReleaseAt set by webhook; set it now if missing (e.g. admin-activated jobs)
           seo: {
             lsiKeywords: Array.isArray(spec.lsiKeywords) ? spec.lsiKeywords : [],

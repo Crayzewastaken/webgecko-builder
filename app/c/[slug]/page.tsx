@@ -3,22 +3,55 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 
-// ─── Design tokens (module-level so sub-components can use them) ──────────────
-const C = {
-  bg:          "#09090b",
-  surface:     "#111113",
-  raised:      "#18181b",
-  border:      "#27272a",
-  borderHov:   "#3f3f46",
-  text:        "#fafafa",
-  textSec:     "#a1a1aa",
-  textMuted:   "#52525b",
-  accent:      "#22c55e",
-  accentBlue:  "#3b82f6",
-  amber:       "#f59e0b",
-  red:         "#ef4444",
-  purple:      "#a855f7",
+// ─── Theme tokens — light (default) + dark ────────────────────────────────────
+const LIGHT = {
+  bg:         "#f8f9fb",
+  surface:    "#ffffff",
+  raised:     "#f1f3f7",
+  border:     "#e4e7ef",
+  borderHov:  "#c9cedb",
+  text:       "#0f1117",
+  textSec:    "#3d4559",
+  textMuted:  "#8892a4",
+  accent:     "#16a34a",
+  accentBg:   "#f0fdf4",
+  accentBlue: "#2563eb",
+  amber:      "#b45309",
+  amberBg:    "#fffbeb",
+  red:        "#dc2626",
+  redBg:      "#fef2f2",
+  purple:     "#7c3aed",
+  navBg:      "#ffffff",
+  navBorder:  "#e4e7ef",
+  shadow:     "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
+  shadowMd:   "0 4px 12px rgba(0,0,0,0.08)",
 };
+
+const DARK = {
+  bg:         "#0d0d10",
+  surface:    "#141417",
+  raised:     "#1c1c21",
+  border:     "#2a2a33",
+  borderHov:  "#3d3d4a",
+  text:       "#eeeef2",
+  textSec:    "#a0a0b8",
+  textMuted:  "#5c5c74",
+  accent:     "#4ade80",
+  accentBg:   "#052e16",
+  accentBlue: "#60a5fa",
+  amber:      "#fbbf24",
+  amberBg:    "#1c1500",
+  red:        "#f87171",
+  redBg:      "#1f0a0a",
+  purple:     "#c084fc",
+  navBg:      "#141417",
+  navBorder:  "#2a2a33",
+  shadow:     "0 1px 3px rgba(0,0,0,0.3)",
+  shadowMd:   "0 4px 12px rgba(0,0,0,0.4)",
+};
+
+// C is set dynamically inside the component via useTheme(); module-level fallback for sub-components
+let C = LIGHT;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -127,7 +160,7 @@ interface PaymentStatus {
   quote: { total: number; monthly: number; deposit: number; final: number };
 }
 
-type Tab = "overview" | "preview" | "bookings" | "quote" | "plan" | "upgrade";
+type Tab = "overview" | "preview" | "bookings" | "quote" | "plan" | "upgrade" | "contact";
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 function formatDate(dateStr: string) {
@@ -508,6 +541,19 @@ export default function ClientPortal() {
   const params = useParams();
   const slug = params?.slug as string;
 
+  // ── Theme ──────────────────────────────────────────────────────────────────
+  const [dark, setDark] = useState<boolean>(false);
+  useEffect(() => {
+    const stored = localStorage.getItem("wg_theme");
+    setDark(stored === "dark");
+  }, []);
+  function toggleTheme() {
+    const next = !dark;
+    setDark(next);
+    localStorage.setItem("wg_theme", next ? "dark" : "light");
+  }
+  C = dark ? DARK : LIGHT;
+
   const [client, setClient] = useState<ClientData | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [tab, setTab] = useState<Tab>("overview");
@@ -548,6 +594,12 @@ export default function ClientPortal() {
   const [upgradeMessage, setUpgradeMessage] = useState("");
   const [upgradeSubmitting, setUpgradeSubmitting] = useState(false);
   const [upgradeSubmitted, setUpgradeSubmitted] = useState(false);
+
+  // Contact / Support
+  const [contactTopics, setContactTopics] = useState<string[]>([]);
+  const [contactDetails, setContactDetails] = useState("");
+  const [contactSubmitting, setContactSubmitting] = useState(false);
+  const [contactSubmitted, setContactSubmitted] = useState(false);
 
   // ── Auth + data load ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -596,6 +648,26 @@ export default function ClientPortal() {
       }
     } catch {}
     finally { setUpgradeSubmitting(false); }
+  }
+
+  async function submitContactRequest() {
+    if (contactTopics.length === 0 && contactDetails.trim() === "") return;
+    setContactSubmitting(true);
+    try {
+      await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug,
+          businessName: client?.businessName || slug,
+          email: client?.email || "",
+          topics: contactTopics,
+          details: contactDetails,
+        }),
+      });
+      setContactSubmitted(true);
+    } catch {}
+    finally { setContactSubmitting(false); }
   }
 
   useEffect(() => {
@@ -835,6 +907,7 @@ export default function ClientPortal() {
     { id: "quote", label: "Quote & Pay" },
     { id: "plan", label: "My Plan" },
     { id: "upgrade", label: "Add Features" },
+    { id: "contact", label: "Contact Us" },
   ];
 
   const S = {
@@ -843,19 +916,22 @@ export default function ClientPortal() {
       background: C.bg,
       color: C.text,
       fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      transition: "background 0.25s ease, color 0.25s ease",
     } as React.CSSProperties,
 
     header: {
-      background: C.surface,
-      borderBottom: `1px solid ${C.border}`,
+      background: C.navBg,
+      borderBottom: `1px solid ${C.navBorder}`,
       padding: "0 20px",
-      height: 52,
+      height: 56,
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
       position: "sticky" as const,
       top: 0,
       zIndex: 50,
+      boxShadow: C.shadow,
+      transition: "background 0.25s ease, border-color 0.25s ease",
     } as React.CSSProperties,
 
     logoMark: {
@@ -873,6 +949,7 @@ export default function ClientPortal() {
       overflowX: "auto" as const,
       scrollbarWidth: "none" as const,
       padding: "0 4px",
+      transition: "background 0.25s ease",
     } as React.CSSProperties,
 
     tabBtn: (active: boolean): React.CSSProperties => ({
@@ -888,43 +965,46 @@ export default function ClientPortal() {
       cursor: "pointer",
       whiteSpace: "nowrap" as const,
       letterSpacing: "0.01em",
-      transition: "color 0.15s",
+      transition: "color 0.2s ease, border-color 0.2s ease",
     }),
 
     body: {
-      padding: "20px 16px",
-      maxWidth: 720,
+      padding: "24px 16px",
+      maxWidth: 680,
       margin: "0 auto",
     } as React.CSSProperties,
 
     card: {
       background: C.surface,
       border: `1px solid ${C.border}`,
-      borderRadius: 12,
-      padding: "18px 20px",
-      marginBottom: 12,
+      borderRadius: 14,
+      padding: "20px 22px",
+      marginBottom: 14,
+      boxShadow: C.shadow,
+      transition: "background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease",
     } as React.CSSProperties,
 
     label: {
       fontSize: 10,
-      fontWeight: 600,
+      fontWeight: 700,
       color: C.textMuted,
       textTransform: "uppercase" as const,
-      letterSpacing: "0.08em",
+      letterSpacing: "0.09em",
       marginBottom: 6,
     } as React.CSSProperties,
 
     val: {
-      fontSize: 15,
+      fontSize: 14,
       color: C.text,
       fontWeight: 400,
+      lineHeight: 1.5,
     } as React.CSSProperties,
 
-    pill: (color: string): React.CSSProperties => ({
+    pill: (color: string, bg?: string): React.CSSProperties => ({
       display: "inline-block",
-      background: `${color}15`,
+      background: bg || `${color}14`,
       color,
-      border: `1px solid ${color}30`,
+      border: `1px solid ${color}28`,
       borderRadius: 6,
       padding: "2px 9px",
       fontSize: 11,
@@ -937,33 +1017,33 @@ export default function ClientPortal() {
       alignItems: "center",
       justifyContent: "center",
       gap: 6,
-      padding: "10px 20px",
+      padding: "9px 20px",
       borderRadius: 8,
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: 500,
       cursor: disabled ? "not-allowed" : "pointer",
-      opacity: disabled ? 0.5 : 1,
+      opacity: disabled ? 0.45 : 1,
       letterSpacing: "0.01em",
-      transition: "opacity 0.15s",
+      transition: "opacity 0.2s ease, background 0.2s ease",
       ...(v === "primary"
-        ? { background: C.accent, color: "#000", border: "none" }
+        ? { background: C.accent, color: dark ? "#000" : "#fff", border: "none" }
         : v === "secondary"
         ? { background: C.raised, color: C.textSec, border: `1px solid ${C.border}` }
         : v === "danger"
-        ? { background: C.red + "12", color: C.red, border: `1px solid ${C.red}25` }
+        ? { background: C.redBg, color: C.red, border: `1px solid ${C.red}28` }
         : { background: "none", color: C.textMuted, border: `1px solid ${C.border}` }),
     }),
 
     divider: {
       height: 1,
       background: C.border,
-      margin: "18px 0",
+      margin: "20px 0",
     } as React.CSSProperties,
 
     lockBox: {
       background: C.raised,
-      borderRadius: 8,
-      padding: "12px 16px",
+      borderRadius: 10,
+      padding: "14px 18px",
       textAlign: "center" as const,
       color: C.textMuted,
       fontSize: 13,
@@ -977,16 +1057,17 @@ export default function ClientPortal() {
         ? (v === "primary" ? C.accent : C.raised)
         : C.raised,
       color: active
-        ? (v === "primary" ? "#000" : C.text)
+        ? (v === "primary" ? (dark ? "#000" : "#fff") : C.text)
         : C.textMuted,
       border: active && v === "secondary" ? `1px solid ${C.border}` : "none",
-      borderRadius: 9,
+      borderRadius: 10,
       padding: "13px 20px",
-      fontSize: 15,
+      fontSize: 14,
       fontWeight: 600,
       cursor: active ? "pointer" : "not-allowed",
       marginTop: 12,
       letterSpacing: "0.01em",
+      transition: "background 0.2s ease",
     }),
   };
 
@@ -1002,11 +1083,16 @@ export default function ClientPortal() {
       <header style={S.header}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={S.logoMark} />
-          <span style={{ fontSize: 14, fontWeight: 600, color: C.text, letterSpacing: "-0.01em" }}>WebGecko</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: C.text, letterSpacing: "-0.02em" }}>WebGecko</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 12, color: C.textMuted, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.businessName}</span>
-          <button style={{ background: "none", border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 7, padding: "5px 12px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }} onClick={signOut}>Sign out</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, color: C.textMuted, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.businessName}</span>
+          <button
+            onClick={toggleTheme}
+            title={dark ? "Switch to light mode" : "Switch to dark mode"}
+            style={{ background: C.raised, border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 7, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 14, transition: "background 0.2s ease" }}
+          >{dark ? "☀️" : "🌙"}</button>
+          <button style={{ background: "none", border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 7, padding: "5px 12px", fontSize: 12, cursor: "pointer", fontFamily: "inherit", transition: "border-color 0.2s ease" }} onClick={signOut}>Sign out</button>
         </div>
       </header>
 
@@ -1752,21 +1838,42 @@ export default function ClientPortal() {
                 <div style={S.label}>Your Requests</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
                   {myFeatureRequests.map((req: any) => {
-                    const statusColors: Record<string, [string, string]> = {
-                      pending:    [C.amber, "⏳ Under review"],
-                      processing: [C.accentBlue, "⚙️ Being built"],
-                      approved:   [C.accentBlue, "⚙️ Building draft"],
-                      live:       [C.accent, "Live on your site"],
-                      rejected:   [C.red, "Not added"],
+                    const statusMap: Record<string, { color: string; bg: string; label: string }> = {
+                      pending:    { color: C.amber,      bg: C.amberBg,  label: "⏳ Under review" },
+                      processing: { color: C.accentBlue, bg: C.accentBg, label: "⚙️ Being processed" },
+                      approved:   { color: C.accentBlue, bg: C.accentBg, label: "⚙️ Building draft" },
+                      draft:      { color: C.purple,     bg: C.accentBg, label: "👀 Draft ready" },
+                      live:       { color: C.accent,     bg: C.accentBg, label: "✓ Live on your site" },
+                      rejected:   { color: C.red,        bg: C.redBg,    label: "✗ Not added" },
                     };
-                    const [sc, statusLabel] = statusColors[req.status] || [C.textMuted, req.status];
+                    const sm = statusMap[req.status] || { color: C.textMuted, bg: C.raised, label: req.status };
+                    const hasFee = req.quotedFee && req.quotedFee > 0;
                     return (
-                      <div key={req.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px" }}>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{req.featureId}</div>
-                          <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{new Date(req.createdAt).toLocaleDateString("en-AU")}</div>
+                      <div key={req.id} style={{ background: C.surface, border: `1px solid ${hasFee && req.status === "pending" ? C.amber + "60" : C.border}`, borderRadius: 12, padding: "14px 16px", transition: "border-color 0.2s ease", boxShadow: C.shadow }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{req.featureId}</div>
+                            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{new Date(req.createdAt).toLocaleDateString("en-AU")}</div>
+                          </div>
+                          <div style={{ background: sm.bg, color: sm.color, border: `1px solid ${sm.color}28`, borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 600, flexShrink: 0 }}>{sm.label}</div>
                         </div>
-                        <div style={{ background: sc + "18", color: sc, border: `1px solid ${sc}30`, borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 600 }}>{statusLabel}</div>
+                        {hasFee && (
+                          <div style={{ marginTop: 12, background: C.amberBg, border: `1px solid ${C.amber}30`, borderRadius: 10, padding: "12px 14px" }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: C.amber, marginBottom: 4 }}>💰 Add-on fee quoted: ${req.quotedFee}</div>
+                            <div style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.5, marginBottom: req.status === "pending" ? 10 : 0 }}>
+                              A one-time fee of <strong style={{ color: C.text }}>${req.quotedFee} AUD</strong> has been quoted to add <strong style={{ color: C.text }}>{req.featureId}</strong> to your site.
+                              {req.status === "live" ? " Already paid and live." : " No charges until you confirm."}
+                            </div>
+                            {req.status === "pending" && (
+                              <a
+                                href={`mailto:hello@webgecko.au?subject=Approve add-on: ${encodeURIComponent(req.featureId)}&body=Hi WebGecko, I approve the $${req.quotedFee} fee for adding ${encodeURIComponent(req.featureId)} to my site.`}
+                                style={{ ...S.btn("primary"), textDecoration: "none", fontSize: 12, display: "inline-flex", marginTop: 4 }}
+                              >
+                                Approve &amp; reply →
+                              </a>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -1784,6 +1891,92 @@ export default function ClientPortal() {
                 </div>
               </div>
             )}
+
+            <div style={{ ...S.card, background: `${C.amber}08`, border: `1px solid ${C.amber}22` }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>💡</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>Pricing for add-ons</div>
+                  <div style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.6 }}>Each new feature is quoted individually based on complexity. We'll send you a quote for approval before any work begins — no surprises.</div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {tab === "contact" && (
+          <>
+            <div style={S.card}>
+              <div style={S.label}>Contact & Support</div>
+              <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 20, lineHeight: 1.6 }}>
+                Need help or have a question? Select what it's about and we'll get back to you promptly.
+              </div>
+
+              {contactSubmitted ? (
+                <div style={{ background: `${C.accent}10`, border: `1px solid ${C.accent}25`, borderRadius: 10, padding: "24px 20px", textAlign: "center" }}>
+                  <div style={{ fontSize: 22, marginBottom: 10 }}>✅</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: C.accent, marginBottom: 6 }}>Message Sent</div>
+                  <div style={{ fontSize: 13, color: C.textMuted }}>We've received your message and will follow up at <strong style={{ color: C.textSec }}>{client.email || "your email"}</strong> shortly.</div>
+                  <button onClick={() => { setContactSubmitted(false); setContactTopics([]); setContactDetails(""); }} style={{ ...S.btn("secondary"), marginTop: 16, fontSize: 13 }}>Send Another Message</button>
+                </div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>What's this about?</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
+                    {[
+                      { id: "change_request",   label: "I need a change to my site",        icon: "✏️" },
+                      { id: "billing",          label: "Billing or payment question",        icon: "💳" },
+                      { id: "technical_issue",  label: "Something on my site isn't working", icon: "🔧" },
+                      { id: "booking_setup",    label: "Booking system help",                icon: "📅" },
+                      { id: "domain_dns",       label: "Domain or DNS issue",                icon: "🌐" },
+                      { id: "new_feature",      label: "I want to add something new",        icon: "✨" },
+                      { id: "launch",           label: "I'm ready to launch",                icon: "🚀" },
+                      { id: "other",            label: "Other",                              icon: "💬" },
+                    ].map(topic => {
+                      const sel = contactTopics.includes(topic.id);
+                      return (
+                        <button
+                          key={topic.id}
+                          onClick={() => setContactTopics(prev => sel ? prev.filter(x => x !== topic.id) : [...prev, topic.id])}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 12,
+                            background: sel ? `${C.accentBlue}12` : C.raised,
+                            border: `1px solid ${sel ? C.accentBlue + "50" : C.border}`,
+                            borderRadius: 9, padding: "11px 14px", cursor: "pointer",
+                            textAlign: "left", width: "100%",
+                            transition: "background 0.15s ease, border-color 0.15s ease",
+                          }}
+                        >
+                          <span style={{ fontSize: 18, flexShrink: 0 }}>{topic.icon}</span>
+                          <span style={{ fontSize: 13, fontWeight: sel ? 600 : 400, color: sel ? C.text : C.textSec, flex: 1, transition: "color 0.15s" }}>{topic.label}</span>
+                          <div style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${sel ? C.accentBlue : C.border}`, background: sel ? C.accentBlue : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s ease" }}>
+                            {sel && <span style={{ color: "#fff", fontSize: 10, fontWeight: 800 }}>✓</span>}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Describe what you need</div>
+                  <textarea
+                    value={contactDetails}
+                    onChange={e => setContactDetails(e.target.value)}
+                    placeholder="Give us as much detail as you like — the more context, the faster we can help."
+                    rows={4}
+                    style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" as const, marginBottom: 14, transition: "border-color 0.2s ease", lineHeight: 1.6 }}
+                  />
+
+                  <button
+                    onClick={submitContactRequest}
+                    disabled={contactSubmitting || (contactTopics.length === 0 && contactDetails.trim() === "")}
+                    style={{ ...S.btn("primary", contactSubmitting || (contactTopics.length === 0 && contactDetails.trim() === "")), width: "100%", fontSize: 14 }}
+                  >
+                    {contactSubmitting ? "Sending…" : "Send Message →"}
+                  </button>
+                  <div style={{ fontSize: 11, color: C.textMuted, textAlign: "center", marginTop: 8 }}>Sent to hello@webgecko.au · We respond within 1 business day</div>
+                </>
+              )}
+            </div>
           </>
         )}
       </div>

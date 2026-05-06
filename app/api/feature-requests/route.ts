@@ -102,7 +102,7 @@ export async function PATCH(req: NextRequest) {
   if (!isAdminAuthedLegacy(req)) return Response.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
-  const { jobId, requestId, status, draftUrl, adminNote } = body;
+  const { jobId, requestId, status, draftUrl, adminNote, quotedFee } = body;
 
   if (!jobId || !requestId || !status) {
     return Response.json({ error: "Missing jobId, requestId or status" }, { status: 400 });
@@ -126,6 +126,7 @@ export async function PATCH(req: NextRequest) {
     updatedAt: new Date().toISOString(),
     ...(draftUrl !== undefined ? { draftUrl } : {}),
     ...(adminNote !== undefined ? { adminNote } : {}),
+    ...(quotedFee !== undefined ? { quotedFee } : {}),
   };
 
   await saveJob(jobId, {
@@ -158,6 +159,9 @@ export async function PATCH(req: NextRequest) {
       console.error("Failed to fire feature/go-live event:", e);
     }
   }
+
+  return Response.json({ ok: true, request: requests[idx] });
+}
 
   return Response.json({ ok: true, request: requests[idx] });
 }
