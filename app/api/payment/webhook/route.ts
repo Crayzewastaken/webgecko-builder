@@ -24,7 +24,8 @@ export async function POST(req: NextRequest) {
   const eventType: string = event.type || "";
   console.log(`Square webhook received: ${eventType}`);
 
-  if (eventType === "payment.completed" || eventType === "payment.updated") {
+  // Only act on the final completed event — payment.updated fires multiple times per order
+  if (eventType === "payment.completed") {
     const payment = event.data?.object?.payment;
     if (!payment) return NextResponse.json({ ok: true });
 

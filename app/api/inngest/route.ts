@@ -1000,10 +1000,28 @@ RULES:
 
     // ── STEP 7: Square shop ───────────────────────────────────────────────────
     const hasShopFeature = features.includes("Payments / Shop");
-    const shopProducts: { name: string; price: string; photoUrl?: string }[] = productsWithPhotos.length > 0 ? productsWithPhotos : [];
+    // Parse shopProducts from either uploaded images (productsWithPhotos) or free-text input
+    const shopProducts: { name: string; price: string; photoUrl?: string }[] = (() => {
+      if (productsWithPhotos.length > 0) return productsWithPhotos;
+      // Parse free-text e.g. "Coffee - $5\nCake slice - $8.50" or "Coffee, $5; Cake, $8"
+      const raw = (userInput.shopProducts || "").trim();
+      if (!raw) return [];
+      return raw.split(/\n|;/).map((line: string) => {
+        const cleaned = line.trim();
+        if (!cleaned) return null;
+        // Match "Name - $price" or "Name, $price" or "Name $price" or "Name: $price"
+        const m = cleaned.match(/^(.+?)\s*[-:,]\s*\$?([\d]+(?:\.[\d]{1,2})?)\s*$/);
+        if (m) return { name: m[1].trim(), price: `$${parseFloat(m[2]).toFixed(2)}` };
+        // Fallback: treat whole line as name with no price
+        return { name: cleaned, price: "$0.00" };
+      }).filter(Boolean) as { name: string; price: string }[];
+    })();
 
     const finalHtmlWithShop = await step.run("step7-shop", async () => {
-      if (!hasShopFeature || shopProducts.length === 0) return finalHtml;
+      if (!hasShopFeature || shopProducts.length === 0) {
+        console.log("[Step7] Shop skipped: hasShopFeature=" + hasShopFeature + " products=" + shopProducts.length);
+        return finalHtml;
+      }
       let html = finalHtml;
       try {
         const siteUrl = `https://${vercelProjectName}.vercel.app`;
@@ -1017,14 +1035,17 @@ RULES:
             manualPaymentUrl = clientRow?.shop_payment_url || "";
           } catch {}
         }
-        if (!clientSquareToken && !manualPaymentUrl) {
+        // Fall back to WebGecko master Square account if client hasn't connected their own yet
+        const effectiveToken = clientSquareToken || process.env.SQUARE_ACCESS_TOKEN || "";
+        const effectiveLocation = clientSquareLocation || process.env.SQUARE_LOCATION_ID || "";
+        if (!effectiveToken && !manualPaymentUrl) {
           console.warn(`[Step7] No Square token and no manual payment URL for ${jobId} — shop buttons inactive`);
           return html;
         }
         let catalogueItems: any[] = [];
-        if (clientSquareToken) {
-          console.log(`[Step7] Using client Square token (merchant: ${job.squareMerchantId})`);
-          catalogueItems = await createClientShopCatalogue({ jobId, businessName: userInput.businessName, products: shopProducts, redirectUrl: siteUrl, accessToken: clientSquareToken, locationId: clientSquareLocation });
+        if (effectiveToken) {
+          console.log(`[Step7] Using ${clientSquareToken ? "client" : "WebGecko master"} Square token`);
+          catalogueItems = await createClientShopCatalogue({ jobId, businessName: userInput.businessName, products: shopProducts, redirectUrl: siteUrl, accessToken: effectiveToken, locationId: effectiveLocation });
           await supabase.from("jobs").update({ user_input: { ...userInput, shopCatalogue: catalogueItems } }).eq("id", jobId);
         } else {
           console.log(`[Step7] Using manual payment URL: ${manualPaymentUrl}`);
@@ -1317,6 +1338,12 @@ RULES:
         metadata: {
           ...(latestJob.metadata || {}),
           // Preserve scheduledReleaseAt set by webhook; set it now if missing (e.g. admin-activated jobs)
+          seo: {
+            lsiKeywords: Array.isArray(spec.lsiKeywords) ? spec.lsiKeywords : [],
+            metaDescription: (`${userInput.businessName} — ${userInput.usp || userInput.industry} in ${userInput.businessAddress || "Australia"}`).slice(0, 160),
+            serpInsights: spec.serpInsights || null,
+            projectTitle: spec.projectTitle || "",
+          },
           scheduledReleaseAt: latestJob.metadata?.scheduledReleaseAt || (() => {
             const relDays = (() => {
               const feats: string[] = Array.isArray(latestJob.userInput?.features) ? latestJob.userInput.features : [];
