@@ -20,11 +20,15 @@ export default function AdminLoginPage() {
       if (res.ok) {
         window.location.href = "/admin";
       } else {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || "Incorrect password");
+        let msg = "Incorrect password";
+        try {
+          const data = await res.json();
+          msg = data.error || msg;
+        } catch {}
+        setError(msg + " (status " + res.status + ")");
       }
-    } catch {
-      setError("Network error — please try again");
+    } catch (err: unknown) {
+      setError("Network error: " + String(err));
     } finally {
       setLoading(false);
     }
@@ -37,7 +41,7 @@ export default function AdminLoginPage() {
       alignItems: "center",
       justifyContent: "center",
       background: "#f8f9fb",
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      fontFamily: "Inter, -apple-system, BlinkMacSystemFont, sans-serif",
     }}>
       <div style={{
         background: "#ffffff",
@@ -86,7 +90,6 @@ export default function AdminLoginPage() {
               onChange={e => setPassword(e.target.value)}
               placeholder="Enter admin password"
               autoFocus
-              required
               style={{
                 width: "100%",
                 padding: "10px 14px",
@@ -108,17 +111,17 @@ export default function AdminLoginPage() {
 
           <button
             type="submit"
-            disabled={loading || !password}
+            disabled={loading}
             style={{
               width: "100%",
               padding: "11px",
               fontSize: "15px",
               fontWeight: 600,
-              background: loading || !password ? "#d1d5db" : "#16a34a",
-              color: loading || !password ? "#9ca3af" : "#ffffff",
+              background: loading ? "#d1d5db" : "#16a34a",
+              color: loading ? "#9ca3af" : "#ffffff",
               border: "none",
               borderRadius: "10px",
-              cursor: loading || !password ? "not-allowed" : "pointer",
+              cursor: loading ? "not-allowed" : "pointer",
             }}
           >
             {loading ? "Signing in..." : "Sign in"}
