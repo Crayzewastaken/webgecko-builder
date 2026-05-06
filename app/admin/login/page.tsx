@@ -15,10 +15,13 @@ export default function AdminLoginPage() {
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({ password }),
       });
       if (res.ok) {
-        window.location.href = "/admin";
+        // Small delay to ensure cookie is written before navigation
+        await new Promise(r => setTimeout(r, 100));
+        window.location.replace("/admin");
       } else {
         let msg = "Incorrect password";
         try {
