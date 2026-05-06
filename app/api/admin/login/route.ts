@@ -20,7 +20,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const expected = process.env.PROCESS_SECRET;
+  // ADMIN_PASSWORD takes priority; fall back to PROCESS_SECRET for existing deployments
+  const expected = process.env.ADMIN_PASSWORD || process.env.PROCESS_SECRET;
   if (!expected) {
     return NextResponse.json({ error: "Admin auth not configured" }, { status: 500 });
   }
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
   return res;
 }
 
-export async function DELETE(req: NextRequest) {
+export async function DELETE(_req: NextRequest) {
   const res = NextResponse.json({ ok: true });
   res.cookies.delete(ADMIN_COOKIE_NAME);
   return res;
