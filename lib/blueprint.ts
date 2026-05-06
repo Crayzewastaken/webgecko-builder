@@ -498,15 +498,3 @@ export async function requestGoogleIndexing(url: string): Promise<void> {
     console.warn("[Indexing] Failed (non-fatal):", e instanceof Error ? e.message : String(e));
   }
 }
-: "https://schema.org/WebPage" }), });
-
-    if (indexRes.ok) {
-      console.log(`[Indexing] ✅ Submitted ${url} to Google Indexing API`);
-    } else {
-      const errText = await indexRes.text();
-      console.warn(`[Indexing] API returned ${indexRes.status}: ${errText.slice(0, 200)}`);
-    }
-  } catch (e) {
-    console.warn("[Indexing] Failed (non-fatal):", e instanceof Error ? e.message : String(e));
-  }
-}
