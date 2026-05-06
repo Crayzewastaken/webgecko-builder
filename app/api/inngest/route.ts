@@ -398,7 +398,7 @@ const buildWebsite = inngest.createFunction(
         const mapsEmbed = process.env.GOOGLE_MAPS_API_KEY
           ? `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`
           : `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=${encodeURIComponent(businessAddress)}&output=embed"></iframe></div>`;
-        if (!html.includes('maps.google') && !html.includes('maps.embed') && !html.includes('google.com/maps')) {
+        if (!/<iframe[^>]*google\.com\/maps/i.test(html) && !/<iframe[^>]*maps\.googleapis/i.test(html)) {
           let mapInjected = false;
           const beforeMapLen = html.length;
           html = html.replace(/<div[^>]*>\s*MAP PLACEHOLDER[^<]*<\/div>/gi, mapsEmbed);
@@ -602,11 +602,33 @@ const buildWebsite = inngest.createFunction(
         console.log(`[Step5] Replaced ${showPageCount} showPage() calls with navigateTo()`);
       }
 
+      // ── Strip markdown syntax from visible HTML text ─────────────────────────
+      // Stitch sometimes renders literal **bold** or *italic* markdown in hero copy.
+      // Strip it from text nodes between tags (but NOT inside <script>, <style>, or attributes).
+      {
+        // Remove <script> and <style> blocks, strip markdown from the rest, then put them back
+        const preserved: string[] = [];
+        let stripped = html.replace(/<(script|style)([\s\S]*?)<\/\1>/gi, (m: string) => {
+          preserved.push(m);
+          return `\x00PRESERVE${preserved.length - 1}\x00`;
+        });
+        // Strip **text** → text and *text* → text in text between tags
+        stripped = stripped.replace(/>([^<]+)</g, (_m: string, text: string) => {
+          const cleaned = text.replace(/\*\*([^*]+)\*\*/g, "$1").replace(/\*([^*]+)\*/g, "$1");
+          return `>${cleaned}<`;
+        });
+        // Restore preserved blocks
+        html = stripped.replace(/\x00PRESERVE(\d+)\x00/g, (_m: string, idx: string) => preserved[Number(idx)]);
+        const mdCount = (html.match(/\*\*[^<*]+\*\*/g) || []).length;
+        if (mdCount === 0) console.log("[Step5] Markdown asterisks stripped from visible text");
+        else console.warn(`[Step5] ${mdCount} markdown patterns remaining after strip`);
+      }
+
       // ── SEO meta tags + Open Graph injection ─────────────────────────────────
       // Inject into <head> if not already present (rebuild-safe: check for og:title)
       if (!html.includes('property="og:title"')) {
         const pageTitle = spec.projectTitle || userInput.businessName;
-        const metaDesc = (`${userInput.businessName} — ${userInput.usp || userInput.industry} in ${userInput.businessAddress || "Australia"}. ${userInput.goal || ""}`).slice(0, 160).trim();
+        const metaDesc = (`${userInput.businessName} — ${userInput.usp || userInput.industry} in ${userInput.city || (userInput.businessAddress ? userInput.businessAddress.split(",").slice(-2).join(",").trim() : "Australia")}. ${userInput.goal || ""}`).slice(0, 160).trim();
         const lsiStr = Array.isArray(spec.lsiKeywords) && spec.lsiKeywords.length > 0
           ? spec.lsiKeywords.slice(0, 10).join(", ")
           : userInput.industry;
@@ -1408,25 +1430,20 @@ const autoRelease = inngest.createFunction(
       for (const job of jobs) {
         const releaseAt = job.metadata?.scheduledReleaseAt;
         if (!releaseAt) continue;
-        if (new Date(releaseAt) > now) continue; // not time yet
+        if (new Date(releaseAt) > now) continue;
 
         console.log("[AutoRelease] Releasing job", job.id, "scheduled for", releaseAt);
         try {
           const base = (process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app");
-          const secret = encodeURIComponent(process.env.PROCESS_SECRET || "");
-          const res = await fetch(`${base}/api/unlock/release?jobId=${job.id}&secret=${secret}`);
-          if (res.ok) {
-            // Mark as released so we don't re-release
-            await supabase
-              .from("jobs")
-              .update({ metadata: { ...(job.metadata || {}), alreadyReleased: true, releasedAt: now.toISOString() } })
-              .eq("id", job.id);
-            console.log("[AutoRelease] Released job", job.id, "for", job.user_input?.businessName);
-          } else {
-            console.error("[AutoRelease] Release failed for", job.id, "→", res.status);
-          }
+          await fetch(`${base}/api/preview-unlock`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ jobId: job.id, clientSlug: job.client_slug }),
+          });
+          await supabase.from("jobs").update({ metadata: { ...job.metadata, alreadyReleased: true } }).eq("id", job.id);
+          console.log("[AutoRelease] Released job", job.id);
         } catch (e) {
-          console.error("[AutoRelease] Error releasing job", job.id, ":", e);
+          console.warn("[AutoRelease] Failed for job", job.id, e instanceof Error ? e.message : String(e));
         }
       }
     });

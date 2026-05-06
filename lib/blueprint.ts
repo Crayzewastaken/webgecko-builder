@@ -313,7 +313,8 @@ CRITICAL RULES:
 1. Respond ONLY with a valid JSON object - no markdown, no backticks, no explanation
 2. Start with { and end with }
 3. Inside ALL string values use only single quotes, never raw double quotes
-4. stitchPrompt must be minimum 800 words and MUST include ALL of the following EXACTLY:
+4. NEVER use markdown syntax (** or *) anywhere in stitchPrompt, heroHeadline, heroSubheadline, or any other string field — write plain text only
+5. stitchPrompt must be minimum 800 words and MUST include ALL of the following EXACTLY:
 
 STRUCTURE (non-negotiable — these exact HTML attributes must appear):
    - header with sticky nav: logo left, desktop links right, and a button with id=hamburger class=md:hidden that toggles div with id=mobile-menu
@@ -346,7 +347,8 @@ ${realTestimonials}` : ""}
 
 CONTENT:
    - Exact business name: ${businessName}
-   - Exact contact: email ${clientEmail}, phone ${clientPhone}${businessAddress ? ", address: " + businessAddress : ""}
+   - Exact contact: email ${clientEmail}, phone ${clientPhone}
+   - Business address (contact section only, do NOT put in hero or subtitle): ${businessAddress || "not provided"}
    - Colour palette with hex codes
    - Google Fonts to use
    - Stats bar with 3-4 numbers relevant to ${industry}
