@@ -49,8 +49,8 @@ const buildWebsite = inngest.createFunction(
     const job = await step.run("load-job", async () => {
       const j = await getJob(jobId);
       if (!j) throw new Error("Job not found: " + jobId);
-      if (j.status === "building") throw new Error("Already building");
-      // Allow rebuild of completed jobs — reset status to building
+      // Block concurrent builds, but allow rebuild/fullRebuild to override a stuck job
+      if (j.status === "building" && !isRebuild) throw new Error("Already building");
       await saveJob(jobId, { ...j, status: "building" });
       return j;
     });
@@ -1478,7 +1478,193 @@ const autoRelease = inngest.createFunction(
   }
 );
 
+// ─── Feature Inject (draft → review → live) ───────────────────────────────────
+// Triggered when admin approves a feature request.
+// Injects the requested feature into the saved HTML, deploys to a draft URL,
+// then updates the feature request status to "draft" so admin can review.
+
+const featureInject = inngest.createFunction(
+  {
+    id: "feature-inject",
+    name: "Inject Feature into Draft",
+    retries: 1,
+    triggers: [{ event: "feature/inject" }],
+  },
+  async ({ event, step }: { event: { data: { jobId: string; requestId: string; featureId: string } }; step: any }) => {
+    const { jobId, requestId, featureId } = event.data;
+
+    const draftUrl = await step.run("inject-and-deploy-draft", async () => {
+      const job = await getJob(jobId);
+      if (!job) throw new Error("Job not found: " + jobId);
+      if (!job.html || job.html.length < 1000) throw new Error("No saved HTML to inject into");
+
+      const userInput = job.userInput || {};
+      const existingFeatures: string[] = Array.isArray(userInput.features) ? userInput.features : [];
+
+      // Add the new feature to a temporary copy of userInput
+      const augmentedInput = {
+        ...userInput,
+        features: [...new Set([...existingFeatures, featureId])],
+      };
+
+      // Re-run post-processing injections on the saved HTML
+      const domainSlug = job.domainSlug || safeFileName(userInput.businessName || "client");
+      const draftProjectName = ("wg-" + domainSlug + "-draft").slice(0, 52);
+
+      // Build a minimal job copy with augmented features for injection
+      const draftJob = { ...job, userInput: augmentedInput };
+
+      // For booking injection: ensure we have supersaasId if feature is Booking
+      let htmlForDraft = job.html;
+
+      if (featureId === "Live Chat" && job.tawktoPropertyId) {
+        const tawkScript = `<script type="text/javascript">var Tawk_API=Tawk_API||{},Tawk_LoadStart=new Date();(function(){var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];s1.async=true;s1.src='https://embed.tawk.to/${job.tawktoPropertyId}/default';s1.charset='UTF-8';s1.setAttribute('crossorigin','*');s0.parentNode.insertBefore(s1,s0);})();</script>`;
+        if (!htmlForDraft.includes(job.tawktoPropertyId)) {
+          htmlForDraft = htmlForDraft.replace("</body>", tawkScript + "\n</body>");
+        }
+      }
+
+      if (featureId === "Booking System" && job.supersaasId) {
+        const iframeSrc = `https://www.supersaas.com/schedule/${job.supersaasId}`;
+        const bookingSection = `<section id="booking" style="padding:80px 20px;background:#0a0f1a;text-align:center;">
+<h2 style="color:#e2e8f0;font-size:2rem;font-weight:800;margin-bottom:8px;">Book Online</h2>
+<p style="color:#94a3b8;margin-bottom:32px;">Select a time that works for you</p>
+<iframe src="${iframeSrc}" width="100%" height="700" frameborder="0" scrolling="auto" style="border-radius:12px;max-width:900px;"></iframe>
+</section>`;
+        if (!htmlForDraft.includes('id="booking"')) {
+          htmlForDraft = htmlForDraft.replace("</body>", bookingSection + "\n</body>");
+        }
+      }
+
+      if (featureId === "Newsletter" || featureId === "Growth") {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
+        const newsletterSection = `<section id="newsletter" style="padding:60px 20px;background:#0a1628;text-align:center;">
+<h2 style="color:#e2e8f0;font-size:1.8rem;font-weight:800;margin-bottom:8px;">Stay in the Loop</h2>
+<p style="color:#94a3b8;margin-bottom:24px;">Get updates and exclusive offers straight to your inbox.</p>
+<form onsubmit="(function(e){e.preventDefault();var em=e.target.querySelector('input[type=email]');var btn=e.target.querySelector('button');if(!em||!em.value)return;btn.textContent='Subscribing...';btn.disabled=true;fetch('${appUrl}/api/newsletter-subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em.value})}).then(function(){btn.textContent='Subscribed!';btn.style.background='#10b981';em.disabled=true;}).catch(function(){btn.textContent='Try again';btn.disabled=false;});})(event)" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;max-width:480px;margin:0 auto;">
+<input type="email" placeholder="Your email address" required style="flex:1;min-width:220px;padding:12px 16px;border-radius:8px;border:1px solid #1e2d42;background:#0d1520;color:#e2e8f0;font-size:14px;outline:none;">
+<button type="submit" style="background:#00c896;color:#000;font-weight:700;padding:12px 24px;border-radius:8px;border:none;cursor:pointer;font-size:14px;">Subscribe</button>
+</form>
+</section>`;
+        if (!htmlForDraft.includes('id="newsletter"')) {
+          htmlForDraft = htmlForDraft.replace("</body>", newsletterSection + "\n</body>");
+        }
+      }
+
+      if (featureId === "Shop") {
+        const shopSection = `<section id="shop" style="padding:80px 20px;background:#060a14;">
+<h2 style="color:#e2e8f0;font-size:2rem;font-weight:800;text-align:center;margin-bottom:8px;">Shop</h2>
+<p style="color:#94a3b8;text-align:center;margin-bottom:40px;">Browse our products below</p>
+<div id="wg-shop-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:24px;max-width:1100px;margin:0 auto;">
+<div style="background:#1e293b;border-radius:12px;padding:24px;text-align:center;">
+<h3 style="color:#f1f5f9;margin-bottom:8px;">Product</h3>
+<p style="color:#10b981;font-weight:700;margin-bottom:16px;">Contact us for pricing</p>
+<a href="#contact" style="display:inline-block;background:#006aff;color:#fff;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;">Buy Now</a>
+</div>
+</div>
+</section>`;
+        if (!htmlForDraft.includes('id="shop"')) {
+          htmlForDraft = htmlForDraft.replace("</body>", shopSection + "\n</body>");
+        }
+      }
+
+      // Deploy to draft project
+      const deployRes = await fetch("https://api.vercel.com/v13/deployments", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + process.env.VERCEL_API_TOKEN, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: draftProjectName,
+          target: "production",
+          files: [{ file: "index.html", data: htmlForDraft, encoding: "utf-8" }],
+          projectSettings: { framework: null },
+        }),
+      });
+
+      if (!deployRes.ok) {
+        const err = await deployRes.text();
+        throw new Error("Draft deploy failed: " + err.slice(0, 200));
+      }
+
+      const draftSiteUrl = `https://${draftProjectName}.vercel.app`;
+
+      // Update feature request to "draft" with the draft URL
+      const { data: jobRow } = await supabase.from("jobs").select("metadata").eq("id", jobId).single();
+      const requests: any[] = jobRow?.metadata?.featureRequests || [];
+      const idx = requests.findIndex((r: any) => r.id === requestId);
+      if (idx !== -1) {
+        requests[idx] = { ...requests[idx], status: "draft", draftUrl: draftSiteUrl, updatedAt: new Date().toISOString() };
+        await supabase.from("jobs").update({ metadata: { ...(jobRow?.metadata || {}), featureRequests: requests } }).eq("id", jobId);
+      }
+
+      // Notify admin
+      const secret = process.env.ADMIN_SESSION_SECRET?.slice(0, 16) || "";
+      const adminUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app") + `/admin?secret=${encodeURIComponent(secret)}`;
+      await resend.emails.send({
+        from: "WebGecko <hello@webgecko.au>",
+        to: process.env.RESULT_TO_EMAIL || "hello@webgecko.au",
+        subject: `🎨 Draft ready — ${featureId} for ${userInput.businessName || jobId}`,
+        html: `<div style="font-family:sans-serif;padding:32px;background:#0a0f1a;color:#e2e8f0;max-width:600px;border-radius:12px;">
+<h2 style="color:#00c896;">Draft Ready for Review</h2>
+<p><strong>${featureId}</strong> has been injected into a draft for <strong>${userInput.businessName || jobId}</strong>.</p>
+<p><a href="${draftSiteUrl}" style="background:#3b82f6;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;margin-bottom:12px;">View Draft →</a></p>
+<p>Once you're happy, go to <a href="${adminUrl}" style="color:#00c896;">Admin Dashboard</a> → Feature Requests → mark as <strong>Live</strong> to push to the client's real site.</p>
+</div>`,
+      });
+
+      console.log("[FeatureInject] Draft deployed:", draftSiteUrl, "for", featureId, "job", jobId);
+      return draftSiteUrl;
+    });
+
+    return { ok: true, draftUrl };
+  }
+);
+
+// ─── Feature Go Live ──────────────────────────────────────────────────────────
+// When admin marks a feature request as "live", we push the draft HTML
+// to the real site by triggering a rebuild with the new feature included.
+
+const featureGoLive = inngest.createFunction(
+  {
+    id: "feature-go-live",
+    name: "Go Live with Feature",
+    retries: 1,
+    triggers: [{ event: "feature/go-live" }],
+  },
+  async ({ event, step }: { event: { data: { jobId: string; requestId: string; featureId: string } }; step: any }) => {
+    const { jobId, requestId, featureId } = event.data;
+
+    await step.run("update-job-features-and-rebuild", async () => {
+      const job = await getJob(jobId);
+      if (!job) throw new Error("Job not found");
+
+      const userInput = job.userInput || {};
+      const existingFeatures: string[] = Array.isArray(userInput.features) ? userInput.features : [];
+      const newFeatures = [...new Set([...existingFeatures, featureId])];
+
+      // Persist the new feature into userInput
+      await saveJob(jobId, {
+        ...job,
+        userInput: { ...userInput, features: newFeatures },
+      });
+
+      // Mark request as live
+      const { data: jobRow } = await supabase.from("jobs").select("metadata").eq("id", jobId).single();
+      const requests: any[] = jobRow?.metadata?.featureRequests || [];
+      const idx = requests.findIndex((r: any) => r.id === requestId);
+      if (idx !== -1) {
+        requests[idx] = { ...requests[idx], status: "live", updatedAt: new Date().toISOString() };
+        await supabase.from("jobs").update({ metadata: { ...(jobRow?.metadata || {}), featureRequests: requests } }).eq("id", jobId);
+      }
+    });
+
+    // Fire a rebuild — isRebuild=true so it reuses HTML but re-runs injections with new feature
+    await inngest.send({ name: "build/website", data: { jobId, isRebuild: true } });
+
+    return { ok: true };
+  }
+);
+
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [buildWebsite, monthlyReports, autoRelease],
+  functions: [buildWebsite, monthlyReports, autoRelease, featureInject, featureGoLive],
 });

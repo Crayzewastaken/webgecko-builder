@@ -3,6 +3,23 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 
+// ─── Design tokens (module-level so sub-components can use them) ──────────────
+const C = {
+  bg:          "#09090b",
+  surface:     "#111113",
+  raised:      "#18181b",
+  border:      "#27272a",
+  borderHov:   "#3f3f46",
+  text:        "#fafafa",
+  textSec:     "#a1a1aa",
+  textMuted:   "#52525b",
+  accent:      "#22c55e",
+  accentBlue:  "#3b82f6",
+  amber:       "#f59e0b",
+  red:         "#ef4444",
+  purple:      "#a855f7",
+};
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ClientMetadata {
@@ -110,7 +127,7 @@ interface PaymentStatus {
   quote: { total: number; monthly: number; deposit: number; final: number };
 }
 
-type Tab = "overview" | "preview" | "bookings" | "quote" | "plan";
+type Tab = "overview" | "preview" | "bookings" | "quote" | "plan" | "upgrade";
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 function formatDate(dateStr: string) {
@@ -169,28 +186,28 @@ function EditableChange({ index, item, onUpdate, onDelete }: {
 
   return (
     <div style={{
-      background: "#111827", border: "1px solid #1e2d42", borderRadius: 8,
+      background: C.raised, border: "1px solid #1e2d42", borderRadius: 8,
       padding: "9px 12px", display: "flex", gap: 8, alignItems: "flex-start",
     }}>
-      <span style={{ color: "#334155", fontSize: 11, minWidth: 18, marginTop: editing ? 10 : 2, fontWeight: 600 }}>{index + 1}.</span>
+      <span style={{ color: C.textMuted, fontSize: 11, minWidth: 18, marginTop: editing ? 10 : 2, fontWeight: 600 }}>{index + 1}.</span>
       {editing ? (
         <div style={{ flex: 1, display: "flex", gap: 6, alignItems: "flex-start", flexWrap: "wrap" }}>
           <input
             autoFocus value={val} onChange={e => setVal(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") save(); if (e.key === "Escape") { setVal(item.text); setEditing(false); } }}
-            style={{ flex: 1, minWidth: 160, background: "#080c14", border: "1px solid #2563eb60", borderRadius: 6, padding: "6px 10px", color: "#e2e8f0", fontSize: 13, outline: "none" }}
+            style={{ flex: 1, minWidth: 160, background: C.bg, border: "1px solid #2563eb60", borderRadius: 6, padding: "6px 10px", color: C.text, fontSize: 13, outline: "none" }}
           />
-          <button onClick={save} style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save</button>
-          <button onClick={() => { setVal(item.text); setEditing(false); }} style={{ background: "#1e2531", color: "#64748b", border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}>Cancel</button>
+          <button onClick={save} style={{ background: C.accentBlue, color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save</button>
+          <button onClick={() => { setVal(item.text); setEditing(false); }} style={{ background: C.border, color: C.textMuted, border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, cursor: "pointer" }}>Cancel</button>
         </div>
       ) : (
-        <span style={{ flex: 1, color: "#cbd5e1", fontSize: 13, lineHeight: 1.5, marginTop: 1 }}>{item.text}</span>
+        <span style={{ flex: 1, color: C.textSec, fontSize: 13, lineHeight: 1.5, marginTop: 1 }}>{item.text}</span>
       )}
       <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
         {!editing && (
-          <button onClick={() => setEditing(true)} style={{ background: "none", border: "none", color: "#334155", cursor: "pointer", fontSize: 13, padding: "2px 4px" }} title="Edit">✎</button>
+          <button onClick={() => setEditing(true)} style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 13, padding: "2px 4px" }} title="Edit">✎</button>
         )}
-        <button onClick={onDelete} style={{ background: "none", border: "none", color: "#334155", cursor: "pointer", fontSize: 14, padding: "2px 4px" }} title="Remove">✕</button>
+        <button onClick={onDelete} style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 14, padding: "2px 4px" }} title="Remove">✕</button>
       </div>
     </div>
   );
@@ -312,18 +329,18 @@ function BookingManager({ slug, client, paymentStatus }: { slug: string; client:
     .sort((a, b) => a.date > b.date ? 1 : -1);
 
   const upcoming = bookings.filter(b => b.date >= today && !["cancelled", "declined"].includes(b.status)).length;
-  const STATUS_COLOR: Record<string, string> = { confirmed: "#00c896", pending: "#f59e0b", declined: "#ef4444", cancelled: "#6b7280", rescheduled: "#3b82f6" };
+  const STATUS_COLOR: Record<string, string> = { confirmed: C.accent, pending: C.amber, declined: C.red, cancelled: "#6b7280", rescheduled: C.accentBlue };
   const pll = (color: string): React.CSSProperties => ({ display: "inline-block", background: `${color}18`, color, border: `1px solid ${color}33`, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600, textTransform: "capitalize" as const });
-  const inp: React.CSSProperties = { width: "100%", background: "#0d1117", border: "1px solid #1e2531", borderRadius: 8, padding: "10px 12px", color: "#e2e8f0", fontSize: 14, boxSizing: "border-box" as const, outline: "none", marginBottom: 10 };
+  const inp: React.CSSProperties = { width: "100%", background: C.surface, border: "1px solid #1e2531", borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 14, boxSizing: "border-box" as const, outline: "none", marginBottom: 10 };
   const abt = (color: string, bg = "transparent"): React.CSSProperties => ({ flex: 1, minWidth: 60, padding: "8px 10px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: `1px solid ${color}44`, color, background: bg });
   const ovl: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 };
-  const mdb: React.CSSProperties = { background: "#0d1117", border: "1px solid #1e2531", borderRadius: 16, padding: 24, width: "100%", maxWidth: 440, maxHeight: "90vh", overflowY: "auto" as const };
+  const mdb: React.CSSProperties = { background: C.surface, border: "1px solid #1e2531", borderRadius: 16, padding: 24, width: "100%", maxWidth: 440, maxHeight: "90vh", overflowY: "auto" as const };
 
   if (!paymentStatus?.previewUnlocked) {
     return (
-      <div style={{ background: "#0d1117", border: "1px solid #1e2531", borderRadius: 12, textAlign: "center", padding: "48px 24px" }}>
+      <div style={{ background: C.surface, border: "1px solid #1e2531", borderRadius: 12, textAlign: "center", padding: "48px 24px" }}>
         <div style={{ fontSize: 36, marginBottom: 12 }}>🔒</div>
-        <div style={{ color: "#4a5568", fontSize: 15 }}>Bookings will appear here once your site is released.</div>
+        <div style={{ color: C.textMuted, fontSize: 15 }}>Bookings will appear here once your site is released.</div>
       </div>
     );
   }
@@ -332,13 +349,13 @@ function BookingManager({ slug, client, paymentStatus }: { slug: string; client:
     <>
       {/* SuperSaas management banner */}
       {useSuperSaas && client.supersaasUrl && (
-        <div style={{ background: "#0a1628", border: "1px solid rgba(0,200,150,0.2)", borderRadius: 10, padding: "12px 16px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" as const }}>
+        <div style={{ background: C.raised, border: "1px solid rgba(0,200,150,0.2)", borderRadius: 10, padding: "12px 16px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" as const }}>
           <div>
-            <div style={{ color: "#00c896", fontSize: 12, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: 2 }}>📅 Your Booking System</div>
-            <div style={{ color: "#475569", fontSize: 12 }}>Customers book directly on your website. You can also manage your schedule at SuperSaas.</div>
+            <div style={{ color: C.accent, fontSize: 12, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: 2 }}>📅 Your Booking System</div>
+            <div style={{ color: C.textMuted, fontSize: 12 }}>Customers book directly on your website. You can also manage your schedule at SuperSaas.</div>
           </div>
           <a href="https://www.supersaas.com/account/login" target="_blank" rel="noopener noreferrer"
-            style={{ background: "#0f2a4a", color: "#38bdf8", border: "1px solid #1e3a5f", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" as const, flexShrink: 0 }}>
+            style={{ background: "#0f2a4a", color: C.accentBlue, border: "1px solid #1e3a5f", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" as const, flexShrink: 0 }}>
             Open SuperSaas →
           </a>
         </div>
@@ -346,10 +363,10 @@ function BookingManager({ slug, client, paymentStatus }: { slug: string; client:
 
       {/* Stats */}
       <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" as const }}>
-        {[{ label: "Total", value: bookings.length, color: "#e2e8f0" }, { label: "Upcoming", value: upcoming, color: "#00c896" }, { label: "Past/Cancelled", value: bookings.length - upcoming, color: "#4a5568" }].map(st => (
-          <div key={st.label} style={{ background: "#0d1117", border: "1px solid #1e2531", borderRadius: 10, padding: "14px 16px", flex: 1, textAlign: "center" as const, minWidth: 80 }}>
+        {[{ label: "Total", value: bookings.length, color: C.text }, { label: "Upcoming", value: upcoming, color: C.accent }, { label: "Past/Cancelled", value: bookings.length - upcoming, color: C.textMuted }].map(st => (
+          <div key={st.label} style={{ background: C.surface, border: "1px solid #1e2531", borderRadius: 10, padding: "14px 16px", flex: 1, textAlign: "center" as const, minWidth: 80 }}>
             <div style={{ fontSize: 22, fontWeight: 800, color: st.color }}>{st.value}</div>
-            <div style={{ fontSize: 11, color: "#4a5568", marginTop: 2 }}>{st.label}</div>
+            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{st.label}</div>
           </div>
         ))}
         {!useSuperSaas && (
@@ -362,20 +379,20 @@ function BookingManager({ slug, client, paymentStatus }: { slug: string; client:
         style={{ ...inp, marginBottom: 12 }} />
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" as const }}>
         {(["upcoming", "past", "all"] as const).map(f => (
-          <button key={f} onClick={() => setBFilter(f)} style={{ padding: "7px 16px", borderRadius: 20, fontSize: 13, fontWeight: bFilter === f ? 600 : 400, background: bFilter === f ? "linear-gradient(135deg,#00c896,#0099ff)" : "none", border: bFilter === f ? "none" : "1px solid #1e2531", color: bFilter === f ? "#000" : "#4a5568", cursor: "pointer" }}>
+          <button key={f} onClick={() => setBFilter(f)} style={{ padding: "7px 16px", borderRadius: 20, fontSize: 13, fontWeight: bFilter === f ? 600 : 400, background: bFilter === f ? "linear-gradient(135deg,#00c896,#0099ff)" : "none", border: bFilter === f ? "none" : "1px solid #1e2531", color: bFilter === f ? "#000" : C.textMuted, cursor: "pointer" }}>
             {f.charAt(0).toUpperCase() + f.slice(1)}
           </button>
         ))}
-        <button onClick={loadBookings} style={{ marginLeft: "auto", background: "none", border: "1px solid #1e2531", color: "#4a5568", borderRadius: 8, padding: "7px 12px", fontSize: 12, cursor: "pointer" }}>↻ Refresh</button>
+        <button onClick={loadBookings} style={{ marginLeft: "auto", background: "none", border: "1px solid #1e2531", color: C.textMuted, borderRadius: 8, padding: "7px 12px", fontSize: 12, cursor: "pointer" }}>↻ Refresh</button>
       </div>
 
       {/* Booking list */}
       {loading ? (
-        <div style={{ textAlign: "center", padding: 40, color: "#4a5568" }}>Loading bookings…</div>
+        <div style={{ textAlign: "center", padding: 40, color: C.textMuted }}>Loading bookings…</div>
       ) : filtered.length === 0 ? (
-        <div style={{ background: "#0d1117", border: "1px solid #1e2531", borderRadius: 12, textAlign: "center", padding: 40 }}>
+        <div style={{ background: C.surface, border: "1px solid #1e2531", borderRadius: 12, textAlign: "center", padding: 40 }}>
           <div style={{ fontSize: 28, marginBottom: 10 }}>📅</div>
-          <div style={{ color: "#2a3347", fontSize: 14 }}>{bFilter === "upcoming" ? "No upcoming bookings." : "No bookings found."}</div>
+          <div style={{ color: C.textMuted, fontSize: 14 }}>{bFilter === "upcoming" ? "No upcoming bookings." : "No bookings found."}</div>
         </div>
       ) : filtered.map(b => {
         const isToday = b.date === today;
@@ -383,32 +400,32 @@ function BookingManager({ slug, client, paymentStatus }: { slug: string; client:
         const isDone = ["cancelled", "declined"].includes(b.status);
         const sc = STATUS_COLOR[b.status] || "#666";
         return (
-          <div key={b.bookingId} style={{ background: "#0d1117", border: `1px solid ${isToday ? "#00c89630" : "#1e2531"}`, borderRadius: 12, padding: 16, marginBottom: 10, opacity: isDone ? 0.5 : 1 }}>
+          <div key={b.bookingId} style={{ background: C.surface, border: `1px solid ${isToday ? "#00c89630" : C.border}`, borderRadius: 12, padding: 16, marginBottom: 10, opacity: isDone ? 0.5 : 1 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, gap: 8, flexWrap: "wrap" as const }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const }}>
-                <span style={{ fontWeight: 700, fontSize: 15, color: "#e2e8f0" }}>{b.visitorName}</span>
-                {isToday && <span style={{ ...pll("#00c896"), fontSize: 10 }}>TODAY</span>}
-                {isTomorrow && <span style={{ ...pll("#f59e0b"), fontSize: 10 }}>TOMORROW</span>}
+                <span style={{ fontWeight: 700, fontSize: 15, color: C.text }}>{b.visitorName}</span>
+                {isToday && <span style={{ ...pll(C.accent), fontSize: 10 }}>TODAY</span>}
+                {isTomorrow && <span style={{ ...pll(C.amber), fontSize: 10 }}>TOMORROW</span>}
               </div>
               <span style={pll(sc)}>{b.status}</span>
             </div>
-            <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 4 }}>{b.service} · {formatDate(b.date)} at {b.time}</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, fontSize: 12, color: "#334155", marginBottom: 8 }}>
-              <div>✉ <a href={`mailto:${b.visitorEmail}`} style={{ color: "#38bdf8" }}>{b.visitorEmail}</a></div>
-              <div>📞 <a href={`tel:${b.visitorPhone}`} style={{ color: "#94a3b8" }}>{b.visitorPhone}</a></div>
+            <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 4 }}>{b.service} · {formatDate(b.date)} at {b.time}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, fontSize: 12, color: C.textMuted, marginBottom: 8 }}>
+              <div>✉ <a href={`mailto:${b.visitorEmail}`} style={{ color: C.accentBlue }}>{b.visitorEmail}</a></div>
+              <div>📞 <a href={`tel:${b.visitorPhone}`} style={{ color: C.textSec }}>{b.visitorPhone}</a></div>
             </div>
-            {b.message && <div style={{ background: "#080c14", borderRadius: 6, padding: "8px 12px", fontSize: 13, color: "#475569", marginBottom: 10 }}>"{b.message}"</div>}
+            {b.message && <div style={{ background: C.bg, borderRadius: 6, padding: "8px 12px", fontSize: 13, color: C.textMuted, marginBottom: 10 }}>"{b.message}"</div>}
             {!isDone && (
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const, marginTop: 8 }}>
                 {b.status !== "confirmed" && (
-                  <button style={abt("#00c896")} disabled={acting === b.bookingId} onClick={() => doAction(b.bookingId, "confirm")}>
+                  <button style={abt(C.accent)} disabled={acting === b.bookingId} onClick={() => doAction(b.bookingId, "confirm")}>
                     {acting === b.bookingId ? "…" : "✓ Confirm"}
                   </button>
                 )}
-                <button style={abt("#3b82f6")} onClick={() => { setActiveBooking(b); setModal("reschedule"); setNewDate(b.date); setNewTime(b.time); }}>↻ Reschedule</button>
-                <a href={`mailto:${b.visitorEmail}`} style={{ ...abt("#64748b"), textDecoration: "none", textAlign: "center" as const }}>✉ Email</a>
-                <a href={`tel:${b.visitorPhone}`} style={{ ...abt("#64748b"), textDecoration: "none", textAlign: "center" as const }}>📞 Call</a>
-                <button style={abt("#ef4444")} onClick={() => { setActiveBooking(b); setModal("cancel"); }}>✕ Cancel</button>
+                <button style={abt(C.accentBlue)} onClick={() => { setActiveBooking(b); setModal("reschedule"); setNewDate(b.date); setNewTime(b.time); }}>↻ Reschedule</button>
+                <a href={`mailto:${b.visitorEmail}`} style={{ ...abt(C.textMuted), textDecoration: "none", textAlign: "center" as const }}>✉ Email</a>
+                <a href={`tel:${b.visitorPhone}`} style={{ ...abt(C.textMuted), textDecoration: "none", textAlign: "center" as const }}>📞 Call</a>
+                <button style={abt(C.red)} onClick={() => { setActiveBooking(b); setModal("cancel"); }}>✕ Cancel</button>
               </div>
             )}
           </div>
@@ -419,15 +436,15 @@ function BookingManager({ slug, client, paymentStatus }: { slug: string; client:
       {modal === "reschedule" && activeBooking && (
         <div style={ovl} onClick={() => setModal(null)}>
           <div style={mdb} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#e2e8f0", marginBottom: 16 }}>Reschedule Booking</div>
-            <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 16 }}>{activeBooking.visitorName} — {activeBooking.service}</div>
-            <label style={{ color: "#64748b", fontSize: 12, display: "block", marginBottom: 6 }}>New Date</label>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 16 }}>Reschedule Booking</div>
+            <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 16 }}>{activeBooking.visitorName} — {activeBooking.service}</div>
+            <label style={{ color: C.textMuted, fontSize: 12, display: "block", marginBottom: 6 }}>New Date</label>
             <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} style={inp} />
-            <label style={{ color: "#64748b", fontSize: 12, display: "block", marginBottom: 6 }}>New Time</label>
+            <label style={{ color: C.textMuted, fontSize: 12, display: "block", marginBottom: 6 }}>New Time</label>
             <input type="time" value={newTime} onChange={e => setNewTime(e.target.value)} style={inp} />
             <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-              <button style={{ ...abt("#4a5568"), flex: "none" as const, padding: "10px 20px" }} onClick={() => setModal(null)}>Cancel</button>
-              <button style={{ ...abt("#3b82f6", "#3b82f618"), flex: 1, padding: 10 }} disabled={!newDate || !newTime || acting === activeBooking.bookingId} onClick={() => doAction(activeBooking.bookingId, "reschedule", { newDate, newTime })}>
+              <button style={{ ...abt(C.textMuted), flex: "none" as const, padding: "10px 20px" }} onClick={() => setModal(null)}>Cancel</button>
+              <button style={{ ...abt(C.accentBlue, "#3b82f618"), flex: 1, padding: 10 }} disabled={!newDate || !newTime || acting === activeBooking.bookingId} onClick={() => doAction(activeBooking.bookingId, "reschedule", { newDate, newTime })}>
                 {acting === activeBooking.bookingId ? "Saving…" : "Save"}
               </button>
             </div>
@@ -439,14 +456,14 @@ function BookingManager({ slug, client, paymentStatus }: { slug: string; client:
       {modal === "cancel" && activeBooking && (
         <div style={ovl} onClick={() => setModal(null)}>
           <div style={mdb} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#e2e8f0", marginBottom: 16 }}>Cancel Booking</div>
-            <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 16 }}>{activeBooking.visitorName} — {activeBooking.date} at {activeBooking.time}</div>
-            <label style={{ color: "#64748b", fontSize: 12, display: "block", marginBottom: 6 }}>Reason (sent to customer)</label>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 16 }}>Cancel Booking</div>
+            <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 16 }}>{activeBooking.visitorName} — {activeBooking.date} at {activeBooking.time}</div>
+            <label style={{ color: C.textMuted, fontSize: 12, display: "block", marginBottom: 6 }}>Reason (sent to customer)</label>
             <textarea value={modalReason} onChange={e => setModalReason(e.target.value)} rows={3}
               placeholder="e.g. We are unavailable that day — please rebook." style={{ ...inp, resize: "vertical" as const, height: 80 }} />
             <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-              <button style={{ ...abt("#4a5568"), flex: "none" as const, padding: "10px 20px" }} onClick={() => setModal(null)}>Back</button>
-              <button style={{ ...abt("#ef4444", "#ef444418"), flex: 1, padding: 10 }} disabled={acting === activeBooking.bookingId} onClick={() => doAction(activeBooking.bookingId, "cancel", { reason: modalReason })}>
+              <button style={{ ...abt(C.textMuted), flex: "none" as const, padding: "10px 20px" }} onClick={() => setModal(null)}>Back</button>
+              <button style={{ ...abt(C.red, "#ef444418"), flex: 1, padding: 10 }} disabled={acting === activeBooking.bookingId} onClick={() => doAction(activeBooking.bookingId, "cancel", { reason: modalReason })}>
                 {acting === activeBooking.bookingId ? "Cancelling…" : "Confirm Cancel"}
               </button>
             </div>
@@ -458,7 +475,7 @@ function BookingManager({ slug, client, paymentStatus }: { slug: string; client:
       {modal === "add" && (
         <div style={ovl} onClick={() => setModal(null)}>
           <div style={mdb} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#e2e8f0", marginBottom: 16 }}>Add Booking Manually</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 16 }}>Add Booking Manually</div>
             {(["name", "email", "phone", "service"] as const).map(field => (
               <input key={field} type="text" placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
                 value={addForm[field]} onChange={e => setAddForm(p => ({ ...p, [field]: e.target.value }))} style={inp} />
@@ -470,8 +487,8 @@ function BookingManager({ slug, client, paymentStatus }: { slug: string; client:
             <textarea placeholder="Notes (optional)" value={addForm.message} onChange={e => setAddForm(p => ({ ...p, message: e.target.value }))}
               rows={2} style={{ ...inp, marginTop: 10, resize: "vertical" as const }} />
             <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-              <button style={{ ...abt("#4a5568"), flex: "none" as const, padding: "10px 20px" }} onClick={() => setModal(null)}>Cancel</button>
-              <button style={{ ...abt("#00c896", "#00c89618"), flex: 1, padding: 10 }}
+              <button style={{ ...abt(C.textMuted), flex: "none" as const, padding: "10px 20px" }} onClick={() => setModal(null)}>Cancel</button>
+              <button style={{ ...abt(C.accent, "#00c89618"), flex: 1, padding: 10 }}
                 disabled={!addForm.name || !addForm.email || !addForm.service || !addForm.date || !addForm.time || acting === "add"}
                 onClick={addBooking}>
                 {acting === "add" ? "Adding…" : "Add Booking"}
@@ -525,6 +542,13 @@ export default function ClientPortal() {
   const [cancelReason, setCancelReason] = useState("");
   const [cancelOption, setCancelOption] = useState<typeof CANCEL_OPTIONS[0] | null>(null);
 
+  // Upgrade / Feature Requests
+  const [myFeatureRequests, setMyFeatureRequests] = useState<any[]>([]);
+  const [upgradeSelected, setUpgradeSelected] = useState<string[]>([]);
+  const [upgradeMessage, setUpgradeMessage] = useState("");
+  const [upgradeSubmitting, setUpgradeSubmitting] = useState(false);
+  const [upgradeSubmitted, setUpgradeSubmitted] = useState(false);
+
   // ── Auth + data load ────────────────────────────────────────────────────────
   useEffect(() => {
     const wgAuthVal = localStorage.getItem(`wg_auth_${slug}`);
@@ -542,7 +566,37 @@ export default function ClientPortal() {
     loadPaymentStatus();
     if ((tab === "bookings" || tab === "overview") && client.hasBooking) loadBookings();
     if (tab === "preview") loadFeedback();
+    if (tab === "upgrade") loadMyFeatureRequests();
   }, [tab, client]);
+
+  async function loadMyFeatureRequests() {
+    try {
+      const res = await fetch(`/api/feature-requests?slug=${slug}`);
+      if (res.ok) {
+        const d = await res.json();
+        setMyFeatureRequests(d.requests || []);
+      }
+    } catch {}
+  }
+
+  async function submitUpgradeRequest() {
+    if (upgradeSelected.length === 0) return;
+    setUpgradeSubmitting(true);
+    try {
+      const res = await fetch("/api/feature-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, featureIds: upgradeSelected, message: upgradeMessage }),
+      });
+      if (res.ok) {
+        setUpgradeSubmitted(true);
+        setUpgradeSelected([]);
+        setUpgradeMessage("");
+        await loadMyFeatureRequests();
+      }
+    } catch {}
+    finally { setUpgradeSubmitting(false); }
+  }
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -780,39 +834,165 @@ export default function ClientPortal() {
     ...(hasBooking ? [{ id: "bookings" as Tab, label: "Bookings" }] : []),
     { id: "quote", label: "Quote & Pay" },
     { id: "plan", label: "My Plan" },
+    { id: "upgrade", label: "Add Features" },
   ];
 
-  // ── Style tokens ─────────────────────────────────────────────────────────────
   const S = {
-    page: { minHeight: "100vh", background: "#080c14", color: "#e2e8f0", fontFamily: "'Inter',-apple-system,BlinkMacSystemFont,sans-serif" } as React.CSSProperties,
-    header: { background: "#0d1117", borderBottom: "1px solid #1e2531", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky" as const, top: 0, zIndex: 50 } as React.CSSProperties,
-    logoMark: { width: 28, height: 28, background: "linear-gradient(135deg,#00c896,#0099ff)", borderRadius: 7, flexShrink: 0 } as React.CSSProperties,
-    tabBar: { background: "#0d1117", borderBottom: "1px solid #1e2531", display: "flex", overflowX: "auto" as const, scrollbarWidth: "none" as const } as React.CSSProperties,
-    tabBtn: (active: boolean): React.CSSProperties => ({ padding: "13px 16px", fontSize: "13px", fontWeight: active ? 600 : 400, color: active ? "#00c896" : "#4a5568", borderTop: "none", borderLeft: "none", borderRight: "none", borderBottom: `2px solid ${active ? "#00c896" : "transparent"}`, background: "none", cursor: "pointer", whiteSpace: "nowrap" as const }),
-    body: { padding: "16px", maxWidth: 720, margin: "0 auto" } as React.CSSProperties,
-    card: { background: "#0d1117", border: "1px solid #1e2531", borderRadius: 12, padding: 18, marginBottom: 12 } as React.CSSProperties,
-    label: { fontSize: 11, fontWeight: 600, color: "#4a5568", textTransform: "uppercase" as const, letterSpacing: ".07em", marginBottom: 6 } as React.CSSProperties,
-    val: { fontSize: 15, color: "#e2e8f0" } as React.CSSProperties,
-    pill: (color: string): React.CSSProperties => ({ display: "inline-block", background: `${color}18`, color, border: `1px solid ${color}33`, borderRadius: 20, padding: "3px 11px", fontSize: 12, fontWeight: 600 }),
-    btn: (v: "primary"|"secondary"|"danger"|"ghost" = "primary", disabled = false): React.CSSProperties => ({
-      display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px 20px", borderRadius: 9, fontSize: 14, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, border: "none", transition: "opacity .15s",
-      ...(v === "primary" ? { background: "linear-gradient(135deg,#00c896,#0099ff)", color: "#000" }
-        : v === "secondary" ? { background: "#1a2233", color: "#94a3b8", border: "1px solid #1e2531" }
-        : v === "danger" ? { background: "#ff444415", color: "#ff6b6b", border: "1px solid #ff444430" }
-        : { background: "none", color: "#4a5568", border: "1px solid #1e2531" }),
+    page: {
+      minHeight: "100vh",
+      background: C.bg,
+      color: C.text,
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    } as React.CSSProperties,
+
+    header: {
+      background: C.surface,
+      borderBottom: `1px solid ${C.border}`,
+      padding: "0 20px",
+      height: 52,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      position: "sticky" as const,
+      top: 0,
+      zIndex: 50,
+    } as React.CSSProperties,
+
+    logoMark: {
+      width: 26,
+      height: 26,
+      background: `linear-gradient(135deg, ${C.accent}, #0ea5e9)`,
+      borderRadius: 7,
+      flexShrink: 0,
+    } as React.CSSProperties,
+
+    tabBar: {
+      background: C.surface,
+      borderBottom: `1px solid ${C.border}`,
+      display: "flex",
+      overflowX: "auto" as const,
+      scrollbarWidth: "none" as const,
+      padding: "0 4px",
+    } as React.CSSProperties,
+
+    tabBtn: (active: boolean): React.CSSProperties => ({
+      padding: "14px 16px",
+      fontSize: "13px",
+      fontWeight: active ? 500 : 400,
+      color: active ? C.accent : C.textMuted,
+      borderTop: "none",
+      borderLeft: "none",
+      borderRight: "none",
+      borderBottom: `2px solid ${active ? C.accent : "transparent"}`,
+      background: "none",
+      cursor: "pointer",
+      whiteSpace: "nowrap" as const,
+      letterSpacing: "0.01em",
+      transition: "color 0.15s",
     }),
-    divider: { height: 1, background: "#1e2531", margin: "16px 0" } as React.CSSProperties,
-    lockBox: { background: "#080c14", borderRadius: 8, padding: 12, textAlign: "center" as const, color: "#2a3347", fontSize: 13, marginTop: 12 } as React.CSSProperties,
+
+    body: {
+      padding: "20px 16px",
+      maxWidth: 720,
+      margin: "0 auto",
+    } as React.CSSProperties,
+
+    card: {
+      background: C.surface,
+      border: `1px solid ${C.border}`,
+      borderRadius: 12,
+      padding: "18px 20px",
+      marginBottom: 12,
+    } as React.CSSProperties,
+
+    label: {
+      fontSize: 10,
+      fontWeight: 600,
+      color: C.textMuted,
+      textTransform: "uppercase" as const,
+      letterSpacing: "0.08em",
+      marginBottom: 6,
+    } as React.CSSProperties,
+
+    val: {
+      fontSize: 15,
+      color: C.text,
+      fontWeight: 400,
+    } as React.CSSProperties,
+
+    pill: (color: string): React.CSSProperties => ({
+      display: "inline-block",
+      background: `${color}15`,
+      color,
+      border: `1px solid ${color}30`,
+      borderRadius: 6,
+      padding: "2px 9px",
+      fontSize: 11,
+      fontWeight: 600,
+      letterSpacing: "0.02em",
+    }),
+
+    btn: (v: "primary"|"secondary"|"danger"|"ghost" = "primary", disabled = false): React.CSSProperties => ({
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      padding: "10px 20px",
+      borderRadius: 8,
+      fontSize: 14,
+      fontWeight: 500,
+      cursor: disabled ? "not-allowed" : "pointer",
+      opacity: disabled ? 0.5 : 1,
+      letterSpacing: "0.01em",
+      transition: "opacity 0.15s",
+      ...(v === "primary"
+        ? { background: C.accent, color: "#000", border: "none" }
+        : v === "secondary"
+        ? { background: C.raised, color: C.textSec, border: `1px solid ${C.border}` }
+        : v === "danger"
+        ? { background: C.red + "12", color: C.red, border: `1px solid ${C.red}25` }
+        : { background: "none", color: C.textMuted, border: `1px solid ${C.border}` }),
+    }),
+
+    divider: {
+      height: 1,
+      background: C.border,
+      margin: "18px 0",
+    } as React.CSSProperties,
+
+    lockBox: {
+      background: C.raised,
+      borderRadius: 8,
+      padding: "12px 16px",
+      textAlign: "center" as const,
+      color: C.textMuted,
+      fontSize: 13,
+      marginTop: 12,
+      border: `1px solid ${C.border}`,
+    } as React.CSSProperties,
+
     payBtn: (active: boolean, v: "primary"|"secondary" = "primary"): React.CSSProperties => ({
-      width: "100%", background: active ? (v === "primary" ? "linear-gradient(135deg,#00c896,#0099ff)" : "#1a2233") : "#0f1620",
-      color: active ? (v === "primary" ? "#000" : "#fff") : "#2a3347", border: active && v === "secondary" ? "1px solid #1e2531" : "none",
-      borderRadius: 10, padding: 14, fontSize: 15, fontWeight: 700, cursor: active ? "pointer" : "not-allowed", marginTop: 12,
+      width: "100%",
+      background: active
+        ? (v === "primary" ? C.accent : C.raised)
+        : C.raised,
+      color: active
+        ? (v === "primary" ? "#000" : C.text)
+        : C.textMuted,
+      border: active && v === "secondary" ? `1px solid ${C.border}` : "none",
+      borderRadius: 9,
+      padding: "13px 20px",
+      fontSize: 15,
+      fontWeight: 600,
+      cursor: active ? "pointer" : "not-allowed",
+      marginTop: 12,
+      letterSpacing: "0.01em",
     }),
   };
 
   // ── Loading / error ──────────────────────────────────────────────────────────
-  if (loading) return <div style={{ ...S.page, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ color: "#4a5568" }}>Loading…</div></div>;
-  if (error || !client) return <div style={{ ...S.page, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ color: "#ff5555" }}>{error || "Project not found."}</div></div>;
+  if (loading) return <div style={{ ...S.page, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ color: C.textMuted, fontSize: 13, fontFamily: "Inter,sans-serif" }}>Loading…</div></div>;
+  if (error || !client) return <div style={{ ...S.page, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ color: C.red, fontSize: 13 }}>{error || "Project not found."}</div></div>;
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
@@ -822,11 +1002,11 @@ export default function ClientPortal() {
       <header style={S.header}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={S.logoMark} />
-          <span style={{ fontSize: 15, fontWeight: 700, color: "#e2e8f0" }}>WebGecko</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: C.text, letterSpacing: "-0.01em" }}>WebGecko</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 12, color: "#4a5568", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.businessName}</span>
-          <button style={{ background: "none", border: "1px solid #1e2531", color: "#4a5568", borderRadius: 6, padding: "6px 12px", fontSize: 12, cursor: "pointer" }} onClick={signOut}>Sign out</button>
+          <span style={{ fontSize: 12, color: C.textMuted, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.businessName}</span>
+          <button style={{ background: "none", border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 7, padding: "5px 12px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }} onClick={signOut}>Sign out</button>
         </div>
       </header>
 
@@ -839,18 +1019,18 @@ export default function ClientPortal() {
       {tab === "preview" && (
           <>
             {!paymentStatus?.previewUnlocked ? (
-              <div style={{ margin: "16px", background: "#0d1117", border: "1px solid #1e2531", borderRadius: 12, textAlign: "center", padding: "48px 24px" }}>
-                <div style={{ fontSize: 36, marginBottom: 12 }}>🔒</div>
-                <div style={{ color: "#64748b", fontSize: 15 }}>Preview coming soon</div>
-                <div style={{ color: "#334155", fontSize: 13, marginTop: 6 }}>You'll receive an email when your site is ready to review.</div>
+              <div style={{ margin: "20px 16px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, textAlign: "center", padding: "56px 24px" }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: C.raised, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 22 }}>🔒</div>
+                <div style={{ color: C.textSec, fontSize: 15, fontWeight: 500 }}>Preview coming soon</div>
+                <div style={{ color: C.textMuted, fontSize: 13, marginTop: 6 }}>You'll receive an email when your site is ready to review.</div>
               </div>
             ) : client.jobId ? (
               <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 112px)" }}>
-                {/* iframe — takes all remaining space */}
-                <div style={{ flex: 1, position: "relative", background: "#080c14", borderBottom: "1px solid #1e2531", minHeight: 0 }}>
-                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", background: "#0d1117", borderBottom: "1px solid #1e2531", zIndex: 10 }}>
-                    <span style={{ color: "#cbd5e1", fontWeight: 600, fontSize: 13 }}>🖥 Live Preview — Round {feedbackRound}</span>
-                    {client.previewUrl && <a href={client.previewUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#38bdf8", fontSize: 12, textDecoration: "none" }}>Open in new tab ↗</a>}
+                {/* iframe toolbar */}
+                <div style={{ flex: 1, position: "relative", background: C.bg, borderBottom: `1px solid ${C.border}`, minHeight: 0 }}>
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", height: 42, background: C.surface, borderBottom: `1px solid ${C.border}`, zIndex: 10 }}>
+                    <span style={{ color: C.textSec, fontWeight: 500, fontSize: 13 }}>Live preview — Round {feedbackRound}</span>
+                    {client.previewUrl && <a href={client.previewUrl} target="_blank" rel="noopener noreferrer" style={{ color: C.accentBlue, fontSize: 12, textDecoration: "none" }}>Open in new tab ↗</a>}
                   </div>
                   <iframe
                     src={`/api/preview/proxy?slug=${slug}`}
@@ -860,27 +1040,27 @@ export default function ClientPortal() {
                 </div>
 
                 {/* Changes panel */}
-                <div style={{ background: "#0d1117", borderTop: "1px solid #1e2531", padding: "14px 16px", flexShrink: 0 }}>
+                <div style={{ background: C.surface, borderTop: `1px solid ${C.border}`, padding: "14px 16px", flexShrink: 0 }}>
                   {revisionSent ? (
-                    <div style={{ background: "#00c89612", border: "1px solid #00c89625", borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
-                      <div style={{ fontSize: 24 }}>✅</div>
+                    <div style={{ background: C.accent + "10", border: `1px solid ${C.accent}25`, borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+                      <div style={{ fontSize: 20 }}>✓</div>
                       <div>
-                        <div style={{ color: "#00c896", fontWeight: 700, fontSize: 14 }}>Changes submitted!</div>
-                        <div style={{ color: "#475569", fontSize: 13, marginTop: 2 }}>We're applying your changes. You'll get an email when the revised site is ready.</div>
+                        <div style={{ color: C.accent, fontWeight: 600, fontSize: 14 }}>Changes submitted</div>
+                        <div style={{ color: C.textMuted, fontSize: 13, marginTop: 2 }}>We're applying your changes. You'll get an email when the revised site is ready.</div>
                       </div>
                     </div>
                   ) : (
                     <>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                        <div style={{ color: "#e2e8f0", fontWeight: 700, fontSize: 14 }}>✏️ Request Changes</div>
+                        <div style={{ color: C.text, fontWeight: 500, fontSize: 14 }}>Request changes</div>
                         <div style={{
-                          fontSize: 12, fontWeight: 700,
-                          color: feedback.length >= 10 ? "#f87171" : feedback.length >= 8 ? "#fbbf24" : "#64748b",
-                          background: feedback.length >= 10 ? "#f8717115" : feedback.length >= 8 ? "#fbbf2415" : "#131c2e",
-                          border: `1px solid ${feedback.length >= 10 ? "#f8717130" : feedback.length >= 8 ? "#fbbf2430" : "#1e2d42"}`,
-                          borderRadius: 20, padding: "3px 10px",
+                          fontSize: 11, fontWeight: 600,
+                          color: feedback.length >= 10 ? C.red : feedback.length >= 8 ? C.amber : C.textMuted,
+                          background: feedback.length >= 10 ? C.red + "12" : feedback.length >= 8 ? C.amber + "12" : C.raised,
+                          border: `1px solid ${feedback.length >= 10 ? C.red + "25" : feedback.length >= 8 ? C.amber + "25" : C.border}`,
+                          borderRadius: 6, padding: "3px 9px", letterSpacing: "0.02em",
                         }}>
-                          {feedback.length}/10 changes
+                          {feedback.length}/10
                         </div>
                       </div>
 
@@ -905,7 +1085,7 @@ export default function ClientPortal() {
                             onChange={e => setFeedbackText(e.target.value)}
                             onKeyDown={e => e.key === "Enter" && submitFeedback()}
                             placeholder="e.g. Change the hero button to blue"
-                            style={{ flex: 1, background: "#131c2e", border: "1px solid #1e2d42", borderRadius: 8, padding: "10px 14px", color: "#e2e8f0", fontSize: 13, outline: "none" }}
+                            style={{ flex: 1, background: C.raised, border: "1px solid #1e2d42", borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none" }}
                           />
                           <button
                             onClick={submitFeedback}
@@ -926,19 +1106,19 @@ export default function ClientPortal() {
                       )}
 
                       {feedback.length === 0 && (
-                        <div style={{ color: "#334155", fontSize: 12, marginTop: 2 }}>First 10 changes are free. Additional changes are $15 each.</div>
+                        <div style={{ color: C.textMuted, fontSize: 12, marginTop: 2 }}>First 10 changes are free. Additional changes are $15 each.</div>
                       )}
                       {feedback.length >= 10 && (
-                        <div style={{ color: "#fbbf24", fontSize: 11, marginTop: 8, textAlign: "center" }}>10 changes reached — submit now or remove some to add different ones.</div>
+                        <div style={{ color: C.amber, fontSize: 11, marginTop: 8, textAlign: "center" }}>10 changes reached — submit now or remove some to add different ones.</div>
                       )}
                     </>
                   )}
                 </div>
               </div>
             ) : (
-              <div style={{ margin: "16px", background: "#0d1117", border: "1px solid #1e2531", borderRadius: 12, textAlign: "center", padding: "48px 24px" }}>
+              <div style={{ margin: "16px", background: C.surface, border: "1px solid #1e2531", borderRadius: 12, textAlign: "center", padding: "48px 24px" }}>
                 <div style={{ fontSize: 36, marginBottom: 12 }}>🏗️</div>
-                <div style={{ color: "#64748b", fontSize: 15 }}>Your site is being built.</div>
+                <div style={{ color: C.textMuted, fontSize: 15 }}>Your site is being built.</div>
               </div>
             )}
           </>
@@ -950,7 +1130,7 @@ export default function ClientPortal() {
         {tab === "overview" && (
           <>
             {/* Status */}
-            <div style={{ background: client.launchReady ? "#00c89612" : "#0099ff10", border: `1px solid ${client.launchReady ? "#00c89630" : "#0099ff25"}`, borderRadius: 10, padding: "14px 16px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, fontSize: 14, fontWeight: 600, color: client.launchReady ? "#00c896" : "#60aaff" }}>
+            <div style={{ background: client.launchReady ? "#00c89612" : "#0099ff10", border: `1px solid ${client.launchReady ? "#00c89630" : "#0099ff25"}`, borderRadius: 10, padding: "14px 16px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, fontSize: 14, fontWeight: 600, color: client.launchReady ? C.accent : "#60aaff" }}>
               <span>{client.launchReady ? "🚀" : "⚡"}</span>
               {client.launchReady ? "Your site is live!" : "Your website is being built"}
             </div>
@@ -963,7 +1143,7 @@ export default function ClientPortal() {
             {/* SuperSaas setup checklist — shown when booking is enabled but sub-user not yet created */}
             {hasBooking && client.supersaasUrl && !client.supersaasUrl.includes("?user=") && (
               <div style={{ background: "#1a0e00", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 10, padding: "14px 16px", marginBottom: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#fbbf24", marginBottom: 10 }}>📅 Booking Setup Checklist</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.amber, marginBottom: 10 }}>📅 Booking Setup Checklist</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {[
                     { done: true, text: "Booking section embedded on your site" },
@@ -975,13 +1155,13 @@ export default function ClientPortal() {
                     { done: false, text: "Test a booking end-to-end" },
                   ].map((item, i) => (
                     <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 13 }}>
-                      <span style={{ color: item.done ? "#00c896" : "#fbbf24", flexShrink: 0, marginTop: 1 }}>{item.done ? "✓" : "○"}</span>
-                      <span style={{ color: item.done ? "#64748b" : "#cbd5e1", textDecoration: item.done ? "line-through" : "none" }}>{item.text}</span>
+                      <span style={{ color: item.done ? C.accent : C.amber, flexShrink: 0, marginTop: 1 }}>{item.done ? "✓" : "○"}</span>
+                      <span style={{ color: item.done ? C.textMuted : C.textSec, textDecoration: item.done ? "line-through" : "none" }}>{item.text}</span>
                     </div>
                   ))}
                 </div>
                 <a href="https://www.supersaas.com/dashboard" target="_blank" rel="noopener noreferrer"
-                  style={{ display: "inline-block", marginTop: 12, fontSize: 12, color: "#fbbf24", textDecoration: "none", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 6, padding: "6px 12px" }}>
+                  style={{ display: "inline-block", marginTop: 12, fontSize: 12, color: C.amber, textDecoration: "none", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 6, padding: "6px 12px" }}>
                   Open SuperSaas Dashboard →
                 </a>
               </div>
@@ -991,14 +1171,14 @@ export default function ClientPortal() {
             {hasBooking && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10, marginBottom: 12 }}>
                 {[
-                  { n: upcomingBookings.length, l: "Upcoming bookings", c: "#00c896" },
+                  { n: upcomingBookings.length, l: "Upcoming bookings", c: C.accent },
                   { n: bookingsThisMonth.length, l: "Bookings this month", c: "#0099ff" },
-                  { n: `$${monthlyRevenue}`, l: "Monthly plan", c: "#8b5cf6" },
-                  { n: bookings.filter(b => b.status === "confirmed").length, l: "Total confirmed", c: "#f59e0b" },
+                  { n: `$${monthlyRevenue}`, l: "Monthly plan", c: C.purple },
+                  { n: bookings.filter(b => b.status === "confirmed").length, l: "Total confirmed", c: C.amber },
                 ].map(({ n, l, c }) => (
-                  <div key={l} style={{ background: "#0d1117", border: `1px solid ${c}25`, borderRadius: 12, padding: 16 }}>
-                    <div style={{ fontSize: 26, fontWeight: 800, color: "#e2e8f0", lineHeight: 1, marginBottom: 4 }}>{n}</div>
-                    <div style={{ fontSize: 12, color: "#4a5568" }}>{l}</div>
+                  <div key={l} style={{ background: C.surface, border: `1px solid ${c}25`, borderRadius: 12, padding: 16 }}>
+                    <div style={{ fontSize: 26, fontWeight: 800, color: C.text, lineHeight: 1, marginBottom: 4 }}>{n}</div>
+                    <div style={{ fontSize: 12, color: C.textMuted }}>{l}</div>
                   </div>
                 ))}
               </div>
@@ -1009,8 +1189,8 @@ export default function ClientPortal() {
               <div style={S.label}>Your Project</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "10px 0 14px" }}>
                 <span style={S.pill("#0099ff")}>{client.industry}</span>
-                <span style={S.pill("#00c896")}>{client.siteType === "multi" ? "Multi-page" : "Single page"}</span>
-                {features.map(f => <span key={f} style={S.pill("#8b5cf6")}>{f}</span>)}
+                <span style={S.pill(C.accent)}>{client.siteType === "multi" ? "Multi-page" : "Single page"}</span>
+                {features.map(f => <span key={f} style={S.pill(C.purple)}>{f}</span>)}
               </div>
 
               {(() => {
@@ -1030,8 +1210,8 @@ export default function ClientPortal() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
                     {rows.map(r => (
                       <div key={r.label} style={{ display: "flex", gap: 10, fontSize: 13 }}>
-                        <span style={{ color: "#4a5568", minWidth: 80, flexShrink: 0 }}>{r.label}</span>
-                        <span style={{ color: "#94a3b8" }}>{r.value}</span>
+                        <span style={{ color: C.textMuted, minWidth: 80, flexShrink: 0 }}>{r.label}</span>
+                        <span style={{ color: C.textSec }}>{r.value}</span>
                       </div>
                     ))}
                   </div>
@@ -1042,7 +1222,7 @@ export default function ClientPortal() {
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ ...S.label, marginBottom: 6 }}>Pages</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {(client.pages as string[]).map(p => <span key={p} style={{ fontSize: 12, color: "#94a3b8", background: "#1a2233", borderRadius: 6, padding: "3px 9px" }}>{p}</span>)}
+                    {(client.pages as string[]).map(p => <span key={p} style={{ fontSize: 12, color: C.textSec, background: "#1a2233", borderRadius: 6, padding: "3px 9px" }}>{p}</span>)}
                   </div>
                 </div>
               )}
@@ -1050,13 +1230,13 @@ export default function ClientPortal() {
               <div style={S.divider} />
 
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 8 }}>
-                <span style={{ color: "#4a5568" }}>Timeline</span>
-                <span style={{ color: "#94a3b8" }}>{getTimeline()}</span>
+                <span style={{ color: C.textMuted }}>Timeline</span>
+                <span style={{ color: C.textSec }}>{getTimeline()}</span>
               </div>
               {client.domain && (
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: "#4a5568" }}>Domain</span>
-                  <span style={{ color: "#94a3b8" }}>{client.domain}</span>
+                  <span style={{ color: C.textMuted }}>Domain</span>
+                  <span style={{ color: C.textSec }}>{client.domain}</span>
                 </div>
               )}
             </div>
@@ -1067,22 +1247,22 @@ export default function ClientPortal() {
                 <div style={S.label}>Your Features</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
                   {hasBooking && (
-                    <a href={`/c/${slug}/bookings`} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "#080c14", border: "1px solid #1e2531", borderRadius: 10, textDecoration: "none" }}>
+                    <a href={`/c/${slug}/bookings`} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: "1px solid #1e2531", borderRadius: 10, textDecoration: "none" }}>
                       <span style={{ fontSize: 20 }}>📅</span>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Bookings Dashboard</div>
-                        <div style={{ fontSize: 12, color: "#4a5568" }}>{upcomingBookings.length} upcoming · manage all appointments</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Bookings Dashboard</div>
+                        <div style={{ fontSize: 12, color: C.textMuted }}>{upcomingBookings.length} upcoming · manage all appointments</div>
                       </div>
-                      <span style={{ marginLeft: "auto", color: "#4a5568", fontSize: 14 }}>→</span>
+                      <span style={{ marginLeft: "auto", color: C.textMuted, fontSize: 14 }}>→</span>
                     </a>
                   )}
                   {hasShop && (
-                    <div style={{ padding: "14px", background: "#080c14", border: "1px solid #1e2531", borderRadius: 10 }}>
+                    <div style={{ padding: "14px", background: C.bg, border: "1px solid #1e2531", borderRadius: 10 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: squareConnected ? 0 : 12 }}>
                         <span style={{ fontSize: 20 }}>🛒</span>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Online Shop & Payments</div>
-                          <div style={{ fontSize: 12, color: "#4a5568" }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Online Shop & Payments</div>
+                          <div style={{ fontSize: 12, color: C.textMuted }}>
                             {squareConnected
                               ? "Square connected — payments go straight to your account"
                               : client?.shopPaymentUrl
@@ -1090,12 +1270,12 @@ export default function ClientPortal() {
                               : "Add a payment link so customers can buy from your site"}
                           </div>
                         </div>
-                        {squareConnected && <span style={{ ...S.pill("#00c896"), fontSize: 11 }}>Square Connected</span>}
-                        {!squareConnected && client?.shopPaymentUrl && <span style={{ ...S.pill("#00c896"), fontSize: 11 }}>Active</span>}
+                        {squareConnected && <span style={{ ...S.pill(C.accent), fontSize: 11 }}>Square Connected</span>}
+                        {!squareConnected && client?.shopPaymentUrl && <span style={{ ...S.pill(C.accent), fontSize: 11 }}>Active</span>}
                       </div>
                       {!squareConnected && (
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                          <div style={{ fontSize: 11, color: "#64748b" }}>
+                          <div style={{ fontSize: 11, color: C.textMuted }}>
                             Paste any payment link — Square, Stripe, PayPal, bank transfer page, anything. Customers clicking "Buy Now" will be sent here.
                           </div>
                           <div style={{ display: "flex", gap: 8 }}>
@@ -1104,19 +1284,19 @@ export default function ClientPortal() {
                               placeholder="https://square.link/... or paypal.me/... or stripe.com/..."
                               value={shopPaymentUrl}
                               onChange={e => setShopPaymentUrl(e.target.value)}
-                              style={{ flex: 1, background: "#0f172a", border: "1px solid #1e2531", borderRadius: 8, padding: "8px 12px", color: "#e2e8f0", fontSize: 12, outline: "none" }}
+                              style={{ flex: 1, background: C.raised, border: "1px solid #1e2531", borderRadius: 8, padding: "8px 12px", color: C.text, fontSize: 12, outline: "none" }}
                             />
                             <button
                               onClick={saveShopPaymentUrl}
                               disabled={shopPaymentSaving || !shopPaymentUrl.trim()}
-                              style={{ background: shopPaymentSaving ? "#1e2531" : "#006aff", color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", whiteSpace: "nowrap" }}
+                              style={{ background: shopPaymentSaving ? C.border : C.accentBlue, color: "#fff", fontWeight: 700, fontSize: 12, padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", whiteSpace: "nowrap" }}
                             >
                               {shopPaymentSaving ? "Saving..." : shopPaymentSaved ? "Saved" : "Save & Apply"}
                             </button>
                           </div>
-                          <div style={{ fontSize: 11, color: "#4a5568" }}>
+                          <div style={{ fontSize: 11, color: C.textMuted }}>
                             Have a Square account?{" "}
-                            <a href={`/api/square/connect?slug=${slug}&jobId=${client?.jobId}`} style={{ color: "#006aff", textDecoration: "none" }}>
+                            <a href={`/api/square/connect?slug=${slug}&jobId=${client?.jobId}`} style={{ color: C.accentBlue, textDecoration: "none" }}>
                               Connect it instead
                             </a>
                           </div>
@@ -1125,29 +1305,29 @@ export default function ClientPortal() {
                     </div>
                   )}
                   {hasBlog && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "#080c14", border: "1px solid #1e2531", borderRadius: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: "1px solid #1e2531", borderRadius: 10 }}>
                       <span style={{ fontSize: 20 }}>📰</span>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Blog & Content</div>
-                        <div style={{ fontSize: 12, color: "#4a5568" }}>Contact us to publish new posts</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Blog & Content</div>
+                        <div style={{ fontSize: 12, color: C.textMuted }}>Contact us to publish new posts</div>
                       </div>
                     </div>
                   )}
                   {hasGallery && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "#080c14", border: "1px solid #1e2531", borderRadius: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: "1px solid #1e2531", borderRadius: 10 }}>
                       <span style={{ fontSize: 20 }}>🖼️</span>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Photo Gallery</div>
-                        <div style={{ fontSize: 12, color: "#4a5568" }}>Email new photos to hello@webgecko.au</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Photo Gallery</div>
+                        <div style={{ fontSize: 12, color: C.textMuted }}>Email new photos to hello@webgecko.au</div>
                       </div>
                     </div>
                   )}
                   {hasGrowth && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "#080c14", border: "1px solid #1e2531", borderRadius: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: "1px solid #1e2531", borderRadius: 10 }}>
                       <span style={{ fontSize: 20 }}>📈</span>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>Growth & Marketing</div>
-                        <div style={{ fontSize: 12, color: "#4a5568" }}>Newsletter & live chat on your site</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Growth & Marketing</div>
+                        <div style={{ fontSize: 12, color: C.textMuted }}>Newsletter & live chat on your site</div>
                       </div>
                     </div>
                   )}
@@ -1160,8 +1340,8 @@ export default function ClientPortal() {
               <div style={S.label}>Recent Improvements</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
                 {["Mobile layout optimised", "Page load speed improved", "SEO meta tags updated", "Accessibility improvements applied"].map((item, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: "#94a3b8" }}>
-                    <span style={{ color: "#00c896", fontSize: 11 }}>✓</span>{item}
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: C.textSec }}>
+                    <span style={{ color: C.accent, fontSize: 11 }}>✓</span>{item}
                   </div>
                 ))}
               </div>
@@ -1171,9 +1351,9 @@ export default function ClientPortal() {
             {paymentStatus?.previewUnlocked && (
               <div style={S.card}>
                 <div style={S.label}>Report an Issue</div>
-                <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 12 }}>Noticed something broken or not working right? Let us know and we'll fix it.</div>
+                <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 12 }}>Noticed something broken or not working right? Let us know and we'll fix it.</div>
                 {reportSent ? (
-                  <div style={{ color: "#00c896", fontSize: 13, fontWeight: 600 }}>✓ Report sent — we'll be in touch shortly.</div>
+                  <div style={{ color: C.accent, fontSize: 13, fontWeight: 600 }}>✓ Report sent — we'll be in touch shortly.</div>
                 ) : (
                   <>
                     <textarea
@@ -1181,7 +1361,7 @@ export default function ClientPortal() {
                       onChange={e => setReportText(e.target.value)}
                       placeholder="Describe the issue you're experiencing…"
                       rows={3}
-                      style={{ width: "100%", background: "#131c2e", border: "1px solid #1e2d42", borderRadius: 8, padding: "10px 14px", color: "#e2e8f0", fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" as const, marginBottom: 8 }}
+                      style={{ width: "100%", background: C.raised, border: "1px solid #1e2d42", borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" as const, marginBottom: 8 }}
                     />
                     <button
                       onClick={submitReport}
@@ -1196,7 +1376,7 @@ export default function ClientPortal() {
             )}
 
             <div style={{ ...S.card, background: "transparent", border: "1px solid #131b27" }}>
-              <div style={{ color: "#2a3347", fontSize: 13 }}>Questions? <a href="mailto:hello@webgecko.au" style={{ color: "#334155" }}>hello@webgecko.au</a></div>
+              <div style={{ color: C.textMuted, fontSize: 13 }}>Questions? <a href="mailto:hello@webgecko.au" style={{ color: C.textMuted }}>hello@webgecko.au</a></div>
             </div>
           </>
         )}
@@ -1212,56 +1392,56 @@ export default function ClientPortal() {
             {client.quote && (
               <div style={S.card}>
                 <div style={S.label}>{client.quote.package} Package</div>
-                <div style={{ fontSize: 32, fontWeight: 800, color: "#e2e8f0", marginBottom: 4 }}>${client.quote.price.toLocaleString()}</div>
-                <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 14 }}>+ $109/month for 3 months, then $119/month hosting & maintenance</div>
-                <div style={{ background: "#00c89610", border: "1px solid #00c89625", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#00c896", marginBottom: 12 }}>
+                <div style={{ fontSize: 32, fontWeight: 800, color: C.text, marginBottom: 4 }}>${client.quote.price.toLocaleString()}</div>
+                <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 14 }}>+ $109/month for 3 months, then $119/month hosting & maintenance</div>
+                <div style={{ background: "#00c89610", border: "1px solid #00c89625", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: C.accent, marginBottom: 12 }}>
                   🎉 Saving ${client.quote.savings.toLocaleString()} vs the industry average of ${client.quote.competitorPrice.toLocaleString()}
                 </div>
                 {client.quote.breakdown.map(line => (
-                  <div key={line} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderTop: "1px solid #1a2233", fontSize: 13, color: "#4a5568" }}>
-                    <span>{line.split(":")[0]}</span><span style={{ color: "#64748b" }}>{line.split(":")[1]}</span>
+                  <div key={line} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderTop: "1px solid #1a2233", fontSize: 13, color: C.textMuted }}>
+                    <span>{line.split(":")[0]}</span><span style={{ color: C.textMuted }}>{line.split(":")[1]}</span>
                   </div>
                 ))}
               </div>
             )}
 
             {!paymentStatus ? (
-              <div style={{ ...S.card, textAlign: "center", padding: 32 }}><div style={{ color: "#2a3347", fontSize: 14 }}>Loading payment details…</div></div>
+              <div style={{ ...S.card, textAlign: "center", padding: 32 }}><div style={{ color: C.textMuted, fontSize: 14 }}>Loading payment details…</div></div>
             ) : (
               <>
                 <div style={S.card}>
                   <div style={S.label}>Payment Progress</div>
                   <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                     {[{ label: "Deposit", done: paymentStatus.depositPaid, icon: "💳" }, { label: "Final", done: paymentStatus.finalPaid, icon: "🚀" }, { label: "Monthly", done: paymentStatus.monthlyActive, icon: "🔄" }].map(s => (
-                      <div key={s.label} style={{ flex: 1, textAlign: "center", padding: "14px 8px", borderRadius: 10, background: s.done ? "#00c89612" : "#0d1117", border: `1px solid ${s.done ? "#00c89630" : "#1e2531"}` }}>
+                      <div key={s.label} style={{ flex: 1, textAlign: "center", padding: "14px 8px", borderRadius: 10, background: s.done ? "#00c89612" : C.surface, border: `1px solid ${s.done ? "#00c89630" : C.border}` }}>
                         <div style={{ fontSize: 18, marginBottom: 4 }}>{s.done ? "✅" : s.icon}</div>
-                        <div style={{ fontSize: 11, color: s.done ? "#00c896" : "#2a3347", fontWeight: 600 }}>{s.label}</div>
+                        <div style={{ fontSize: 11, color: s.done ? C.accent : C.textMuted, fontWeight: 600 }}>{s.label}</div>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Deposit */}
-                <div style={{ ...S.card, borderColor: paymentStatus.depositPaid ? "#00c89630" : "#1e2531" }}>
+                <div style={{ ...S.card, borderColor: paymentStatus.depositPaid ? "#00c89630" : C.border }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div><div style={{ fontWeight: 700, fontSize: 16, color: "#e2e8f0", marginBottom: 4 }}>50% Deposit</div><div style={{ color: "#4a5568", fontSize: 13 }}>Pay now to begin your website build</div></div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: "#e2e8f0" }}>${paymentStatus.quote.deposit.toLocaleString()}</div>
+                    <div><div style={{ fontWeight: 700, fontSize: 16, color: C.text, marginBottom: 4 }}>50% Deposit</div><div style={{ color: C.textMuted, fontSize: 13 }}>Pay now to begin your website build</div></div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: C.text }}>${paymentStatus.quote.deposit.toLocaleString()}</div>
                   </div>
                   {paymentStatus.depositPaid
-                    ? <div style={{ color: "#00c896", fontSize: 13, fontWeight: 600, marginTop: 12 }}>✓ Paid — build in progress</div>
+                    ? <div style={{ color: C.accent, fontSize: 13, fontWeight: 600, marginTop: 12 }}>✓ Paid — build in progress</div>
                     : <button onClick={() => handlePay("deposit")} disabled={payLoading === "deposit"} style={{ ...S.payBtn(true), opacity: payLoading === "deposit" ? 0.6 : 1 }}>{payLoading === "deposit" ? "Loading…" : "Pay Deposit →"}</button>
                   }
                 </div>
 
                 {/* Final */}
-                <div style={{ ...S.card, opacity: !paymentStatus.depositPaid ? 0.45 : 1, borderColor: paymentStatus.finalPaid ? "#00c89630" : "#1e2531" }}>
+                <div style={{ ...S.card, opacity: !paymentStatus.depositPaid ? 0.45 : 1, borderColor: paymentStatus.finalPaid ? "#00c89630" : C.border }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div><div style={{ fontWeight: 700, fontSize: 16, color: "#e2e8f0", marginBottom: 4 }}>50% Final Payment</div>
-                      <div style={{ color: "#4a5568", fontSize: 13 }}>{!paymentStatus.depositPaid ? "Pay deposit first" : !paymentStatus.finalUnlocked ? "Unlocked after your revision is approved" : "Pay to launch your website"}</div></div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: "#e2e8f0" }}>${paymentStatus.quote.final.toLocaleString()}</div>
+                    <div><div style={{ fontWeight: 700, fontSize: 16, color: C.text, marginBottom: 4 }}>50% Final Payment</div>
+                      <div style={{ color: C.textMuted, fontSize: 13 }}>{!paymentStatus.depositPaid ? "Pay deposit first" : !paymentStatus.finalUnlocked ? "Unlocked after your revision is approved" : "Pay to launch your website"}</div></div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: C.text }}>${paymentStatus.quote.final.toLocaleString()}</div>
                   </div>
                   {paymentStatus.finalPaid
-                    ? <div style={{ color: "#00c896", fontSize: 13, fontWeight: 600, marginTop: 12 }}>✓ Paid — site is live</div>
+                    ? <div style={{ color: C.accent, fontSize: 13, fontWeight: 600, marginTop: 12 }}>✓ Paid — site is live</div>
                     : paymentStatus.finalUnlocked && paymentStatus.depositPaid
                     ? <button onClick={() => handlePay("final")} disabled={payLoading === "final"} style={{ ...S.payBtn(true), opacity: payLoading === "final" ? 0.6 : 1 }}>{payLoading === "final" ? "Loading…" : "Pay Final & Launch →"}</button>
                     : <div style={S.lockBox}>🔒 Locked</div>
@@ -1269,30 +1449,30 @@ export default function ClientPortal() {
                 </div>
 
                 {/* Monthly — included in final payment, just needs activation */}
-                <div style={{ ...S.card, opacity: !paymentStatus.finalPaid ? 0.45 : 1, borderColor: paymentStatus.monthlyActive ? "#00c89630" : "#1e2531" }}>
+                <div style={{ ...S.card, opacity: !paymentStatus.finalPaid ? 0.45 : 1, borderColor: paymentStatus.monthlyActive ? "#00c89630" : C.border }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div><div style={{ fontWeight: 700, fontSize: 16, color: "#e2e8f0", marginBottom: 4 }}>Monthly Hosting & Maintenance</div>
-                      <div style={{ color: "#4a5568", fontSize: 13 }}>
+                    <div><div style={{ fontWeight: 700, fontSize: 16, color: C.text, marginBottom: 4 }}>Monthly Hosting & Maintenance</div>
+                      <div style={{ color: C.textMuted, fontSize: 13 }}>
                         {!paymentStatus.finalPaid
                           ? "First month included in your final payment"
                           : "Intro: $109/mo for 3 months, then $119/mo ongoing"}
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <span style={{ fontSize: 22, fontWeight: 800, color: "#e2e8f0" }}>$109</span>
-                      <span style={{ fontSize: 13, color: "#4a5568" }}>/mo</span>
-                      <div style={{ fontSize: 10, color: "#4a5568", marginTop: 2 }}>then $119/mo</div>
+                      <span style={{ fontSize: 22, fontWeight: 800, color: C.text }}>$109</span>
+                      <span style={{ fontSize: 13, color: C.textMuted }}>/mo</span>
+                      <div style={{ fontSize: 10, color: C.textMuted, marginTop: 2 }}>then $119/mo</div>
                     </div>
                   </div>
                   {paymentStatus.monthlyActive
-                    ? <div style={{ color: "#00c896", fontSize: 13, fontWeight: 600, marginTop: 12 }}>✓ Active</div>
+                    ? <div style={{ color: C.accent, fontSize: 13, fontWeight: 600, marginTop: 12 }}>✓ Active</div>
                     : paymentStatus.finalPaid
-                    ? <div style={{ color: "#00c896", fontSize: 13, fontWeight: 600, marginTop: 12 }}>✓ First month included in final payment — active on launch</div>
+                    ? <div style={{ color: C.accent, fontSize: 13, fontWeight: 600, marginTop: 12 }}>✓ First month included in final payment — active on launch</div>
                     : <div style={S.lockBox}>🔒 Included in your final payment</div>
                   }
                 </div>
 
-                <div style={{ color: "#1e2531", fontSize: 12, textAlign: "center", marginTop: 4 }}>Payments processed securely by Square · WebGecko never stores card details</div>
+                <div style={{ color: C.border, fontSize: 12, textAlign: "center", marginTop: 4 }}>Payments processed securely by Square · WebGecko never stores card details</div>
               </>
             )}
           </>
@@ -1306,19 +1486,19 @@ export default function ClientPortal() {
               <div style={S.label}>Current Plan</div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
                 <div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: "#e2e8f0" }}>{client.quote?.package || "Standard"} Plan</div>
-                  <div style={{ fontSize: 13, color: "#4a5568", marginTop: 2 }}>Hosting, maintenance & ongoing updates</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>{client.quote?.package || "Standard"} Plan</div>
+                  <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>Hosting, maintenance & ongoing updates</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: "#00c896" }}>$109</div>
-                  <div style={{ fontSize: 12, color: "#4a5568" }}>/month</div>
-                  <div style={{ fontSize: 10, color: "#4a5568", marginTop: 1 }}>then $119/mo</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: C.accent }}>$109</div>
+                  <div style={{ fontSize: 12, color: C.textMuted }}>/month</div>
+                  <div style={{ fontSize: 10, color: C.textMuted, marginTop: 1 }}>then $119/mo</div>
                 </div>
               </div>
               <div style={S.divider} />
               {["Fast Australian hosting", "Monthly AI improvements", "10 free site changes/month", "SEO & performance updates", "Priority email support"].map((item, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: "#94a3b8", marginBottom: 8 }}>
-                  <span style={{ color: "#00c896", fontSize: 11 }}>✓</span>{item}
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: C.textSec, marginBottom: 8 }}>
+                  <span style={{ color: C.accent, fontSize: 11 }}>✓</span>{item}
                 </div>
               ))}
             </div>
@@ -1335,8 +1515,8 @@ export default function ClientPortal() {
                   <div key={title} style={{ display: "flex", gap: 12 }}>
                     <div style={{ fontSize: 20 }}>{icon}</div>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>{title}</div>
-                      <div style={{ fontSize: 12, color: "#4a5568", marginTop: 2 }}>{desc}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{title}</div>
+                      <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{desc}</div>
                     </div>
                   </div>
                 ))}
@@ -1347,37 +1527,37 @@ export default function ClientPortal() {
             {!showSubModal && (
               <div style={S.card}>
                 <div style={S.label}>Your Hosting Plan</div>
-                <div style={{ background: "#080c14", border: "2px solid #00c89640", borderRadius: 12, padding: "20px 18px", marginTop: 10 }}>
+                <div style={{ background: C.bg, border: "2px solid #00c89640", borderRadius: 12, padding: "20px 18px", marginTop: 10 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#00c896", marginBottom: 4 }}>Standard Hosting</div>
-                      <div style={{ fontSize: 28, fontWeight: 800, color: "#e2e8f0", lineHeight: 1 }}>$109<span style={{ fontSize: 13, color: "#4a5568", fontWeight: 400 }}>/mo</span></div>
-                      <div style={{ fontSize: 11, color: "#4a5568", marginTop: 3 }}>Intro rate — first 3 months</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.accent, marginBottom: 4 }}>Standard Hosting</div>
+                      <div style={{ fontSize: 28, fontWeight: 800, color: C.text, lineHeight: 1 }}>$109<span style={{ fontSize: 13, color: C.textMuted, fontWeight: 400 }}>/mo</span></div>
+                      <div style={{ fontSize: 11, color: C.textMuted, marginTop: 3 }}>Intro rate — first 3 months</div>
                     </div>
-                    <div style={{ background: "#00c89615", border: "1px solid #00c89630", borderRadius: 20, padding: "4px 12px", fontSize: 11, fontWeight: 700, color: "#00c896" }}>ACTIVE</div>
+                    <div style={{ background: "#00c89615", border: "1px solid #00c89630", borderRadius: 20, padding: "4px 12px", fontSize: 11, fontWeight: 700, color: C.accent }}>ACTIVE</div>
                   </div>
-                  <div style={{ height: 1, background: "#1e2531", margin: "12px 0" }} />
+                  <div style={{ height: 1, background: C.border, margin: "12px 0" }} />
                   {["Hosting & SSL", "Site changes on request", "Monthly AI fix pass", "SEO updates", "Email support"].map(f => (
-                    <div key={f} style={{ fontSize: 12, color: "#64748b", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                      <span style={{ color: "#00c896", fontSize: 10 }}>✓</span>{f}
+                    <div key={f} style={{ fontSize: 12, color: C.textMuted, display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                      <span style={{ color: C.accent, fontSize: 10 }}>✓</span>{f}
                     </div>
                   ))}
-                  <div style={{ marginTop: 14, background: "#0a1628", border: "1px solid #1e2531", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#475569" }}>
-                    After 3 months, plan renews at <span style={{ color: "#e2e8f0", fontWeight: 600 }}>$119/mo</span>. Email us anytime to discuss your plan.
+                  <div style={{ marginTop: 14, background: C.raised, border: "1px solid #1e2531", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: C.textMuted }}>
+                    After 3 months, plan renews at <span style={{ color: C.text, fontWeight: 600 }}>$119/mo</span>. Email us anytime to discuss your plan.
                   </div>
                   <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Plan query — " + client.businessName)}&body=${encodeURIComponent("Hi, I wanted to ask about my hosting plan.\n\nBusiness: " + client.businessName)}`}
-                    style={{ display: "block", textAlign: "center", marginTop: 12, background: "#1a2233", color: "#94a3b8", borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+                    style={{ display: "block", textAlign: "center", marginTop: 12, background: "#1a2233", color: C.textSec, borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
                     Contact us about your plan
                   </a>
                 </div>
-                <div style={{ fontSize: 11, color: "#334155", textAlign: "center", marginTop: 12 }}>Plan changes take effect after your current paid month ends.</div>
+                <div style={{ fontSize: 11, color: C.textMuted, textAlign: "center", marginTop: 12 }}>Plan changes take effect after your current paid month ends.</div>
               </div>
             )}
 
             {/* Manage subscription */}
             {!showSubModal ? (
               <div style={{ ...S.card, background: "transparent", border: "1px solid #131b27" }}>
-                <div style={{ fontSize: 13, color: "#475569", marginBottom: 10 }}>Want to cancel or change something else?</div>
+                <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 10 }}>Want to cancel or change something else?</div>
                 <button onClick={() => { setShowSubModal(true); setSubStep("reason"); setCancelOption(null); setCancelReason(""); }} style={{ ...S.btn("ghost"), fontSize: 13 }}>Manage subscription</button>
               </div>
             ) : (
@@ -1386,8 +1566,8 @@ export default function ClientPortal() {
                 {/* Step 1 — Reason */}
                 {subStep === "reason" && (
                   <>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: "#e2e8f0", marginBottom: 4 }}>What's on your mind?</div>
-                    <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 16 }}>Tell us what's changed and we'll find the right option.</div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: C.text, marginBottom: 4 }}>What's on your mind?</div>
+                    <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 16 }}>Tell us what's changed and we'll find the right option.</div>
                     {[
                       { r: "too-expensive", label: "💰 It's too expensive right now" },
                       { r: "not-using", label: "😴 I'm not using it enough" },
@@ -1397,7 +1577,7 @@ export default function ClientPortal() {
                       { r: "other", label: "💬 Something else" },
                     ].map(({ r, label }) => (
                       <button key={r} onClick={() => { setCancelReason(r); setSubStep("option"); }}
-                        style={{ display: "block", width: "100%", textAlign: "left", background: cancelReason === r ? "#0d1a2e" : "#080c14", border: "1px solid #1e2531", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#94a3b8", cursor: "pointer", marginBottom: 8 }}>
+                        style={{ display: "block", width: "100%", textAlign: "left", background: cancelReason === r ? "#0d1a2e" : C.bg, border: "1px solid #1e2531", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: C.textSec, cursor: "pointer", marginBottom: 8 }}>
                         {label}
                       </button>
                     ))}
@@ -1408,13 +1588,13 @@ export default function ClientPortal() {
                 {/* Step 2 — Options based on reason */}
                 {subStep === "option" && (
                   <>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: "#e2e8f0", marginBottom: 4 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: C.text, marginBottom: 4 }}>
                       {cancelReason === "too-expensive" ? "Let's find something that works" :
                        cancelReason === "not-using" ? "Want to pause instead?" :
                        cancelReason === "unhappy" ? "Let us fix it first" :
                        "Here are your options"}
                     </div>
-                    <div style={{ color: "#4a5568", fontSize: 13, marginBottom: 16 }}>
+                    <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 16 }}>
                       {cancelReason === "too-expensive" ? "We can pause your plan or reduce your tier. Email us — we'd rather work something out than lose you." :
                        cancelReason === "not-using" ? "You can pause for up to 2 months at no cost. Your site stays live, billing resumes after." :
                        cancelReason === "unhappy" ? "We'll fix it at no extra cost — use the Site Preview tab to submit changes. If you're still not happy after, we'll sort it out." :
@@ -1438,17 +1618,17 @@ export default function ClientPortal() {
                     <div style={{ ...S.label, marginTop: 8 }}>Or choose a cancellation option</div>
                     {CANCEL_OPTIONS.map(opt => (
                       <button key={opt.id} onClick={() => { setCancelOption(opt); setSubStep("confirm"); }}
-                        style={{ display: "block", width: "100%", textAlign: "left", background: "#080c14", border: "1px solid #1e2531", borderRadius: 10, padding: "14px 16px", fontSize: 13, color: "#94a3b8", cursor: "pointer", marginBottom: 10 }}>
+                        style={{ display: "block", width: "100%", textAlign: "left", background: C.bg, border: "1px solid #1e2531", borderRadius: 10, padding: "14px 16px", fontSize: 13, color: C.textSec, cursor: "pointer", marginBottom: 10 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                           <div style={{ display: "flex", gap: 10 }}>
                             <span style={{ fontSize: 20 }}>{opt.icon}</span>
                             <div>
-                              <div style={{ fontWeight: 600, color: "#e2e8f0", marginBottom: 4 }}>{opt.label}</div>
-                              <div style={{ fontSize: 12, color: "#4a5568" }}>{opt.desc}</div>
+                              <div style={{ fontWeight: 600, color: C.text, marginBottom: 4 }}>{opt.label}</div>
+                              <div style={{ fontSize: 12, color: C.textMuted }}>{opt.desc}</div>
                             </div>
                           </div>
                           <div style={{ flexShrink: 0, textAlign: "right" }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: opt.id === "stop" ? "#94a3b8" : "#ffcc55", whiteSpace: "nowrap" }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: opt.id === "stop" ? C.textSec : "#ffcc55", whiteSpace: "nowrap" }}>
                               {opt.priceLabel(buildPrice)}
                             </div>
                           </div>
@@ -1462,21 +1642,21 @@ export default function ClientPortal() {
                 {/* Step 3 — Confirm */}
                 {subStep === "confirm" && cancelOption && (
                   <>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: "#e2e8f0", marginBottom: 4 }}>Confirm your choice</div>
-                    <div style={{ background: "#080c14", border: "1px solid #1e2531", borderRadius: 10, padding: "16px", marginBottom: 16 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: C.text, marginBottom: 4 }}>Confirm your choice</div>
+                    <div style={{ background: C.bg, border: "1px solid #1e2531", borderRadius: 10, padding: "16px", marginBottom: 16 }}>
                       <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
                         <span style={{ fontSize: 24 }}>{cancelOption.icon}</span>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "#e2e8f0" }}>{cancelOption.label}</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{cancelOption.label}</div>
                       </div>
-                      <div style={{ fontSize: 13, color: "#4a5568", marginBottom: 8 }}>{cancelOption.desc}</div>
+                      <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 8 }}>{cancelOption.desc}</div>
                       <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid #1e2531" }}>
-                        <span style={{ fontSize: 13, color: "#4a5568" }}>Exit fee</span>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: cancelOption.id === "stop" ? "#94a3b8" : "#ffcc55" }}>
+                        <span style={{ fontSize: 13, color: C.textMuted }}>Exit fee</span>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: cancelOption.id === "stop" ? C.textSec : "#ffcc55" }}>
                           {cancelOption.priceCalc(buildPrice) === 0 ? "Free" : `$${cancelOption.priceCalc(buildPrice).toLocaleString()}`}
                         </span>
                       </div>
                     </div>
-                    <div style={{ fontSize: 12, color: "#4a5568", marginBottom: 16 }}>
+                    <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 16 }}>
                       Clicking below sends a cancellation request to our team. We'll confirm within 1 business day.
                     </div>
                     <a
@@ -1494,6 +1674,118 @@ export default function ClientPortal() {
           </>
         )}
 
+        {/* ══════════════════════ ADD FEATURES ══════════════════════ */}
+        {tab === "upgrade" && (
+          <>
+            <div style={S.card}>
+              <div style={S.label}>Add Features to Your Site</div>
+              <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 16, lineHeight: 1.6 }}>
+                Select the features you'd like added. We'll build a draft for you to review before anything goes live.
+              </div>
+
+              {upgradeSubmitted ? (
+                <div style={{ background: "#00c89610", border: "1px solid #00c89625", borderRadius: 10, padding: "20px 18px", textAlign: "center" }}>
+                  <div style={{ fontSize: 20, marginBottom: 8 }}>🎉</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.accent, marginBottom: 6 }}>Request Submitted!</div>
+                  <div style={{ fontSize: 13, color: C.textMuted }}>We'll build a draft with your requested features and let you review it before it goes live. Check back here for updates.</div>
+                  <button onClick={() => setUpgradeSubmitted(false)} style={{ ...S.btn("secondary"), marginTop: 14, fontSize: 13 }}>Request More Features</button>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                    {[
+                      { id: "Booking System", icon: "📅", label: "Booking System", desc: "Online booking calendar so customers can schedule appointments directly." },
+                      { id: "Shop", icon: "🛒", label: "Online Shop", desc: "Sell products or services with Square-powered payments." },
+                      { id: "Live Chat", icon: "💬", label: "Live Chat", desc: "Real-time chat widget so visitors can message you instantly." },
+                      { id: "Gallery", icon: "🖼️", label: "Photo Gallery", desc: "A dedicated gallery section to showcase your work." },
+                      { id: "Blog", icon: "📰", label: "Blog", desc: "News/blog section to publish updates and articles." },
+                      { id: "Newsletter", icon: "📧", label: "Email Newsletter", desc: "Newsletter sign-up form to grow your subscriber list." },
+                      { id: "Pricing", icon: "💰", label: "Pricing Section", desc: "Clear pricing table or packages on your site." },
+                      { id: "Testimonials", icon: "⭐", label: "Customer Reviews", desc: "Showcase social proof with a testimonials section." },
+                      { id: "FAQ", icon: "❓", label: "FAQ Section", desc: "Answer common questions to reduce inbound enquiries." },
+                      { id: "Portfolio", icon: "🎨", label: "Portfolio", desc: "Visual portfolio of your past work or case studies." },
+                      { id: "Video Background", icon: "🎬", label: "Video Background", desc: "Full-screen video background hero section." },
+                    ].filter(f => !features.includes(f.id)).map(f => {
+                      const sel = upgradeSelected.includes(f.id);
+                      return (
+                        <button key={f.id} onClick={() => setUpgradeSelected(prev => sel ? prev.filter(x => x !== f.id) : [...prev, f.id])}
+                          style={{ display: "flex", alignItems: "center", gap: 12, background: sel ? "#00c89612" : C.bg, border: `1px solid ${sel ? "#00c89640" : C.border}`, borderRadius: 10, padding: "12px 14px", cursor: "pointer", textAlign: "left", width: "100%" }}>
+                          <span style={{ fontSize: 22, flexShrink: 0 }}>{f.icon}</span>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: sel ? C.accent : C.text, marginBottom: 2 }}>{f.label}</div>
+                            <div style={{ fontSize: 12, color: C.textMuted }}>{f.desc}</div>
+                          </div>
+                          <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${sel ? C.accent : C.border}`, background: sel ? C.accent : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            {sel && <span style={{ color: "#000", fontSize: 11, fontWeight: 800 }}>✓</span>}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {upgradeSelected.length > 0 && (
+                    <>
+                      <div style={S.divider} />
+                      <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 8 }}>Any specific notes? (optional)</div>
+                      <textarea
+                        value={upgradeMessage}
+                        onChange={e => setUpgradeMessage(e.target.value)}
+                        placeholder="e.g. I'd like the booking system to offer 30-minute slots for haircuts…"
+                        rows={3}
+                        style={{ width: "100%", background: C.raised, border: "1px solid #1e2d42", borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" as const, marginBottom: 12 }}
+                      />
+                      <button onClick={submitUpgradeRequest} disabled={upgradeSubmitting}
+                        style={{ ...S.btn("primary", upgradeSubmitting), width: "100%", fontSize: 14, fontWeight: 700 }}>
+                        {upgradeSubmitting ? "Submitting…" : `Request ${upgradeSelected.length} Feature${upgradeSelected.length > 1 ? "s" : ""} →`}
+                      </button>
+                      <div style={{ fontSize: 11, color: C.textMuted, textAlign: "center", marginTop: 8 }}>
+                        We'll build a draft for you to review. No charges until you confirm.
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+
+            {myFeatureRequests.length > 0 && (
+              <div style={S.card}>
+                <div style={S.label}>Your Requests</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+                  {myFeatureRequests.map((req: any) => {
+                    const statusColors: Record<string, [string, string]> = {
+                      pending:    [C.amber, "⏳ Under review"],
+                      processing: [C.accentBlue, "⚙️ Being built"],
+                      approved:   [C.accentBlue, "⚙️ Building draft"],
+                      live:       [C.accent, "Live on your site"],
+                      rejected:   [C.red, "Not added"],
+                    };
+                    const [sc, statusLabel] = statusColors[req.status] || [C.textMuted, req.status];
+                    return (
+                      <div key={req.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px" }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{req.featureId}</div>
+                          <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{new Date(req.createdAt).toLocaleDateString("en-AU")}</div>
+                        </div>
+                        <div style={{ background: sc + "18", color: sc, border: `1px solid ${sc}30`, borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 600 }}>{statusLabel}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {features.length > 0 && (
+              <div style={{ ...S.card, background: "transparent", border: `1px solid ${C.border}` }}>
+                <div style={S.label}>Already on your site</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                  {features.map((f: string) => (
+                    <div key={f} style={{ background: C.raised, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px", fontSize: 12, color: C.textMuted }}>{f}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

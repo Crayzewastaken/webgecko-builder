@@ -47,24 +47,135 @@ interface ClientAnalytics {
   };
 }
 
+// ─── Design tokens ─────────────────────────────────────────────────────────────
+const T = {
+  // Surfaces
+  bg:       "#0a0a0b",
+  surface:  "#111113",
+  raised:   "#18181b",
+  border:   "#27272a",
+  borderMd: "#3f3f46",
+  // Text
+  textPrimary:   "#fafafa",
+  textSecondary: "#a1a1aa",
+  textMuted:     "#52525b",
+  // Accent
+  green:   "#22c55e",
+  greenDim: "#16a34a",
+  blue:    "#3b82f6",
+  amber:   "#f59e0b",
+  red:     "#ef4444",
+  purple:  "#a855f7",
+  cyan:    "#06b6d4",
+};
+
 const G = {
-  page: { minHeight: "100vh", background: "#060608", color: "#e2e8f0", fontFamily: "'Inter',-apple-system,sans-serif" } as React.CSSProperties,
-  card: { background: "#0c0d10", border: "1px solid #1c1e24", borderRadius: 14 } as React.CSSProperties,
-  pill: (color: string): React.CSSProperties => ({ display: "inline-flex", alignItems: "center", gap: 4, background: color + "18", color, border: `1px solid ${color}33`, borderRadius: 20, padding: "2px 9px", fontSize: 11, fontWeight: 600 }),
-  statBox: (color: string): React.CSSProperties => ({ background: "#0c0d10", border: "1px solid #1c1e24", borderRadius: 10, padding: "14px 16px", minWidth: 100 }),
-  btn: (color: string, fill = false): React.CSSProperties => ({ background: fill ? color : "transparent", color: fill ? "#000" : color, border: `1px solid ${color}55`, borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all .15s" }),
-  tab: (active: boolean): React.CSSProperties => ({ background: active ? "#1c1e24" : "transparent", color: active ? "#fff" : "#555", border: "none", borderRadius: 7, padding: "6px 14px", fontSize: 12, fontWeight: active ? 700 : 400, cursor: "pointer" }),
-  label: { fontSize: 10, color: "#444", textTransform: "uppercase" as const, letterSpacing: ".07em", marginBottom: 3 },
-  val: { fontSize: 13, color: "#cbd5e1", fontFamily: "monospace" as const },
-  section: { marginBottom: 20 } as React.CSSProperties,
-  sectionTitle: { fontSize: 11, color: "#444", textTransform: "uppercase" as const, letterSpacing: ".08em", fontWeight: 700, marginBottom: 10, paddingBottom: 6, borderBottom: "1px solid #1c1e24" },
+  page: {
+    minHeight: "100vh",
+    background: T.bg,
+    color: T.textPrimary,
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  } as React.CSSProperties,
+
+  card: {
+    background: T.surface,
+    border: `1px solid ${T.border}`,
+    borderRadius: 12,
+  } as React.CSSProperties,
+
+  raisedCard: {
+    background: T.raised,
+    border: `1px solid ${T.border}`,
+    borderRadius: 10,
+    padding: "16px 18px",
+  } as React.CSSProperties,
+
+  pill: (color: string): React.CSSProperties => ({
+    display: "inline-flex",
+    alignItems: "center",
+    background: color + "15",
+    color,
+    border: `1px solid ${color}30`,
+    borderRadius: 6,
+    padding: "2px 8px",
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: "0.02em",
+  }),
+
+  statBox: (color: string): React.CSSProperties => ({
+    background: T.surface,
+    border: `1px solid ${T.border}`,
+    borderRadius: 10,
+    padding: "16px 18px",
+    minWidth: 110,
+  }),
+
+  btn: (color: string, fill = false): React.CSSProperties => ({
+    background: fill ? color : "transparent",
+    color: fill ? (color === T.amber || color === T.green ? "#000" : "#fff") : color,
+    border: `1px solid ${fill ? color : color + "50"}`,
+    borderRadius: 7,
+    padding: "6px 13px",
+    fontSize: 12,
+    fontWeight: 500,
+    cursor: "pointer",
+    letterSpacing: "0.01em",
+    transition: "opacity 0.15s",
+  }),
+
+  tab: (active: boolean): React.CSSProperties => ({
+    background: active ? T.raised : "transparent",
+    color: active ? T.textPrimary : T.textMuted,
+    border: active ? `1px solid ${T.border}` : "1px solid transparent",
+    borderRadius: 6,
+    padding: "5px 12px",
+    fontSize: 12,
+    fontWeight: active ? 500 : 400,
+    cursor: "pointer",
+    letterSpacing: "0.01em",
+  }),
+
+  label: {
+    fontSize: 10,
+    color: T.textMuted,
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.08em",
+    fontWeight: 600,
+    marginBottom: 4,
+  },
+
+  val: {
+    fontSize: 13,
+    color: T.textSecondary,
+    fontFamily: "'SF Mono', 'Fira Code', monospace" as const,
+  },
+
+  section: { marginBottom: 22 } as React.CSSProperties,
+
+  sectionTitle: {
+    fontSize: 10,
+    color: T.textMuted,
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.09em",
+    fontWeight: 700,
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottom: `1px solid ${T.border}`,
+  },
+
+  divider: {
+    height: 1,
+    background: T.border,
+    margin: "18px 0",
+  } as React.CSSProperties,
 };
 
 function Stat({ label, value, color }: { label: string; value: string | number; color: string }) {
   return (
     <div style={G.statBox(color)}>
-      <div style={{ fontSize: 20, fontWeight: 800, color }}>{value}</div>
-      <div style={{ fontSize: 10, color: "#444", marginTop: 2 }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 600, color, letterSpacing: "-0.02em", lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 11, color: T.textMuted, marginTop: 5, fontWeight: 500, letterSpacing: "0.02em" }}>{label}</div>
     </div>
   );
 }
@@ -72,36 +183,60 @@ function Stat({ label, value, color }: { label: string; value: string | number; 
 function InfoRow({ label, value, mono = false }: { label: string; value?: string | null; mono?: boolean }) {
   if (!value) return null;
   return (
-    <div style={{ marginBottom: 8 }}>
+    <div style={{ marginBottom: 10 }}>
       <div style={G.label}>{label}</div>
-      <div style={{ ...G.val, fontFamily: mono ? "monospace" : "inherit", color: "#cbd5e1" }}>{value}</div>
+      <div style={{
+        fontSize: 13,
+        color: T.textSecondary,
+        fontFamily: mono ? "'SF Mono','Fira Code',monospace" : "inherit",
+        wordBreak: "break-all",
+      }}>{value}</div>
     </div>
   );
 }
 
-function ActionBtn({ label, color, confirm, onConfirm, fill = false }: { label: string; color: string; confirm: string; onConfirm: () => Promise<any>; fill?: boolean }) {
+function ActionBtn({ label, color, confirm, onConfirm, fill = false }: {
+  label: string; color: string; confirm: string; onConfirm: () => Promise<any>; fill?: boolean;
+}) {
   const [state, setState] = useState<"idle" | "confirming" | "loading" | "ok" | "err">("idle");
   const [msg, setMsg] = useState("");
-  if (state === "ok") return <div style={{ fontSize: 12, color: "#00c896" }}>✓ {msg || "Done"}</div>;
-  if (state === "err") return <div style={{ fontSize: 12, color: "#ef4444" }}>✗ {msg}</div>;
+
+  if (state === "ok") return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: T.green }}>
+      <span style={{ fontSize: 14 }}>✓</span> {msg || "Done"}
+    </div>
+  );
+  if (state === "err") return (
+    <div style={{ fontSize: 12, color: T.red }}>✗ {msg}</div>
+  );
   if (state === "confirming") return (
-    <div style={{ background: "#111", border: `1px solid ${color}33`, borderRadius: 8, padding: "8px 12px", fontSize: 12 }}>
-      <div style={{ color: "#94a3b8", marginBottom: 8 }}>{confirm}</div>
-      <div style={{ display: "flex", gap: 6 }}>
+    <div style={{ background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 14px" }}>
+      <div style={{ color: T.textSecondary, fontSize: 12, marginBottom: 10, lineHeight: 1.5 }}>{confirm}</div>
+      <div style={{ display: "flex", gap: 8 }}>
         <button style={G.btn(color, true)} onClick={async () => {
           setState("loading");
           try { const r = await onConfirm(); setMsg(r?.message || "Done"); setState("ok"); }
           catch (e) { setMsg(e instanceof Error ? e.message : "Failed"); setState("err"); }
         }}>Confirm</button>
-        <button style={G.btn("#555")} onClick={() => setState("idle")}>Cancel</button>
+        <button style={G.btn(T.textMuted)} onClick={() => setState("idle")}>Cancel</button>
       </div>
     </div>
   );
-  return <button style={{ ...G.btn(color, fill), opacity: state === "loading" ? .5 : 1 }} onClick={() => setState("confirming")}>{state === "loading" ? "Running..." : label}</button>;
+  return (
+    <button
+      style={{ ...G.btn(color, fill), opacity: state === "loading" ? 0.5 : 1 }}
+      onClick={() => setState("confirming")}
+    >
+      {state === "loading" ? "Working…" : label}
+    </button>
+  );
 }
 
 function ClientDashboard({ c, secret, onClose }: { c: ClientAnalytics; secret: string; onClose: () => void }) {
-  const [tab, setTab] = useState<"overview" | "analytics" | "seo" | "site" | "payments" | "actions">("overview");
+  const [tab, setTab] = useState<"overview" | "analytics" | "seo" | "site" | "payments" | "actions" | "requests">("overview");
+  const [featureRequests, setFeatureRequests] = useState<any[]>([]);
+  const [frLoading, setFrLoading] = useState(false);
+  const [frUpdating, setFrUpdating] = useState<string | null>(null);
   const a = c.analytics;
   const seo = c.metadata?.seo;
   const ui = c.userInput || {};
@@ -115,111 +250,187 @@ function ClientDashboard({ c, secret, onClose }: { c: ClientAnalytics; secret: s
     return data;
   }
 
-  const statusColor = c.buildStatus === "completed" || c.buildStatus === "complete" ? "#00c896" : c.buildStatus === "building" ? "#f59e0b" : "#ef4444";
+  async function loadFeatureRequests() {
+    setFrLoading(true);
+    try {
+      const res = await fetch(`/api/feature-requests?secret=${sec}`);
+      if (res.ok) {
+        const d = await res.json();
+        setFeatureRequests((d.requests || []).filter((r: any) => r.jobId === jid));
+      }
+    } catch {}
+    finally { setFrLoading(false); }
+  }
 
-  const tabs = ["overview", "analytics", "seo", "site", "payments", "actions"] as const;
+  async function updateRequestStatus(requestId: string, status: string, draftUrl?: string) {
+    setFrUpdating(requestId);
+    try {
+      await api("/api/feature-requests", "PATCH", { jobId: jid, requestId, status, draftUrl });
+      await loadFeatureRequests();
+    } catch (e) { alert("Failed: " + (e instanceof Error ? e.message : "Error")); }
+    finally { setFrUpdating(null); }
+  }
+
+  const pendingRequestCount = featureRequests.filter(r => r.status === "pending" || r.status === "draft").length;
+
+  const statusColor =
+    c.buildStatus === "completed" || c.buildStatus === "complete" ? T.green :
+    c.buildStatus === "building" ? T.amber : T.red;
+
+  const tabs = ["overview", "analytics", "seo", "site", "payments", "actions", "requests"] as const;
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,.85)", backdropFilter: "blur(4px)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "24px 16px", overflowY: "auto" }}>
-      <div style={{ ...G.card, width: "100%", maxWidth: 820, position: "relative" }}>
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 1000,
+      background: "rgba(0,0,0,0.7)",
+      backdropFilter: "blur(6px)",
+      display: "flex", alignItems: "flex-start", justifyContent: "center",
+      padding: "32px 16px", overflowY: "auto",
+    }}>
+      <div style={{ ...G.card, width: "100%", maxWidth: 860, position: "relative", boxShadow: "0 24px 64px rgba(0,0,0,0.6)" }}>
+
         {/* Header */}
-        <div style={{ padding: "20px 24px", borderBottom: "1px solid #1c1e24", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div style={{
+          padding: "24px 28px 20px",
+          borderBottom: `1px solid ${T.border}`,
+          display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+        }}>
           <div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#fff" }}>{c.businessName}</div>
-            <div style={{ fontSize: 12, color: "#444", marginTop: 2 }}>{c.industry} &middot; {c.clientEmail} &middot; {c.clientPhone}</div>
-            <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 9,
+                background: `linear-gradient(135deg, ${statusColor}22, ${statusColor}08)`,
+                border: `1px solid ${statusColor}30`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 15, fontWeight: 700, color: statusColor,
+              }}>
+                {c.businessName.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 600, color: T.textPrimary, letterSpacing: "-0.01em" }}>{c.businessName}</div>
+                <div style={{ fontSize: 12, color: T.textMuted, marginTop: 1 }}>{c.industry}</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 10 }}>
               <span style={G.pill(statusColor)}>{c.buildStatus || "pending"}</span>
-              {c.paymentState?.monthlyActive && <span style={G.pill("#00c896")}>Monthly Active</span>}
-              {c.paymentState?.finalPaid && !c.paymentState?.monthlyActive && <span style={G.pill("#3b82f6")}>Final Paid</span>}
-              {c.paymentState?.depositPaid && !c.paymentState?.finalPaid && <span style={G.pill("#f59e0b")}>Deposit Paid</span>}
-              {!c.paymentState?.depositPaid && <span style={G.pill("#6b7280")}>Unpaid</span>}
-              {c.hasBooking && <span style={G.pill("#8b5cf6")}>Booking</span>}
-              {c.metadata?.alreadyReleased && <span style={G.pill("#00c896")}>Released</span>}
-              {(ui.features || []).map((f: string) => <span key={f} style={G.pill("#334155")}>{f}</span>)}
+              {c.paymentState?.monthlyActive && <span style={G.pill(T.green)}>Monthly Active</span>}
+              {c.paymentState?.finalPaid && !c.paymentState?.monthlyActive && <span style={G.pill(T.blue)}>Final Paid</span>}
+              {c.paymentState?.depositPaid && !c.paymentState?.finalPaid && <span style={G.pill(T.amber)}>Deposit Paid</span>}
+              {!c.paymentState?.depositPaid && <span style={G.pill(T.textMuted)}>Unpaid</span>}
+              {c.hasBooking && <span style={G.pill(T.purple)}>Booking</span>}
+              {c.metadata?.alreadyReleased && <span style={G.pill(T.green)}>Released</span>}
+              {(ui.features || []).map((f: string) => <span key={f} style={G.pill(T.textMuted)}>{f}</span>)}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "#555", fontSize: 22, cursor: "pointer", lineHeight: 1, padding: 4 }}>×</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ textAlign: "right", marginRight: 4 }}>
+              <div style={{ fontSize: 11, color: T.textMuted }}>Client</div>
+              <div style={{ fontSize: 12, color: T.textSecondary }}>{c.clientEmail}</div>
+            </div>
+            <button onClick={onClose} style={{
+              background: T.raised, border: `1px solid ${T.border}`, borderRadius: 7,
+              color: T.textMuted, fontSize: 16, cursor: "pointer", width: 32, height: 32,
+              display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1,
+            }}>×</button>
+          </div>
         </div>
 
         {/* Tabs */}
-        <div style={{ display: "flex", gap: 4, padding: "12px 24px", borderBottom: "1px solid #1c1e24", background: "#08090b" }}>
-          {tabs.map(t => <button key={t} style={G.tab(tab === t)} onClick={() => setTab(t)}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>)}
+        <div style={{
+          display: "flex", gap: 4, padding: "10px 28px",
+          borderBottom: `1px solid ${T.border}`,
+          background: T.bg,
+          flexWrap: "wrap",
+        }}>
+          {tabs.map(t => (
+            <button key={t} style={G.tab(tab === t)} onClick={() => {
+              setTab(t as any);
+              if (t === "requests" && featureRequests.length === 0) loadFeatureRequests();
+            }}>
+              {t === "requests"
+                ? "Requests" + (pendingRequestCount > 0 ? ` (${pendingRequestCount})` : "")
+                : t.charAt(0).toUpperCase() + t.slice(1)}
+            </button>
+          ))}
         </div>
 
-        <div style={{ padding: "24px" }}>
+        <div style={{ padding: "24px 28px" }}>
 
           {/* OVERVIEW */}
           {tab === "overview" && (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 10, marginBottom: 24 }}>
-                <Stat label="Views This Month" value={a?.thisMonth.views ?? 0} color="#3b82f6" />
-                <Stat label="Views Today" value={a?.today.views ?? 0} color="#00c896" />
-                <Stat label="All-Time Views" value={a?.totals.views ?? 0} color="#6b7280" />
-                <Stat label="Booking Clicks" value={a?.thisMonth.bookingClicks ?? 0} color="#f59e0b" />
-                <Stat label="Total Bookings" value={c.bookingCount} color="#8b5cf6" />
-                <Stat label="Form Submits" value={a?.totals.formSubmits ?? 0} color="#06b6d4" />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 10, marginBottom: 24 }}>
+                <Stat label="Views this month" value={a?.thisMonth.views ?? 0} color={T.blue} />
+                <Stat label="Views today" value={a?.today.views ?? 0} color={T.green} />
+                <Stat label="All-time views" value={a?.totals.views ?? 0} color={T.textSecondary} />
+                <Stat label="Booking clicks" value={a?.thisMonth.bookingClicks ?? 0} color={T.amber} />
+                <Stat label="Total bookings" value={c.bookingCount} color={T.purple} />
+                <Stat label="Form submits" value={a?.totals.formSubmits ?? 0} color={T.cyan} />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                 <div>
-                  <div style={G.sectionTitle}>Client Info</div>
+                  <div style={G.sectionTitle}>Client info</div>
                   <InfoRow label="Email" value={c.clientEmail} />
                   <InfoRow label="Phone" value={c.clientPhone} />
-                  <InfoRow label="ABN" value={ui.abn} />
+                  <InfoRow label="ABN" value={ui.abn} mono />
                   <InfoRow label="Address" value={ui.businessAddress} />
-                  <InfoRow label="Industry" value={c.industry} />
                   <InfoRow label="USP" value={ui.usp} />
                   <InfoRow label="Goal" value={ui.goal} />
                 </div>
                 <div>
-                  <div style={G.sectionTitle}>Build Info</div>
+                  <div style={G.sectionTitle}>Build info</div>
                   <InfoRow label="Job ID" value={jid} mono />
-                  <InfoRow label="Built At" value={c.builtAt ? new Date(c.builtAt).toLocaleString("en-AU") : undefined} />
-                  <InfoRow label="Site Type" value={ui.siteType} />
+                  <InfoRow label="Built at" value={c.builtAt ? new Date(c.builtAt).toLocaleString("en-AU") : undefined} />
+                  <InfoRow label="Site type" value={ui.siteType} />
                   <InfoRow label="Pages" value={(ui.pages || []).join(", ")} />
                   <InfoRow label="Style" value={ui.style} />
-                  <InfoRow label="Colour Prefs" value={ui.colorPrefs} />
-                  {c.metadata?.scheduledReleaseAt && <InfoRow label="Auto-Release" value={new Date(c.metadata.scheduledReleaseAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })} />}
-                  {c.metadata?.alreadyReleased && <InfoRow label="Released" value="Yes" />}
+                  <InfoRow label="Colour prefs" value={ui.colorPrefs} />
+                  {c.metadata?.scheduledReleaseAt && <InfoRow label="Auto-release" value={new Date(c.metadata.scheduledReleaseAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })} />}
                 </div>
               </div>
 
               {ui.additionalNotes && (
-                <div style={{ marginTop: 16 }}>
-                  <div style={G.sectionTitle}>Additional Notes</div>
-                  <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.6, background: "#08090b", borderRadius: 8, padding: "10px 14px", whiteSpace: "pre-wrap" }}>{ui.additionalNotes}</div>
+                <div style={{ marginTop: 20 }}>
+                  <div style={G.sectionTitle}>Additional notes</div>
+                  <div style={{
+                    fontSize: 13, color: T.textSecondary, lineHeight: 1.7,
+                    background: T.bg, borderRadius: 8, padding: "12px 14px",
+                    border: `1px solid ${T.border}`, whiteSpace: "pre-wrap",
+                  }}>{ui.additionalNotes}</div>
                 </div>
               )}
 
-              <div style={{ marginTop: 16 }}>
-                <div style={G.sectionTitle}>Social Links</div>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  {ui.facebookPage && <a href={ui.facebookPage} target="_blank" rel="noreferrer" style={{ color: "#3b82f6", fontSize: 12 }}>Facebook →</a>}
-                  {ui.instagramUrl && <a href={ui.instagramUrl} target="_blank" rel="noreferrer" style={{ color: "#e879f9", fontSize: 12 }}>Instagram →</a>}
-                  {ui.linkedinUrl && <a href={ui.linkedinUrl} target="_blank" rel="noreferrer" style={{ color: "#0ea5e9", fontSize: 12 }}>LinkedIn →</a>}
-                  {!ui.facebookPage && !ui.instagramUrl && !ui.linkedinUrl && <span style={{ fontSize: 12, color: "#333" }}>None provided</span>}
+              {(ui.facebookPage || ui.instagramUrl || ui.linkedinUrl) && (
+                <div style={{ marginTop: 20 }}>
+                  <div style={G.sectionTitle}>Social links</div>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    {ui.facebookPage && <a href={ui.facebookPage} target="_blank" rel="noreferrer" style={{ ...G.btn(T.blue), textDecoration: "none" }}>Facebook →</a>}
+                    {ui.instagramUrl && <a href={ui.instagramUrl} target="_blank" rel="noreferrer" style={{ ...G.btn(T.purple), textDecoration: "none" }}>Instagram →</a>}
+                    {ui.linkedinUrl && <a href={ui.linkedinUrl} target="_blank" rel="noreferrer" style={{ ...G.btn(T.cyan), textDecoration: "none" }}>LinkedIn →</a>}
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           )}
 
           {/* ANALYTICS */}
           {tab === "analytics" && (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 10, marginBottom: 24 }}>
-                <Stat label="Views Today" value={a?.today.views ?? 0} color="#00c896" />
-                <Stat label="Booking Clicks Today" value={a?.today.bookingClicks ?? 0} color="#f59e0b" />
-                <Stat label="Views This Month" value={a?.thisMonth.views ?? 0} color="#3b82f6" />
-                <Stat label="Booking Clicks / Month" value={a?.thisMonth.bookingClicks ?? 0} color="#f59e0b" />
-                <Stat label="Contact Clicks / Month" value={a?.thisMonth.contactClicks ?? 0} color="#06b6d4" />
-                <Stat label="All-Time Views" value={a?.totals.views ?? 0} color="#6b7280" />
-                <Stat label="All-Time Booking Clicks" value={a?.totals.bookingClicks ?? 0} color="#8b5cf6" />
-                <Stat label="All-Time Form Submits" value={a?.totals.formSubmits ?? 0} color="#10b981" />
-                <Stat label="Total Bookings" value={c.bookingCount} color="#8b5cf6" />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 10, marginBottom: 24 }}>
+                <Stat label="Views today" value={a?.today.views ?? 0} color={T.green} />
+                <Stat label="Booking clicks today" value={a?.today.bookingClicks ?? 0} color={T.amber} />
+                <Stat label="Views this month" value={a?.thisMonth.views ?? 0} color={T.blue} />
+                <Stat label="Booking clicks / month" value={a?.thisMonth.bookingClicks ?? 0} color={T.amber} />
+                <Stat label="Contact clicks / month" value={a?.thisMonth.contactClicks ?? 0} color={T.cyan} />
+                <Stat label="All-time views" value={a?.totals.views ?? 0} color={T.textSecondary} />
+                <Stat label="All-time booking clicks" value={a?.totals.bookingClicks ?? 0} color={T.purple} />
+                <Stat label="All-time form submits" value={a?.totals.formSubmits ?? 0} color={T.green} />
+                <Stat label="Total bookings" value={c.bookingCount} color={T.purple} />
               </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <a href={`/bookings?jobId=${jid}&secret=${secret}`} target="_blank" rel="noreferrer" style={{ ...G.btn("#8b5cf6"), textDecoration: "none" }}>View Bookings →</a>
-                <button style={G.btn("#06b6d4")} onClick={() => api(`/api/analytics/monthly?jobId=${jid}&secret=${sec}&send=true`)}>Send Monthly Report</button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <a href={`/bookings?jobId=${jid}&secret=${secret}`} target="_blank" rel="noreferrer" style={{ ...G.btn(T.purple), textDecoration: "none" }}>View bookings →</a>
+                <button style={G.btn(T.cyan)} onClick={() => api(`/api/analytics/monthly?jobId=${jid}&secret=${sec}&send=true`)}>Send monthly report</button>
               </div>
             </>
           )}
@@ -227,39 +438,45 @@ function ClientDashboard({ c, secret, onClose }: { c: ClientAnalytics; secret: s
           {/* SEO */}
           {tab === "seo" && (
             <>
-              {!seo && <div style={{ color: "#444", fontSize: 13 }}>No SEO data saved yet — this is populated on the next build.</div>}
+              {!seo && <div style={{ color: T.textMuted, fontSize: 13, padding: "20px 0" }}>No SEO data yet — populated on next build.</div>}
               {seo && (
                 <>
                   <div style={G.section}>
-                    <div style={G.sectionTitle}>Meta Description</div>
-                    <div style={{ fontSize: 13, color: "#94a3b8", background: "#08090b", borderRadius: 8, padding: "10px 14px", lineHeight: 1.6 }}>{seo.metaDescription || "Not set"}</div>
+                    <div style={G.sectionTitle}>Meta description</div>
+                    <div style={{
+                      fontSize: 13, color: T.textSecondary, background: T.bg,
+                      borderRadius: 8, padding: "12px 14px", border: `1px solid ${T.border}`, lineHeight: 1.7,
+                    }}>{seo.metaDescription || "Not set"}</div>
                   </div>
                   <div style={G.section}>
                     <div style={G.sectionTitle}>LSI Keywords ({(seo.lsiKeywords || []).length})</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {(seo.lsiKeywords || []).length === 0 && <span style={{ color: "#333", fontSize: 12 }}>None generated</span>}
+                      {(seo.lsiKeywords || []).length === 0 && <span style={{ color: T.textMuted, fontSize: 12 }}>None generated</span>}
                       {(seo.lsiKeywords || []).map((k: string, i: number) => (
-                        <span key={i} style={{ background: "#0f1f2f", border: "1px solid #0ea5e933", color: "#0ea5e9", borderRadius: 20, padding: "2px 10px", fontSize: 11 }}>{k}</span>
+                        <span key={i} style={{
+                          background: T.blue + "12", border: `1px solid ${T.blue}25`,
+                          color: T.blue, borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 500,
+                        }}>{k}</span>
                       ))}
                     </div>
                   </div>
                   {seo.serpInsights && (
                     <div style={G.section}>
-                      <div style={G.sectionTitle}>SERP Intelligence</div>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-                        <Stat label="Avg Word Count (competitors)" value={seo.serpInsights.avgWordCount} color="#f59e0b" />
-                        <Stat label="Avg H2 Count (competitors)" value={seo.serpInsights.avgH2Count} color="#3b82f6" />
+                      <div style={G.sectionTitle}>SERP intelligence</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+                        <Stat label="Avg word count (competitors)" value={seo.serpInsights.avgWordCount} color={T.amber} />
+                        <Stat label="Avg H2 count (competitors)" value={seo.serpInsights.avgH2Count} color={T.blue} />
                       </div>
-                      <div style={{ marginBottom: 10 }}>
-                        <div style={G.label}>Winning Structure</div>
-                        <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.6 }}>{seo.serpInsights.winningStructure}</div>
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={G.label}>Winning structure</div>
+                        <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.7, marginTop: 4 }}>{seo.serpInsights.winningStructure}</div>
                       </div>
                       <div>
-                        <div style={G.label}>Top Competitor Headings Used</div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
+                        <div style={G.label}>Top competitor headings</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 8 }}>
                           {(seo.serpInsights.topHeadings || []).map((h: string, i: number) => (
-                            <div key={i} style={{ fontSize: 12, color: "#64748b", display: "flex", alignItems: "center", gap: 8 }}>
-                              <span style={{ color: "#334155", fontSize: 10, width: 16, textAlign: "right", flexShrink: 0 }}>{i + 1}.</span>
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: T.textSecondary }}>
+                              <span style={{ color: T.textMuted, fontSize: 10, width: 16, textAlign: "right", flexShrink: 0, fontFamily: "monospace" }}>{i + 1}</span>
                               {h}
                             </div>
                           ))}
@@ -267,8 +484,8 @@ function ClientDashboard({ c, secret, onClose }: { c: ClientAnalytics; secret: s
                       </div>
                     </div>
                   )}
-                  <div style={{ padding: "10px 14px", background: "#08090b", borderRadius: 8, fontSize: 12, color: "#334155" }}>
-                    sitemap.xml and robots.txt are deployed automatically with every build.
+                  <div style={{ padding: "10px 14px", background: T.bg, borderRadius: 8, fontSize: 12, color: T.textMuted, border: `1px solid ${T.border}` }}>
+                    sitemap.xml and robots.txt deploy automatically with every build.
                   </div>
                 </>
               )}
@@ -281,48 +498,51 @@ function ClientDashboard({ c, secret, onClose }: { c: ClientAnalytics; secret: s
               <div style={G.section}>
                 <div style={G.sectionTitle}>URLs</div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-                  {c.previewUrl && <a href={c.previewUrl} target="_blank" rel="noreferrer" style={{ ...G.btn("#00c896"), textDecoration: "none" }}>Preview Site →</a>}
-                  {c.liveUrl && c.liveDomain && <a href={c.liveUrl} target="_blank" rel="noreferrer" style={{ ...G.btn("#00c896", true), textDecoration: "none" }}>Live Site →</a>}
-                  <a href={`/c/${c.slug}`} target="_blank" rel="noreferrer" style={{ ...G.btn("#6b7280"), textDecoration: "none" }}>Client Portal →</a>
+                  {c.previewUrl && <a href={c.previewUrl} target="_blank" rel="noreferrer" style={{ ...G.btn(T.green), textDecoration: "none" }}>Preview site →</a>}
+                  {c.liveUrl && c.liveDomain && <a href={c.liveUrl} target="_blank" rel="noreferrer" style={{ ...G.btn(T.green, true), textDecoration: "none" }}>Live site →</a>}
+                  <a href={`/c/${c.slug}`} target="_blank" rel="noreferrer" style={{ ...G.btn(T.textMuted), textDecoration: "none" }}>Client portal →</a>
                 </div>
                 <InfoRow label="Preview URL" value={c.previewUrl} mono />
-                <InfoRow label="Desired Domain" value={c.domain} mono />
-                {c.metadata?.domainStatus && <InfoRow label="Domain Status" value={c.metadata.domainStatus} />}
+                <InfoRow label="Desired domain" value={c.domain} mono />
+                {c.metadata?.domainStatus && <InfoRow label="Domain status" value={c.metadata.domainStatus} />}
                 {c.metadata?.domainUrl && <InfoRow label="Domain URL" value={c.metadata.domainUrl} mono />}
-                <InfoRow label="Vercel Project" value={c.vercelProjectName} mono />
+                <InfoRow label="Vercel project" value={c.vercelProjectName} mono />
               </div>
 
               {c.hasBooking && (
                 <div style={G.section}>
-                  <div style={G.sectionTitle}>Booking System</div>
+                  <div style={G.sectionTitle}>Booking system</div>
                   <InfoRow label="SuperSaas ID" value={c.supersaasId} mono />
                   <InfoRow label="SuperSaas URL" value={c.supersaasUrl} mono />
                   <InfoRow label="Services" value={c.bookingServices} />
-                  {c.supersaasUrl && <a href={c.supersaasUrl} target="_blank" rel="noreferrer" style={{ ...G.btn("#8b5cf6"), textDecoration: "none", display: "inline-block", marginTop: 8 }}>Open SuperSaas →</a>}
+                  {c.supersaasUrl && <a href={c.supersaasUrl} target="_blank" rel="noreferrer" style={{ ...G.btn(T.purple), textDecoration: "none", display: "inline-block", marginTop: 8 }}>Open SuperSaas →</a>}
                 </div>
               )}
 
               {c.tawktoPropertyId && (
                 <div style={G.section}>
-                  <div style={G.sectionTitle}>Live Chat (Tawk.to)</div>
+                  <div style={G.sectionTitle}>Live chat (Tawk.to)</div>
                   <InfoRow label="Property ID" value={c.tawktoPropertyId} mono />
-                  <a href="https://dashboard.tawk.to" target="_blank" rel="noreferrer" style={{ ...G.btn("#10b981"), textDecoration: "none", display: "inline-block", marginTop: 8 }}>Open Tawk.to →</a>
+                  <a href="https://dashboard.tawk.to" target="_blank" rel="noreferrer" style={{ ...G.btn(T.green), textDecoration: "none", display: "inline-block", marginTop: 8 }}>Open Tawk.to →</a>
                 </div>
               )}
 
               {c.shopCatalogue && c.shopCatalogue.length > 0 && (
                 <div style={G.section}>
-                  <div style={G.sectionTitle}>Shop Products ({c.shopCatalogue.length})</div>
+                  <div style={G.sectionTitle}>Shop products ({c.shopCatalogue.length})</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {c.shopCatalogue.map((item: any, i: number) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#08090b", borderRadius: 8, padding: "8px 12px" }}>
+                      <div key={i} style={{
+                        display: "flex", justifyContent: "space-between", alignItems: "center",
+                        background: T.bg, borderRadius: 8, padding: "10px 14px", border: `1px solid ${T.border}`,
+                      }}>
                         <div>
-                          <div style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 600 }}>{item.name}</div>
-                          <div style={{ fontSize: 11, color: "#444", fontFamily: "monospace" }}>{item.variationId || "no Square ID"}</div>
+                          <div style={{ fontSize: 13, color: T.textPrimary, fontWeight: 500 }}>{item.name}</div>
+                          <div style={{ fontSize: 11, color: T.textMuted, fontFamily: "monospace", marginTop: 2 }}>{item.variationId || "no Square ID"}</div>
                         </div>
                         <div style={{ textAlign: "right" }}>
-                          <div style={{ fontSize: 14, color: "#10b981", fontWeight: 700 }}>${(item.priceCents / 100).toFixed(2)}</div>
-                          {item.paymentLinkUrl && <a href={item.paymentLinkUrl} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: "#3b82f6" }}>Payment link →</a>}
+                          <div style={{ fontSize: 14, color: T.green, fontWeight: 600 }}>${(item.priceCents / 100).toFixed(2)}</div>
+                          {item.paymentLinkUrl && <a href={item.paymentLinkUrl} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: T.blue }}>Payment link →</a>}
                         </div>
                       </div>
                     ))}
@@ -336,63 +556,146 @@ function ClientDashboard({ c, secret, onClose }: { c: ClientAnalytics; secret: s
           {tab === "payments" && (
             <>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 24 }}>
-                <Stat label="Deposit" value={c.paymentState?.depositPaid ? "Paid" : "Unpaid"} color={c.paymentState?.depositPaid ? "#00c896" : "#ef4444"} />
-                <Stat label="Final Payment" value={c.paymentState?.finalPaid ? "Paid" : "Pending"} color={c.paymentState?.finalPaid ? "#00c896" : "#f59e0b"} />
-                <Stat label="Monthly" value={c.paymentState?.monthlyActive ? "Active" : "Inactive"} color={c.paymentState?.monthlyActive ? "#00c896" : "#6b7280"} />
+                <Stat label="Deposit" value={c.paymentState?.depositPaid ? "Paid" : "Unpaid"} color={c.paymentState?.depositPaid ? T.green : T.red} />
+                <Stat label="Final payment" value={c.paymentState?.finalPaid ? "Paid" : "Pending"} color={c.paymentState?.finalPaid ? T.green : T.amber} />
+                <Stat label="Monthly" value={c.paymentState?.monthlyActive ? "Active" : "Inactive"} color={c.paymentState?.monthlyActive ? T.green : T.textMuted} />
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <ActionBtn label="Unlock Final Payment" color="#f59e0b" confirm="Unlock final payment? Client will be emailed to pay remaining balance." onConfirm={() => api(`/api/payment/unlock?jobId=${jid}&secret=${sec}`)} />
+                <ActionBtn label="Unlock final payment" color={T.amber} confirm="Unlock final payment? Client will be emailed to pay remaining balance." onConfirm={() => api(`/api/payment/unlock?jobId=${jid}&secret=${sec}`)} />
               </div>
             </>
           )}
 
           {/* ACTIONS */}
           {tab === "actions" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div style={{ background: "#08090b", borderRadius: 10, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#00c896", marginBottom: 6 }}>Release Preview</div>
-                  <div style={{ fontSize: 11, color: "#444", marginBottom: 10 }}>Email the client their portal link to review the site.</div>
-                  <ActionBtn label="Release Preview →" color="#00c896" confirm={`Release preview to ${c.businessName}? This emails the client.`} onConfirm={() => api(`/api/unlock/release?jobId=${jid}&secret=${sec}`)} />
+                <div style={G.raisedCard}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: T.green, marginBottom: 5 }}>Release preview</div>
+                  <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 12, lineHeight: 1.5 }}>Email the client their portal link to review the site.</div>
+                  <ActionBtn label="Release preview →" color={T.green} confirm={`Release preview to ${c.businessName}? This emails the client.`} onConfirm={() => api(`/api/unlock/release?jobId=${jid}&secret=${sec}`)} />
                 </div>
-                <div style={{ background: "#08090b", borderRadius: 10, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#3b82f6", marginBottom: 6 }}>Fix Site</div>
-                  <div style={{ fontSize: 11, color: "#444", marginBottom: 10 }}>Run a code fix pass and redeploy. Takes 1-2 min.</div>
-                  <ActionBtn label="Fix This Site" color="#3b82f6" confirm="Run a fix pass on this site?" onConfirm={() => api(`/api/admin/fix-proxy?jobId=${jid}&secret=${sec}`)} />
+                <div style={G.raisedCard}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: T.blue, marginBottom: 5 }}>Fix site</div>
+                  <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 12, lineHeight: 1.5 }}>Run a code fix pass and redeploy. Takes 1–2 min.</div>
+                  <ActionBtn label="Fix this site" color={T.blue} confirm="Run a fix pass on this site?" onConfirm={() => api(`/api/admin/fix-proxy?jobId=${jid}&secret=${sec}`)} />
                 </div>
-                <div style={{ background: "#08090b", borderRadius: 10, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#f97316", marginBottom: 6 }}>Rebuild Site</div>
-                  <div style={{ fontSize: 11, color: "#444", marginBottom: 10 }}>Full rebuild — reruns Stitch and regenerates design from scratch. 5-10 min.</div>
-                  <ActionBtn label="Rebuild Site" color="#f97316" confirm={`Fully rebuild ${c.businessName} from scratch? This will regenerate the Stitch design.`} onConfirm={() => api(`/api/pipeline/run?jobId=${jid}&secret=${sec}&fullRebuild=true`)} />
+                <div style={G.raisedCard}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: T.amber, marginBottom: 5 }}>Rebuild site</div>
+                  <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 12, lineHeight: 1.5 }}>Full rebuild — reruns Stitch and regenerates design. 5–10 min.</div>
+                  <ActionBtn label="Rebuild site" color={T.amber} confirm={`Fully rebuild ${c.businessName} from scratch? This will regenerate the Stitch design.`} onConfirm={() => api(`/api/pipeline/run?jobId=${jid}&secret=${sec}&fullRebuild=true`)} />
                 </div>
-                <div style={{ background: "#08090b", borderRadius: 10, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#8b5cf6", marginBottom: 6 }}>Unlock Booking</div>
-                  <div style={{ fontSize: 11, color: "#444", marginBottom: 10 }}>Enable the booking system for this client.</div>
-                  <ActionBtn label="Unlock Booking" color="#8b5cf6" confirm={`Enable booking system for ${c.businessName}?`} onConfirm={() => api(`/api/unlock/booking?jobId=${jid}&secret=${sec}`)} />
+                {c.hasBooking && (
+                  <div style={G.raisedCard}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: T.purple, marginBottom: 5 }}>Unlock booking</div>
+                    <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 12, lineHeight: 1.5 }}>Enable the booking system for this client.</div>
+                    <ActionBtn label="Unlock booking" color={T.purple} confirm={`Enable booking system for ${c.businessName}?`} onConfirm={() => api(`/api/unlock/booking?jobId=${jid}&secret=${sec}`)} />
+                  </div>
+                )}
+                <div style={G.raisedCard}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: T.cyan, marginBottom: 5 }}>Monthly report</div>
+                  <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 12, lineHeight: 1.5 }}>Email this month's analytics to the client.</div>
+                  <ActionBtn label="Send report" color={T.cyan} confirm="Send monthly analytics report?" onConfirm={() => api(`/api/analytics/monthly?jobId=${jid}&secret=${sec}&send=true`)} />
                 </div>
-                <div style={{ background: "#08090b", borderRadius: 10, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#06b6d4", marginBottom: 6 }}>Monthly Report</div>
-                  <div style={{ fontSize: 11, color: "#444", marginBottom: 10 }}>Email this month's analytics to the client.</div>
-                  <ActionBtn label="Send Report" color="#06b6d4" confirm="Send monthly analytics report?" onConfirm={() => api(`/api/analytics/monthly?jobId=${jid}&secret=${sec}&send=true`)} />
-                </div>
-                <div style={{ background: "#08090b", borderRadius: 10, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#8b5cf6", marginBottom: 6 }}>Reset Password</div>
-                  <div style={{ fontSize: 11, color: "#444", marginBottom: 10 }}>Generate a new portal login password.</div>
-                  <ActionBtn label="Reset Password" color="#8b5cf6" confirm="Generate a new password?" onConfirm={async () => {
+                <div style={G.raisedCard}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: T.textSecondary, marginBottom: 5 }}>Reset password</div>
+                  <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 12, lineHeight: 1.5 }}>Generate a new portal login password.</div>
+                  <ActionBtn label="Reset password" color={T.textSecondary} confirm="Generate a new password?" onConfirm={async () => {
                     const d = await api(`/api/admin/reset-password?secret=${sec}`, "POST", { slug: c.slug });
                     alert(`New password for ${c.businessName}:\n\n${d.password}\n\nShare with client.`);
                     return d;
                   }} />
                 </div>
               </div>
-              <div style={{ background: "#180808", border: "1px solid #ef444433", borderRadius: 10, padding: "14px 16px" }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#ef4444", marginBottom: 6 }}>Danger Zone</div>
-                <div style={{ fontSize: 11, color: "#444", marginBottom: 10 }}>Permanently delete this client and all their data.</div>
-                <ActionBtn label="Delete Client" color="#ef4444" confirm={`PERMANENTLY delete ${c.businessName}? Cannot be undone.`} onConfirm={async () => {
+              <div style={{
+                background: T.red + "08",
+                border: `1px solid ${T.red}20`,
+                borderRadius: 10, padding: "16px 18px",
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: T.red, marginBottom: 5 }}>Danger zone</div>
+                <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 12 }}>Permanently delete this client and all their data.</div>
+                <ActionBtn label="Delete client" color={T.red} confirm={`PERMANENTLY delete ${c.businessName}? Cannot be undone.`} onConfirm={async () => {
                   await api(`/api/admin/delete-client?jobId=${jid}&slug=${c.slug}&secret=${sec}`, "DELETE");
                   window.location.reload();
                 }} />
               </div>
+            </div>
+          )}
+
+          {/* FEATURE REQUESTS */}
+          {tab === "requests" && (
+            <div>
+              {frLoading && <div style={{ color: T.textMuted, fontSize: 13, padding: "20px 0" }}>Loading feature requests…</div>}
+              {!frLoading && featureRequests.length === 0 && (
+                <div style={{ color: T.textMuted, fontSize: 13, padding: "32px 0", textAlign: "center" }}>
+                  No feature requests yet.
+                  <br />
+                  <span style={{ fontSize: 12, color: T.border }}>Clients can request new features from their portal.</span>
+                </div>
+              )}
+              {!frLoading && featureRequests.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {featureRequests.map((req: any) => {
+                    const statusColors: Record<string, string> = {
+                      pending: T.amber, processing: T.blue, draft: T.purple,
+                      approved: T.blue, live: T.green, rejected: T.red,
+                    };
+                    const sc = statusColors[req.status] || T.textMuted;
+                    const isUpdating = frUpdating === req.id;
+                    return (
+                      <div key={req.id} style={{
+                        background: T.raised, border: `1px solid ${T.border}`,
+                        borderRadius: 10, padding: "14px 16px",
+                        borderLeft: `3px solid ${sc}`,
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{req.featureId}</span>
+                            <span style={G.pill(sc)}>{req.status}</span>
+                          </div>
+                          <div style={{ fontSize: 11, color: T.textMuted }}>{new Date(req.createdAt).toLocaleDateString("en-AU")}</div>
+                        </div>
+                        {req.message && (
+                          <div style={{ fontSize: 12, color: T.textSecondary, marginBottom: 10, lineHeight: 1.6, fontStyle: "italic" }}>
+                            "{req.message}"
+                          </div>
+                        )}
+                        {req.draftUrl && (
+                          <div style={{ marginBottom: 10 }}>
+                            <a href={req.draftUrl} target="_blank" rel="noreferrer" style={{ ...G.btn(T.blue), textDecoration: "none", fontSize: 11 }}>
+                              View draft →
+                            </a>
+                          </div>
+                        )}
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          {req.status === "pending" && (
+                            <button disabled={isUpdating} onClick={() => updateRequestStatus(req.id, "approved")}
+                              style={{ ...G.btn(T.green, true), opacity: isUpdating ? 0.5 : 1, fontSize: 11 }}>
+                              {isUpdating ? "…" : "Approve & build draft"}
+                            </button>
+                          )}
+                          {req.status === "draft" && (
+                            <button disabled={isUpdating} onClick={() => updateRequestStatus(req.id, "live")}
+                              style={{ ...G.btn(T.green, true), opacity: isUpdating ? 0.5 : 1, fontSize: 11 }}>
+                              {isUpdating ? "…" : "Confirm → push live"}
+                            </button>
+                          )}
+                          {(req.status === "pending" || req.status === "draft") && (
+                            <button disabled={isUpdating} onClick={() => updateRequestStatus(req.id, "rejected")}
+                              style={{ ...G.btn(T.red), opacity: isUpdating ? 0.5 : 1, fontSize: 11 }}>
+                              Reject
+                            </button>
+                          )}
+                          {req.status === "approved" && <div style={{ fontSize: 11, color: T.blue }}>⏳ Building draft…</div>}
+                          {req.status === "live" && <div style={{ fontSize: 11, color: T.green }}>✓ Live on site</div>}
+                          {req.status === "rejected" && <div style={{ fontSize: 11, color: T.red }}>✗ Rejected</div>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <button onClick={loadFeatureRequests} style={{ ...G.btn(T.textMuted), marginTop: 16, fontSize: 11 }}>Refresh</button>
             </div>
           )}
 
@@ -404,35 +707,67 @@ function ClientDashboard({ c, secret, onClose }: { c: ClientAnalytics; secret: s
 
 function ClientRow({ c, secret }: { c: ClientAnalytics; secret: string }) {
   const [open, setOpen] = useState(false);
-  const statusColor = c.buildStatus === "completed" || c.buildStatus === "complete" ? "#00c896" : c.buildStatus === "building" ? "#f59e0b" : "#6b7280";
+  const statusColor =
+    c.buildStatus === "completed" || c.buildStatus === "complete" ? T.green :
+    c.buildStatus === "building" ? T.amber : T.textMuted;
   const a = c.analytics;
+  const initials = c.businessName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
+
   return (
     <>
       {open && <ClientDashboard c={c} secret={secret} onClose={() => setOpen(false)} />}
       <div
         onClick={() => setOpen(true)}
-        style={{ ...G.card, padding: "14px 18px", marginBottom: 8, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", transition: "border-color .15s" }}
-        onMouseEnter={e => (e.currentTarget.style.borderColor = "#2a2d35")}
-        onMouseLeave={e => (e.currentTarget.style.borderColor = "#1c1e24")}
+        style={{
+          background: T.surface,
+          border: `1px solid ${T.border}`,
+          borderRadius: 10,
+          padding: "14px 18px",
+          marginBottom: 6,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          flexWrap: "wrap",
+          transition: "border-color 0.1s, background 0.1s",
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = T.borderMd; (e.currentTarget as HTMLDivElement).style.background = T.raised; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = T.border; (e.currentTarget as HTMLDivElement).style.background = T.surface; }}
       >
-        <div style={{ flex: 1, minWidth: 180 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: "#fff" }}>{c.businessName}</div>
-          <div style={{ fontSize: 11, color: "#444", marginTop: 2 }}>{c.industry}</div>
+        <div style={{
+          width: 34, height: 34, borderRadius: 8,
+          background: statusColor + "18", border: `1px solid ${statusColor}25`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 12, fontWeight: 700, color: statusColor, flexShrink: 0,
+          letterSpacing: "0.02em",
+        }}>{initials}</div>
+
+        <div style={{ flex: 1, minWidth: 160 }}>
+          <div style={{ fontWeight: 500, fontSize: 14, color: T.textPrimary, letterSpacing: "-0.01em" }}>{c.businessName}</div>
+          <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{c.industry}</div>
         </div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
           <span style={G.pill(statusColor)}>{c.buildStatus || "pending"}</span>
-          {c.paymentState?.monthlyActive && <span style={G.pill("#00c896")}>Monthly</span>}
-          {c.paymentState?.depositPaid && !c.paymentState?.monthlyActive && <span style={G.pill("#f59e0b")}>Deposit</span>}
-          {!c.paymentState?.depositPaid && <span style={G.pill("#6b7280")}>Unpaid</span>}
-          {c.hasBooking && <span style={G.pill("#8b5cf6")}>Booking</span>}
-          {c.metadata?.alreadyReleased && <span style={G.pill("#10b981")}>Released</span>}
+          {c.paymentState?.monthlyActive && <span style={G.pill(T.green)}>Monthly</span>}
+          {c.paymentState?.depositPaid && !c.paymentState?.monthlyActive && <span style={G.pill(T.amber)}>Deposit</span>}
+          {!c.paymentState?.depositPaid && <span style={G.pill(T.textMuted)}>Unpaid</span>}
+          {c.hasBooking && <span style={G.pill(T.purple)}>Booking</span>}
+          {c.metadata?.alreadyReleased && <span style={G.pill(T.green)}>Released</span>}
         </div>
-        <div style={{ display: "flex", gap: 16, fontSize: 12, color: "#444", flexWrap: "wrap" }}>
-          <span>👁 {a?.thisMonth.views ?? 0}</span>
-          <span>📅 {c.bookingCount}</span>
-          <span>📝 {a?.totals.formSubmits ?? 0}</span>
+
+        <div style={{ display: "flex", gap: 20, fontSize: 12, color: T.textMuted }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 10, color: T.textMuted }}>VIEWS</span>
+            <span style={{ color: T.textSecondary, fontWeight: 500 }}>{a?.thisMonth.views ?? 0}</span>
+          </span>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 10, color: T.textMuted }}>BOOK</span>
+            <span style={{ color: T.textSecondary, fontWeight: 500 }}>{c.bookingCount}</span>
+          </span>
         </div>
-        <div style={{ color: "#334155", fontSize: 16 }}>›</div>
+
+        <div style={{ color: T.border, fontSize: 14, flexShrink: 0 }}>›</div>
       </div>
     </>
   );
@@ -458,7 +793,7 @@ function AdminDashboard() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = loginInput.trim();
-    if (!trimmed) { setLoginError("Enter the admin password."); return; }
+    if (!trimmed) { setLoginError("Enter your admin password."); return; }
     const res = await fetch(`/api/admin/clients?secret=${encodeURIComponent(trimmed)}`);
     if (res.status === 403) { setLoginError("Incorrect password."); return; }
     sessionStorage.setItem("wg_admin_secret", trimmed);
@@ -486,14 +821,40 @@ function AdminDashboard() {
 
   if (!loggedIn) return (
     <div style={{ ...G.page, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <form onSubmit={handleLogin} style={{ ...G.card, padding: "40px 36px", width: "100%", maxWidth: 360 }}>
-        <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 6 }}>WebGecko Admin</div>
-        <div style={{ fontSize: 13, color: "#444", marginBottom: 28 }}>Enter your admin password to continue.</div>
-        <input type="password" placeholder="Admin password" value={loginInput} onChange={e => setLoginInput(e.target.value)} autoFocus
-          style={{ width: "100%", background: "#111", border: "1px solid " + (loginError ? "#ef4444" : "#1c1e24"), borderRadius: 8, padding: "12px 14px", color: "#fff", fontSize: 14, outline: "none", boxSizing: "border-box", marginBottom: 10 }} />
-        {loginError && <div style={{ color: "#ef4444", fontSize: 12, marginBottom: 12 }}>{loginError}</div>}
-        <button type="submit" style={{ width: "100%", background: "#00c896", color: "#000", fontWeight: 700, fontSize: 14, padding: 12, border: "none", borderRadius: 8, cursor: "pointer" }}>Sign In →</button>
-      </form>
+      <div style={{ width: "100%", maxWidth: 360, padding: "0 16px" }}>
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 8,
+              background: `linear-gradient(135deg, ${T.green}, #0ea5e9)`,
+            }} />
+            <span style={{ fontSize: 16, fontWeight: 600, color: T.textPrimary }}>WebGecko</span>
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 600, color: T.textPrimary, letterSpacing: "-0.02em" }}>Admin portal</div>
+          <div style={{ fontSize: 13, color: T.textMuted, marginTop: 4 }}>Sign in to manage your clients.</div>
+        </div>
+        <form onSubmit={handleLogin} style={{ ...G.card, padding: "28px 24px" }}>
+          <label style={{ ...G.label, display: "block", marginBottom: 6 }}>Password</label>
+          <input
+            type="password"
+            placeholder="Enter admin password"
+            value={loginInput}
+            onChange={e => setLoginInput(e.target.value)}
+            autoFocus
+            style={{
+              width: "100%", background: T.bg, border: `1px solid ${loginError ? T.red : T.border}`,
+              borderRadius: 8, padding: "10px 14px", color: T.textPrimary, fontSize: 14,
+              outline: "none", boxSizing: "border-box", marginBottom: loginError ? 6 : 16,
+              fontFamily: "inherit",
+            }}
+          />
+          {loginError && <div style={{ color: T.red, fontSize: 12, marginBottom: 14 }}>{loginError}</div>}
+          <button type="submit" style={{
+            width: "100%", background: T.green, color: "#000", fontWeight: 600,
+            fontSize: 14, padding: "10px", border: "none", borderRadius: 8, cursor: "pointer",
+          }}>Sign in →</button>
+        </form>
+      </div>
     </div>
   );
 
@@ -512,51 +873,86 @@ function AdminDashboard() {
   };
 
   return (
-    <div style={{ ...G.page, padding: "24px 16px" }}>
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28, flexWrap: "wrap" }}>
-          <div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>WebGecko Admin</div>
-            <div style={{ color: "#444", fontSize: 13 }}>Client Management</div>
-          </div>
-          <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-            <button onClick={loadDashboard} style={G.btn("#555")}>Refresh</button>
-            <button onClick={handleLogout} style={G.btn("#555")}>Sign Out</button>
-          </div>
+    <div style={{ ...G.page, padding: "0" }}>
+      {/* Sidebar-style top nav */}
+      <div style={{
+        background: T.surface,
+        borderBottom: `1px solid ${T.border}`,
+        padding: "0 24px",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        height: 52, position: "sticky", top: 0, zIndex: 100,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{
+            width: 26, height: 26, borderRadius: 7,
+            background: `linear-gradient(135deg, ${T.green}, #0ea5e9)`,
+          }} />
+          <span style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>WebGecko</span>
+          <span style={{
+            fontSize: 10, color: T.textMuted, background: T.raised, border: `1px solid ${T.border}`,
+            borderRadius: 4, padding: "2px 6px", fontWeight: 600, letterSpacing: "0.06em",
+          }}>ADMIN</span>
         </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button onClick={loadDashboard} style={G.btn(T.textMuted)}>Refresh</button>
+          <button onClick={handleLogout} style={G.btn(T.textMuted)}>Sign out</button>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 960, margin: "0 auto", padding: "28px 24px" }}>
 
         {!loading && !error && (
-          <div style={{ display: "flex", gap: 10, marginBottom: 24, flexWrap: "wrap" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 10, marginBottom: 28 }}>
             {[
-              { label: "Total Clients", value: totals.clients, color: "#fff" },
-              { label: "Monthly Active", value: totals.active, color: "#00c896" },
-              { label: "Est. MRR", value: "$" + totals.mrr.toLocaleString(), color: "#00c896" },
-              { label: "Views This Month", value: totals.views.toLocaleString(), color: "#3b82f6" },
-              { label: "Total Bookings", value: totals.bookings, color: "#f59e0b" },
+              { label: "Total clients", value: totals.clients, color: T.textPrimary },
+              { label: "Monthly active", value: totals.active, color: T.green },
+              { label: "Est. MRR", value: "$" + totals.mrr.toLocaleString(), color: T.green },
+              { label: "Views this month", value: totals.views.toLocaleString(), color: T.blue },
+              { label: "Total bookings", value: totals.bookings, color: T.amber },
             ].map(st => (
-              <div key={st.label} style={{ ...G.card, padding: "14px 18px", flex: 1, minWidth: 110 }}>
-                <div style={{ fontSize: 22, fontWeight: 800, color: st.color }}>{st.value}</div>
-                <div style={{ fontSize: 10, color: "#333", marginTop: 2 }}>{st.label}</div>
+              <div key={st.label} style={{ ...G.card, padding: "16px 18px" }}>
+                <div style={{ fontSize: 24, fontWeight: 600, color: st.color, letterSpacing: "-0.02em", lineHeight: 1 }}>{st.value}</div>
+                <div style={{ fontSize: 11, color: T.textMuted, marginTop: 5, fontWeight: 500 }}>{st.label}</div>
               </div>
             ))}
           </div>
         )}
 
-        {error && <div style={{ background: "#180808", border: "1px solid #ef444433", borderRadius: 10, padding: 14, color: "#ef4444", marginBottom: 20 }}>{error}</div>}
+        {error && (
+          <div style={{
+            background: T.red + "0a", border: `1px solid ${T.red}25`,
+            borderRadius: 10, padding: "14px 18px", color: T.red, marginBottom: 20, fontSize: 13,
+          }}>{error}</div>
+        )}
 
-        <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-          <input type="text" placeholder="Search clients..." value={search} onChange={e => setSearch(e.target.value)}
-            style={{ flex: 1, minWidth: 200, background: "#0c0d10", border: "1px solid #1c1e24", borderRadius: 8, padding: "10px 14px", color: "#fff", fontSize: 14, outline: "none", boxSizing: "border-box" as const }} />
-          <div style={{ display: "flex", gap: 4, background: "#0c0d10", border: "1px solid #1c1e24", borderRadius: 8, padding: 4 }}>
+        <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+          <input
+            type="text"
+            placeholder="Search clients…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              flex: 1, minWidth: 200, background: T.surface, border: `1px solid ${T.border}`,
+              borderRadius: 8, padding: "8px 14px", color: T.textPrimary, fontSize: 13,
+              outline: "none", boxSizing: "border-box" as const, fontFamily: "inherit",
+            }}
+          />
+          <div style={{ display: "flex", gap: 4, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: 4 }}>
             {(["all", "active", "building", "unpaid"] as const).map(f => (
-              <button key={f} onClick={() => setFilter(f)} style={G.tab(filter === f)}>{f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}</button>
+              <button key={f} onClick={() => setFilter(f)} style={G.tab(filter === f)}>
+                {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
             ))}
           </div>
         </div>
 
-        {loading && <div style={{ color: "#333", textAlign: "center", padding: 60 }}>Loading clients...</div>}
+        {loading && (
+          <div style={{ color: T.textMuted, textAlign: "center", padding: 80, fontSize: 13 }}>Loading clients…</div>
+        )}
         {!loading && filtered.map(c => <ClientRow key={c.slug} c={c} secret={secret} />)}
-        {!loading && filtered.length === 0 && <div style={{ color: "#333", textAlign: "center", padding: 60, fontSize: 14 }}>No clients found.</div>}
+        {!loading && filtered.length === 0 && (
+          <div style={{ color: T.textMuted, textAlign: "center", padding: 80, fontSize: 13 }}>No clients found.</div>
+        )}
       </div>
     </div>
   );
@@ -564,8 +960,8 @@ function AdminDashboard() {
 
 export default function AdminPage() {
   return (
-    <Suspense fallback={<div style={{ color: "#fff", padding: 40 }}>Loading...</div>}>
-    <AdminDashboard />
-  </Suspense>
+    <Suspense fallback={<div style={{ color: "#fafafa", padding: 40, fontFamily: "Inter,sans-serif" }}>Loading…</div>}>
+      <AdminDashboard />
+    </Suspense>
   );
 }
