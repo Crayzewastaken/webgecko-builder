@@ -1,5 +1,6 @@
 // middleware.ts
-// Protects /admin routes.
+// Protects /admin page routes — redirects unauthenticated requests to /admin/login.
+// Does NOT run on /api routes.
 
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
@@ -29,7 +30,12 @@ function isValidSession(token: string): boolean {
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
+  // Only guard /admin page routes, never /admin/login and never /api/*
+  if (
+    pathname.startsWith("/admin") &&
+    !pathname.startsWith("/admin/login") &&
+    !pathname.startsWith("/api/")
+  ) {
     const token = req.cookies.get(COOKIE_NAME)?.value;
     if (!token || !isValidSession(token)) {
       const loginUrl = req.nextUrl.clone();
@@ -42,5 +48,6 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  // Only run on /admin page routes, explicitly exclude API and login
+  matcher: ["/admin", "/admin/((?!login).*)"],
 };
