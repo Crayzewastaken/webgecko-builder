@@ -1,11 +1,9 @@
-import { Stitch, StitchToolClient } from "@google/stitch-sdk";
+import { stitch, StitchToolClient } from "@google/stitch-sdk";
 
-// High-level SDK client — use this for project.generate() / screen.getHtml()
-export const stitchSdk = new Stitch(
-  new StitchToolClient({ apiKey: process.env.STITCH_API_KEY! })
-);
+// High-level SDK singleton — reads STITCH_API_KEY from env automatically
+export const stitchSdk = stitch;
 
-// Low-level tool client kept for any direct callTool() needs
+// Low-level tool client for any direct callTool() needs
 export const stitchClient = new StitchToolClient({
   apiKey: process.env.STITCH_API_KEY!,
 });

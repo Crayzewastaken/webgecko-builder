@@ -202,67 +202,51 @@ const buildWebsite = inngest.createFunction(
     }) as string;
 
 
-    // ── STEP 3: Stitch generate ─────────────────────────────────────────────
-    // Uses the high-level SDK: project.generate() returns a Screen object,
-    // screen.getHtml() handles all async polling internally — no manual get_screen needed.
-    const downloadUrl = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step3-stitch-generate", async () => {
+    // ── STEP 3: Stitch generate + fetch HTML ────────────────────────────────────
+    // Fetch the HTML immediately after getting the URL — Stitch signed URLs are
+    // short-lived, so we must not store the URL and re-fetch later.
+    const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3-stitch-generate", async () => {
       console.log(`[Inngest] STEP 3: Stitch generate (prompt: ${spec.stitchPrompt?.length} chars)`);
 
       const project = stitchSdk.project(projectId);
       const screen = await project.generate(spec.stitchPrompt, "DESKTOP");
       console.log(`[Inngest] STEP 3: screen id=${screen.screenId}`);
 
-      const url = await screen.getHtml();
-      if (!url) throw new Error("Stitch: screen.getHtml() returned empty URL");
+      // getHtml() returns empty when htmlCode isn't cached on the generation response.
+      // Fallback: list_screens fetches full screen data including htmlCode.downloadUrl.
+      let url = await screen.getHtml();
+      if (!url) {
+        console.log(`[Inngest] STEP 3: getHtml() empty — fetching via list_screens`);
+        const screens = await project.screens();
+        const match = screens.find((s: any) => s.screenId === screen.screenId) || screens[screens.length - 1];
+        if (match) url = await match.getHtml();
+        console.log(`[Inngest] STEP 3: list_screens url=${url ? "found" : "still empty"}, screens=${screens.length}`);
+      }
+      if (!url) throw new Error("Stitch: no downloadUrl after generate + list_screens fallback");
 
-      const preCheck = await fetch(url).then(r => r.text()).catch(() => "");
-      if (preCheck.length < 5000) throw new Error(`Stitch HTML too short (${preCheck.length} chars)`);
-      if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(preCheck)) throw new Error(`Stitch returned skeleton`);
-      // Count CSS in <style> blocks — Stitch often puts most styles inline so threshold is low
-      const styleLen = (preCheck.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
-      // Also count inline style attributes as a secondary signal
-      const inlineStyleCount = (preCheck.match(/\bstyle=/gi) || []).length;
+      // Fetch immediately — URL is a short-lived signed link, don't store it
+      const html = await fetch(url).then(r => r.text()).catch(() => "");
+      console.log(`[Inngest] STEP 3: fetched ${html.length} chars`);
+
+      if (html.length < 5000) throw new Error(`Stitch HTML too short (${html.length} chars)`);
+      if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error(`Stitch returned skeleton`);
+      const styleLen = (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
+      const inlineStyleCount = (html.match(/\bstyle=/gi) || []).length;
       if (styleLen < 100 && inlineStyleCount < 20) {
         throw new Error(`Stitch HTML has no CSS (styleLen=${styleLen}, inlineStyles=${inlineStyleCount})`);
       }
 
-      console.log(`[Inngest] STEP 3 DONE: downloadUrl obtained, HTML ${preCheck.length} chars, styleLen=${styleLen}, inlineStyles=${inlineStyleCount}`);
-      return url;
+      console.log(`[Inngest] STEP 3 DONE: HTML ${html.length} chars, styleLen=${styleLen}, inlineStyles=${inlineStyleCount}`);
+      return html;
     }) as string;
 
-    // ── STEP 4: Fetch HTML ────────────────────────────────────────────────────
-    const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step4-fetch-html", async () => {
-      const html = await fetch(downloadUrl).then(r => r.text());
-      if (!html || html.length < 5000) throw new Error(`Stitch HTML too short (${html?.length ?? 0} chars)`);
-      const skeletonPatterns = [/<h1>\s*(HOME PAGE|ABOUT PAGE|SERVICES PAGE|CONTACT PAGE|PAGE CONTENT)\s*<\/h1>/i, /const BOOKING_URL = "https:\/\/cal\.com\/your-link"/i];
-      for (const pattern of skeletonPatterns) {
-        if (pattern.test(html)) throw new Error("Stitch returned a skeleton placeholder");
-      }
-      const styleContent = (html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || []).join("");
-      const inlineStyles = (html.match(/\bstyle=/gi) || []).length;
-      if (styleContent.length < 100 && inlineStyles < 20) throw new Error(`Stitch HTML has no CSS (styleLen=${styleContent.length}, inline=${inlineStyles})`);
-      return html;
-      });
-
-    // ── STEP 4b: Claude rewrites Stitch HTML — preserves visual style, guarantees structure ──
-    // Stitch gives us the visual design. Claude rewrites it as clean, fully-functional HTML
-    // with all required structural elements guaranteed (ids, mobile nav, booking iframe, etc.)
+    // ── STEP 4b: Structural injection into Stitch HTML ──────────────────────────
+    // DO NOT rewrite or alter Stitch's design. Inject only what is structurally
+    // missing: required IDs, mobile nav, multi-page wrappers, contact form, footer.
     // requestedPageIds at outer scope so step7b-validate and other steps can use it
     const requestedPageIds = (Array.isArray(userInput.pages) ? userInput.pages : ["Home"])
       .map((p: string) => normalizePageId(p));
     const rebuiltHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step4b-claude-rebuild", async () => {
-      // Extract ALL CSS blocks (some Stitch outputs have multiple <style> tags)
-      const allCss = (stitchHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [])
-        .map((s: string) => s.replace(/<\/?style[^>]*>/gi, "")).join("\n").slice(0, 8000);
-      const css = allCss;
-
-      // Pass the FULL body — not just a snippet — so Claude sees all content
-      // Split into two halves if too large so we capture both top and bottom sections
-      const bodyMatch = stitchHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-      const fullBody = bodyMatch ? bodyMatch[1] : stitchHtml;
-      const bodySnippet = fullBody.length <= 16000
-        ? fullBody
-        : fullBody.slice(0, 8000) + "\n<!-- ...middle truncated... -->\n" + fullBody.slice(-4000);
 
       const bookingBlock = hasBookingFeature && bookingUrl
         ? `<section id="booking" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">
@@ -276,237 +260,86 @@ const buildWebsite = inngest.createFunction(
 </section>`
         : "";
 
-      // MULTI-PAGE: Always run Claude rebuild. Stitch is treated as visual reference only —
-      // it produces single-page anchor sites and cannot be trusted for multi-page structure.
-      // Single-page: skip Claude rebuild if Stitch output looks complete.
-      if (isMultiPage) {
-        const stitchDataPages = (stitchHtml.match(/\bdata-page=["'][^"']+["']/g) || []).length;
-        console.log("[Step4b] Multi-page build: running Claude rebuild (Stitch had " + stitchDataPages + " data-page wrappers, need " + requestedPageIds.length + " pages: " + requestedPageIds.join(", ") + ")");
-      } else {
-        // Single-page shortcut: skip Claude if Stitch looks complete
-        const hasHero = stitchHtml.includes('id="hero"') || stitchHtml.includes("id='hero'");
-        const hasNav = stitchHtml.includes('id="hamburger"');
-        const isComplete = stitchHtml.length > 15000 && hasHero && hasNav;
-        if (isComplete) {
-          console.log("[Step4b] Single-page: valid Stitch output — skipping Claude rebuild");
-          return repairHtml(stitchHtml, userInput.businessName, new Date().getFullYear());
-        }
-        console.log("[Step4b] Single-page: Stitch output incomplete — running Claude rebuild");
-      }
+      // ── Pure injection: DO NOT rewrite the Stitch design. ─────────────────────
+      // Only inject structural IDs and missing elements. All CSS, layout, content
+      // from Stitch is preserved exactly as-is.
+      let html = stitchHtml;
 
-      // Build explicit per-page content instructions for Claude
-      const yr4b = new Date().getFullYear();
-      const pageContentMap: Record<string, string> = {
-        home:         'Full-viewport hero section (id="hero") with headline, subheadline, CTA. Brief services preview, and testimonials (id="testimonials") with 3+ Australian client reviews.',
-        about:        'Rich About Us: company story, mission, team intro, values.',
-        services:     'Services grid with 4-6 cards. Each card has icon, title, description, price if applicable.',
-        pricing:      'Pricing table with 2-3 tiers or per-service pricing. Include what\'s included in each.',
-        gallery:      'Responsive image gallery grid (use placehold.co or unsplash.com). Before/after layout if applicable.',
-        contact:      'Contact section with id="contact": form with name, email, phone, message fields. Real email and phone below. Include a Google Maps iframe.',
-        booking:      'Booking section with id="booking". Insert the booking iframe from the requirements below, or prominent call-to-action to phone.',
-        faq:          'FAQ accordion with id="faq". 6+ real questions and answers relevant to the industry.',
-        testimonials: 'Testimonials with id="testimonials". 4+ reviews from Australian clients with names, star ratings, quotes.',
-        shop:         `Product shop grid. ${(productsWithPhotos && productsWithPhotos.length > 0) ? "Products: " + productsWithPhotos.map((p: any) => p.name + " — " + p.price).join(", ") + "." : userInput.shopProducts ? "Products: " + userInput.shopProducts + "." : "Use 4-6 sample products relevant to " + (userInput.industry || "the business") + "."} Each card has image, name, price, and a Buy Now button with class=wg-buy-btn.`,
-        blog:         `Blog post grid with 3-4 article cards. Each with image, title, excerpt, date, "Read More" button. Topics: ${userInput.blogTopics || "industry tips, news and advice relevant to " + (userInput.industry || "the business")}.`,
-        team:         'Team grid with 3-4 members. Each with photo (placehold.co), name, role, bio.',
-        menu:         'Restaurant menu with categories and items. Each item has name, description, price.',
-        location:     'Location/hours section with address and trading hours grid.',
-      };
-      const pageLines = requestedPageIds.map(function(id: string, i: number) {
-        const label = (Array.isArray(userInput.pages) ? userInput.pages[i] : id) || id;
-        const pgContent = pageContentMap[id] || ('Full rich content page for ' + label + ' relevant to ' + (userInput.industry || 'the business') + '.');
-        const firstClass = i === 0 ? 'class="page-section active"' : 'class="page-section"';
-        return '  PAGE "' + id + '": <div data-page="' + id + '" id="' + id + '" ' + firstClass + '>\n    ' + pgContent;
-      });
-      const pageInstructions = pageLines.join('\n');
-
-      const bookingIdLine = hasBookingFeature ? '- id="booking" — inside the booking page wrapper' : '';
-      const multiPageNote = isMultiPage
-        ? ('This is a MULTI-PAGE site with ' + requestedPageIds.length + ' pages: ' + requestedPageIds.join(', ') + '.\n\n'
-          + 'CRITICAL STRUCTURE RULES — every rule is mandatory:\n'
-          + '1. Every page MUST be a wrapper: <div data-page="ID" id="ID" class="page-section"> ... </div>\n'
-          + '   First page: class="page-section active". ALL others: class="page-section". NO inline display style.\n'
-          + '2. Do NOT define navigateTo() — it is injected automatically. Do NOT add .page-section CSS rules.\n'
-          + '3. All nav links between pages MUST use: onclick="navigateTo(\'page-id\')"\n'
-          + '4. The required page IDs are EXACTLY: ' + requestedPageIds.join(', ') + '\n\n'
-          + 'REQUIRED PAGE CONTENT:\n' + pageInstructions + '\n\n'
-          + 'REQUIRED IDs that must exist somewhere in the output:\n'
-          + '- id="hero" — inside the home page wrapper\n'
-          + '- id="testimonials" — on home or about page\n'
-          + '- id="faq" — on home or a dedicated FAQ page\n'
-          + '- id="contact" — inside the contact page wrapper with a real form\n'
-          + bookingIdLine + '\n'
-          + '- <footer> must contain: &copy; ' + yr4b + ' ' + userInput.businessName + '. All rights reserved.')
-        : 'This is a SINGLE-PAGE site. Nav links: onclick="document.getElementById(\'SECTIONID\')?.scrollIntoView({behavior:\'smooth\'})"';
-
-      // Extra feature context for Claude
-      const videoInstruction = features.includes("Video Background") && userInput.videoUrl
-        ? `HERO VIDEO: The hero section MUST have a full-viewport video background. Use this video URL: ${userInput.videoUrl}. Add a <video autoplay muted loop playsinline> element (or YouTube iframe if YouTube URL) with position:absolute, covering 100% width and height of the hero. Add a dark overlay div (rgba 0,0,0,0.55) on top so text is readable. Hero content must have position:relative;z-index:2.`
-        : features.includes("Video Background")
-        ? "HERO VIDEO: Use a looping background video in the hero section. Add a <video autoplay muted loop playsinline src='https://coverr.co/videos/city-morning/mp4'> with position:absolute, 100% width/height, object-fit:cover. Add dark overlay. Hero text must be position:relative;z-index:2."
-        : "";
-      const realTestimonialsInstruction = userInput.realTestimonials
-        ? `REAL TESTIMONIALS — use EXACTLY these quotes inside id="testimonials", do NOT invent new ones:
-${userInput.realTestimonials}`
-        : "";
-      const socialInstruction = [
-        userInput.facebookPage ? `Facebook: ${userInput.facebookPage}` : "",
-        userInput.instagramUrl ? `Instagram: ${userInput.instagramUrl}` : "",
-        userInput.linkedinUrl ? `LinkedIn: ${userInput.linkedinUrl}` : "",
-        userInput.tiktokUrl ? `TikTok: ${userInput.tiktokUrl}` : "",
-      ].filter(Boolean).join(" | ");
-      const socialLinksInstruction = socialInstruction
-        ? `SOCIAL MEDIA LINKS: Add these to the footer and header: ${socialInstruction}`
-        : "";
-
-      const prompt = `You are a senior front-end developer. I have a Stitch-generated website design below. Your job is to rewrite it as a complete, production-ready HTML file that EXACTLY preserves the visual design (colors, fonts, layout, imagery style) but guarantees all structural and functional requirements.
-
-BUSINESS: ${userInput.businessName}
-INDUSTRY: ${userInput.industry}
-EMAIL: ${clientEmail} | PHONE: ${clientPhone}${userInput.businessAddress ? " | ADDRESS: " + userInput.businessAddress : ""}
-${multiPageNote}
-
-STITCH CSS (preserve these exact styles):
-${css}
-
-STITCH BODY (use this as your visual reference):
-${bodySnippet}
-
-ABSOLUTE REQUIREMENTS — every single one must be present in your output:
-1. Sticky header with logo/business name + desktop nav links + hamburger button (id="hamburger") for mobile
-2. <div id="mobile-menu" style="display:none;position:fixed;top:0;right:0;width:80%;max-width:300px;height:100vh;z-index:9999;background:#fff;"> — mobile drawer with all nav links + close button
-${isMultiPage ? `3. MULTI-PAGE STRUCTURE: Each page wrapper: <div data-page="id" id="id" class="page-section">. Page ids: ${requestedPageIds.join(", ")}. First page: class="page-section active". Others: class="page-section". No inline display style. No .page-section CSS (injected automatically).
-4. DO NOT define a navigateTo() JS function — it will be injected automatically. DO define toggleDrawer() for the hamburger button.
-
-5. All nav links and CTA buttons that should navigate to a page must have onclick="navigateTo('PAGENAME')" with the correct page id.
-6. Each page must have full rich content — hero, services, about info, testimonials, FAQ, contact form as appropriate per page
-7. <section id="contact"> inside the Contact page with name/email/phone/message form. Real email: ${clientEmail}, phone: ${clientPhone}
-8. <footer> — copyright © ${new Date().getFullYear()} ${userInput.businessName}
-${hasBookingFeature && bookingUrl ? "9. Insert this EXACT booking section inside the Booking page (do not modify the iframe src):\n" + bookingBlock : hasBookingFeature ? "9. Booking page with prominent call-to-action to phone " + clientPhone : ""}` : `3. Build ALL of these sections in order — one per requested page: ${requestedPageIds.map((id: string, i: number) => {
-  const label = (Array.isArray(userInput.pages) ? userInput.pages[i] : id) || id;
-  const ctaDest = userInput.existingWebsite ? userInput.existingWebsite : "#contact";
-  const sectionMap: Record<string, string> = {
-    home: `<section id="hero"> — full-viewport hero with headline, subheadline, CTA button linking to ${ctaDest}`,
-    services: '<section id="services"> — services grid with 4-6 cards',
-    about: '<section id="about"> — company story, mission, values',
-    portfolio: '<section id="portfolio"> — image grid showcasing past work (use placehold.co if no real images)',
-    pricing: `<section id="pricing"> — ${pricingSection !== "No pricing section needed." ? pricingSection : "pricing table with 2-3 tiers"}`,
-    gallery: '<section id="gallery"> — responsive image gallery grid',
-    testimonials: '<section id="testimonials"> — 3+ Australian client reviews with star ratings',
-    faq: `<section id="faq"> — 6+ Q&A accordion pairs relevant to ${userInput.industry}`,
-    contact: `<section id="contact"> — form with name/email/phone/message fields. Contact form onsubmit must open mailto:${clientEmail} with the form data. Real email: ${clientEmail}, phone: ${clientPhone}`,
-    blog: `<section id="blog"> — blog post grid with 3-4 article cards`,
-    team: '<section id="team"> — team grid with 3-4 members',
-    menu: '<section id="menu"> — menu with categories and items',
-    location: '<section id="location"> — address and trading hours',
-  };
-  return (i + 3) + '. ' + (sectionMap[id] || `<section id="${id}"> — full rich content for ${label}`);
-}).join("\n")}
-${requestedPageIds.includes("testimonials") ? "" : (requestedPageIds.length + 3) + ". <section id=\"testimonials\"> — 3+ Australian client reviews (embed anywhere if no dedicated page)"}
-${requestedPageIds.includes("faq") ? "" : (requestedPageIds.length + 4) + ". <section id=\"faq\"> — 6+ Q&A pairs relevant to " + userInput.industry + " (embed anywhere if no dedicated page)"}
-${requestedPageIds.includes("contact") ? "" : (requestedPageIds.length + 5) + ". <section id=\"contact\"> — contact form with mailto:" + clientEmail + " submit, real email: " + clientEmail + ", phone: " + clientPhone}
-${requestedPageIds.length + 6}. <footer> — copyright © ${new Date().getFullYear()} ${userInput.businessName}
-${hasBookingFeature && bookingUrl ? (requestedPageIds.length + 7) + ". Insert this EXACT booking section as-is (do not modify the iframe src):\n" + bookingBlock : hasBookingFeature ? (requestedPageIds.length + 7) + ". <section id=\"booking\"> with a prominent Book Now CTA" : ""}`}
-
-${videoInstruction ? "\n" + videoInstruction : ""}
-${realTestimonialsInstruction ? "\n" + realTestimonialsInstruction : ""}
-${socialLinksInstruction ? "\n" + socialLinksInstruction : ""}
-
-RULES:
-- Return ONLY the complete HTML starting with <!DOCTYPE html> — no explanation, no markdown
-- Preserve the exact color palette, fonts, and visual style from the Stitch CSS
-- Use the real business name, email, phone throughout — no placeholders
-- All images: use unsplash.com or placehold.co URLs if no real images provided
-- Mobile-first, responsive using the same Tailwind/CSS classes from the Stitch output
-- The hamburger button MUST open the mobile-menu div (add inline onclick or wire via script)
-- Output MUST end exactly with </body></html>. Do NOT leave unfinished tags or attributes.
-- <footer> MUST contain: &copy; ${new Date().getFullYear()} ${userInput.businessName}. All rights reserved.
-- Do NOT remove any id= attributes that existed in the Stitch HTML.`;
-
-      const response = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",  // Haiku: ~20x cheaper than Sonnet, reliable for HTML
-        max_tokens: 16000,
-        messages: [{ role: "user", content: prompt }],
-      });
-
-      const text = response.content[0]?.type === "text" ? response.content[0].text : "";
-      const start = text.indexOf("<!DOCTYPE");
-      let extracted = start !== -1 ? text.slice(start) : text;
-
-      // Check for malformed output — too short or missing structure
-      const isTooShort = extracted.length < 8000 || !extracted.includes("<html") || !extracted.includes("<body");
-      if (isTooShort) {
-        console.error("[Step4b] FALLBACK: Claude output too short/malformed (" + extracted.length + " chars) — using Stitch HTML");
-        resend.emails.send({
-          from: "WebGecko Pipeline <hello@webgecko.au>",
-          to: "crayzewastaken@gmail.com",
-          subject: "⚠️ Step4b Fallback — " + userInput.businessName,
-          html: "<p>Claude rebuild failed for <strong>" + userInput.businessName + "</strong> (job: " + jobId + "). Fell back to raw Stitch HTML. Output was " + extracted.length + " chars.</p>",
-        }).catch(() => {});
-        return repairHtml(stitchHtml, userInput.businessName, new Date().getFullYear());
-      }
-
-      // Repair structural issues (truncated tags, missing </footer></body></html>, missing copyright)
-      extracted = repairHtml(extracted, userInput.businessName, new Date().getFullYear());
-
-      // For multi-page: validate ALL requested pages exist as data-page wrappers
-      // If any are missing, retry Claude once with explicit page list before giving up
-      if (isMultiPage) {
-        const missingPages = requestedPageIds.filter((id: string) => !extracted.includes(`data-page="${id}"`));
-        if (missingPages.length > 0) {
-          console.warn("[Step4b] Multi-page: missing pages after first Claude pass: " + missingPages.join(", ") + " — retrying with explicit instructions");
-
-          const wrapperLines = requestedPageIds.map(function(id: string) {
-            return '<div data-page="' + id + '" id="' + id + '" class="page-section">';
-          }).join('\n');
-          const retryPrompt = 'You are a front-end developer. Complete the following HTML by adding the missing page wrappers.\n\n'
-            + 'The site MUST have these data-page wrappers (some are missing):\n' + wrapperLines + '\n\n'
-            + 'MISSING pages that need to be added: ' + missingPages.join(', ') + '\n'
-            + 'Each must be: <div data-page="ID" id="ID" class="page-section"> ... rich content ... </div>\n\n'
-            + 'Existing HTML to extend (insert missing pages before </body>):\n'
-            + extracted.slice(0, 6000) + '\n...\n' + extracted.slice(-2000) + '\n\n'
-            + 'Return the COMPLETE fixed HTML starting with <!DOCTYPE html> ending with </body></html>.\n'
-            + 'Do NOT define navigateTo(). Do NOT add .page-section CSS.';
-
-          const retryResponse = await anthropic.messages.create({
-            model: "claude-haiku-4-5-20251001",
-            max_tokens: 16000,
-            messages: [{ role: "user", content: retryPrompt }],
-          });
-          const retryText = retryResponse.content[0]?.type === "text" ? retryResponse.content[0].text : "";
-          const retryStart = retryText.indexOf("<!DOCTYPE");
-          const retryExtracted = retryStart !== -1 ? retryText.slice(retryStart) : "";
-          if (retryExtracted.length > extracted.length && retryExtracted.includes("<html")) {
-            extracted = repairHtml(retryExtracted, userInput.businessName, new Date().getFullYear());
-            const stillMissing = requestedPageIds.filter((id: string) => !extracted.includes(`data-page="${id}"`));
-            console.log("[Step4b] Retry result: " + extracted.length + " chars. Still missing: " + (stillMissing.join(",") || "none"));
-          } else {
-            console.warn("[Step4b] Retry produced shorter/invalid output — keeping first pass");
-          }
-        }
-      }
-
-      // Warn on missing required IDs — auditor will patch in Step 5
-      const requiredIds = ['id="hamburger"', 'id="mobile-menu"', 'id="contact"'];
-      const missingIds = requiredIds.filter(id => !extracted.includes(id));
-      if (missingIds.length > 0) {
-        console.warn("[Step4b] Claude output missing: " + missingIds.join(", ") + " — auditor will patch");
-      }
-
-      console.log("[Step4b] Claude rebuilt HTML: " + extracted.length + " chars (Stitch was " + stitchHtml.length + " chars). Missing ids: " + (missingIds.join(",") || "none"));
-
-      // Final structural guarantee: call ensureMultiPageStructure so code (not Claude)
-      // guarantees every requested page wrapper exists before we continue.
-      if (isMultiPage) {
-        const { html: ensuredHtml, report } = ensureMultiPageStructure(extracted, requestedPageIds, {
-          businessName: userInput.businessName,
+      // 1. Inject id="hero" on the first large section if missing
+      if (!html.includes('id="hero"') && !html.includes("id='hero'")) {
+        html = html.replace(/(<section\b[^>]*)(>)/, (m: string, open: string, close: string) => {
+          return open.includes("id=") ? m : open + ' id="hero"' + close;
         });
-        if (report.repairs.length > 0) {
-          console.warn("[Step4b] ensureMultiPageStructure applied " + report.repairs.length + " repairs. Added: [" + report.missingPagesAdded.join(",") + "]");
-        }
-        return ensuredHtml;
       }
-      return extracted;
+
+      // 2. Inject mobile nav if hamburger button is missing
+      if (!html.includes('id="hamburger"')) {
+        const mobileNav = `
+<div id="mobile-menu" style="display:none;position:fixed;top:0;right:0;width:80%;max-width:300px;height:100vh;z-index:9999;background:#1e293b;padding:24px;box-shadow:-4px 0 24px rgba(0,0,0,0.4);">
+  <button onclick="document.getElementById('mobile-menu').style.display='none'" style="float:right;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;">&times;</button>
+  ${requestedPageIds.map((id: string) => `<a href="#${id}" onclick="document.getElementById('mobile-menu').style.display='none'" style="display:block;padding:12px 0;color:#f1f5f9;text-decoration:none;font-size:1rem;border-bottom:1px solid #334155;">${id.charAt(0).toUpperCase() + id.slice(1)}</a>`).join("\n  ")}
+</div>
+<button id="hamburger" onclick="document.getElementById('mobile-menu').style.display='block'" style="display:none;position:fixed;top:16px;right:16px;z-index:10000;background:none;border:none;cursor:pointer;padding:8px;">
+  <span style="display:block;width:24px;height:2px;background:#fff;margin:5px 0;"></span>
+  <span style="display:block;width:24px;height:2px;background:#fff;margin:5px 0;"></span>
+  <span style="display:block;width:24px;height:2px;background:#fff;margin:5px 0;"></span>
+</button>
+<style>@media(max-width:768px){#hamburger{display:block!important;}}</style>`;
+        html = html.replace(/<body[^>]*>/, (m: string) => m + mobileNav);
+      }
+
+      // 3. Inject id="contact" section if missing
+      if (!html.includes('id="contact"')) {
+        const contactSection = `
+<section id="contact" style="padding:80px 24px;background:#0f172a;scroll-margin-top:80px;">
+  <div style="max-width:640px;margin:0 auto;">
+    <h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin:0 0 8px;text-align:center;">Get In Touch</h2>
+    <p style="color:#94a3b8;text-align:center;margin:0 0 32px;">${clientPhone} &nbsp;|&nbsp; ${clientEmail}</p>
+    <form onsubmit="window.location='mailto:${clientEmail}?subject=Website Enquiry&body=Name: '+encodeURIComponent(this.name.value)+'%0APhone: '+encodeURIComponent(this.phone.value)+'%0AMessage: '+encodeURIComponent(this.message.value);return false;" style="display:flex;flex-direction:column;gap:16px;">
+      <input name="name" placeholder="Your Name" required style="padding:12px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#f1f5f9;font-size:1rem;">
+      <input name="email" type="email" placeholder="Your Email" required style="padding:12px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#f1f5f9;font-size:1rem;">
+      <input name="phone" placeholder="Your Phone" style="padding:12px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#f1f5f9;font-size:1rem;">
+      <textarea name="message" placeholder="Your Message" rows="4" required style="padding:12px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#f1f5f9;font-size:1rem;resize:vertical;"></textarea>
+      <button type="submit" style="padding:14px;border-radius:8px;background:#22c55e;color:#fff;font-size:1rem;font-weight:700;border:none;cursor:pointer;">Send Message</button>
+    </form>
+  </div>
+</section>`;
+        html = html.replace(/<\/body>/i, contactSection + "\n</body>");
+      }
+
+      // 4. Inject footer with copyright if missing
+      if (!html.includes("<footer")) {
+        const yr4b = new Date().getFullYear();
+        const footer = `<footer style="padding:32px 24px;background:#0a0f1a;text-align:center;color:#64748b;font-size:0.875rem;">&copy; ${yr4b} ${userInput.businessName}. All rights reserved.</footer>`;
+        html = html.replace(/<\/body>/i, footer + "\n</body>");
+      }
+
+      // 5. Multi-page: wrap Stitch content in page-section divs if needed
+      if (isMultiPage) {
+        const hasDataPages = (html.match(/\bdata-page=/g) || []).length >= requestedPageIds.length;
+        if (!hasDataPages) {
+          const { html: ensuredHtml, report } = ensureMultiPageStructure(html, requestedPageIds, {
+            businessName: userInput.businessName,
+          });
+          if (report.repairs.length > 0) {
+            console.log("[Step4b] ensureMultiPageStructure added: [" + report.missingPagesAdded.join(",") + "]");
+          }
+          html = ensuredHtml;
+        }
+      }
+
+      // 6. Inject booking section if needed and missing
+      if (hasBookingFeature && bookingUrl && !html.includes('id="booking"')) {
+        html = html.replace(/<\/body>/i, bookingBlock + "\n</body>");
+      }
+
+      html = repairHtml(html, userInput.businessName, new Date().getFullYear());
+
+      const requiredIds = ['id="hero"', 'id="contact"'];
+      const missingIds = requiredIds.filter(id => !html.includes(id));
+      console.log("[Step4b] Injection complete: " + html.length + " chars. Missing ids: " + (missingIds.join(",") || "none"));
+
+      return html;
       });
 
 
