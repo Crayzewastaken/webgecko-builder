@@ -35,16 +35,17 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: true, message: "Rolled back to last good build" });
   }
 
-  // reset or reset-and-rebuild: clear the building lock
-  await saveJob(jobId, { ...job, status: "completed" });
-
+  // reset-and-rebuild: clear building lock AND wipe cached HTML so Stitch runs fresh
   if (action === "reset-and-rebuild") {
+    await saveJob(jobId, { ...job, html: null, status: "pending" });
     await inngest.send({
       name: "build/website",
-      data: { jobId, isRebuild: true },
+      data: { jobId, isRebuild: false, runId: Date.now() },
     });
-    return Response.json({ ok: true, message: "Status reset and rebuild queued" });
+    return Response.json({ ok: true, message: "Status reset and full rebuild queued from scratch" });
   }
 
+  // plain reset: just clear the lock
+  await saveJob(jobId, { ...job, status: "completed" });
   return Response.json({ ok: true, message: "Job status reset to completed" });
 }

@@ -6,11 +6,17 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { inngest } from "@/lib/inngest";
-import { getJob } from "@/lib/db";
+import { getJob, saveJob } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 
 export async function runPipeline(jobId: string, fullRebuild = false): Promise<{ success: boolean; error?: string }> {
-  await inngest.send({ name: "build/website", data: { jobId, isRebuild: !fullRebuild } });
+  if (fullRebuild) {
+    // Clear cached HTML so the pipeline runs Stitch from scratch
+    const job = await getJob(jobId);
+    if (job) await saveJob(jobId, { ...job, html: null, status: "pending" });
+  }
+  // runId busts Inngest's event deduplication so steps never replay from cache
+  await inngest.send({ name: "build/website", data: { jobId, isRebuild: !fullRebuild, runId: Date.now() } });
   return { success: true };
 }
 
@@ -34,7 +40,11 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  await inngest.send({ name: "build/website", data: { jobId, isRebuild: !fullRebuild } });
+  // Full rebuild: wipe cached HTML so Stitch runs fresh, never replays old steps
+  if (fullRebuild && job) {
+    await saveJob(jobId, { ...job, html: null, status: "pending" });
+  }
+  await inngest.send({ name: "build/website", data: { jobId, isRebuild: !fullRebuild, runId: Date.now() } });
 
   return new Response(
     `<!DOCTYPE html><html><body style="font-family:sans-serif;background:#0f172a;color:white;padding:40px;text-align:center;">
@@ -75,6 +85,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  await inngest.send({ name: "build/website", data: { jobId, isRebuild: !fullRebuild } });
+  // Full rebuild: wipe cached HTML so Stitch runs fresh
+  if (fullRebuild) {
+    const jobForReset = await getJob(jobId);
+    if (jobForReset) await saveJob(jobId, { ...jobForReset, html: null, status: "pending" });
+  }
+  await inngest.send({ name: "build/website", data: { jobId, isRebuild: !fullRebuild, runId: Date.now() } });
   return NextResponse.json({ success: true, queued: true, jobId, fullRebuild: !!fullRebuild });
 }
