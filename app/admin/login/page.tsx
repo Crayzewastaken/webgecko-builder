@@ -6,9 +6,11 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [locked, setLocked] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (locked) return;
     setError("");
     setLoading(true);
     try {
@@ -28,7 +30,11 @@ export default function AdminLoginPage() {
           const data = await res.json();
           msg = data.error || msg;
         } catch {}
-        setError(msg + " (status " + res.status + ")");
+        if (res.status === 429) {
+          setLocked(true);
+        }
+        setError(msg);
+        setPassword("");
       }
     } catch (err: unknown) {
       setError("Network error: " + String(err));
@@ -62,74 +68,91 @@ export default function AdminLoginPage() {
             justifyContent: "center",
             width: "52px",
             height: "52px",
-            background: "#f0fdf4",
+            background: locked ? "#fef2f2" : "#f0fdf4",
             borderRadius: "14px",
             marginBottom: "16px",
           }}>
-            <span style={{ fontSize: "26px" }}>&#x1F98E;</span>
+            <span style={{ fontSize: "26px" }}>{locked ? "🔒" : "🦎"}</span>
           </div>
           <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 700, color: "#111827", letterSpacing: "-0.3px" }}>
             WebGecko Admin
           </h1>
           <p style={{ margin: "6px 0 0", fontSize: "14px", color: "#6b7280" }}>
-            Sign in to your dashboard
+            {locked ? "Login temporarily locked" : "Sign in to your dashboard"}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: "16px" }}>
-            <label style={{
-              display: "block",
-              fontSize: "13px",
-              fontWeight: 600,
-              color: "#374151",
-              marginBottom: "6px",
-            }}>
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Enter admin password"
-              autoFocus
+        {locked ? (
+          <div style={{
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            borderRadius: "10px",
+            padding: "16px",
+            textAlign: "center",
+          }}>
+            <p style={{ margin: 0, fontSize: "14px", color: "#dc2626", fontWeight: 600 }}>
+              Too many failed attempts
+            </p>
+            <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#7f1d1d" }}>
+              Your login has been locked for 1 hour. A notification has been sent to your email.
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{
+                display: "block",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "#374151",
+                marginBottom: "6px",
+              }}>
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Enter admin password"
+                autoFocus
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  fontSize: "15px",
+                  border: error ? "1.5px solid #ef4444" : "1.5px solid #e5e7eb",
+                  borderRadius: "10px",
+                  outline: "none",
+                  background: "#f9fafb",
+                  color: "#111827",
+                  boxSizing: "border-box",
+                }}
+              />
+              {error && (
+                <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#ef4444" }}>
+                  {error}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
               style={{
                 width: "100%",
-                padding: "10px 14px",
+                padding: "11px",
                 fontSize: "15px",
-                border: error ? "1.5px solid #ef4444" : "1.5px solid #e5e7eb",
+                fontWeight: 600,
+                background: loading ? "#d1d5db" : "#16a34a",
+                color: loading ? "#9ca3af" : "#ffffff",
+                border: "none",
                 borderRadius: "10px",
-                outline: "none",
-                background: "#f9fafb",
-                color: "#111827",
-                boxSizing: "border-box",
+                cursor: loading ? "not-allowed" : "pointer",
               }}
-            />
-            {error && (
-              <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#ef4444" }}>
-                {error}
-              </p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: "100%",
-              padding: "11px",
-              fontSize: "15px",
-              fontWeight: 600,
-              background: loading ? "#d1d5db" : "#16a34a",
-              color: loading ? "#9ca3af" : "#ffffff",
-              border: "none",
-              borderRadius: "10px",
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
+            >
+              {loading ? "Signing in..." : "Sign in"}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

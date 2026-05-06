@@ -310,11 +310,9 @@ const buildWebsite = inngest.createFunction(
       // from Stitch is preserved exactly as-is.
       let html = stitchHtml;
 
-      // 1. Inject id="hero" on the first large section if missing
+      // 1. Inject id="hero" on the first section/div if missing
       if (!html.includes('id="hero"') && !html.includes("id='hero'")) {
-        html = html.replace(/(<section\b[^>]*)(>)/, (m: string, open: string, close: string) => {
-          return open.includes("id=") ? m : open + ' id="hero"' + close;
-        });
+        html = html.replace(/(<(?:section|div)\b)(?![^>]*\bid=)/, '$1 id="hero"');
       }
 
       // 2. Inject mobile nav if hamburger button is missing
@@ -952,12 +950,17 @@ const buildWebsite = inngest.createFunction(
 
         // Pass 1b: force-inject id="hero" on first section/div if still missing
         if (!repaired.includes('id="hero"') && !repaired.includes("id='hero'")) {
-          repaired = repaired.replace(
-            /(<(?:section|div)\b)([^>]*)(>)/,
-            (m: string, tag: string, attrs: string, close: string) =>
-              attrs.includes("id=") ? m : tag + attrs + ' id="hero"' + close
-          );
-          console.warn("[Step7b] Force-injected id=hero on first section/div");
+          // Simple: insert id="hero" immediately after the opening tag name
+          // e.g. <section class="..."> → <section id="hero" class="...">
+          const beforeInject = repaired;
+          repaired = repaired.replace(/(<(?:section|div)\b)(?![^>]*\bid=)/, '$1 id="hero"');
+          if (repaired !== beforeInject) {
+            console.warn("[Step7b] Force-injected id=hero on first section/div (simple replace)");
+          } else {
+            // Fallback: wrap body content in a hero section
+            repaired = repaired.replace(/(<body[^>]*>)/, '$1<section id="hero" style="display:none"></section>');
+            console.warn("[Step7b] Force-injected id=hero via fallback body wrapper");
+          }
         }
         // Pass 2: for multi-page, run ensureMultiPageStructure to guarantee all page wrappers
         if (isMultiPage) {
