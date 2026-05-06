@@ -1205,3 +1205,43 @@ export function getServicesForIndustry(industry: string): { name: string; durati
   if (lower.includes("fitness") || lower.includes("training") || lower.includes("gym")) return [{ name: "Personal Training Session", duration: dur }, { name: "Initial Assessment", duration: 45 }];
   return [{ name: "Appointment", duration: dur }, { name: "Consultation", duration: 30 }];
 }
+
+// ─── getExampleHtmlsForIndustry ───────────────────────────────────────────────
+// Fetches example HTML files from Supabase storage matching the given industry.
+// Returns up to maxExamples HTML strings to inject as reference context into Claude.
+// Files named: "<industry>__<label>__<timestamp>.html" or "general__<label>__<timestamp>.html"
+export async function getExampleHtmlsForIndustry(
+  industry: string,
+  maxExamples = 2
+): Promise<{ label: string; html: string }[]> {
+  try {
+    const { createClient } = await import("@supabase/supabase-js");
+    const sb = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { data: files } = await sb.storage.from("example-htmls").list("", { limit: 100 });
+    if (!files || files.length === 0) return [];
+
+    const industryLower = industry.toLowerCase();
+    // Match by industry keyword in filename, fall back to "general"
+    const matching = files.filter(f => {
+      const prefix = f.name.split("__")[0].toLowerCase();
+      return industryLower.includes(prefix) || prefix === "general";
+    }).slice(0, maxExamples);
+
+    const results: { label: string; html: string }[] = [];
+    for (const f of matching) {
+      const { data } = await sb.storage.from("example-htmls").download(f.name);
+      if (!data) continue;
+      const html = await data.text();
+      const label = (f.name.split("__")[1] || f.name).replace(/\.html?$/i, "");
+      results.push({ label, html: html.slice(0, 8000) }); // cap at 8k chars per example
+    }
+    return results;
+  } catch (e) {
+    console.warn("[getExampleHtmls] Failed to fetch examples:", e);
+    return [];
+  }
+}

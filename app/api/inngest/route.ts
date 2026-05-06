@@ -19,6 +19,7 @@ import {
   repairHtml,
   validateForDeploy,
   ensureMultiPageStructure,
+  getExampleHtmlsForIndustry,
 } from "@/lib/pipeline-helpers";
 import { createSuperSaasSchedule } from "@/lib/supersaas";
 import { createClientShopCatalogue } from "@/lib/square";
@@ -158,6 +159,11 @@ const buildWebsite = inngest.createFunction(
 
 
     // ── STEP 1: Claude Haiku — Site Blueprint (Brain 1: Architect) ──────────
+    // Fetch any admin-uploaded example HTMLs for this industry to use as reference
+    const exampleHtmls = savedHtmlForRebuild ? [] : await step.run("step1a-example-htmls", async () => {
+      return getExampleHtmlsForIndustry(userInput.industry, 2);
+    });
+
     const spec = savedHtmlForRebuild
       ? { projectTitle: job.title || "Website", stitchPrompt: "", palette: { primary: "#1a1a2e", accent: "#10b981", background: "#0a0f1a", surface: "#0f1623", text: "#e2e8f0" }, typography: { headingFont: "Inter", bodyFont: "Inter", heroSize: "72px" }, sections: [] as string[], tone: "", heroHeadline: "", heroSubheadline: "", ctaText: "", uniqueDesignIdea: "" }
       : await step.run("step1-blueprint", async () => {
@@ -183,6 +189,7 @@ const buildWebsite = inngest.createFunction(
         pricingSection,
         imageSection,
         productsWithPhotos,
+        exampleHtmls,
       });
       return blueprint;
       });
@@ -438,9 +445,10 @@ const buildWebsite = inngest.createFunction(
 
       if (businessAddress) {
         // Use Embed API with key if available, otherwise fall back to the free maps?q= iframe (no key needed)
+        // Use Embed API with key if available, otherwise use /maps/embed (no key needed, not deprecated)
         const mapsEmbed = process.env.GOOGLE_MAPS_API_KEY
           ? `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`
-          : `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=${encodeURIComponent(businessAddress)}&output=embed"></iframe></div>`;
+          : `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?q=${encodeURIComponent(businessAddress)}&t=&z=15&ie=UTF8&iwloc=&output=embed"></iframe></div>`;
         if (!/<iframe[^>]*google\.com\/maps/i.test(html) && !/<iframe[^>]*maps\.googleapis/i.test(html)) {
           let mapInjected = false;
           const beforeMapLen = html.length;

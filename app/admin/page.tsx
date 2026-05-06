@@ -548,6 +548,27 @@ function ClientDashboard({ c, secret, onClose, dark = false }: { c: ClientAnalyt
                 <InfoRow label="Vercel project" value={c.vercelProjectName} mono />
               </div>
 
+              {/* Live preview iframe — reloads automatically when build status changes */}
+              {c.previewUrl && (
+                <div style={{ ...G.section }}>
+                  <div style={G.sectionTitle}>Live preview</div>
+                  <div style={{ position: "relative", width: "100%", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.border}`, background: T.bg }}>
+                    <iframe
+                      key={c.buildStatus + c.previewUrl}
+                      src={c.previewUrl}
+                      style={{ width: "100%", height: 420, border: "none", display: "block" }}
+                      title="Site preview"
+                      sandbox="allow-scripts allow-same-origin allow-forms"
+                    />
+                    {c.buildStatus === "building" && (
+                      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10 }}>
+                        <div style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>Building… preview will refresh when complete</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {c.hasBooking && (
                 <div style={G.section}>
                   <div style={G.sectionTitle}>Booking system</div>
@@ -857,6 +878,124 @@ function ClientRow({ c, secret, dark = false }: { c: ClientAnalytics; secret: st
   );
 }
 
+// ─── Example HTMLs Panel ──────────────────────────────────────────────────────
+function ExampleHtmlsPanel({ T, G }: { T: typeof T_LIGHT; G: ReturnType<typeof makeG> }) {
+  const [files, setFiles] = useState<{ name: string; label: string; industry: string; size: number; createdAt: string }[]>([]);
+  const [open, setOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [industry, setIndustry] = useState("general");
+  const [label, setLabel] = useState("");
+  const [uploadErr, setUploadErr] = useState("");
+
+  async function loadFiles() {
+    try {
+      const res = await fetch("/api/admin/example-htmls");
+      if (res.ok) { const d = await res.json(); setFiles(d.files || []); }
+    } catch {}
+  }
+
+  useEffect(() => { if (open) loadFiles(); }, [open]);
+
+  async function handleUpload(e: React.FormEvent) {
+    e.preventDefault();
+    setUploadErr("");
+    const form = e.target as HTMLFormElement;
+    const fileInput = form.querySelector("input[type=file]") as HTMLInputElement;
+    const file = fileInput?.files?.[0];
+    if (!file) { setUploadErr("Select a .html file first"); return; }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("industry", industry);
+      fd.append("label", label || file.name.replace(/\.html?$/i, ""));
+      const res = await fetch("/api/admin/example-htmls", { method: "POST", body: fd });
+      const d = await res.json();
+      if (!res.ok) { setUploadErr(d.error || "Upload failed"); return; }
+      form.reset();
+      setLabel("");
+      await loadFiles();
+    } catch (e) { setUploadErr(String(e)); }
+    finally { setUploading(false); }
+  }
+
+  async function handleDelete(name: string) {
+    if (!confirm(`Delete ${name}?`)) return;
+    await fetch("/api/admin/example-htmls", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+    await loadFiles();
+  }
+
+  const inputStyle: React.CSSProperties = {
+    background: T.surface, border: `1px solid ${T.border}`, borderRadius: 7,
+    padding: "7px 12px", color: T.textPrimary, fontSize: 13,
+    outline: "none", fontFamily: "inherit", width: "100%", boxSizing: "border-box",
+  };
+
+  return (
+    <div style={{ ...G.card, marginTop: 32 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ width: "100%", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px" }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>📄 Example HTML Library</span>
+          <span style={{ ...G.pill(T.blue), fontSize: 10 }}>{files.length} files</span>
+        </div>
+        <span style={{ color: T.textMuted, fontSize: 12 }}>{open ? "▲ collapse" : "▼ expand"}</span>
+      </button>
+
+      {open && (
+        <div style={{ padding: "0 22px 22px" }}>
+          <p style={{ fontSize: 12, color: T.textMuted, margin: "0 0 20px", lineHeight: 1.6 }}>
+            Upload reference HTML files here. When a site is built for a matching industry, Claude uses these as layout and content inspiration. Tag files by industry so they get matched automatically.
+          </p>
+
+          {/* Upload form */}
+          <form onSubmit={handleUpload} style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24, padding: 16, background: T.raised, borderRadius: 10, border: `1px solid ${T.border}` }}>
+            <div style={{ fontWeight: 600, fontSize: 12, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Upload new example</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 4 }}>Industry tag</div>
+                <input style={inputStyle} placeholder="e.g. beauty, dental, general" value={industry} onChange={e => setIndustry(e.target.value)} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 4 }}>Label</div>
+                <input style={inputStyle} placeholder="e.g. portfolio-layout, hero-style" value={label} onChange={e => setLabel(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 4 }}>HTML file (max 2MB)</div>
+              <input type="file" accept=".html,.htm" style={{ fontSize: 13, color: T.textPrimary }} />
+            </div>
+            {uploadErr && <div style={{ fontSize: 12, color: T.red }}>{uploadErr}</div>}
+            <button type="submit" disabled={uploading} style={{ ...G.btn(T.green, true), alignSelf: "flex-start", opacity: uploading ? 0.6 : 1 }}>
+              {uploading ? "Uploading…" : "Upload file"}
+            </button>
+          </form>
+
+          {/* File list */}
+          {files.length === 0 ? (
+            <div style={{ color: T.textMuted, fontSize: 13, textAlign: "center", padding: "20px 0" }}>No example files uploaded yet.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {files.map(f => (
+                <div key={f.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: T.raised, borderRadius: 8, padding: "10px 14px", border: `1px solid ${T.border}` }}>
+                  <div>
+                    <span style={{ ...G.pill(T.blue), marginRight: 8 }}>{f.industry}</span>
+                    <span style={{ fontSize: 13, color: T.textPrimary, fontWeight: 500 }}>{f.label}</span>
+                    <span style={{ fontSize: 11, color: T.textMuted, marginLeft: 8 }}>{Math.round(f.size / 1024)}KB · {new Date(f.createdAt).toLocaleDateString("en-AU")}</span>
+                  </div>
+                  <button onClick={() => handleDelete(f.name)} style={{ ...G.btn(T.red), fontSize: 11, padding: "4px 10px" }}>Delete</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminDashboard() {
   // ── Theme ──────────────────────────────────────────────────────────────────
   const [dark, setDark] = useState(false);
@@ -879,7 +1018,25 @@ function AdminDashboard() {
     window.location.href = "/admin/login";
   }
 
-  useEffect(() => { loadDashboard(); }, []);
+  useEffect(() => {
+    loadDashboard();
+    // Auto-refresh every 8s while any build is in progress
+    const interval = setInterval(async () => {
+      const res = await fetch("/api/admin/clients").catch(() => null);
+      if (!res || !res.ok) return;
+      const data = await res.json().catch(() => ({}));
+      const fresh: ClientAnalytics[] = data.clients || [];
+      setClients(prev => {
+        // Only update if something changed (status or previewUrl)
+        const changed = fresh.some((f, i) => {
+          const p = prev.find(p => p.jobId === f.jobId);
+          return !p || p.buildStatus !== f.buildStatus || p.previewUrl !== f.previewUrl;
+        });
+        return changed ? fresh : prev;
+      });
+    }, 8000);
+    return () => clearInterval(interval);
+  }, []);
 
   async function loadDashboard() {
     setLoading(true); setError("");
@@ -996,6 +1153,10 @@ function AdminDashboard() {
         {!loading && filtered.length === 0 && (
           <div style={{ color: T.textMuted, textAlign: "center", padding: 80, fontSize: 13 }}>No clients found.</div>
         )}
+
+        {/* Example HTMLs panel */}
+        {!loading && <ExampleHtmlsPanel T={T} G={G} />}
+
       </div>
     </div>
   );

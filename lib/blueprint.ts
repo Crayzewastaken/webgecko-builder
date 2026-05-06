@@ -232,6 +232,7 @@ export async function generateSiteBlueprint(context: {
   blogTopics?: string;
   videoUrl?: string;
   shopProducts?: string;
+  exampleHtmls?: { label: string; html: string }[];
 }): Promise<SiteBlueprint> {
   const {
     businessName, industry, targetAudience, usp, goal, style, colorPrefs,
@@ -239,6 +240,7 @@ export async function generateSiteBlueprint(context: {
     facebookPage, additionalNotes, pages, isMultiPage, hasBooking, bookingUrl,
     pricingSection, imageSection, productsWithPhotos,
     instagramUrl, linkedinUrl, tiktokUrl, realTestimonials, blogTopics, videoUrl, shopProducts,
+    exampleHtmls = [],
   } = context;
 
   // Extract city/location from businessAddress for SERP + LSI queries
@@ -373,7 +375,10 @@ Return exactly this JSON shape (no other text):
   "ctaText": "...",
   "uniqueDesignIdea": "...",
   "stitchPrompt": "minimum 800 words, single quotes only inside"
-}`;
+}${exampleHtmls.length > 0 ? `
+
+REFERENCE EXAMPLES (admin-uploaded HTML examples for this industry — use these as inspiration for layout structure, section patterns, and content depth. Do NOT copy text verbatim):
+${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.slice(0, 6000)}\n--- End Example ${i + 1} ---`).join("\n\n")}` : ""}`;
 
   const response = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
