@@ -279,7 +279,7 @@ SEO INTELLIGENCE (from top-ranking pages for "${industry} ${location}"):
     ? `
 KEYWORD STRATEGY — weave these naturally throughout all sections (do NOT list them, use organically):
 ${lsiKeywords.join(", ")}
-Primary keyword placement: use "${industry} ${location.split(",")[0]?.trim()}" within the first 100 words of hero copy.
+Primary keyword placement: weave "${industry} ${location.split(",")[0]?.trim()}" naturally into the services or intro section — NOT in the hero headline or hero subheadline.
 `
     : "";
 
@@ -497,4 +497,8 @@ export async function requestGoogleIndexing(url: string): Promise<void> {
   } catch (e) {
     console.warn("[Indexing] Failed (non-fatal):", e instanceof Error ? e.message : String(e));
   }
+}
+", e instanceof Error ? e.message : String(e));
+  }
+}
 }
