@@ -162,6 +162,3 @@ export async function PATCH(req: NextRequest) {
 
   return Response.json({ ok: true, request: requests[idx] });
 }
-
-  return Response.json({ ok: true, request: requests[idx] });
-}
