@@ -448,13 +448,31 @@ ${isMultiPage ? `3. MULTI-PAGE STRUCTURE: Each page wrapper: <div data-page="id"
 6. Each page must have full rich content — hero, services, about info, testimonials, FAQ, contact form as appropriate per page
 7. <section id="contact"> inside the Contact page with name/email/phone/message form. Real email: ${clientEmail}, phone: ${clientPhone}
 8. <footer> — copyright © ${new Date().getFullYear()} ${userInput.businessName}
-${hasBookingFeature && bookingUrl ? "9. Insert this EXACT booking section inside the Booking page (do not modify the iframe src):\n" + bookingBlock : hasBookingFeature ? "9. Booking page with prominent call-to-action to phone " + clientPhone : ""}` : `3. <section id="hero"> — full-viewport hero with headline, subheadline, CTA button
-4. <section id="services"> — services grid with 4-6 cards
-5. <section id="testimonials"> — 3+ Australian client names, 5-star ratings
-6. <section id="faq"> — 6+ Q&A accordion pairs relevant to ${userInput.industry}
-7. <section id="contact"> — form with name/email/phone/message fields. Real email: ${clientEmail}, phone: ${clientPhone}
-8. <footer> — copyright © ${new Date().getFullYear()} ${userInput.businessName}
-${hasBookingFeature && bookingUrl ? "9. Insert this EXACT booking section as-is (do not modify the iframe src):\n" + bookingBlock : hasBookingFeature ? "9. <section id=\"booking\"> with a prominent Book Now CTA" : ""}`}
+${hasBookingFeature && bookingUrl ? "9. Insert this EXACT booking section inside the Booking page (do not modify the iframe src):\n" + bookingBlock : hasBookingFeature ? "9. Booking page with prominent call-to-action to phone " + clientPhone : ""}` : `3. Build ALL of these sections in order — one per requested page: ${requestedPageIds.map((id: string, i: number) => {
+  const label = (Array.isArray(userInput.pages) ? userInput.pages[i] : id) || id;
+  const ctaDest = userInput.existingWebsite ? userInput.existingWebsite : "#contact";
+  const sectionMap: Record<string, string> = {
+    home: `<section id="hero"> — full-viewport hero with headline, subheadline, CTA button linking to ${ctaDest}`,
+    services: '<section id="services"> — services grid with 4-6 cards',
+    about: '<section id="about"> — company story, mission, values',
+    portfolio: '<section id="portfolio"> — image grid showcasing past work (use placehold.co if no real images)',
+    pricing: `<section id="pricing"> — ${pricingSection !== "No pricing section needed." ? pricingSection : "pricing table with 2-3 tiers"}`,
+    gallery: '<section id="gallery"> — responsive image gallery grid',
+    testimonials: '<section id="testimonials"> — 3+ Australian client reviews with star ratings',
+    faq: `<section id="faq"> — 6+ Q&A accordion pairs relevant to ${userInput.industry}`,
+    contact: `<section id="contact"> — form with name/email/phone/message fields. Contact form onsubmit must open mailto:${clientEmail} with the form data. Real email: ${clientEmail}, phone: ${clientPhone}`,
+    blog: `<section id="blog"> — blog post grid with 3-4 article cards`,
+    team: '<section id="team"> — team grid with 3-4 members',
+    menu: '<section id="menu"> — menu with categories and items',
+    location: '<section id="location"> — address and trading hours',
+  };
+  return (i + 3) + '. ' + (sectionMap[id] || `<section id="${id}"> — full rich content for ${label}`);
+}).join("\n")}
+${requestedPageIds.includes("testimonials") ? "" : (requestedPageIds.length + 3) + ". <section id=\"testimonials\"> — 3+ Australian client reviews (embed anywhere if no dedicated page)"}
+${requestedPageIds.includes("faq") ? "" : (requestedPageIds.length + 4) + ". <section id=\"faq\"> — 6+ Q&A pairs relevant to " + userInput.industry + " (embed anywhere if no dedicated page)"}
+${requestedPageIds.includes("contact") ? "" : (requestedPageIds.length + 5) + ". <section id=\"contact\"> — contact form with mailto:" + clientEmail + " submit, real email: " + clientEmail + ", phone: " + clientPhone}
+${requestedPageIds.length + 6}. <footer> — copyright © ${new Date().getFullYear()} ${userInput.businessName}
+${hasBookingFeature && bookingUrl ? (requestedPageIds.length + 7) + ". Insert this EXACT booking section as-is (do not modify the iframe src):\n" + bookingBlock : hasBookingFeature ? (requestedPageIds.length + 7) + ". <section id=\"booking\"> with a prominent Book Now CTA" : ""}`}
 
 ${videoInstruction ? "\n" + videoInstruction : ""}
 ${realTestimonialsInstruction ? "\n" + realTestimonialsInstruction : ""}
@@ -596,20 +614,23 @@ RULES:
       }
 
       const ctaKeywords = ['Book Now','Book a Session','Get Started','Join Now','Sign Up','Free Trial','Book Free','Reserve','Enquire Now','Get a Quote','Start Today','Book Today','Schedule Now','Try Free','Get Free Quote','Book Consultation'];
+      const clientCtaUrl = (userInput.existingWebsite || "").trim();
       html = html.replace(/<a([^>]*href=["']#["'][^>]*)>([\s\S]*?)<\/a>/g, (match: string, attrs: string, inner: string) => {
         const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
-        const isBooking = ctaKeywords.some(k => txt.includes(k.toLowerCase()));
-        if (isBooking && !attrs.includes('navigateTo') && !attrs.includes('onclick')) {
-          return `<a${attrs} onclick="event.preventDefault();var el=document.getElementById('${bookingNavTarget}');if(el){el.scrollIntoView({behavior:'smooth'});}else if(window.navigateTo){window.navigateTo('${bookingNavTarget}');}">${inner}</a>`;
+        const isCtaKw = ctaKeywords.some(k => txt.includes(k.toLowerCase()));
+        if (!isCtaKw) return match;
+        if (attrs.includes('navigateTo') || attrs.includes('onclick')) return match;
+        if (clientCtaUrl && clientCtaUrl.startsWith('http')) {
+          return `<a${attrs.replace(/href=["']#["']/, `href="${clientCtaUrl}"`)} target="_blank" rel="noopener">${inner}</a>`;
         }
-        return match;
+        return `<a${attrs} onclick="event.preventDefault();var el=document.getElementById('${bookingNavTarget}');if(el){el.scrollIntoView({behavior:'smooth'});}else if(window.navigateTo){window.navigateTo('${bookingNavTarget}');}">${inner}</a>`;
       });
 
       if (businessAddress) {
         // Use Embed API with key if available, otherwise fall back to the free maps?q= iframe (no key needed)
         const mapsEmbed = process.env.GOOGLE_MAPS_API_KEY
           ? `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`
-          : `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?q=${encodeURIComponent(businessAddress)}&output=embed"></iframe></div>`;
+          : `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=${encodeURIComponent(businessAddress)}&output=embed"></iframe></div>`;
         if (!html.includes('maps.google') && !html.includes('maps.embed') && !html.includes('google.com/maps')) {
           let mapInjected = false;
           const beforeMapLen = html.length;
