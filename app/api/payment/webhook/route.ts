@@ -108,7 +108,6 @@ export async function POST(req: NextRequest) {
 
           await saveJob(jobId, {
             ...job,
-            status: "building",
             metadata: {
               ...(job?.metadata || {}),
               autoTriggeredAt: new Date().toISOString(),
