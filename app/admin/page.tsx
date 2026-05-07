@@ -548,24 +548,32 @@ function ClientDashboard({ c, secret, onClose, dark = false }: { c: ClientAnalyt
                 <InfoRow label="Vercel project" value={c.vercelProjectName} mono />
               </div>
 
-              {/* Live preview iframe — reloads automatically when build status changes */}
+              {/* Live preview — proxied iframe to bypass Vercel X-Frame-Options */}
               {c.previewUrl && (
                 <div style={{ ...G.section }}>
                   <div style={G.sectionTitle}>Live preview</div>
-                  <div style={{ position: "relative", width: "100%", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.border}`, background: T.bg }}>
-                    <iframe
-                      key={c.buildStatus + c.previewUrl}
-                      src={c.previewUrl}
-                      style={{ width: "100%", height: 420, border: "none", display: "block" }}
-                      title="Site preview"
-                      sandbox="allow-scripts allow-same-origin allow-forms"
-                    />
-                    {c.buildStatus === "building" && (
-                      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10 }}>
-                        <div style={{ color: "#fff", fontSize: 14, fontWeight: 600 }}>Building… preview will refresh when complete</div>
-                      </div>
-                    )}
-                  </div>
+                  {c.buildStatus === "building" ? (
+                    <div style={{ borderRadius: 10, border: `1px solid ${T.border}`, background: T.raised, height: 180, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <div style={{ color: T.textMuted, fontSize: 13 }}>⏳ Building… preview will appear when complete</div>
+                    </div>
+                  ) : (
+                    <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.border}` }}>
+                      <iframe
+                        key={c.buildStatus + c.previewUrl}
+                        src={`/api/admin/preview-screenshot?url=${encodeURIComponent(c.previewUrl)}`}
+                        style={{ width: "100%", height: 440, border: "none", display: "block" }}
+                        title="Site preview"
+                      />
+                      <a
+                        href={c.previewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ position: "absolute", bottom: 10, right: 10, background: "rgba(0,0,0,0.7)", color: "#fff", fontSize: 11, padding: "5px 12px", borderRadius: 6, fontWeight: 600, textDecoration: "none" }}
+                      >
+                        Open site →
+                      </a>
+                    </div>
+                  )}
                 </div>
               )}
 
