@@ -45,7 +45,7 @@ export async function GET(req: Request) {
     if (!html) return new Response("No HTML stored for this job", { status: 400 });
 
     const fixResponse = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-3-5-sonnet-latest",
       max_tokens: 16000,
       messages: [{
         role: "user",
