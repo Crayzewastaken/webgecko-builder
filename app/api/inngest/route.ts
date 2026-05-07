@@ -3,7 +3,7 @@ export const maxDuration = 300;
 
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest";
-import { stitchCreateProject, stitchGenerateScreen, stitchGetScreen, stitchFetchHtml } from "@/lib/stitch";
+import { stitchCreateProject, stitchGenerateScreen, stitchGetScreen, stitchFetchHtml, stitchListLatestScreen } from "@/lib/stitch";
 import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
 import {
@@ -209,60 +209,71 @@ const buildWebsite = inngest.createFunction(
     }) as string;
 
 
-    // ── STEP 3a: Stitch generate — fire generation via MCP, return screenId ──────
-    // Uses stitch.googleapis.com/mcp directly (no SDK, no local process needed).
-    // Generation takes 1–3 min on Google's side; we fire it here then sleep.
+    // ── STEP 3a: Fire Stitch generation — DO NOT retry, DO NOT wait for result ─────
+    // generate_screen_from_text takes 1–3 min on Google's servers.
+    // We fire it once, grab whatever screenId comes back (may be empty if still
+    // running), then hand off to Inngest sleep so zero Vercel time is burned waiting.
     const stitchScreenId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step3a-stitch-trigger", async () => {
-      // Strip raw URLs from prompt — Stitch rejects prompts containing https:// links
       const stitchPrompt = (spec.stitchPrompt || "")
         .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
         .replace(/\s{3,}/g, "  ")
         .slice(0, 5000);
-      console.log(`[Inngest] STEP 3a: Stitch MCP generate (prompt: ${stitchPrompt.length} chars)`);
-
-      // Retry up to 3x on transient errors
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          const screen = await stitchGenerateScreen(projectId, stitchPrompt, "DESKTOP", "GEMINI_3_1_PRO");
-          const sid = screen.screenId;
-          if (!sid) throw new Error("Stitch MCP: no screenId in generate_screen_from_text response");
-          console.log(`[Inngest] STEP 3a DONE: screenId=${sid} (attempt ${attempt})`);
-          return sid;
-        } catch (e: any) {
-          const msg = e?.message || String(e);
-          console.warn(`[Inngest] STEP 3a: attempt ${attempt} failed: ${msg}`);
-          if (attempt === 3) throw e;
-          await new Promise(r => setTimeout(r, 5000 * attempt));
-        }
+      console.log(`[Inngest] STEP 3a: firing Stitch MCP generate (prompt: ${stitchPrompt.length} chars)`);
+      try {
+        const screen = await stitchGenerateScreen(projectId, stitchPrompt, "DESKTOP", "GEMINI_3_1_PRO");
+        const sid = screen.screenId || "";
+        console.log(`[Inngest] STEP 3a DONE: screenId="${sid}" (may be empty if still generating)`);
+        return sid; // empty string is OK — 3b will use list_screens fallback
+      } catch (e: any) {
+        // If the MCP call itself timed out, generation may still be running on Google's side.
+        // Return empty string so 3b can discover the screen via list_screens.
+        console.warn(`[Inngest] STEP 3a: generate call failed (${e?.message}) — will poll in 3b`);
+        return "";
       }
-      throw new Error("Stitch MCP: generate failed after 3 attempts");
     }) as string;
 
-    // ── Sleep 60s — give Stitch (Gemini 3.1 Pro) time to render ─────────────────
+    // ── Sleep 2 min — Inngest yields here, zero Vercel serverless time consumed ───
     if (!savedHtmlForRebuild) {
-      await step.sleep("step3-wait-for-stitch", "60s");
+      await step.sleep("step3-wait-for-stitch", "2m");
     }
 
-    // ── STEP 3b: Poll get_screen until htmlUri appears, then fetch HTML ───────────
-    // Per Stitch MCP docs: poll every 30s up to 10x if generation is still running.
+    // ── STEP 3b: Poll until HTML is ready, then fetch it ─────────────────────────
+    // If screenId is known, poll get_screen. If not, use list_screens to discover it.
+    // Per Stitch MCP docs: poll every 30s, up to 10 times.
     const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3b-stitch-fetch", async () => {
       const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+      let screen: any = null;
+      let resolvedScreenId = stitchScreenId;
 
-      let screen;
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 10; i++) {
         try {
-          screen = await stitchGetScreen(projectId, stitchScreenId);
-          console.log(`[Inngest] STEP 3b poll ${i + 1}: state=${screen.state} htmlUri=${!!screen.htmlUri}`);
-          if (screen.htmlUri) break;
+          if (resolvedScreenId) {
+            // We have a screenId — poll it directly
+            screen = await stitchGetScreen(projectId, resolvedScreenId);
+            console.log(`[Inngest] STEP 3b poll ${i + 1}: state=${screen.state} htmlUri=${!!screen.htmlUri} screenId=${resolvedScreenId}`);
+          } else {
+            // No screenId yet — list all screens for the project and take the latest
+            screen = await stitchListLatestScreen(projectId);
+            if (screen?.screenId) {
+              resolvedScreenId = screen.screenId;
+              console.log(`[Inngest] STEP 3b poll ${i + 1}: discovered screenId=${resolvedScreenId} via list_screens`);
+            } else {
+              console.log(`[Inngest] STEP 3b poll ${i + 1}: no screens yet, waiting...`);
+            }
+          }
+          if (screen?.htmlUri) {
+            console.log(`[Inngest] STEP 3b: htmlUri ready on poll ${i + 1}`);
+            break;
+          }
         } catch (e: any) {
           console.warn(`[Inngest] STEP 3b poll ${i + 1} error: ${e?.message}`);
         }
-        if (i < 7) await sleep(30000); // 30s between polls per Stitch MCP guidance
+        if (i < 9) await sleep(30000);
       }
 
-      if (!screen?.htmlUri) throw new Error("Stitch MCP: no htmlUri after polling");
+      if (!screen?.htmlUri) throw new Error("Stitch MCP: no htmlUri after 10 polls");
 
-      // Fetch the actual HTML from the signed URL
+      // Fetch HTML from the signed URL, retry up to 3x with fresh URLs
       let html = "";
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
@@ -272,9 +283,8 @@ const buildWebsite = inngest.createFunction(
         } catch (e: any) {
           console.warn(`[Inngest] STEP 3b fetch attempt ${attempt} failed: ${e?.message}`);
           if (attempt < 3) {
-            // Re-poll for a fresh signed URL before retrying
             await sleep(10000);
-            try { screen = await stitchGetScreen(projectId, stitchScreenId); } catch (_) {}
+            try { screen = await stitchGetScreen(projectId, resolvedScreenId); } catch (_) {}
           }
         }
       }

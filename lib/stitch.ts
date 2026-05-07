@@ -100,8 +100,22 @@ export async function stitchGenerateScreen(
     name: "generate_screen_from_text",
     arguments: { projectId, prompt, deviceType, modelId },
   }) as any;
+
+  // Log the raw result so we can see exactly what Stitch returns
+  console.log("[Stitch MCP] generate_screen_from_text raw result:", JSON.stringify(result).slice(0, 1000));
+
   const content = extractJson(result);
-  return normaliseScreen(content);
+  console.log("[Stitch MCP] generate_screen_from_text parsed content:", JSON.stringify(content).slice(0, 1000));
+
+  const screen = normaliseScreen(content);
+
+  // If we still have no screenId, try listing screens for this project as fallback
+  // (Stitch may return the screen via a different path when generation is still running)
+  if (!screen.screenId && projectId && projectId !== "rebuild-skipped") {
+    console.log("[Stitch MCP] No screenId in generate response — will rely on list_screens in step 3b");
+  }
+
+  return screen;
 }
 
 /**
@@ -119,6 +133,23 @@ export async function stitchGetScreen(
   }) as any;
   const content = extractJson(result);
   return normaliseScreen(content);
+}
+
+/**
+ * Lists all screens for a project and returns the most recently created one.
+ * Used as fallback when generate_screen_from_text doesn't return a screenId.
+ */
+export async function stitchListLatestScreen(projectId: string): Promise<StitchScreen | null> {
+  const result = await callMcp("tools/call", {
+    name: "list_screens",
+    arguments: { parent: `projects/${projectId}` },
+  }) as any;
+  const content = extractJson(result);
+  // content may be { screens: [...] } or an array directly
+  const screens: any[] = Array.isArray(content) ? content : (content?.screens || []);
+  if (!screens.length) return null;
+  // Take the last one (most recently created)
+  return normaliseScreen(screens[screens.length - 1]);
 }
 
 /**
