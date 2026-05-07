@@ -209,27 +209,26 @@ const buildWebsite = inngest.createFunction(
     }) as string;
 
 
-    // ── STEP 3a: Fire Stitch generation — DO NOT retry, DO NOT wait for result ─────
-    // generate_screen_from_text takes 1–3 min on Google's servers.
-    // We fire it once, grab whatever screenId comes back (may be empty if still
-    // running), then hand off to Inngest sleep so zero Vercel time is burned waiting.
+    // ── STEP 3a: Fire Stitch generation — returns screenId or throws ─────────────
+    // generate_screen_from_text takes 1–3 min. We fire it and grab the screenId.
+    // Inngest will retry this step automatically if it throws (up to its default limit).
     const stitchScreenId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step3a-stitch-trigger", async () => {
       const stitchPrompt = (spec.stitchPrompt || "")
         .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
         .replace(/\s{3,}/g, "  ")
         .slice(0, 5000);
       console.log(`[Inngest] STEP 3a: firing Stitch MCP generate (prompt: ${stitchPrompt.length} chars)`);
-      try {
-        const screen = await stitchGenerateScreen(projectId, stitchPrompt, "DESKTOP", "GEMINI_3_1_PRO");
-        const sid = screen.screenId || "";
-        console.log(`[Inngest] STEP 3a DONE: screenId="${sid}" (may be empty if still generating)`);
-        return sid; // empty string is OK — 3b will use list_screens fallback
-      } catch (e: any) {
-        // If the MCP call itself timed out, generation may still be running on Google's side.
-        // Return empty string so 3b can discover the screen via list_screens.
-        console.warn(`[Inngest] STEP 3a: generate call failed (${e?.message}) — will poll in 3b`);
-        return "";
+
+      const screen = await stitchGenerateScreen(projectId, stitchPrompt, "DESKTOP", "GEMINI_3_1_PRO");
+      const sid = screen.screenId || "";
+      console.log(`[Inngest] STEP 3a DONE: screenId="${sid}" name="${screen.name}"`);
+
+      // If we got no screenId, it means the MCP response was unexpected — log and throw
+      // so Inngest retries the step rather than silently passing empty string to 3b
+      if (!sid) {
+        throw new Error(`Stitch MCP: generate_screen_from_text returned no screenId. name="${screen.name}" state="${screen.state}"`);
       }
+      return sid;
     }) as string;
 
     // ── Sleep 2 min — Inngest yields here, zero Vercel serverless time consumed ───

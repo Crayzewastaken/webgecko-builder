@@ -16,17 +16,25 @@ function getApiKey(): string {
 
 let _reqId = 1;
 
-async function callMcp(method: string, params: Record<string, unknown>): Promise<unknown> {
+async function callMcp(method: string, params: Record<string, unknown>, timeoutMs = 240000): Promise<unknown> {
   const id = _reqId++;
-  const res = await fetch(STITCH_MCP_URL, {
-    method: "POST",
-    headers: {
-      "X-Goog-Api-Key": getApiKey(),
-      "Content-Type": "application/json",
-      "Accept": "application/json, text/event-stream",
-    },
-    body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let res: Response;
+  try {
+    res = await fetch(STITCH_MCP_URL, {
+      method: "POST",
+      headers: {
+        "X-Goog-Api-Key": getApiKey(),
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
