@@ -551,28 +551,16 @@ function ClientDashboard({ c, secret, onClose, dark = false }: { c: ClientAnalyt
               {/* Live preview — proxied iframe to bypass Vercel X-Frame-Options */}
               {c.previewUrl && (
                 <div style={{ ...G.section }}>
-                  <div style={G.sectionTitle}>Live preview</div>
+                  <div style={{ ...G.sectionTitle, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span>Live preview</span>
+                    <PreviewRefreshBtn previewUrl={c.previewUrl} T={T} G={G} />
+                  </div>
                   {c.buildStatus === "building" ? (
                     <div style={{ borderRadius: 10, border: `1px solid ${T.border}`, background: T.raised, height: 180, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <div style={{ color: T.textMuted, fontSize: 13 }}>⏳ Building… preview will appear when complete</div>
                     </div>
                   ) : (
-                    <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.border}` }}>
-                      <iframe
-                        key={c.buildStatus + c.previewUrl}
-                        src={`/api/admin/preview-screenshot?url=${encodeURIComponent(c.previewUrl)}`}
-                        style={{ width: "100%", height: 440, border: "none", display: "block" }}
-                        title="Site preview"
-                      />
-                      <a
-                        href={c.previewUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ position: "absolute", bottom: 10, right: 10, background: "rgba(0,0,0,0.7)", color: "#fff", fontSize: 11, padding: "5px 12px", borderRadius: 6, fontWeight: 600, textDecoration: "none" }}
-                      >
-                        Open site →
-                      </a>
-                    </div>
+                    <PreviewFrame previewUrl={c.previewUrl} T={T} />
                   )}
                 </div>
               )}
@@ -818,6 +806,34 @@ function ClientDashboard({ c, secret, onClose, dark = false }: { c: ClientAnalyt
       </div>
     </div>
   );
+}
+
+// ─── Live preview components ──────────────────────────────────────────────────
+function PreviewFrame({ previewUrl, T }: { previewUrl: string; T: typeof T_LIGHT }) {
+  const [bust, setBust] = useState(() => Date.now());
+  return (
+    <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.border}` }}>
+      <iframe
+        key={bust}
+        src={`/api/admin/preview-screenshot?url=${encodeURIComponent(previewUrl)}&t=${bust}`}
+        style={{ width: "100%", height: 440, border: "none", display: "block" }}
+        title="Site preview"
+      />
+      <div style={{ position: "absolute", bottom: 10, right: 10, display: "flex", gap: 6 }}>
+        <button
+          onClick={() => setBust(Date.now())}
+          style={{ background: "rgba(0,0,0,0.7)", color: "#fff", border: "none", fontSize: 11, padding: "5px 12px", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}
+        >↺ Refresh</button>
+        <a href={previewUrl} target="_blank" rel="noreferrer" style={{ background: "rgba(0,0,0,0.7)", color: "#fff", fontSize: 11, padding: "5px 12px", borderRadius: 6, fontWeight: 600, textDecoration: "none" }}>
+          Open site →
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function PreviewRefreshBtn({ previewUrl, T, G }: { previewUrl: string; T: typeof T_LIGHT; G: ReturnType<typeof makeG> }) {
+  return null; // refresh is handled inside PreviewFrame
 }
 
 // ─── Per-client reference HTML uploader ──────────────────────────────────────

@@ -445,10 +445,10 @@ const buildWebsite = inngest.createFunction(
 
       if (businessAddress) {
         // Use Embed API with key if available, otherwise fall back to the free maps?q= iframe (no key needed)
-        // Use Embed API with key if available, otherwise use /maps/embed (no key needed, not deprecated)
+        // Use Google Embed API with key if available, otherwise OpenStreetMap (free, no key, reliable)
         const mapsEmbed = process.env.GOOGLE_MAPS_API_KEY
-          ? `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`
-          : `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?q=${encodeURIComponent(businessAddress)}&t=&z=15&ie=UTF8&iwloc=&output=embed"></iframe></div>`;
+          ? `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;display:block;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`
+          : `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;display:block;" loading="lazy" allowfullscreen src="https://www.openstreetmap.org/export/embed.html?bbox=&layer=mapnik&marker=&query=${encodeURIComponent(businessAddress)}" title="Map"></iframe><small style="display:block;text-align:right;font-size:10px;color:#94a3b8;margin-top:4px;"><a href="https://www.openstreetmap.org/search?query=${encodeURIComponent(businessAddress)}" target="_blank" style="color:#94a3b8;">View larger map</a></small></div>`;
         if (!/<iframe[^>]*google\.com\/maps/i.test(html) && !/<iframe[^>]*maps\.googleapis/i.test(html)) {
           let mapInjected = false;
           const beforeMapLen = html.length;
