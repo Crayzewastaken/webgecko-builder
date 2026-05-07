@@ -237,36 +237,30 @@ const buildWebsite = inngest.createFunction(
     // Per Stitch MCP docs: poll every 30s, up to 10 times.
     const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3b-stitch-fetch", async () => {
       const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+      // sessionId from generate ≠ screenId — always use list_screens to find the real screen
       let screen: any = null;
-      let resolvedScreenId = stitchScreenId;
 
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 5; i++) {
         try {
-          if (resolvedScreenId) {
-            // We have a screenId — poll it directly
-            screen = await stitchGetScreen(projectId, resolvedScreenId);
-            console.log(`[Inngest] STEP 3b poll ${i + 1}: state=${screen.state} htmlUri=${!!screen.htmlUri} screenId=${resolvedScreenId}`);
-          } else {
-            // No screenId yet — list all screens for the project and take the latest
-            screen = await stitchListLatestScreen(projectId);
-            if (screen?.screenId) {
-              resolvedScreenId = screen.screenId;
-              console.log(`[Inngest] STEP 3b poll ${i + 1}: discovered screenId=${resolvedScreenId} via list_screens`);
-            } else {
-              console.log(`[Inngest] STEP 3b poll ${i + 1}: no screens yet, waiting...`);
+          const latest = await stitchListLatestScreen(projectId);
+          if (latest?.screenId) {
+            // Now poll get_screen with the real screenId
+            screen = await stitchGetScreen(projectId, latest.screenId);
+            console.log(`[Inngest] STEP 3b poll ${i + 1}: screenId=${latest.screenId} state=${screen.state} htmlUri=${!!screen.htmlUri}`);
+            if (screen?.htmlUri) {
+              console.log(`[Inngest] STEP 3b: htmlUri ready on poll ${i + 1}`);
+              break;
             }
-          }
-          if (screen?.htmlUri) {
-            console.log(`[Inngest] STEP 3b: htmlUri ready on poll ${i + 1}`);
-            break;
+          } else {
+            console.log(`[Inngest] STEP 3b poll ${i + 1}: no screens listed yet`);
           }
         } catch (e: any) {
           console.warn(`[Inngest] STEP 3b poll ${i + 1} error: ${e?.message}`);
         }
-        if (i < 9) await sleep(30000);
+        if (i < 4) await sleep(30000);
       }
 
-      if (!screen?.htmlUri) throw new Error("Stitch MCP: no htmlUri after 10 polls");
+      if (!screen?.htmlUri) throw new Error("Stitch MCP: no htmlUri after 5 polls");
 
       // Fetch HTML from the signed URL, retry up to 3x with fresh URLs
       let html = "";

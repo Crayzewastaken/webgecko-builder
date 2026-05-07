@@ -51,13 +51,24 @@ async function callMcp(method: string, params: Record<string, unknown>, timeoutM
     const lastLine = lines[lines.length - 1].replace(/^data:\s*/, "");
     const parsed = JSON.parse(lastLine);
     if (parsed.error) throw new Error(`Stitch MCP error: ${JSON.stringify(parsed.error)}`);
-    return parsed.result;
+    const toolResult = parsed.result;
+    if (toolResult?.isError) {
+      const msg = toolResult?.content?.[0]?.text || "unknown tool error";
+      throw new Error(`Stitch MCP tool error: ${msg}`);
+    }
+    return toolResult;
   }
 
   // Standard JSON response
   const json = await res.json();
   if (json.error) throw new Error(`Stitch MCP error: ${JSON.stringify(json.error)}`);
-  return json.result;
+  const toolResult = json.result;
+  // MCP tool errors come back as { isError: true, content: [{ text: "..." }] }
+  if (toolResult?.isError) {
+    const msg = toolResult?.content?.[0]?.text || "unknown tool error";
+    throw new Error(`Stitch MCP tool error: ${msg}`);
+  }
+  return toolResult;
 }
 
 // ── Tool helpers ────────────────────────────────────────────────────────────
