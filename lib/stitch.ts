@@ -136,7 +136,13 @@ export async function stitchGetScreen(
     name: "get_screen",
     arguments: { name, projectId, screenId },
   }) as any;
+
+  // Log full raw result so we can see the real shape
+  console.log("[Stitch MCP] get_screen raw result:", JSON.stringify(result).slice(0, 2000));
   const content = extractJson(result);
+  console.log("[Stitch MCP] get_screen parsed content keys:", JSON.stringify(Object.keys(content || {})));
+  console.log("[Stitch MCP] get_screen content:", JSON.stringify(content).slice(0, 2000));
+
   return normaliseScreen(content);
 }
 
@@ -149,10 +155,12 @@ export async function stitchListLatestScreen(projectId: string): Promise<StitchS
     name: "list_screens",
     arguments: { parent: `projects/${projectId}` },
   }) as any;
+  console.log("[Stitch MCP] list_screens raw:", JSON.stringify(result).slice(0, 1000));
   const content = extractJson(result);
   // content may be { screens: [...] } or an array directly
   const screens: any[] = Array.isArray(content) ? content : (content?.screens || []);
   if (!screens.length) return null;
+  console.log("[Stitch MCP] list_screens[last] keys:", JSON.stringify(Object.keys(screens[screens.length - 1] || {})));
   // Take the last one (most recently created)
   return normaliseScreen(screens[screens.length - 1]);
 }
