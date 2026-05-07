@@ -509,30 +509,79 @@ function ClientDashboard({ c, secret, onClose, dark = false }: { c: ClientAnalyt
                       ))}
                     </div>
                   </div>
-                  {seo.serpInsights && (
-                    <div style={G.section}>
-                      <div style={G.sectionTitle}>SERP intelligence</div>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-                        <Stat label="Avg word count (competitors)" value={seo.serpInsights.avgWordCount} color={T.amber} />
-                        <Stat label="Avg H2 count (competitors)" value={seo.serpInsights.avgH2Count} color={T.blue} />
-                      </div>
-                      <div style={{ marginBottom: 12 }}>
-                        <div style={G.label}>Winning structure</div>
-                        <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.7, marginTop: 4 }}>{seo.serpInsights.winningStructure}</div>
-                      </div>
-                      <div>
-                        <div style={G.label}>Top competitor headings</div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 8 }}>
-                          {(seo.serpInsights.topHeadings || []).map((h: string, i: number) => (
-                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: T.textSecondary }}>
-                              <span style={{ color: T.textMuted, fontSize: 10, width: 16, textAlign: "right", flexShrink: 0, fontFamily: "monospace" }}>{i + 1}</span>
-                              {h}
+                  {seo.serpInsights && (() => {
+                    const si = seo.serpInsights!;
+                    // Word count: good = within 20% of competitors, warn = 50-80%, bad = <50%
+                    const wc = si.avgWordCount || 800;
+                    const h2 = si.avgH2Count || 6;
+                    type IndicatorStatus = "good" | "warn" | "bad";
+                    function indicator(status: IndicatorStatus) {
+                      const map = { good: { icon: "✓", color: T.green, label: "Good" }, warn: { icon: "!", color: T.amber, label: "Needs work" }, bad: { icon: "✗", color: T.red, label: "Action needed" } };
+                      const m = map[status];
+                      return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: m.color + "15", color: m.color, border: `1px solid ${m.color}30`, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700 }}>{m.icon} {m.label}</span>;
+                    }
+                    return (
+                      <div style={G.section}>
+                        <div style={G.sectionTitle}>SERP intelligence — how this site compares to competitors</div>
+
+                        {/* Word count */}
+                        <div style={{ background: T.bg, borderRadius: 10, padding: "14px 16px", border: `1px solid ${T.border}`, marginBottom: 10 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <div>
+                              <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>Content length</span>
+                              <span style={{ fontSize: 11, color: T.textMuted, marginLeft: 8 }}>Competitors average <strong style={{ color: T.textSecondary }}>{wc} words</strong></span>
                             </div>
-                          ))}
+                            {indicator(wc > 1200 ? "bad" : wc > 600 ? "good" : "warn")}
+                          </div>
+                          <div style={{ fontSize: 12, color: T.textMuted, lineHeight: 1.6 }}>
+                            {wc > 1200
+                              ? `⚠️ Competitors use ${wc} words — this site should match that depth. Consider adding more detail to services, FAQs, and about sections.`
+                              : wc > 600
+                              ? `✓ Competitors average ${wc} words — this site's content depth is competitive.`
+                              : `ℹ️ Competitors only use ~${wc} words — a concise, well-structured site can outrank them.`}
+                          </div>
+                        </div>
+
+                        {/* H2 count */}
+                        <div style={{ background: T.bg, borderRadius: 10, padding: "14px 16px", border: `1px solid ${T.border}`, marginBottom: 10 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <div>
+                              <span style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>Section headings (H2s)</span>
+                              <span style={{ fontSize: 11, color: T.textMuted, marginLeft: 8 }}>Competitors use <strong style={{ color: T.textSecondary }}>{h2} headings</strong> on average</span>
+                            </div>
+                            {indicator(h2 >= 5 && h2 <= 10 ? "good" : h2 < 3 ? "bad" : "warn")}
+                          </div>
+                          <div style={{ fontSize: 12, color: T.textMuted, lineHeight: 1.6 }}>
+                            {h2 >= 5 && h2 <= 10
+                              ? `✓ ${h2} H2 headings is solid. Headings help Google understand page structure and improve rankings.`
+                              : h2 < 3
+                              ? `⚠️ Competitors only use ${h2} H2s — this site should use more clear section headings to outstructure them.`
+                              : `ℹ️ ${h2} H2s is on the higher side — ensure each heading targets a specific keyword or user question.`}
+                          </div>
+                        </div>
+
+                        {/* Winning structure */}
+                        <div style={{ background: T.bg, borderRadius: 10, padding: "14px 16px", border: `1px solid ${T.border}`, marginBottom: 10 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, marginBottom: 6 }}>What's winning in search results</div>
+                          <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.7 }}>{si.winningStructure}</div>
+                        </div>
+
+                        {/* Top headings */}
+                        <div style={{ background: T.bg, borderRadius: 10, padding: "14px 16px", border: `1px solid ${T.border}` }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, marginBottom: 8 }}>Top competitor headings to beat</div>
+                          <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 10 }}>These are the H1/H2s ranking competitors are using — this site's content should cover these topics.</div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            {(si.topHeadings || []).map((h: string, i: number) => (
+                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, background: T.surface, borderRadius: 7, padding: "8px 12px", border: `1px solid ${T.border}` }}>
+                                <span style={{ background: T.blue + "20", color: T.blue, borderRadius: 4, padding: "1px 7px", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>#{i + 1}</span>
+                                <span style={{ fontSize: 12, color: T.textSecondary }}>{h}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                   <div style={{ padding: "10px 14px", background: T.bg, borderRadius: 8, fontSize: 12, color: T.textMuted, border: `1px solid ${T.border}` }}>
                     sitemap.xml and robots.txt deploy automatically with every build.
                   </div>
@@ -819,31 +868,51 @@ function ClientDashboard({ c, secret, onClose, dark = false }: { c: ClientAnalyt
 }
 
 // ─── Live preview components ──────────────────────────────────────────────────
+// Vercel blocks iframes via X-Frame-Options, so we show a rich preview card instead.
 function PreviewFrame({ previewUrl, T }: { previewUrl: string; T: typeof T_LIGHT }) {
-  const [bust, setBust] = useState(() => Date.now());
+  const [thumbErr, setThumbErr] = useState(false);
+  // Use a free screenshot service — no key needed
+  const thumbUrl = `https://image.thum.io/get/width/800/crop/500/noanimate/${previewUrl}?t=${Math.floor(Date.now() / 300000)}`; // cache bust every 5 min
+
   return (
-    <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: `1px solid ${T.border}` }}>
-      <iframe
-        key={bust}
-        src={`/api/admin/preview-screenshot?url=${encodeURIComponent(previewUrl)}&t=${bust}`}
-        style={{ width: "100%", height: 440, border: "none", display: "block" }}
-        title="Site preview"
-      />
-      <div style={{ position: "absolute", bottom: 10, right: 10, display: "flex", gap: 6 }}>
-        <button
-          onClick={() => setBust(Date.now())}
-          style={{ background: "rgba(0,0,0,0.7)", color: "#fff", border: "none", fontSize: 11, padding: "5px 12px", borderRadius: 6, fontWeight: 600, cursor: "pointer" }}
-        >↺ Refresh</button>
-        <a href={previewUrl} target="_blank" rel="noreferrer" style={{ background: "rgba(0,0,0,0.7)", color: "#fff", fontSize: 11, padding: "5px 12px", borderRadius: 6, fontWeight: 600, textDecoration: "none" }}>
-          Open site →
+    <div style={{ borderRadius: 10, overflow: "hidden", border: `1px solid ${T.border}`, background: T.raised }}>
+      {/* Browser chrome bar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: T.surface, borderBottom: `1px solid ${T.border}` }}>
+        <div style={{ display: "flex", gap: 5 }}>
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ff5f57" }} />
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#febc2e" }} />
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#28c840" }} />
+        </div>
+        <div style={{ flex: 1, background: T.raised, borderRadius: 6, padding: "4px 10px", fontSize: 11, color: T.textMuted, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {previewUrl}
+        </div>
+        <a href={previewUrl} target="_blank" rel="noreferrer" style={{ ...{ background: T.green + "20", color: T.green, border: `1px solid ${T.green}30`, borderRadius: 6, padding: "4px 12px", fontSize: 11, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" } }}>
+          Open →
         </a>
       </div>
+      {/* Screenshot thumbnail */}
+      <a href={previewUrl} target="_blank" rel="noreferrer" style={{ display: "block", textDecoration: "none" }}>
+        {!thumbErr ? (
+          <img
+            src={thumbUrl}
+            alt="Site preview"
+            onError={() => setThumbErr(true)}
+            style={{ width: "100%", display: "block", maxHeight: 420, objectFit: "cover", objectPosition: "top" }}
+          />
+        ) : (
+          <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, color: T.textMuted }}>
+            <div style={{ fontSize: 32 }}>🌐</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary }}>Click to open site</div>
+            <div style={{ fontSize: 11 }}>{previewUrl}</div>
+          </div>
+        )}
+      </a>
     </div>
   );
 }
 
 function PreviewRefreshBtn({ previewUrl, T, G }: { previewUrl: string; T: typeof T_LIGHT; G: ReturnType<typeof makeG> }) {
-  return null; // refresh is handled inside PreviewFrame
+  return null;
 }
 
 // ─── Per-client reference HTML uploader ──────────────────────────────────────

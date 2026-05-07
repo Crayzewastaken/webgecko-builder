@@ -279,10 +279,32 @@ const buildWebsite = inngest.createFunction(
       }
 
       // Fetch immediately — URL is a short-lived signed link, don't store it
-      const html = await fetch(url).then(r => r.text()).catch(() => "");
+      // Retry fetch up to 3x in case the signed URL needs a moment to become available
+      let html = "";
+      for (let fetchAttempt = 1; fetchAttempt <= 3; fetchAttempt++) {
+        try {
+          const fetchRes = await fetch(url);
+          const text = await fetchRes.text();
+          console.log(`[Inngest] STEP 3: fetch attempt ${fetchAttempt} — status=${fetchRes.status} length=${text.length} preview=${text.slice(0, 120)}`);
+          if (text.length > 5000 && text.includes("<")) { html = text; break; }
+          // If too short or not HTML, wait and retry with a fresh URL
+          if (fetchAttempt < 3) {
+            await sleep(8000);
+            try {
+              const project = stitchSdk.project(projectId);
+              const freshScreen = await project.getScreen(screen.screenId);
+              const freshUrl = await freshScreen.getHtml();
+              if (freshUrl) url = freshUrl;
+            } catch (_) {}
+          }
+        } catch (e) {
+          console.warn(`[Inngest] STEP 3: fetch attempt ${fetchAttempt} threw:`, e);
+          if (fetchAttempt < 3) await sleep(5000);
+        }
+      }
       console.log(`[Inngest] STEP 3: fetched ${html.length} chars`);
 
-      if (html.length < 5000) throw new Error(`Stitch HTML too short (${html.length} chars)`);
+      if (html.length < 5000) throw new Error(`Stitch HTML too short (${html.length} chars) — Stitch may have returned an error page`);
       if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error(`Stitch returned skeleton`);
       const styleLen = (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
       const inlineStyleCount = (html.match(/\bstyle=/gi) || []).length;
@@ -451,7 +473,7 @@ const buildWebsite = inngest.createFunction(
         const mapsEmbed = process.env.GOOGLE_MAPS_API_KEY
           ? `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;display:block;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`
           : `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;display:block;" loading="lazy" allowfullscreen src="https://www.openstreetmap.org/export/embed.html?bbox=&layer=mapnik&marker=&query=${encodeURIComponent(businessAddress)}" title="Map"></iframe><small style="display:block;text-align:right;font-size:10px;color:#94a3b8;margin-top:4px;"><a href="https://www.openstreetmap.org/search?query=${encodeURIComponent(businessAddress)}" target="_blank" style="color:#94a3b8;">View larger map</a></small></div>`;
-        if (!/<iframe[^>]*google\.com\/maps/i.test(html) && !/<iframe[^>]*maps\.googleapis/i.test(html)) {
+        if (!/<iframe[^>]*google\.com\/maps/i.test(html) && !/<iframe[^>]*maps\.googleapis/i.test(html) && !/<iframe[^>]*openstreetmap/i.test(html)) {
           let mapInjected = false;
           const beforeMapLen = html.length;
           html = html.replace(/<div[^>]*>\s*MAP PLACEHOLDER[^<]*<\/div>/gi, mapsEmbed);
