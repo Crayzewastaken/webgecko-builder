@@ -273,7 +273,7 @@ const buildWebsite = inngest.createFunction(
           console.warn(`[Inngest] STEP 3b fetch attempt ${attempt} failed: ${e?.message}`);
           if (attempt < 3) {
             await sleep(10000);
-            try { screen = await stitchGetScreen(projectId, resolvedScreenId); } catch (_) {}
+            try { screen = await stitchListLatestScreen(projectId); } catch (_) {}
           }
         }
       }
