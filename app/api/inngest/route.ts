@@ -3,7 +3,7 @@ export const maxDuration = 300;
 
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest";
-import { stitchSdk } from "@/lib/stitch";
+import { stitchCreateProject, stitchGenerateScreen, stitchGetScreen, stitchFetchHtml } from "@/lib/stitch";
 import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
 import {
@@ -201,98 +201,86 @@ const buildWebsite = inngest.createFunction(
     // ── STEP 2: Create Stitch project ─────────────────────────────────────────
     const projectId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step2-stitch-create", async () => {
       console.log(`[Inngest] STEP 2 START: creating Stitch project "${spec.projectTitle}"`);
-      const project = await stitchSdk.createProject(spec.projectTitle);
+      const project = await stitchCreateProject(spec.projectTitle);
       const pid = project.projectId;
-      if (!pid) throw new Error("Stitch: no projectId returned from createProject");
+      if (!pid) throw new Error("Stitch MCP: no projectId returned from create_project");
       console.log(`[Inngest] STEP 2 DONE: projectId=${pid}`);
       return pid;
     }) as string;
 
 
-    // ── STEP 3a: Stitch generate — fire the generation job, return screenId ───────
-    // Split into 3a (trigger) + sleep + 3b (fetch) so Inngest yields execution between
-    // steps instead of burning serverless time with blocking setTimeout.
+    // ── STEP 3a: Stitch generate — fire generation via MCP, return screenId ──────
+    // Uses stitch.googleapis.com/mcp directly (no SDK, no local process needed).
+    // Generation takes 1–3 min on Google's side; we fire it here then sleep.
     const stitchScreenId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step3a-stitch-trigger", async () => {
-      // URLs in the prompt cause Stitch "expected object at projection path" — strip them
+      // Strip raw URLs from prompt — Stitch rejects prompts containing https:// links
       const stitchPrompt = (spec.stitchPrompt || "")
         .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
+        .replace(/\s{3,}/g, "  ")
         .slice(0, 5000);
-      console.log(`[Inngest] STEP 3a: Stitch generate (prompt: ${stitchPrompt.length} chars)`);
+      console.log(`[Inngest] STEP 3a: Stitch MCP generate (prompt: ${stitchPrompt.length} chars)`);
 
-      // Retry up to 3x — generate() itself is fast, failures are transient
+      // Retry up to 3x on transient errors
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          const project = stitchSdk.project(projectId);
-          const screen = await project.generate(stitchPrompt, "DESKTOP");
-          console.log(`[Inngest] STEP 3a DONE: screenId=${screen.screenId} (attempt ${attempt})`);
-          return screen.screenId as string;
+          const screen = await stitchGenerateScreen(projectId, stitchPrompt, "DESKTOP", "GEMINI_3_1_PRO");
+          const sid = screen.screenId;
+          if (!sid) throw new Error("Stitch MCP: no screenId in generate_screen_from_text response");
+          console.log(`[Inngest] STEP 3a DONE: screenId=${sid} (attempt ${attempt})`);
+          return sid;
         } catch (e: any) {
           const msg = e?.message || String(e);
           console.warn(`[Inngest] STEP 3a: attempt ${attempt} failed: ${msg}`);
           if (attempt === 3) throw e;
-          await new Promise(r => setTimeout(r, 5000 * attempt)); // short waits only here
+          await new Promise(r => setTimeout(r, 5000 * attempt));
         }
       }
-      throw new Error("Stitch: generate failed after 3 attempts");
+      throw new Error("Stitch MCP: generate failed after 3 attempts");
     }) as string;
 
-    // ── Sleep 45s — give Stitch time to render before we start polling ───────────
+    // ── Sleep 60s — give Stitch (Gemini 3.1 Pro) time to render ─────────────────
     if (!savedHtmlForRebuild) {
-      await step.sleep("step3-wait-for-stitch", "45s");
+      await step.sleep("step3-wait-for-stitch", "60s");
     }
 
-    // ── STEP 3b: Fetch the rendered HTML from Stitch ──────────────────────────────
+    // ── STEP 3b: Poll get_screen until htmlUri appears, then fetch HTML ───────────
+    // Per Stitch MCP docs: poll every 30s up to 10x if generation is still running.
     const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3b-stitch-fetch", async () => {
       const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-      // Try to get the signed URL — poll up to 5x with short sleeps (we already waited 45s above)
-      let url = "";
-      for (let i = 0; i < 5; i++) {
+      let screen;
+      for (let i = 0; i < 8; i++) {
         try {
-          const project = stitchSdk.project(projectId);
-          const fetched = await project.getScreen(stitchScreenId);
-          url = await fetched.getHtml();
-          if (url) { console.log(`[Inngest] STEP 3b: got signed URL (poll ${i + 1})`); break; }
-        } catch (_) {}
-        try {
-          const project = stitchSdk.project(projectId);
-          const screens = await project.screens();
-          console.log(`[Inngest] STEP 3b: list_screens returned ${screens.length} screens`);
-          if (screens.length > 0) {
-            const match = screens.find((s: any) => s.screenId === stitchScreenId) || screens[screens.length - 1];
-            if (match) { url = await match.getHtml(); }
-            if (url) { console.log(`[Inngest] STEP 3b: got URL via list_screens (poll ${i + 1})`); break; }
-          }
-        } catch (_) {}
-        if (i < 4) await sleep(15000); // 15s between polls
+          screen = await stitchGetScreen(projectId, stitchScreenId);
+          console.log(`[Inngest] STEP 3b poll ${i + 1}: state=${screen.state} htmlUri=${!!screen.htmlUri}`);
+          if (screen.htmlUri) break;
+        } catch (e: any) {
+          console.warn(`[Inngest] STEP 3b poll ${i + 1} error: ${e?.message}`);
+        }
+        if (i < 7) await sleep(30000); // 30s between polls per Stitch MCP guidance
       }
-      if (!url) throw new Error("Stitch: no signed URL after polling");
 
-      // Fetch the HTML — retry up to 3x with fresh signed URLs
+      if (!screen?.htmlUri) throw new Error("Stitch MCP: no htmlUri after polling");
+
+      // Fetch the actual HTML from the signed URL
       let html = "";
-      for (let fetchAttempt = 1; fetchAttempt <= 3; fetchAttempt++) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          const fetchRes = await fetch(url);
-          const text = await fetchRes.text();
-          console.log(`[Inngest] STEP 3b: fetch ${fetchAttempt} — status=${fetchRes.status} length=${text.length}`);
-          if (text.length > 5000 && text.includes("<")) { html = text; break; }
-          if (fetchAttempt < 3) {
-            await sleep(8000);
-            try {
-              const project = stitchSdk.project(projectId);
-              const freshScreen = await project.getScreen(stitchScreenId);
-              const freshUrl = await freshScreen.getHtml();
-              if (freshUrl) url = freshUrl;
-            } catch (_) {}
+          html = await stitchFetchHtml(screen);
+          console.log(`[Inngest] STEP 3b: fetched HTML (attempt ${attempt}) — ${html.length} chars`);
+          break;
+        } catch (e: any) {
+          console.warn(`[Inngest] STEP 3b fetch attempt ${attempt} failed: ${e?.message}`);
+          if (attempt < 3) {
+            // Re-poll for a fresh signed URL before retrying
+            await sleep(10000);
+            try { screen = await stitchGetScreen(projectId, stitchScreenId); } catch (_) {}
           }
-        } catch (e) {
-          console.warn(`[Inngest] STEP 3b: fetch ${fetchAttempt} threw:`, e);
-          if (fetchAttempt < 3) await sleep(5000);
         }
       }
 
       if (html.length < 5000) throw new Error(`Stitch HTML too short (${html.length} chars)`);
-      if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton");
+      if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton placeholder");
       const styleLen = (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
       const inlineStyleCount = (html.match(/\bstyle=/gi) || []).length;
       if (styleLen < 100 && inlineStyleCount < 20) {
