@@ -161,7 +161,7 @@ const buildWebsite = inngest.createFunction(
     // ── STEP 1: Claude Haiku — Site Blueprint (Brain 1: Architect) ──────────
     // Fetch any admin-uploaded example HTMLs for this industry to use as reference
     const exampleHtmls = savedHtmlForRebuild ? [] : await step.run("step1a-example-htmls", async () => {
-      return getExampleHtmlsForIndustry(userInput.industry, 2);
+      return getExampleHtmlsForIndustry(userInput.industry, 2, jobId);
     });
 
     const spec = savedHtmlForRebuild

@@ -1212,7 +1212,8 @@ export function getServicesForIndustry(industry: string): { name: string; durati
 // Files named: "<industry>__<label>__<timestamp>.html" or "general__<label>__<timestamp>.html"
 export async function getExampleHtmlsForIndustry(
   industry: string,
-  maxExamples = 2
+  maxExamples = 2,
+  jobId?: string
 ): Promise<{ label: string; html: string }[]> {
   try {
     const { createClient } = await import("@supabase/supabase-js");
@@ -1221,15 +1222,20 @@ export async function getExampleHtmlsForIndustry(
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const { data: files } = await sb.storage.from("example-htmls").list("", { limit: 100 });
+    const { data: files } = await sb.storage.from("example-htmls").list("", { limit: 200 });
     if (!files || files.length === 0) return [];
 
     const industryLower = industry.toLowerCase();
-    // Match by industry keyword in filename, fall back to "general"
-    const matching = files.filter(f => {
+
+    // Per-client files take priority, then industry-matched, then general
+    const clientFiles = jobId ? files.filter(f => f.name.startsWith(`job__${jobId}__`)) : [];
+    const industryFiles = files.filter(f => {
+      if (f.name.startsWith("job__")) return false;
       const prefix = f.name.split("__")[0].toLowerCase();
       return industryLower.includes(prefix) || prefix === "general";
-    }).slice(0, maxExamples);
+    });
+
+    const matching = [...clientFiles, ...industryFiles].slice(0, maxExamples);
 
     const results: { label: string; html: string }[] = [];
     for (const f of matching) {

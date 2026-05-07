@@ -684,6 +684,9 @@ function ClientDashboard({ c, secret, onClose, dark = false }: { c: ClientAnalyt
                   }} />
                 </div>
               </div>
+              {/* Reference HTML upload for this client */}
+              <ClientHtmlUpload jobId={jid} T={T} G={G} />
+
               <div style={{
                 background: T.red + "08",
                 border: `1px solid ${T.red}20`,
@@ -813,6 +816,96 @@ function ClientDashboard({ c, secret, onClose, dark = false }: { c: ClientAnalyt
 
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Per-client reference HTML uploader ──────────────────────────────────────
+function ClientHtmlUpload({ jobId, T, G }: { jobId: string; T: typeof T_LIGHT; G: ReturnType<typeof makeG> }) {
+  const [files, setFiles] = useState<{ name: string; label: string; size: number; createdAt: string }[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [label, setLabel] = useState("");
+  const [err, setErr] = useState("");
+  const [loaded, setLoaded] = useState(false);
+
+  async function load() {
+    try {
+      const res = await fetch(`/api/admin/example-htmls?jobId=${jobId}`);
+      if (res.ok) { const d = await res.json(); setFiles(d.files || []); setLoaded(true); }
+    } catch {}
+  }
+
+  useEffect(() => { load(); }, [jobId]);
+
+  async function handleUpload(e: React.FormEvent) {
+    e.preventDefault();
+    setErr("");
+    const form = e.target as HTMLFormElement;
+    const fileInput = form.querySelector("input[type=file]") as HTMLInputElement;
+    const file = fileInput?.files?.[0];
+    if (!file) { setErr("Select a .html file first"); return; }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("jobId", jobId);
+      fd.append("label", label || file.name.replace(/\.html?$/i, ""));
+      const res = await fetch("/api/admin/example-htmls", { method: "POST", body: fd });
+      const d = await res.json();
+      if (!res.ok) { setErr(d.error || "Upload failed"); return; }
+      form.reset(); setLabel(""); await load();
+    } catch (e) { setErr(String(e)); }
+    finally { setUploading(false); }
+  }
+
+  async function handleDelete(name: string) {
+    if (!confirm(`Delete ${name}?`)) return;
+    await fetch("/api/admin/example-htmls", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+    await load();
+  }
+
+  const inputStyle: React.CSSProperties = {
+    background: T.surface, border: `1px solid ${T.border}`, borderRadius: 7,
+    padding: "7px 12px", color: T.textPrimary, fontSize: 13,
+    outline: "none", fontFamily: "inherit", width: "100%", boxSizing: "border-box",
+  };
+
+  return (
+    <div style={{ background: T.raised, border: `1px solid ${T.border}`, borderRadius: 10, padding: "16px 18px", marginBottom: 12 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: T.blue, marginBottom: 5 }}>Reference HTML files</div>
+      <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 14, lineHeight: 1.5 }}>
+        Upload example HTML files for Claude to reference when building or rebuilding this site. Great for portfolios, layout references, or brand guides.
+      </div>
+
+      <form onSubmit={handleUpload} style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "end" }}>
+          <div>
+            <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 4 }}>Label (optional)</div>
+            <input style={inputStyle} placeholder="e.g. portfolio-layout, hero-reference" value={label} onChange={e => setLabel(e.target.value)} />
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 4 }}>HTML file (max 2MB)</div>
+          <input type="file" accept=".html,.htm" style={{ fontSize: 12, color: T.textPrimary }} />
+        </div>
+        {err && <div style={{ fontSize: 12, color: T.red }}>{err}</div>}
+        <button type="submit" disabled={uploading} style={{ ...G.btn(T.blue, true), alignSelf: "flex-start", opacity: uploading ? 0.6 : 1 }}>
+          {uploading ? "Uploading…" : "Upload HTML"}
+        </button>
+      </form>
+
+      {loaded && files.length === 0 && (
+        <div style={{ fontSize: 12, color: T.textMuted }}>No reference files uploaded yet.</div>
+      )}
+      {files.map(f => (
+        <div key={f.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: T.surface, borderRadius: 7, padding: "8px 12px", border: `1px solid ${T.border}`, marginBottom: 6 }}>
+          <div>
+            <span style={{ fontSize: 13, color: T.textPrimary, fontWeight: 500 }}>{f.label}</span>
+            <span style={{ fontSize: 11, color: T.textMuted, marginLeft: 8 }}>{Math.round(f.size / 1024)}KB</span>
+          </div>
+          <button onClick={() => handleDelete(f.name)} style={{ ...G.btn(T.red), fontSize: 11, padding: "3px 10px" }}>Delete</button>
+        </div>
+      ))}
     </div>
   );
 }
