@@ -1211,7 +1211,14 @@ export default function ClientPortal() {
           </>
       )}
 
-      <div style={tab === "preview" ? { display: "none" } : S.body}>
+      <style>{`
+        @keyframes wg-fadeSlide { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .wg-tab { animation: wg-fadeSlide 0.22s cubic-bezier(0.34,1.1,0.64,1); }
+        button, a { transition: opacity 0.15s ease, transform 0.15s ease, background 0.18s ease, box-shadow 0.18s ease !important; }
+        button:hover:not(:disabled), a:hover { opacity: 0.85; }
+        button:active:not(:disabled) { transform: scale(0.96) !important; }
+      `}</style>
+      <div key={tab} className="wg-tab" style={tab === "preview" ? { display: "none" } : S.body}>
 
         {/* ══════════════════════ OVERVIEW ══════════════════════ */}
         {tab === "overview" && (

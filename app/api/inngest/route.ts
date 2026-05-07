@@ -221,8 +221,10 @@ const buildWebsite = inngest.createFunction(
       let screen: any = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
+          // Stitch fails on very long prompts — cap at 6000 chars
+          const stitchPrompt = (spec.stitchPrompt || "").slice(0, 6000);
           const project = stitchSdk.project(projectId);
-          screen = await project.generate(spec.stitchPrompt, "DESKTOP");
+          screen = await project.generate(stitchPrompt, "DESKTOP");
           console.log(`[Inngest] STEP 3: screen id=${screen.screenId} (attempt ${attempt})`);
           break;
         } catch (e: any) {
@@ -265,7 +267,7 @@ const buildWebsite = inngest.createFunction(
         console.warn("[Inngest] STEP 3: all retries failed — re-generating with fresh Stitch call");
         await sleep(5000);
         const project2 = stitchSdk.project(projectId);
-        const screen2 = await project2.generate(spec.stitchPrompt, "DESKTOP");
+        const screen2 = await project2.generate((spec.stitchPrompt || "").slice(0, 6000), "DESKTOP");
         await sleep(20000);
         url = await screen2.getHtml();
         if (!url) {
@@ -986,7 +988,7 @@ const buildWebsite = inngest.createFunction(
           console.error("[Step7b] Still failing after repair:", failuresAfterRepair.join("; "));
           resend.emails.send({
             from: "WebGecko Pipeline <hello@webgecko.au>",
-            to: "crayzewastaken@gmail.com",
+            to: "hello@webgecko.au",
             subject: "⚠️ Pre-deploy validation failed — " + userInput.businessName,
             html: "<p>Build for <strong>" + userInput.businessName + "</strong> (job: " + jobId + ") has validation failures:<br><ul>" + failuresAfterRepair.map((f: string) => "<li>" + f + "</li>").join("") + "</ul></p>",
           }).catch(() => {});

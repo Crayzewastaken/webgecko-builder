@@ -325,8 +325,18 @@ function ClientDashboard({ c, secret, onClose, dark = false }: { c: ClientAnalyt
       backdropFilter: "blur(6px)",
       display: "flex", alignItems: "flex-start", justifyContent: "center",
       padding: "32px 16px", overflowY: "auto",
+      animation: "wg-fadeIn 0.2s ease",
     }}>
-      <div style={{ ...G.card, width: "100%", maxWidth: 860, position: "relative", boxShadow: "0 24px 64px rgba(0,0,0,0.6)" }}>
+      <style>{`
+        @keyframes wg-fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes wg-slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .wg-modal-card { animation: wg-slideUp 0.25s cubic-bezier(0.34,1.2,0.64,1); }
+        .wg-tab-content { animation: wg-fadeIn 0.18s ease; }
+        button, a { transition: opacity 0.15s ease, transform 0.15s ease, background 0.18s ease, box-shadow 0.18s ease !important; }
+        button:hover:not(:disabled) { opacity: 0.85; }
+        button:active:not(:disabled) { transform: scale(0.97) !important; }
+      `}</style>
+      <div className="wg-modal-card" style={{ ...G.card, width: "100%", maxWidth: 860, position: "relative", boxShadow: "0 24px 64px rgba(0,0,0,0.6)" }}>
 
         {/* Header */}
         <div style={{
@@ -393,7 +403,7 @@ function ClientDashboard({ c, secret, onClose, dark = false }: { c: ClientAnalyt
           ))}
         </div>
 
-        <div style={{ padding: "24px 28px" }}>
+        <div key={tab} className="wg-tab-content" style={{ padding: "24px 28px" }}>
 
           {/* OVERVIEW */}
           {tab === "overview" && (

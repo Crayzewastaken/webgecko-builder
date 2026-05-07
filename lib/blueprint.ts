@@ -374,7 +374,7 @@ Return exactly this JSON shape (no other text):
   "heroSubheadline": "1-2 sentences value prop only, NO address or suburb",
   "ctaText": "...",
   "uniqueDesignIdea": "...",
-  "stitchPrompt": "minimum 800 words, single quotes only inside"
+  "stitchPrompt": "800-1200 words MAX, single quotes only inside — be concise and specific, no filler"
 }${exampleHtmls.length > 0 ? `
 
 REFERENCE EXAMPLES (admin-uploaded HTML examples for this industry — use these as inspiration for layout structure, section patterns, and content depth. Do NOT copy text verbatim):

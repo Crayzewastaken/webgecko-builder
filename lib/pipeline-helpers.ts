@@ -833,7 +833,7 @@ export function injectEssentials(html: string, email: string, phone: string, job
   });
 })();
 // Authoritative navigateTo — always defined here, Stitch version stripped in Step 5.
-// Handles multi-page (.active class toggling) and single-page (scroll to id).
+// Handles multi-page (fade transition) and single-page (smooth scroll).
 window.navigateTo = function(pageId) {
   // Close any open mobile drawer first
   var drawer = document.getElementById("mobile-menu") || document.getElementById("mobile-drawer") || document.getElementById("side-drawer") || document.getElementById("mobile-nav") || document.getElementById("wg-drawer");
@@ -842,23 +842,49 @@ window.navigateTo = function(pageId) {
     drawer.classList.add("translate-x-full", "hidden");
     drawer.style.display = "none";
     drawer.style.transform = "translateX(100%)";
+    drawer.style.transition = "transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease";
+    drawer.style.opacity = "0";
+    setTimeout(function() { if (drawer) { drawer.style.opacity = ""; } }, 350);
   }
   var overlay = document.getElementById("wg-overlay");
-  if (overlay) overlay.style.display = "none";
+  if (overlay) { overlay.style.opacity = "0"; setTimeout(function() { if (overlay) overlay.style.display = "none"; }, 200); }
 
-  // Multi-page: [data-page] is the sole authority — no .page-section fallback.
+  // Multi-page: fade out current, swap, fade in next
   var sections = document.querySelectorAll("[data-page]");
   if (sections.length > 1) {
-    sections.forEach(function(s) { s.classList.remove("active"); });
+    var current = document.querySelector("[data-page].active");
     var target = document.querySelector("[data-page='" + pageId + "']") || document.getElementById(pageId);
-    if (target) {
+    if (!target || target === current) return;
+
+    // Fade out current page
+    if (current) {
+      current.style.transition = "opacity 0.22s ease";
+      current.style.opacity = "0";
+      setTimeout(function() {
+        if (current) current.classList.remove("active");
+        // Fade in new page
+        target.classList.add("active");
+        target.style.opacity = "0";
+        target.style.transition = "opacity 0.28s ease";
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() {
+            target.style.opacity = "1";
+          });
+        });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }, 220);
+    } else {
+      sections.forEach(function(s) { s.classList.remove("active"); });
       target.classList.add("active");
+      target.style.opacity = "0";
+      target.style.transition = "opacity 0.28s ease";
+      requestAnimationFrame(function() { requestAnimationFrame(function() { target.style.opacity = "1"; }); });
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
     return;
   }
 
-  // Single-page: scroll to section by id
+  // Single-page: smooth scroll to section
   if (pageId === "home" || pageId === "top") { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
   var el = document.getElementById(pageId);
   if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); }
@@ -1027,6 +1053,42 @@ document.querySelectorAll("form").forEach(function(form) {
     form.querySelectorAll("input,textarea,select,button[type='submit']").forEach(function(el) { el.setAttribute("disabled", "true"); });
   });
 });
+// ── Global smooth transitions for all interactive elements ────────────────────
+(function() {
+  if (document.querySelector("style[data-wg-trans]")) return;
+  var ts = document.createElement("style");
+  ts.setAttribute("data-wg-trans", "1");
+  ts.textContent = [
+    // Buttons and links
+    "a,button{transition:opacity 0.18s ease,transform 0.18s ease,background 0.2s ease,color 0.2s ease,box-shadow 0.2s ease,border-color 0.2s ease!important;}",
+    "a:hover,button:hover{opacity:0.88;transform:translateY(-1px);}",
+    "a:active,button:active{transform:translateY(0) scale(0.97)!important;opacity:1!important;}",
+    // CTA buttons — lift on hover
+    "a[class*='btn'],button[class*='btn'],a[style*='border-radius'],button[style*='border-radius']{transition:transform 0.2s cubic-bezier(0.34,1.56,0.64,1),box-shadow 0.2s ease,background 0.2s ease!important;}",
+    "a[class*='btn']:hover,button[class*='btn']:hover{transform:translateY(-2px)!important;box-shadow:0 8px 24px rgba(0,0,0,0.18)!important;}",
+    // Nav links — underline slide
+    "nav a{position:relative;transition:color 0.2s ease!important;}",
+    "nav a::after{content:'';position:absolute;bottom:-2px;left:0;width:0;height:2px;background:currentColor;transition:width 0.25s ease;}",
+    "nav a:hover::after{width:100%;}",
+    "nav a:hover{transform:none!important;}",
+    // Section scroll transitions
+    "section,div[data-page]{scroll-margin-top:80px;}",
+    // Input focus
+    "input,textarea,select{transition:border-color 0.2s ease,box-shadow 0.2s ease!important;}",
+    "input:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(22,163,74,0.15)!important;}",
+    // Image hover zoom
+    "img{transition:transform 0.35s ease,filter 0.3s ease;}",
+    "a:hover img,button:hover img,.card:hover img{transform:scale(1.03);}",
+    // Cards lift
+    "[class*='card'],[class*='Card']{transition:transform 0.25s ease,box-shadow 0.25s ease!important;}",
+    "[class*='card']:hover,[class*='Card']:hover{transform:translateY(-3px)!important;box-shadow:0 12px 32px rgba(0,0,0,0.14)!important;}",
+    // Mobile menu slide transition
+    "#mobile-menu,#mobile-drawer,#side-drawer,#mobile-nav{transition:transform 0.32s cubic-bezier(0.4,0,0.2,1),opacity 0.28s ease!important;}",
+    // Page fade
+    "[data-page]{transition:opacity 0.25s ease!important;}",
+  ].join("");
+  document.head.appendChild(ts);
+})();
 // Multi-page init: only fires when [data-page] wrappers exist. Never touches .page-section.
 (function() {
   var pages = document.querySelectorAll("[data-page]");
@@ -1034,12 +1096,13 @@ document.querySelectorAll("form").forEach(function(form) {
   if (!document.querySelector("style[data-wg-mp]")) {
     var s = document.createElement("style");
     s.setAttribute("data-wg-mp", "1");
-    s.textContent = "[data-page]{display:none!important}[data-page].active{display:block!important}";
+    s.textContent = "[data-page]{display:none!important;opacity:0;}[data-page].active{display:block!important;opacity:1;}";
     document.head.appendChild(s);
   }
   var active = document.querySelector("[data-page].active") || pages[0];
-  pages.forEach(function(p) { p.classList.remove("active"); });
+  pages.forEach(function(p) { p.classList.remove("active"); p.style.opacity = "0"; });
   active.classList.add("active");
+  active.style.opacity = "1";
   console.log("[WG] Multi-page init: activated", active.getAttribute("data-page") || active.id, "of", pages.length);
 })()
 })();
