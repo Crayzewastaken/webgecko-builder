@@ -20,7 +20,9 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id") || searchParams.get("jobId");
-    const secret = searchParams.get("secret");
+    // Accept secret via Authorization header (preferred) or query param (legacy)
+    const authHeader = req.headers.get("authorization") || "";
+    const secret = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : searchParams.get("secret");
 
     if (secret !== process.env.PROCESS_SECRET) {
       return new Response("Unauthorized", { status: 401 });
@@ -43,7 +45,7 @@ export async function GET(req: Request) {
     if (!html) return new Response("No HTML stored for this job", { status: 400 });
 
     const fixResponse = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
+      model: "claude-sonnet-4-6",
       max_tokens: 16000,
       messages: [{
         role: "user",

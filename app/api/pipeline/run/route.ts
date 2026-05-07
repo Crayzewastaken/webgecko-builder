@@ -23,8 +23,10 @@ export async function runPipeline(jobId: string, fullRebuild = false): Promise<{
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const jobId = searchParams.get("jobId") || searchParams.get("id");
-  const secret = searchParams.get("secret");
   const fullRebuild = searchParams.get("fullRebuild") === "true";
+  // Accept secret via Authorization header (preferred) or query param (legacy)
+  const authHeader = req.headers.get("authorization") || "";
+  const secret = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : searchParams.get("secret");
 
   if (!jobId || secret !== process.env.PROCESS_SECRET) {
     return new Response("Forbidden", { status: 403 });

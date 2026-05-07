@@ -421,6 +421,13 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
   }
   if (!blueprint.projectTitle) throw new Error("Blueprint missing projectTitle");
 
+  // Strip URLs from stitchPrompt — Stitch's renderer throws "expected object at projection path"
+  // when the prompt contains http(s):// links. Remove them, keeping surrounding context.
+  blueprint.stitchPrompt = blueprint.stitchPrompt
+    .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
+    .replace(/\s{3,}/g, "  ")
+    .slice(0, 5000);
+
   // Attach SEO metadata to the returned blueprint
   blueprint.lsiKeywords = lsiKeywords;
   blueprint.serpInsights = serpInsights ?? undefined;

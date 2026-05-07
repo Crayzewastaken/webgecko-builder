@@ -108,11 +108,16 @@ export function extractCSS(html: string): string {
   let colorVars = "";
   if (tailwindMatch) {
     try {
-      const config = eval("(" + tailwindMatch[1] + ")");
-      const colors = config?.theme?.extend?.colors || {};
-      colorVars = "/* THEME COLORS */\n:root {\n";
-      Object.entries(colors).forEach(([key, val]) => { colorVars += `  --color-${key}: ${val};\n`; });
-      colorVars += "}\n";
+      // Safe regex extraction — never eval() AI-generated content
+      const colorsMatch = tailwindMatch[1].match(/colors\s*:\s*\{([^}]+)\}/);
+      if (colorsMatch) {
+        colorVars = "/* THEME COLORS */\n:root {\n";
+        const pairs = colorsMatch[1].matchAll(/['"]?([\w-]+)['"]?\s*:\s*['"]([^'"]+)['"]/g);
+        for (const [, key, val] of pairs) {
+          colorVars += `  --color-${key}: ${val};\n`;
+        }
+        colorVars += "}\n";
+      }
     } catch {}
   }
   return `/* WebGecko Generated Styles */\n\n${colorVars}\n${styleBlocks.join("\n\n")}`;
@@ -144,14 +149,14 @@ export function fixNavigateToTargets(html: string): string {
 
   // Match any element with onclick containing navigateTo and extract inner text
   return html.replace(
-    /(<(?:a|button)([^>]*onclick=["'][^"']*navigateTo\(['"](\w+)['"]\)[^"']*["'][^>]*)>)([\s\S]*?)(<\/(?:a|button)>)/gi,
+    /(<(?:a|button)([^>]*onclick=["'][^"']*navigateTo\(['"]([^'"]+)['"]\)[^"']*["'][^>]*)>)([\s\S]*?)(<\/(?:a|button)>)/gi,
     (match, openTag, attrs, currentTarget, innerContent, closeTag) => {
       // Get visible text from inner content
       const text = innerContent.replace(/<[^>]+>/g, "").trim().toLowerCase();
       const mappedTarget = labelMap[text];
       if (mappedTarget && mappedTarget !== currentTarget) {
         const fixedTag = openTag.replace(
-          /navigateTo\(['"](\w+)['"]\)/,
+          /navigateTo\(['"][^'"]+['"]\)/,
           `navigateTo('${mappedTarget}')`
         );
         console.log(`[fixNavigateTo] "${text}": '${currentTarget}' → '${mappedTarget}'`);
@@ -737,24 +742,10 @@ export function ensureMultiPageStructure(
   });
 
   // ── 7. Ensure required semantic IDs inside their page wrappers ───────────────
-  // 7a. id="contact" inside contact page
-  if (requestedPageIds.includes("contact") && out.includes('data-page="contact"') && !out.includes('id="contact"')) {
-    // Add id="contact" to the h2 or first div inside the contact page
-    const contactPageRe = /(<(?:div|section)[^>]*data-page="contact"[^>]*>)([\s\S]{0,5000}?)(<h2)/i;
-    if (contactPageRe.test(out)) {
-      out = out.replace(contactPageRe, (_m, open, body, h2) => open + body + h2.replace("<h2", '<h2 id="contact"'));
-      report.repairs.push('Added id="contact" to h2 inside contact page');
-    }
-  }
-
-  // 7b. id="faq" inside faq page
-  if (requestedPageIds.includes("faq") && out.includes('data-page="faq"') && !out.includes('id="faq"')) {
-    const faqPageRe = /(<(?:div|section)[^>]*data-page="faq"[^>]*>)([\s\S]{0,2000}?)(<h2)/i;
-       if (faqPageRe.test(out)) {
-      out = out.replace(faqPageRe, (_m: string, open: string, body: string, h2: string) => open + body + h2.replace('<h2', '<h2 id="faq"'));
-      report.repairs.push('Added id="faq" to h2 inside faq page');
-    }
-  }
+  // Note: we do NOT add id="contact" or id="faq" to inner headings — the data-page wrapper
+  // already carries the id, and duplicate IDs break getElementById / scrollIntoView.
+  // 7a. id="contact" — already on the data-page wrapper itself (see step 2 above); skip inner h2
+  // 7b. id="faq" — same; skip inner h2
 
   // 7c. id="hero" inside home page
   if (requestedPageIds.includes('home') && out.includes('data-page="home"') && !out.includes('id="hero"')) {
