@@ -871,8 +871,20 @@ function ClientDashboard({ c, secret, onClose, dark = false }: { c: ClientAnalyt
 // Vercel blocks iframes via X-Frame-Options, so we show a rich preview card instead.
 function PreviewFrame({ previewUrl, T }: { previewUrl: string; T: typeof T_LIGHT }) {
   const [thumbErr, setThumbErr] = useState(false);
-  // Use a free screenshot service — no key needed
-  const thumbUrl = `https://image.thum.io/get/width/800/crop/500/noanimate/${previewUrl}?t=${Math.floor(Date.now() / 300000)}`; // cache bust every 5 min
+  const [refreshKey, setRefreshKey] = useState(() => Math.floor(Date.now() / 60000)); // per-minute key
+  const [refreshing, setRefreshing] = useState(false);
+
+  // screenshotone.com free tier — no API key needed, genuinely fresh on each unique URL
+  // We bust cache by appending a timestamp to the TARGET url so screenshotone treats it as a new page
+  const targetWithBust = `${previewUrl}${previewUrl.includes("?") ? "&" : "?"}_wg=${refreshKey}`;
+  const thumbUrl = `https://api.screenshotone.com/take?url=${encodeURIComponent(targetWithBust)}&viewport_width=1280&viewport_height=800&format=jpg&image_quality=85&block_ads=true&block_cookie_banners=true&cache=false&delay=2`;
+
+  function handleRefresh() {
+    setThumbErr(false);
+    setRefreshing(true);
+    setRefreshKey(Math.floor(Date.now() / 1000)); // fresh key forces new screenshot
+    setTimeout(() => setRefreshing(false), 5000);
+  }
 
   return (
     <div style={{ borderRadius: 10, overflow: "hidden", border: `1px solid ${T.border}`, background: T.raised }}>
@@ -886,14 +898,23 @@ function PreviewFrame({ previewUrl, T }: { previewUrl: string; T: typeof T_LIGHT
         <div style={{ flex: 1, background: T.raised, borderRadius: 6, padding: "4px 10px", fontSize: 11, color: T.textMuted, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {previewUrl}
         </div>
-        <a href={previewUrl} target="_blank" rel="noreferrer" style={{ ...{ background: T.green + "20", color: T.green, border: `1px solid ${T.green}30`, borderRadius: 6, padding: "4px 12px", fontSize: 11, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" } }}>
+        <button onClick={handleRefresh} disabled={refreshing} title="Refresh screenshot" style={{ background: "none", border: `1px solid ${T.border}`, borderRadius: 6, padding: "4px 8px", fontSize: 13, cursor: refreshing ? "wait" : "pointer", color: T.textMuted, lineHeight: 1 }}>
+          {refreshing ? "⏳" : "↺"}
+        </button>
+        <a href={previewUrl} target="_blank" rel="noreferrer" style={{ background: T.green + "20", color: T.green, border: `1px solid ${T.green}30`, borderRadius: 6, padding: "4px 12px", fontSize: 11, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>
           Open →
         </a>
       </div>
       {/* Screenshot thumbnail */}
-      <a href={previewUrl} target="_blank" rel="noreferrer" style={{ display: "block", textDecoration: "none" }}>
+      <a href={previewUrl} target="_blank" rel="noreferrer" style={{ display: "block", textDecoration: "none", position: "relative" }}>
+        {refreshing && (
+          <div style={{ position: "absolute", inset: 0, background: T.raised + "cc", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1, fontSize: 13, color: T.textMuted }}>
+            Taking screenshot…
+          </div>
+        )}
         {!thumbErr ? (
           <img
+            key={refreshKey}
             src={thumbUrl}
             alt="Site preview"
             onError={() => setThumbErr(true)}
@@ -904,6 +925,7 @@ function PreviewFrame({ previewUrl, T }: { previewUrl: string; T: typeof T_LIGHT
             <div style={{ fontSize: 32 }}>🌐</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary }}>Click to open site</div>
             <div style={{ fontSize: 11 }}>{previewUrl}</div>
+            <button onClick={(e) => { e.preventDefault(); handleRefresh(); }} style={{ fontSize: 11, color: T.blue, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>Retry screenshot</button>
           </div>
         )}
       </a>

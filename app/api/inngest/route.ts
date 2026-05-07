@@ -1,5 +1,5 @@
 // app/api/inngest/route.ts
-export const maxDuration = 800;
+export const maxDuration = 300;
 
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest";
@@ -209,62 +209,64 @@ const buildWebsite = inngest.createFunction(
     }) as string;
 
 
-    // ── STEP 3: Stitch generate + fetch HTML ────────────────────────────────────
-    // Fetch the HTML immediately after getting the URL — Stitch signed URLs are
-    // short-lived, so we must not store the URL and re-fetch later.
-    const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3-stitch-generate", async () => {
-      console.log(`[Inngest] STEP 3: Stitch generate (prompt: ${spec.stitchPrompt?.length} chars)`);
-
-      const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-      // URLs in the prompt cause Stitch to throw "expected object at projection path" — already
-      // stripped in blueprint.ts, but sanitise here as a safety net too.
+    // ── STEP 3a: Stitch generate — fire the generation job, return screenId ───────
+    // Split into 3a (trigger) + sleep + 3b (fetch) so Inngest yields execution between
+    // steps instead of burning serverless time with blocking setTimeout.
+    const stitchScreenId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step3a-stitch-trigger", async () => {
+      // URLs in the prompt cause Stitch "expected object at projection path" — strip them
       const stitchPrompt = (spec.stitchPrompt || "")
         .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
         .slice(0, 5000);
+      console.log(`[Inngest] STEP 3a: Stitch generate (prompt: ${stitchPrompt.length} chars)`);
 
-      // Stitch generate can fail transiently — retry up to 3x
-      let screen: any = null;
+      // Retry up to 3x — generate() itself is fast, failures are transient
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           const project = stitchSdk.project(projectId);
-          screen = await project.generate(stitchPrompt, "DESKTOP");
-          console.log(`[Inngest] STEP 3: screen id=${screen.screenId} (attempt ${attempt})`);
-          break;
+          const screen = await project.generate(stitchPrompt, "DESKTOP");
+          console.log(`[Inngest] STEP 3a DONE: screenId=${screen.screenId} (attempt ${attempt})`);
+          return screen.screenId as string;
         } catch (e: any) {
           const msg = e?.message || String(e);
-          console.warn(`[Inngest] STEP 3: generate attempt ${attempt} failed: ${msg}`);
+          console.warn(`[Inngest] STEP 3a: attempt ${attempt} failed: ${msg}`);
           if (attempt === 3) throw e;
-          await sleep(6000 * attempt);
+          await new Promise(r => setTimeout(r, 5000 * attempt)); // short waits only here
         }
       }
+      throw new Error("Stitch: generate failed after 3 attempts");
+    }) as string;
 
-      // Poll for signed URL — Stitch can take 30-90s to render the screen
-      let url = await screen.getHtml();
-      if (!url) {
-        const waits = [8000, 15000, 20000, 25000, 30000];
-        for (let i = 0; i < waits.length; i++) {
-          await sleep(waits[i]);
-          console.log(`[Inngest] STEP 3: getHtml() empty — retry ${i + 1} (waited ${waits[i]}ms)`);
-          try {
-            const project = stitchSdk.project(projectId);
-            const fetched = await project.getScreen(screen.screenId);
-            url = await fetched.getHtml();
-            if (url) { console.log(`[Inngest] STEP 3: got url via getScreen (retry ${i + 1})`); break; }
-          } catch (_) {}
-          try {
-            const project = stitchSdk.project(projectId);
-            const screens = await project.screens();
-            console.log(`[Inngest] STEP 3: list_screens returned ${screens.length} screens`);
-            if (screens.length > 0) {
-              const match = screens.find((s: any) => s.screenId === screen.screenId) || screens[screens.length - 1];
-              if (match) { url = await match.getHtml(); }
-              if (url) { console.log(`[Inngest] STEP 3: got url via list_screens (retry ${i + 1})`); break; }
-            }
-          } catch (_) {}
-        }
+    // ── Sleep 45s — give Stitch time to render before we start polling ───────────
+    if (!savedHtmlForRebuild) {
+      await step.sleep("step3-wait-for-stitch", "45s");
+    }
+
+    // ── STEP 3b: Fetch the rendered HTML from Stitch ──────────────────────────────
+    const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3b-stitch-fetch", async () => {
+      const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+      // Try to get the signed URL — poll up to 5x with short sleeps (we already waited 45s above)
+      let url = "";
+      for (let i = 0; i < 5; i++) {
+        try {
+          const project = stitchSdk.project(projectId);
+          const fetched = await project.getScreen(stitchScreenId);
+          url = await fetched.getHtml();
+          if (url) { console.log(`[Inngest] STEP 3b: got signed URL (poll ${i + 1})`); break; }
+        } catch (_) {}
+        try {
+          const project = stitchSdk.project(projectId);
+          const screens = await project.screens();
+          console.log(`[Inngest] STEP 3b: list_screens returned ${screens.length} screens`);
+          if (screens.length > 0) {
+            const match = screens.find((s: any) => s.screenId === stitchScreenId) || screens[screens.length - 1];
+            if (match) { url = await match.getHtml(); }
+            if (url) { console.log(`[Inngest] STEP 3b: got URL via list_screens (poll ${i + 1})`); break; }
+          }
+        } catch (_) {}
+        if (i < 4) await sleep(15000); // 15s between polls
       }
-      if (!url) throw new Error("Stitch: no downloadUrl after generate + retries");
+      if (!url) throw new Error("Stitch: no signed URL after polling");
 
       // Fetch the HTML — retry up to 3x with fresh signed URLs
       let html = "";
@@ -272,33 +274,31 @@ const buildWebsite = inngest.createFunction(
         try {
           const fetchRes = await fetch(url);
           const text = await fetchRes.text();
-          console.log(`[Inngest] STEP 3: fetch attempt ${fetchAttempt} — status=${fetchRes.status} length=${text.length} preview=${text.slice(0, 120)}`);
+          console.log(`[Inngest] STEP 3b: fetch ${fetchAttempt} — status=${fetchRes.status} length=${text.length}`);
           if (text.length > 5000 && text.includes("<")) { html = text; break; }
           if (fetchAttempt < 3) {
             await sleep(8000);
             try {
               const project = stitchSdk.project(projectId);
-              const freshScreen = await project.getScreen(screen.screenId);
+              const freshScreen = await project.getScreen(stitchScreenId);
               const freshUrl = await freshScreen.getHtml();
               if (freshUrl) url = freshUrl;
             } catch (_) {}
           }
         } catch (e) {
-          console.warn(`[Inngest] STEP 3: fetch attempt ${fetchAttempt} threw:`, e);
+          console.warn(`[Inngest] STEP 3b: fetch ${fetchAttempt} threw:`, e);
           if (fetchAttempt < 3) await sleep(5000);
         }
       }
-      console.log(`[Inngest] STEP 3: fetched ${html.length} chars`);
 
-      if (html.length < 5000) throw new Error(`Stitch HTML too short (${html.length} chars) — Stitch may have returned an error page`);
-      if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error(`Stitch returned skeleton`);
+      if (html.length < 5000) throw new Error(`Stitch HTML too short (${html.length} chars)`);
+      if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton");
       const styleLen = (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
       const inlineStyleCount = (html.match(/\bstyle=/gi) || []).length;
       if (styleLen < 100 && inlineStyleCount < 20) {
         throw new Error(`Stitch HTML has no CSS (styleLen=${styleLen}, inlineStyles=${inlineStyleCount})`);
       }
-
-      console.log(`[Inngest] STEP 3 DONE: HTML ${html.length} chars, styleLen=${styleLen}, inlineStyles=${inlineStyleCount}`);
+      console.log(`[Inngest] STEP 3b DONE: HTML ${html.length} chars`);
       return html;
     }) as string;
 
@@ -570,38 +570,44 @@ const buildWebsite = inngest.createFunction(
       }
 
       // ── Newsletter signup form injection ──────────────────────────────────────
+      // Posts directly to Beehiiv's public embed API — no dependency on our builder app.
       if (features.includes("Newsletter Signup") && !html.includes('id="newsletter-form"')) {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
+        const beehiivPubId = (process.env.BEEHIIV_PUBLICATION_ID || "").startsWith("pub_")
+          ? process.env.BEEHIIV_PUBLICATION_ID
+          : `pub_${process.env.BEEHIIV_PUBLICATION_ID || ""}`;
+        const beehiivEndpoint = `https://api.beehiiv.com/v2/publications/${beehiivPubId}/subscriptions/email`;
         const newsletterSection = `
 <section id="newsletter" style="padding:64px 24px;background:linear-gradient(135deg,#0f1623 0%,#1a2332 100%);text-align:center;">
   <div style="max-width:600px;margin:0 auto;">
     <h2 style="color:#ffffff;font-size:2rem;font-weight:900;margin:0 0 12px;">Stay in the Loop</h2>
     <p style="color:#94a3b8;font-size:1rem;margin:0 0 32px;">Get tips, updates and exclusive offers from ${userInput.businessName} straight to your inbox.</p>
-    <form id="newsletter-form" onsubmit="(function(e){e.preventDefault();var form=e.target;var em=form.querySelector(\'input[type=email]\');var btn=form.querySelector(\'button\');if(!em||!em.value)return;btn.textContent=\'Subscribing...\';btn.disabled=true;fetch(\'${appUrl}/api/newsletter-subscribe\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({email:em.value})}).then(function(r){return r.json();}).then(function(){btn.textContent=\'✓ Subscribed!\';btn.style.background=\'#10b981\';em.disabled=true;}).catch(function(){btn.textContent=\'Try again\';btn.disabled=false;});})(event)" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:480px;margin:0 auto;">
+    <form id="newsletter-form" onsubmit="(function(e){e.preventDefault();var form=e.target;var em=form.querySelector('input[type=email]');var btn=form.querySelector('button');if(!em||!em.value)return;btn.textContent='Subscribing...';btn.disabled=true;fetch('${beehiivEndpoint}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em.value,reactivate_existing:true,send_welcome_email:true})}).then(function(r){if(r.ok||r.status===201||r.status===200){btn.textContent='✓ Subscribed!';btn.style.background='#10b981';em.disabled=true;}else{throw new Error('Failed');}}).catch(function(){btn.textContent='Try again';btn.disabled=false;});})(event)" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:480px;margin:0 auto;">
       <input type="email" name="email" placeholder="your@email.com.au" required style="flex:1;min-width:220px;padding:14px 20px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#ffffff;font-size:0.95rem;outline:none;">
       <button type="submit" style="padding:14px 28px;border-radius:10px;background:#10b981;color:#000000;font-weight:700;font-size:0.95rem;border:none;cursor:pointer;white-space:nowrap;">Subscribe</button>
     </form>
     <p style="color:#475569;font-size:0.75rem;margin-top:16px;">No spam. Unsubscribe any time.</p>
   </div>
 </section>`;
-        // Inject before </body>
         html = html.replace("</body>", newsletterSection + "\n</body>");
-        console.log("[Step5] Newsletter signup section injected");
+        console.log("[Step5] Newsletter signup section injected (Beehiiv direct)");
       }
 
       // -- Pop-up Form -- timed lead-capture overlay (15s delay + exit intent) ---
       if (features.includes("Pop-up Form") && !html.includes('id="wg-popup"')) {
-        const appUrl2 = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
+        const beehiivPubId2 = (process.env.BEEHIIV_PUBLICATION_ID || "").startsWith("pub_")
+          ? process.env.BEEHIIV_PUBLICATION_ID
+          : `pub_${process.env.BEEHIIV_PUBLICATION_ID || ""}`;
+        const beehiivEndpoint2 = `https://api.beehiiv.com/v2/publications/${beehiivPubId2}/subscriptions/email`;
         const popupHtml = `
 <div id="wg-popup" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
   <div style="background:#1a2332;border:1px solid rgba(255,255,255,0.12);border-radius:20px;padding:48px 40px;max-width:440px;width:90%;position:relative;box-shadow:0 24px 64px rgba(0,0,0,0.5);">
     <button onclick="document.getElementById('wg-popup').style.display='none';sessionStorage.setItem('wg-popup-closed','1');" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#94a3b8;font-size:1.4rem;cursor:pointer;line-height:1;">&times;</button>
     <div style="text-align:center;margin-bottom:28px;">
       <div style="font-size:2.2rem;margin-bottom:12px;">&#128293;</div>
-      <h3 style="color:#ffffff;font-size:1.5rem;font-weight:900;margin:0 0 8px;">Don\'t Miss Out!</h3>
+      <h3 style="color:#ffffff;font-size:1.5rem;font-weight:900;margin:0 0 8px;">Don't Miss Out!</h3>
       <p style="color:#94a3b8;font-size:0.95rem;margin:0;">Join our list and get exclusive offers from ${userInput.businessName}.</p>
     </div>
-    <form id="wg-popup-form" onsubmit="(function(e){e.preventDefault();var em=e.target.querySelector(\'input[type=email]\');var btn=e.target.querySelector(\'button[type=submit]\');if(!em||!em.value)return;btn.textContent=\'Subscribing...\';btn.disabled=true;fetch(\'${appUrl2}/api/newsletter-subscribe\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({email:em.value})}).then(function(){btn.textContent=\'Thanks! Check your inbox\';btn.style.background=\'#10b981\';em.disabled=true;setTimeout(function(){document.getElementById(\'wg-popup\').style.display=\'none\';sessionStorage.setItem(\'wg-popup-closed\',\'1\');},2000);}).catch(function(){btn.textContent=\'Try again\';btn.disabled=false;});})(event)">
+    <form id="wg-popup-form" onsubmit="(function(e){e.preventDefault();var em=e.target.querySelector('input[type=email]');var btn=e.target.querySelector('button[type=submit]');if(!em||!em.value)return;btn.textContent='Subscribing...';btn.disabled=true;fetch('${beehiivEndpoint2}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em.value,reactivate_existing:true,send_welcome_email:true})}).then(function(r){if(r.ok||r.status===201||r.status===200){btn.textContent='Thanks! Check your inbox';btn.style.background='#10b981';em.disabled=true;setTimeout(function(){document.getElementById('wg-popup').style.display='none';sessionStorage.setItem('wg-popup-closed','1');},2000);}else{throw new Error('Failed');}}).catch(function(){btn.textContent='Try again';btn.disabled=false;});})(event)">
       <input type="email" placeholder="your@email.com.au" required style="width:100%;box-sizing:border-box;padding:14px 18px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#ffffff;font-size:0.95rem;margin-bottom:12px;outline:none;">
       <button type="submit" style="width:100%;padding:14px;border-radius:10px;background:#10b981;color:#000000;font-weight:800;font-size:1rem;border:none;cursor:pointer;">Get Exclusive Offers</button>
     </form>
@@ -941,17 +947,46 @@ const buildWebsite = inngest.createFunction(
           const replacement = `<a href="${item.paymentLinkUrl}" target="_blank" rel="noopener" class="wg-buy-btn" data-product-index="${i}" style="display:inline-block;background:#006aff;color:#fff;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:0.95rem;">Buy Now — $${(item.priceCents / 100).toFixed(2)}</a>`;
           html = html.replace(btnPattern, replacement).replace(anchorPattern, replacement);
         });
-        // Strategy 2: find product card by name, wire first generic buy button within 3000 chars
-        catalogueItems.forEach((item: any, i: number) => {
-          if (!item.paymentLinkUrl || html.includes(`data-product-index="${i}"`)) return;
-          const escapedName = item.name.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
-          const buyBtnRe = /(<(?:button|a)(?:[^>]*)>)\s*(?:Buy Now|Add to Cart|Order Now|Shop Now|Purchase|Buy)\s*(<\/(?:button|a)>)/i;
-          const nameIdx = html.search(new RegExp(escapedName, "i"));
-          if (nameIdx === -1) return;
-          const win = html.slice(nameIdx, nameIdx + 3000);
-          if (!buyBtnRe.test(win)) return;
-          html = html.slice(0, nameIdx) + win.replace(buyBtnRe, `<a href="${item.paymentLinkUrl}" target="_blank" rel="noopener" class="wg-buy-btn" data-product-index="${i}" style="display:inline-block;background:#006aff;color:#fff;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:0.95rem;">Buy Now — $${(item.priceCents / 100).toFixed(2)}</a>`) + html.slice(nameIdx + 3000);
-        });
+        // Strategy 2: use jsdom to find the product card structurally and wire its buy button
+        try {
+          const { JSDOM } = await import("jsdom");
+          const dom = new JSDOM(html);
+          const doc = dom.window.document;
+          const buyBtnTextRe = /^(Buy Now|Add to Cart|Order Now|Shop Now|Purchase|Buy)$/i;
+
+          catalogueItems.forEach((item: any, i: number) => {
+            if (!item.paymentLinkUrl || html.includes(`data-product-index="${i}"`)) return;
+            // Find any element whose text contains the product name
+            const allEls = Array.from(doc.querySelectorAll("h2,h3,h4,p,span,div"));
+            const nameEl = allEls.find(el => el.textContent?.trim().toLowerCase().includes(item.name.toLowerCase()));
+            if (!nameEl) return;
+            // Walk up to find the card container (parent that contains a buy button)
+            let card: Element | null = nameEl;
+            let buyBtn: Element | null = null;
+            for (let depth = 0; depth < 6 && card; depth++) {
+              const btns = Array.from(card.querySelectorAll("button,a"));
+              buyBtn = btns.find(b => buyBtnTextRe.test(b.textContent?.trim() || "")) || null;
+              if (buyBtn) break;
+              card = card.parentElement;
+            }
+            if (!buyBtn) return;
+            // Replace the button with a proper payment link
+            const link = doc.createElement("a");
+            link.href = item.paymentLinkUrl;
+            link.target = "_blank";
+            link.rel = "noopener";
+            link.className = "wg-buy-btn";
+            link.setAttribute("data-product-index", String(i));
+            link.setAttribute("style", "display:inline-block;background:#006aff;color:#fff;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:0.95rem;");
+            link.textContent = `Buy Now — $${(item.priceCents / 100).toFixed(2)}`;
+            buyBtn.replaceWith(link);
+            console.log(`[Step7] jsdom wired buy button for product: ${item.name}`);
+          });
+
+          html = dom.serialize();
+        } catch (jsdomErr) {
+          console.warn("[Step7] jsdom strategy 2 failed, skipping:", jsdomErr);
+        }
         // Strategy 3: inject fallback shop section for unmatched products
         const unlinked = catalogueItems.filter((_: any, i: number) => !html.includes(`data-product-index="${i}"`));
         if (unlinked.length > 0) {
@@ -1599,11 +1634,14 @@ const featureInject = inngest.createFunction(
       }
 
       if (featureId === "Newsletter" || featureId === "Growth") {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
+        const draftPubId = (process.env.BEEHIIV_PUBLICATION_ID || "").startsWith("pub_")
+          ? process.env.BEEHIIV_PUBLICATION_ID
+          : `pub_${process.env.BEEHIIV_PUBLICATION_ID || ""}`;
+        const draftBeehiivEndpoint = `https://api.beehiiv.com/v2/publications/${draftPubId}/subscriptions/email`;
         const newsletterSection = `<section id="newsletter" style="padding:60px 20px;background:#0a1628;text-align:center;">
 <h2 style="color:#e2e8f0;font-size:1.8rem;font-weight:800;margin-bottom:8px;">Stay in the Loop</h2>
 <p style="color:#94a3b8;margin-bottom:24px;">Get updates and exclusive offers straight to your inbox.</p>
-<form onsubmit="(function(e){e.preventDefault();var em=e.target.querySelector('input[type=email]');var btn=e.target.querySelector('button');if(!em||!em.value)return;btn.textContent='Subscribing...';btn.disabled=true;fetch('${appUrl}/api/newsletter-subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em.value})}).then(function(){btn.textContent='Subscribed!';btn.style.background='#10b981';em.disabled=true;}).catch(function(){btn.textContent='Try again';btn.disabled=false;});})(event)" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;max-width:480px;margin:0 auto;">
+<form onsubmit="(function(e){e.preventDefault();var em=e.target.querySelector('input[type=email]');var btn=e.target.querySelector('button');if(!em||!em.value)return;btn.textContent='Subscribing...';btn.disabled=true;fetch('${draftBeehiivEndpoint}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em.value,reactivate_existing:true,send_welcome_email:true})}).then(function(r){if(r.ok||r.status===201||r.status===200){btn.textContent='Subscribed!';btn.style.background='#10b981';em.disabled=true;}else{throw new Error();}}).catch(function(){btn.textContent='Try again';btn.disabled=false;});})(event)" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;max-width:480px;margin:0 auto;">
 <input type="email" placeholder="Your email address" required style="flex:1;min-width:220px;padding:12px 16px;border-radius:8px;border:1px solid #1e2d42;background:#0d1520;color:#e2e8f0;font-size:14px;outline:none;">
 <button type="submit" style="background:#00c896;color:#000;font-weight:700;padding:12px 24px;border-radius:8px;border:none;cursor:pointer;font-size:14px;">Subscribe</button>
 </form>
