@@ -221,13 +221,9 @@ const buildWebsite = inngest.createFunction(
 
       const screen = await stitchGenerateScreen(projectId, stitchPrompt, "DESKTOP", "GEMINI_3_1_PRO");
       const sid = screen.screenId || "";
-      console.log(`[Inngest] STEP 3a DONE: screenId="${sid}" name="${screen.name}"`);
-
-      // If we got no screenId, it means the MCP response was unexpected — log and throw
-      // so Inngest retries the step rather than silently passing empty string to 3b
-      if (!sid) {
-        throw new Error(`Stitch MCP: generate_screen_from_text returned no screenId. name="${screen.name}" state="${screen.state}"`);
-      }
+      console.log(`[Inngest] STEP 3a DONE: screenId="${sid}" htmlUri=${!!screen.htmlUri}`);
+      // sid may be empty — 3b will use list_screens to discover it.
+      // That's fine; Inngest sleeps between steps so no time is wasted.
       return sid;
     }) as string;
 

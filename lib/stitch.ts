@@ -109,20 +109,17 @@ export async function stitchGenerateScreen(
     arguments: { projectId, prompt, deviceType, modelId },
   }) as any;
 
-  // Log the raw result so we can see exactly what Stitch returns
-  console.log("[Stitch MCP] generate_screen_from_text raw result:", JSON.stringify(result).slice(0, 1000));
-
+  console.log("[Stitch MCP] generate raw result keys:", JSON.stringify(Object.keys(result || {})));
   const content = extractJson(result);
-  console.log("[Stitch MCP] generate_screen_from_text parsed content:", JSON.stringify(content).slice(0, 1000));
-
-  const screen = normaliseScreen(content);
-
-  // If we still have no screenId, try listing screens for this project as fallback
-  // (Stitch may return the screen via a different path when generation is still running)
-  if (!screen.screenId && projectId && projectId !== "rebuild-skipped") {
-    console.log("[Stitch MCP] No screenId in generate response — will rely on list_screens in step 3b");
+  console.log("[Stitch MCP] generate content keys:", JSON.stringify(Object.keys(content || {})));
+  console.log("[Stitch MCP] generate projectId:", content?.projectId, "sessionId:", content?.sessionId, "screenId:", content?.screenId);
+  if (Array.isArray(content?.outputComponents)) {
+    console.log("[Stitch MCP] outputComponents count:", content.outputComponents.length);
+    console.log("[Stitch MCP] outputComponents[0] keys:", JSON.stringify(Object.keys(content.outputComponents[0] || {})));
   }
 
+  const screen = normaliseScreen(content);
+  console.log("[Stitch MCP] normalised screen:", JSON.stringify({ projectId: screen.projectId, screenId: screen.screenId, htmlUri: !!screen.htmlUri }));
   return screen;
 }
 
@@ -190,14 +187,28 @@ function extractJson(result: any): any {
 function normaliseScreen(raw: any): StitchScreen {
   const name: string = raw.name || "";
   const parts = name.split("/");
+
+  // Stitch MCP returns projectId + sessionId at the top level (not screenId)
+  // The sessionId IS the screenId for subsequent get_screen calls
   const projectId = raw.projectId || parts[1] || "";
-  const screenId = raw.screenId || parts[3] || "";
+  const screenId = raw.screenId || raw.sessionId || parts[3] || "";
+
+  // htmlUri may be inside outputComponents entries
+  let htmlUri = raw.htmlUri || raw.signedUri || raw.uri || "";
+  if (!htmlUri && Array.isArray(raw.outputComponents)) {
+    for (const comp of raw.outputComponents) {
+      const uri = comp?.htmlUri || comp?.signedUri || comp?.uri
+        || comp?.screen?.htmlUri || comp?.screen?.signedUri;
+      if (uri) { htmlUri = uri; break; }
+    }
+  }
+
   return {
-    name,
+    name: name || (projectId && screenId ? `projects/${projectId}/screens/${screenId}` : ""),
     projectId,
     screenId,
     state: raw.state,
     outputComponents: raw.outputComponents,
-    htmlUri: raw.htmlUri || raw.signedUri || raw.uri,
+    htmlUri,
   };
 }
