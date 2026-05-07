@@ -217,99 +217,152 @@ const buildWebsite = inngest.createFunction(
 
       const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-      // Stitch generate can fail with "Incomplete API response" transiently — retry up to 3x
-      let screen: any = null;
-      for (let attempt = 1; attempt <= 3; attempt++) {
+      // Helper: sanitise prompt for Stitch — strip URLs and special chars that trip the renderer
+      const sanitiseForStitch = (raw: string, maxLen: number) =>
+        raw
+          .replace(/https?:\/\/\S+/g, "[URL]")           // strip URLs → Stitch renderer chokes on them
+          .replace(/[^\x20-\x7E\n]/g, " ")               // ASCII only
+          .replace(/\s{3,}/g, "  ")                       // collapse whitespace
+          .slice(0, maxLen);
+
+      // Build progressively shorter/simpler prompts for each attempt
+      const basePrompt = spec.stitchPrompt || "";
+      const promptVariants = [
+        sanitiseForStitch(basePrompt, 5000),              // attempt 1: sanitised, 5000 chars
+        sanitiseForStitch(basePrompt, 3000),              // attempt 2: shorter
+        // attempt 3: minimal fallback — just business name + industry + style
+        `Premium website for ${userInput.businessName}, a ${userInput.industry} business. Style: ${userInput.style || "modern premium"}. Colour: ${spec.palette?.primary || "#0f172a"} primary. Professional, conversion-focused single page.`.slice(0, 1500),
+      ];
+
+      let html = "";
+      let lastStitchError = "";
+
+      // Try each prompt variant with Stitch
+      for (let attempt = 0; attempt < promptVariants.length; attempt++) {
+        const stitchPrompt = promptVariants[attempt];
+        console.log(`[Inngest] STEP 3: Stitch attempt ${attempt + 1} (prompt ${stitchPrompt.length} chars)`);
+        let screen: any = null;
+
         try {
-          // Stitch fails on very long prompts — cap at 6000 chars
-          const stitchPrompt = (spec.stitchPrompt || "").slice(0, 6000);
           const project = stitchSdk.project(projectId);
           screen = await project.generate(stitchPrompt, "DESKTOP");
-          console.log(`[Inngest] STEP 3: screen id=${screen.screenId} (attempt ${attempt})`);
-          break;
+          console.log(`[Inngest] STEP 3: screen id=${screen?.screenId} (attempt ${attempt + 1})`);
         } catch (e: any) {
-          const msg = e?.message || String(e);
-          console.warn(`[Inngest] STEP 3: generate attempt ${attempt} failed: ${msg}`);
-          if (attempt === 3) throw e;
-          await sleep(5000 * attempt);
+          lastStitchError = e?.message || String(e);
+          console.warn(`[Inngest] STEP 3: generate attempt ${attempt + 1} failed: ${lastStitchError}`);
+          if (attempt < promptVariants.length - 1) { await sleep(6000); continue; }
+          break; // all generate attempts exhausted — fall through to Claude fallback
         }
-      }
 
-      // getHtml() returns empty when htmlCode isn't cached on the generation response.
-      // Retry with generous backoff — Stitch can take 30-60s to commit the screen.
-      let url = await screen.getHtml();
-      if (!url) {
-        // Waits: 8s, 15s, 20s, 25s, 30s = ~98s total
-        const waits = [8000, 15000, 20000, 25000, 30000];
-        for (let i = 0; i < waits.length; i++) {
-          await sleep(waits[i]);
-          console.log(`[Inngest] STEP 3: getHtml() empty — retry ${i + 1} (waited ${waits[i]}ms)`);
-          try {
-            const project = stitchSdk.project(projectId);
-            const fetched = await project.getScreen(screen.screenId);
-            url = await fetched.getHtml();
-            if (url) { console.log(`[Inngest] STEP 3: got url via getScreen (retry ${i + 1})`); break; }
-          } catch (_) {}
-          try {
-            const project = stitchSdk.project(projectId);
-            const screens = await project.screens();
-            console.log(`[Inngest] STEP 3: list_screens returned ${screens.length} screens`);
-            if (screens.length > 0) {
-              const match = screens.find((s: any) => s.screenId === screen.screenId) || screens[screens.length - 1];
-              if (match) { url = await match.getHtml(); }
-              if (url) { console.log(`[Inngest] STEP 3: got url via list_screens (retry ${i + 1})`); break; }
-            }
-          } catch (_) {}
-        }
-      }
-      // Last-resort: re-generate from scratch with the same prompt
-      if (!url) {
-        console.warn("[Inngest] STEP 3: all retries failed — re-generating with fresh Stitch call");
-        await sleep(5000);
-        const project2 = stitchSdk.project(projectId);
-        const screen2 = await project2.generate((spec.stitchPrompt || "").slice(0, 6000), "DESKTOP");
-        await sleep(20000);
-        url = await screen2.getHtml();
+        // Poll for the signed URL — Stitch can take 30-90s to render
+        let url = await screen.getHtml();
         if (!url) {
-          const screens2 = await project2.screens();
-          const match2 = screens2[screens2.length - 1];
-          if (match2) url = await match2.getHtml();
-        }
-        if (!url) throw new Error("Stitch: no downloadUrl after generate + retries + re-generate");
-      }
-
-      // Fetch immediately — URL is a short-lived signed link, don't store it
-      // Retry fetch up to 3x in case the signed URL needs a moment to become available
-      let html = "";
-      for (let fetchAttempt = 1; fetchAttempt <= 3; fetchAttempt++) {
-        try {
-          const fetchRes = await fetch(url);
-          const text = await fetchRes.text();
-          console.log(`[Inngest] STEP 3: fetch attempt ${fetchAttempt} — status=${fetchRes.status} length=${text.length} preview=${text.slice(0, 120)}`);
-          if (text.length > 5000 && text.includes("<")) { html = text; break; }
-          // If too short or not HTML, wait and retry with a fresh URL
-          if (fetchAttempt < 3) {
-            await sleep(8000);
+          const waits = [10000, 18000, 25000, 30000, 35000];
+          for (let i = 0; i < waits.length; i++) {
+            await sleep(waits[i]);
+            console.log(`[Inngest] STEP 3: getHtml() empty — poll ${i + 1} (waited ${waits[i]}ms)`);
             try {
-              const project = stitchSdk.project(projectId);
-              const freshScreen = await project.getScreen(screen.screenId);
-              const freshUrl = await freshScreen.getHtml();
-              if (freshUrl) url = freshUrl;
+              const p = stitchSdk.project(projectId);
+              const fetched = await p.getScreen(screen.screenId);
+              url = await fetched.getHtml();
+              if (url) { console.log(`[Inngest] STEP 3: got url via getScreen (poll ${i + 1})`); break; }
+            } catch (_) {}
+            try {
+              const p = stitchSdk.project(projectId);
+              const screens = await p.screens();
+              console.log(`[Inngest] STEP 3: list_screens returned ${screens.length} screens`);
+              if (screens.length > 0) {
+                const match = screens.find((s: any) => s.screenId === screen.screenId) || screens[screens.length - 1];
+                if (match) { url = await match.getHtml(); }
+                if (url) { console.log(`[Inngest] STEP 3: got url via list_screens (poll ${i + 1})`); break; }
+              }
             } catch (_) {}
           }
-        } catch (e) {
-          console.warn(`[Inngest] STEP 3: fetch attempt ${fetchAttempt} threw:`, e);
-          if (fetchAttempt < 3) await sleep(5000);
         }
-      }
-      console.log(`[Inngest] STEP 3: fetched ${html.length} chars`);
 
-      if (html.length < 5000) throw new Error(`Stitch HTML too short (${html.length} chars) — Stitch may have returned an error page`);
+        if (!url) {
+          console.warn(`[Inngest] STEP 3: attempt ${attempt + 1} — no URL after polling, trying next variant`);
+          if (attempt < promptVariants.length - 1) { await sleep(5000); continue; }
+          break;
+        }
+
+        // Fetch the HTML — retry up to 3x with fresh signed URLs
+        for (let fetchAttempt = 1; fetchAttempt <= 3; fetchAttempt++) {
+          try {
+            const fetchRes = await fetch(url);
+            const text = await fetchRes.text();
+            console.log(`[Inngest] STEP 3: fetch ${fetchAttempt} — status=${fetchRes.status} length=${text.length} preview=${text.slice(0, 80)}`);
+            if (text.length > 5000 && text.includes("<")) { html = text; break; }
+            if (fetchAttempt < 3) {
+              await sleep(8000);
+              try {
+                const p = stitchSdk.project(projectId);
+                const freshScreen = await p.getScreen(screen.screenId);
+                const freshUrl = await freshScreen.getHtml();
+                if (freshUrl) url = freshUrl;
+              } catch (_) {}
+            }
+          } catch (e) {
+            console.warn(`[Inngest] STEP 3: fetch attempt ${fetchAttempt} threw:`, e);
+            if (fetchAttempt < 3) await sleep(5000);
+          }
+        }
+
+        if (html.length > 5000) break; // success — exit outer attempt loop
+        console.warn(`[Inngest] STEP 3: attempt ${attempt + 1} — HTML too short (${html.length}), trying next variant`);
+        if (attempt < promptVariants.length - 1) await sleep(5000);
+      }
+
+      // ── Claude HTML fallback — when Stitch fails entirely ───────────────────────
+      if (html.length < 5000) {
+        console.warn(`[Inngest] STEP 3: Stitch failed (${lastStitchError}) — falling back to Claude HTML generation`);
+        const p = spec.palette || { primary: "#1a1a2e", accent: "#10b981", background: "#0a0f1a", surface: "#0f1623", text: "#e2e8f0" };
+        const claudeHtmlPrompt = `You are an expert web designer. Generate a complete, single-file HTML website for the following business. Output ONLY the raw HTML — no markdown, no explanation.
+
+Business: ${userInput.businessName}
+Industry: ${userInput.industry}
+Style: ${userInput.style || "modern premium dark"}
+Tagline / USP: ${userInput.usp || ""}
+Target audience: ${userInput.targetAudience || "general"}
+Goal: ${userInput.goal || "generate enquiries"}
+Colour scheme: primary=${p.primary}, accent=${p.accent}, background=${p.background}, surface=${p.surface}, text=${p.text}
+Heading font: ${spec.typography?.headingFont || "Inter"}
+Hero headline: ${spec.heroHeadline || userInput.businessName}
+Hero subheadline: ${spec.heroSubheadline || ""}
+CTA: ${spec.ctaText || "Get in Touch"}
+Contact email: ${clientEmail}
+Contact phone: ${clientPhone}
+${imageSection}
+${pricingSection}
+
+Requirements:
+- Full responsive HTML with embedded CSS (no external stylesheets)
+- Sections: hero, about, services, ${hasBookingFeature ? "booking, " : ""}contact, footer
+- id="hero" on the hero section
+- id="contact" on the contact section
+- Professional, premium look — this is a real business website
+- Include a contact form (name, email, message, submit)
+- Mobile-responsive with hamburger nav
+- At least 1500 words of real content tailored to the business
+- No placeholder "Lorem ipsum" text`;
+
+        const claudeRes = await anthropic.messages.create({
+          model: "claude-opus-4-5",
+          max_tokens: 8192,
+          messages: [{ role: "user", content: claudeHtmlPrompt }],
+        });
+        const rawText = claudeRes.content[0]?.type === "text" ? claudeRes.content[0].text : "";
+        // Strip any markdown code fences if Claude wrapped the HTML
+        html = rawText.replace(/^```html?\s*/i, "").replace(/```\s*$/, "").trim();
+        console.log(`[Inngest] STEP 3: Claude fallback generated ${html.length} chars`);
+        if (html.length < 3000) throw new Error(`Claude HTML fallback too short (${html.length} chars)`);
+      }
+
       if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error(`Stitch returned skeleton`);
       const styleLen = (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
       const inlineStyleCount = (html.match(/\bstyle=/gi) || []).length;
       if (styleLen < 100 && inlineStyleCount < 20) {
-        throw new Error(`Stitch HTML has no CSS (styleLen=${styleLen}, inlineStyles=${inlineStyleCount})`);
+        throw new Error(`HTML has no CSS (styleLen=${styleLen}, inlineStyles=${inlineStyleCount})`);
       }
 
       console.log(`[Inngest] STEP 3 DONE: HTML ${html.length} chars, styleLen=${styleLen}, inlineStyles=${inlineStyleCount}`);
