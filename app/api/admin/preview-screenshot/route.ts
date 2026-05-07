@@ -18,8 +18,15 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; WebGecko-Admin/1.0)" },
+    // Add cache-busting to bypass Vercel CDN cache on the target site
+    const bustUrl = url + (url.includes("?") ? "&" : "?") + "_wg=" + Date.now();
+    const res = await fetch(bustUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; WebGecko-Admin/1.0)",
+        "Cache-Control": "no-cache, no-store",
+        "Pragma": "no-cache",
+      },
+      cache: "no-store",
       signal: AbortSignal.timeout(10000),
     });
 
@@ -34,9 +41,9 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": "text/html; charset=utf-8",
-        // Explicitly allow embedding — strip X-Frame-Options
         "X-Frame-Options": "ALLOWALL",
         "Content-Security-Policy": "",
+        "Cache-Control": "no-store, no-cache, must-revalidate",
       },
     });
   } catch (e) {
