@@ -121,12 +121,19 @@ export async function stitchGenerateScreen(
   }) as any;
 
   console.log("[Stitch MCP] generate raw result keys:", JSON.stringify(Object.keys(result || {})));
+  if ((result as any)?.structuredContent) {
+    console.log("[Stitch MCP] structuredContent keys:", JSON.stringify(Object.keys((result as any).structuredContent || {})));
+    console.log("[Stitch MCP] structuredContent:", JSON.stringify((result as any).structuredContent).slice(0, 1000));
+  }
   const content = extractJson(result);
   console.log("[Stitch MCP] generate content keys:", JSON.stringify(Object.keys(content || {})));
   console.log("[Stitch MCP] generate projectId:", content?.projectId, "sessionId:", content?.sessionId, "screenId:", content?.screenId);
   if (Array.isArray(content?.outputComponents)) {
     console.log("[Stitch MCP] outputComponents count:", content.outputComponents.length);
-    console.log("[Stitch MCP] outputComponents[0] keys:", JSON.stringify(Object.keys(content.outputComponents[0] || {})));
+    content.outputComponents.forEach((c: any, i: number) => {
+      console.log(`[Stitch MCP] outputComponents[${i}] keys:`, JSON.stringify(Object.keys(c || {})));
+      console.log(`[Stitch MCP] outputComponents[${i}] content:`, JSON.stringify(c).slice(0, 500));
+    });
   }
 
   const screen = normaliseScreen(content);

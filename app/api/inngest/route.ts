@@ -229,7 +229,7 @@ const buildWebsite = inngest.createFunction(
 
     // ── Sleep 2 min — Inngest yields here, zero Vercel serverless time consumed ───
     if (!savedHtmlForRebuild) {
-      await step.sleep("step3-wait-for-stitch", "2m");
+      await step.sleep("step3-wait-for-stitch", "3m");
     }
 
     // ── STEP 3b: Poll until HTML is ready, then fetch it ─────────────────────────
