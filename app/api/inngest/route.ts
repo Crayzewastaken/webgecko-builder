@@ -208,7 +208,7 @@ const buildWebsite = inngest.createFunction(
     // ── STEP 3a: Fire Stitch generation — returns screenId or throws ─────────────
     // generate_screen_from_text takes 1–3 min. We fire it and grab the screenId.
     // Inngest will retry this step automatically if it throws (up to its default limit).
-    const stitchScreenId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step3a-stitch-trigger", async () => {
+    const stitchScreenId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step3a-stitch-trigger-v2", async () => {
       const stitchPrompt = (spec.stitchPrompt || "")
         .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
         .replace(/\s{3,}/g, "  ")
@@ -234,11 +234,11 @@ const buildWebsite = inngest.createFunction(
 
     // ── Sleep 2 min — Inngest yields here, zero Vercel serverless time consumed ───
     if (!savedHtmlForRebuild) {
-      await step.sleep("step3-wait-for-stitch", "3m");
+      await step.sleep("step3-wait-for-stitch-v2", "3m");
     }
 
     // ── STEP 3b: Extract HTML from 3a result or poll until ready ─────────────────
-    const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3b-stitch-fetch", async () => {
+    const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3b-stitch-fetch-v2", async () => {
       const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
       // Fast path: 3a already returned the HTML or a direct URI

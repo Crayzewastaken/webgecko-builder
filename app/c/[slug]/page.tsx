@@ -1590,7 +1590,7 @@ export default function ClientPortal() {
                 </div>
               </div>
               <div style={S.divider} />
-              {["Fast Australian hosting", "Monthly AI improvements", "10 free site changes/month", "SEO & performance updates", "Priority email support"].map((item, i) => (
+              {["Fast Australian hosting", "Monthly site improvements", "10 free site changes/month", "SEO & performance updates", "Priority email support"].map((item, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: C.textSec, marginBottom: 8 }}>
                   <span style={{ color: C.accent, fontSize: 11 }}>✓</span>{item}
                 </div>
@@ -1602,7 +1602,7 @@ export default function ClientPortal() {
               <div style={S.label}>What You Get</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 10 }}>
                 {[
-                  { icon: "🔧", title: "Monthly AI Fix Pass", desc: "Our system reviews and improves your site every month automatically." },
+                  { icon: "🔧", title: "Monthly Fix Pass", desc: "Our team reviews and improves your site every month automatically." },
                   { icon: "📈", title: "SEO & Speed Updates", desc: "We keep your site fast, indexed, and discoverable." },
                   { icon: "✏️", title: "Site Change Requests", desc: "Request changes anytime from the Site Preview tab. First 10 are free each month." },
                 ].map(({ icon, title, desc }) => (
@@ -1631,7 +1631,7 @@ export default function ClientPortal() {
                     <div style={{ background: "#00c89615", border: "1px solid #00c89630", borderRadius: 20, padding: "4px 12px", fontSize: 11, fontWeight: 700, color: C.accent }}>ACTIVE</div>
                   </div>
                   <div style={{ height: 1, background: C.border, margin: "12px 0" }} />
-                  {["Hosting & SSL", "Site changes on request", "Monthly AI fix pass", "SEO updates", "Email support"].map(f => (
+                  {["Hosting & SSL", "Site changes on request", "Monthly fix pass", "SEO updates", "Email support"].map(f => (
                     <div key={f} style={{ fontSize: 12, color: C.textMuted, display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                       <span style={{ color: C.accent, fontSize: 10 }}>✓</span>{f}
                     </div>
