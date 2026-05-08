@@ -164,7 +164,7 @@ export async function stitchGetScreen(
 export async function stitchListLatestScreen(projectId: string): Promise<StitchScreen | null> {
   const result = await callMcp("tools/call", {
     name: "list_screens",
-    arguments: { parent: `projects/${projectId}` },
+    arguments: { projectId },
   }) as any;
   console.log("[Stitch MCP] list_screens raw:", JSON.stringify(result).slice(0, 1000));
   const content = extractJson(result);
