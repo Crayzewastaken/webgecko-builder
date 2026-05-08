@@ -217,9 +217,18 @@ const buildWebsite = inngest.createFunction(
 
       const screen = await stitchGenerateScreen(projectId, stitchPrompt, "DESKTOP", "GEMINI_3_1_PRO");
       const sid = screen.screenId || "";
-      console.log(`[Inngest] STEP 3a DONE: screenId="${sid}" htmlUri=${!!screen.htmlUri}`);
-      // sid may be empty — 3b will use list_screens to discover it.
-      // That's fine; Inngest sleeps between steps so no time is wasted.
+
+      // If Stitch returned HTML inline in the generate response, return it directly
+      // prefixed with "HTML:" so step 3b knows to use it without polling
+      if (screen.inlineHtml && screen.inlineHtml.length > 1000) {
+        console.log(`[Inngest] STEP 3a: got inline HTML (${screen.inlineHtml.length} chars) — skipping poll`);
+        return `HTML:${screen.inlineHtml}`;
+      }
+      if (screen.htmlUri) {
+        console.log(`[Inngest] STEP 3a: got htmlUri directly — skipping poll`);
+        return `URI:${screen.htmlUri}`;
+      }
+      console.log(`[Inngest] STEP 3a DONE: screenId="${sid}" — will poll in 3b`);
       return sid;
     }) as string;
 
@@ -228,12 +237,26 @@ const buildWebsite = inngest.createFunction(
       await step.sleep("step3-wait-for-stitch", "3m");
     }
 
-    // ── STEP 3b: Poll until HTML is ready, then fetch it ─────────────────────────
-    // If screenId is known, poll get_screen. If not, use list_screens to discover it.
-    // Per Stitch MCP docs: poll every 30s, up to 10 times.
+    // ── STEP 3b: Extract HTML from 3a result or poll until ready ─────────────────
     const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3b-stitch-fetch", async () => {
       const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-      // sessionId from generate ≠ screenId — always use list_screens to find the real screen
+
+      // Fast path: 3a already returned the HTML or a direct URI
+      if (stitchScreenId.startsWith("HTML:")) {
+        const html = stitchScreenId.slice(5);
+        console.log(`[Inngest] STEP 3b: using inline HTML from 3a (${html.length} chars)`);
+        return html;
+      }
+      if (stitchScreenId.startsWith("URI:")) {
+        const uri = stitchScreenId.slice(4);
+        console.log(`[Inngest] STEP 3b: fetching HTML from URI returned by 3a`);
+        const res = await fetch(uri);
+        const html = await res.text();
+        console.log(`[Inngest] STEP 3b: fetched ${html.length} chars from URI`);
+        return html;
+      }
+
+      // Slow path: poll list_screens until a screen appears
       let screen: any = null;
 
       for (let i = 0; i < 5; i++) {

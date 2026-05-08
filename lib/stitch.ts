@@ -84,8 +84,9 @@ export interface StitchScreen {
   projectId: string;
   screenId: string;
   state?: string;
-  outputComponents?: string;
+  outputComponents?: any[];
   htmlUri?: string;    // signed URL to the rendered HTML
+  inlineHtml?: string; // HTML returned directly in the generate response
 }
 
 /**
@@ -187,7 +188,12 @@ export async function stitchListLatestScreen(projectId: string): Promise<StitchS
  * Fetches the HTML content from a screen's htmlUri.
  */
 export async function stitchFetchHtml(screen: StitchScreen): Promise<string> {
-  if (!screen.htmlUri) throw new Error("Screen has no htmlUri — may still be generating");
+  // Use inline HTML if available (returned directly from generate response)
+  if (screen.inlineHtml && screen.inlineHtml.length > 1000) {
+    console.log("[Stitch MCP] Using inline HTML from generate response:", screen.inlineHtml.length, "chars");
+    return screen.inlineHtml;
+  }
+  if (!screen.htmlUri) throw new Error("Screen has no htmlUri or inlineHtml — may still be generating");
   const res = await fetch(screen.htmlUri);
   if (!res.ok) throw new Error(`Failed to fetch Stitch HTML: HTTP ${res.status}`);
   const html = await res.text();
@@ -210,23 +216,45 @@ function extractJson(result: any): any {
   return result;
 }
 
+function extractHtmlFromOutputComponents(outputComponents: any[]): { htmlUri: string; inlineHtml: string } {
+  let htmlUri = "";
+  let inlineHtml = "";
+  for (const comp of outputComponents) {
+    // Check all nested paths for a URI
+    const uri = comp?.htmlUri || comp?.signedUri || comp?.uri
+      || comp?.screen?.htmlUri || comp?.screen?.signedUri || comp?.screen?.uri
+      || comp?.artifact?.uri || comp?.artifact?.htmlUri
+      || comp?.download?.uri || comp?.download?.url;
+    if (uri && !htmlUri) htmlUri = uri;
+
+    // Check for inline HTML content
+    const html = comp?.html || comp?.content || comp?.htmlContent
+      || comp?.screen?.html || comp?.screen?.content
+      || comp?.artifact?.html || comp?.artifact?.content;
+    if (html && typeof html === "string" && html.includes("<") && !inlineHtml) {
+      inlineHtml = html;
+    }
+
+    // Log every component's keys for debugging
+    console.log("[Stitch MCP] outputComponent keys:", JSON.stringify(Object.keys(comp || {})), "| values sample:", JSON.stringify(comp).slice(0, 300));
+  }
+  return { htmlUri, inlineHtml };
+}
+
 function normaliseScreen(raw: any): StitchScreen {
   const name: string = raw.name || "";
   const parts = name.split("/");
 
-  // Stitch MCP returns projectId + sessionId at the top level (not screenId)
-  // The sessionId IS the screenId for subsequent get_screen calls
   const projectId = raw.projectId || parts[1] || "";
   const screenId = raw.screenId || raw.sessionId || parts[3] || "";
 
-  // htmlUri may be inside outputComponents entries
   let htmlUri = raw.htmlUri || raw.signedUri || raw.uri || "";
-  if (!htmlUri && Array.isArray(raw.outputComponents)) {
-    for (const comp of raw.outputComponents) {
-      const uri = comp?.htmlUri || comp?.signedUri || comp?.uri
-        || comp?.screen?.htmlUri || comp?.screen?.signedUri;
-      if (uri) { htmlUri = uri; break; }
-    }
+  let inlineHtml = raw.html || raw.htmlContent || "";
+
+  if ((!htmlUri || !inlineHtml) && Array.isArray(raw.outputComponents)) {
+    const extracted = extractHtmlFromOutputComponents(raw.outputComponents);
+    if (!htmlUri) htmlUri = extracted.htmlUri;
+    if (!inlineHtml) inlineHtml = extracted.inlineHtml;
   }
 
   return {
@@ -236,5 +264,6 @@ function normaliseScreen(raw: any): StitchScreen {
     state: raw.state,
     outputComponents: raw.outputComponents,
     htmlUri,
+    inlineHtml,
   };
 }
