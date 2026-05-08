@@ -56,15 +56,11 @@ const buildWebsite = inngest.createFunction(
       return j;
     });
 
-    // ── REBUILD MODE: skip Stitch + Claude generation, reuse saved HTML ────────
-    // When triggered via /api/pipeline/run, isRebuild=true. Steps 0-4b are skipped
-    // so the visual design stays consistent and we do not hit Stitch again.
-    const savedHtmlForRebuild: string | null = (isRebuild && job.html && job.html.length > 5000)
-      ? job.html : null;
+    // ── REBUILD MODE: always run full pipeline from scratch ─────────────────────
+    // Rebuild regenerates everything including a fresh Stitch generation.
+    const savedHtmlForRebuild: string | null = null;
     if (isRebuild) {
-      console.log(savedHtmlForRebuild
-        ? "[Rebuild] Using saved HTML (" + (job.html?.length ?? 0) + " chars) — skipping Stitch"
-        : "[Rebuild] No saved HTML — running full pipeline");
+      console.log("[Rebuild] Full rebuild from scratch — running complete pipeline including Stitch");
     }
 
 
