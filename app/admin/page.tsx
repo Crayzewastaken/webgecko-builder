@@ -1057,6 +1057,64 @@ function PipelineLogsPanel() {
   );
 }
 
+// ── Needs Attention row ────────────────────────────────────────────────────────
+function AttentionRow({ cl, badge, color, howToFix, action, onOpen, initials }: {
+  cl: ClientAnalytics; badge: string; color: string; howToFix: string; action: string;
+  onOpen: (c: ClientAnalytics) => void; initials: (n: string) => string;
+}) {
+  const [fixing, setFixing] = useState(false);
+  const [fixDone, setFixDone] = useState("");
+  const [fixErr, setFixErr] = useState("");
+
+  async function doAutoFix() {
+    setFixing(true); setFixErr(""); setFixDone("");
+    try {
+      let r: Response;
+      if (action === "fix") {
+        r = await fetch(`/api/admin/fix-proxy?jobId=${cl.jobId}`, { method: "GET" });
+      } else if (action === "redeploy") {
+        r = await fetch("/api/admin/redeploy", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId: cl.jobId }) });
+      } else {
+        window.open(`/c/${cl.slug}`, "_blank");
+        setFixDone("Portal opened in new tab"); setFixing(false); return;
+      }
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Failed");
+      setFixDone(d.previewUrl || "Done ✓");
+    } catch (e) { setFixErr(e instanceof Error ? e.message : "Failed"); }
+    finally { setFixing(false); }
+  }
+
+  const actionLabel = action === "fix" ? "⚡ Fix this site" : action === "redeploy" ? "⚡ Force redeploy" : "📤 Open portal";
+
+  return (
+    <div style={{ background: T.raised, borderRadius: 12, padding: "14px 18px", borderLeft: `3px solid ${color}`, display: "flex", flexDirection: "column" as const, gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ width: 32, height: 32, borderRadius: 8, background: color + "20", border: `1px solid ${color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color, flexShrink: 0 }}>{initials(cl.businessName)}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{cl.businessName}</div>
+          <div style={{ fontSize: 11, color: T.textMuted }}>{cl.industry}</div>
+        </div>
+        <Pill color={color}>{badge}</Pill>
+        <button onClick={() => onOpen(cl)} style={{ background: "transparent", color: T.textMuted, border: `1px solid ${T.border}`, borderRadius: 8, padding: "5px 12px", fontSize: 11, cursor: "pointer", flexShrink: 0 }}>Open →</button>
+      </div>
+      <div style={{ fontSize: 11, color: T.textSec, lineHeight: 1.6, padding: "6px 10px", background: color + "08", borderRadius: 8, border: `1px solid ${color}20` }}>
+        💡 <strong style={{ color }}>How to fix:</strong> {howToFix}
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        {fixDone
+          ? <span style={{ fontSize: 11, color: T.green }}>✓ {fixDone}</span>
+          : fixErr
+          ? <span style={{ fontSize: 11, color: T.red }}>✗ {fixErr}</span>
+          : <button disabled={fixing} onClick={doAutoFix} style={{ background: color === T.textMuted ? T.blue : color, color: "#000", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 11, fontWeight: 700, cursor: "pointer", opacity: fixing ? 0.6 : 1, flexShrink: 0 }}>
+              {fixing ? "Working…" : actionLabel}
+            </button>
+        }
+      </div>
+    </div>
+  );
+}
+
 // ── Analytics view ─────────────────────────────────────────────────────────────
 function AnalyticsView({ clients, onOpenClient }: { clients: ClientAnalytics[]; onOpenClient: (c: ClientAnalytics) => void }) {
   const total = clients.length || 1;
@@ -1108,9 +1166,18 @@ function AnalyticsView({ clients, onOpenClient }: { clients: ClientAnalytics[]; 
   const stuck = clients.filter(c=>c.buildStatus==="building"&&!c.builtAt);
   const unpaidClients = clients.filter(c=>!c.paymentState?.depositPaid);
   const needsAttention = [
-    ...failed.map(c=>({c,badge:"Failed",color:T.red})),
-    ...stuck.map(c=>({c,badge:"Stuck building",color:T.amber})),
-    ...unpaidClients.map(c=>({c,badge:"Unpaid",color:T.textMuted})),
+    ...failed.map(c=>({c,badge:"Failed",color:T.red,
+      howToFix:"The build pipeline failed for this site. Use 'Fix this site' to attempt a fix pass and redeploy, or 'Rebuild site' to start fresh.",
+      action:"fix",
+    })),
+    ...stuck.map(c=>({c,badge:"Stuck building",color:T.amber,
+      howToFix:"This job is stuck in 'building' status. Use 'Force redeploy' to push the stored HTML live, or 'Rebuild site' to restart.",
+      action:"redeploy",
+    })),
+    ...unpaidClients.map(c=>({c,badge:"Unpaid",color:T.textMuted,
+      howToFix:`${c.businessName} hasn't paid a deposit yet. Send them their client portal link to complete payment.`,
+      action:"portal",
+    })),
   ];
 
   // Recent builds
@@ -1151,7 +1218,7 @@ function AnalyticsView({ clients, onOpenClient }: { clients: ClientAnalytics[]; 
   return (
     <div className="wg-tab">
       {/* A. Hero KPI row */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(175px,1fr))", gap:14, marginBottom:8 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:12, marginBottom:8 }}>
         {kpi("Est. MRR","$"+mrr.toLocaleString(),T.green,"$")}
         {kpi("Active plans",active,T.green,"●")}
         {kpi("Today's views",todayViews,T.cyan,"◎",monthViews.toLocaleString()+" this month")}
@@ -1286,17 +1353,9 @@ function AnalyticsView({ clients, onOpenClient }: { clients: ClientAnalytics[]; 
             <span style={{ fontSize:13,color:T.green,fontWeight:600 }}>All systems normal — no clients need attention.</span>
           </div>
         ) : (
-          <div style={{ display:"flex",flexDirection:"column" as const,gap:8 }}>
-            {needsAttention.map(({c:cl,badge,color},i)=>(
-              <div key={`${cl.slug}-${badge}-${i}`} style={{ display:"flex",alignItems:"center",gap:12,background:T.raised,borderRadius:10,padding:"12px 16px",borderLeft:`3px solid ${color}` }}>
-                <div style={{ width:32,height:32,borderRadius:8,background:color+"20",border:`1px solid ${color}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color,flexShrink:0 }}>{initials(cl.businessName)}</div>
-                <div style={{ flex:1,minWidth:0 }}>
-                  <div style={{ fontSize:13,fontWeight:600,color:T.text }}>{cl.businessName}</div>
-                  <div style={{ fontSize:11,color:T.textMuted }}>{cl.industry}</div>
-                </div>
-                <Pill color={color}>{badge}</Pill>
-                <button onClick={()=>onOpenClient(cl)} style={{ background:color+"15",color,border:`1px solid ${color}35`,borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",flexShrink:0 }}>Open →</button>
-              </div>
+          <div style={{ display:"flex",flexDirection:"column" as const,gap:10 }}>
+            {needsAttention.map(({c:cl,badge,color,howToFix,action},i)=>(
+              <AttentionRow key={`${cl.slug}-${badge}-${i}`} cl={cl} badge={badge} color={color} howToFix={howToFix} action={action} onOpen={onOpenClient} initials={initials}/>
             ))}
           </div>
         )}
@@ -1438,7 +1497,7 @@ function AdminDashboard() {
         </div>
       </div>
 
-      <div style={{ maxWidth:1140,margin:"0 auto",padding:"36px 28px" }}>
+      <div style={{ maxWidth:"100%",padding:"28px 32px" }}>
 
         {/* Section label */}
         {!loading&&!error&&(
@@ -1451,7 +1510,7 @@ function AdminDashboard() {
 
         {/* Stats */}
         {!loading&&!error&&(
-          <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(175px,1fr))",gap:14,marginBottom:32 }}>
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:28 }}>
             {[
               {label:"Total clients",value:totals.clients,color:T.blue,icon:"◈"},
               {label:"Monthly active",value:totals.active,color:T.green,icon:"●"},
@@ -1459,19 +1518,18 @@ function AdminDashboard() {
               {label:"Views / month",value:totals.views,color:T.cyan,icon:"◎"},
               {label:"Total bookings",value:totals.bookings,color:T.amber,icon:"◆"},
             ].map(s=>(
-              <div key={s.label} className="wg-card wg-stat-scan" style={{ background:T.surface,border:`1px solid ${s.color}28`,borderRadius:16,padding:"20px 20px 18px 26px",position:"relative",overflow:"hidden",transition:"border-color 0.2s, box-shadow 0.2s",boxShadow:`0 0 0 1px ${s.color}14, 0 6px 32px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)` }}
+              <div key={s.label} className="wg-card wg-stat-scan" style={{ background:T.surface,border:`1px solid ${s.color}28`,borderRadius:14,padding:"16px 18px 14px 22px",position:"relative",overflow:"hidden",transition:"border-color 0.2s, box-shadow 0.2s",boxShadow:`0 0 0 1px ${s.color}14, 0 6px 32px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)` }}
                 onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=s.color+"55";el.style.boxShadow=`0 0 32px ${s.color}22, 0 8px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06)`;}}
                 onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=s.color+"28";el.style.boxShadow=`0 0 0 1px ${s.color}14, 0 6px 32px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)`;}}>
-                {/* Left accent bar — full height */}
-                <div style={{ position:"absolute",left:0,top:0,bottom:0,width:4,borderRadius:"16px 0 0 16px",background:`linear-gradient(180deg,${s.color},${s.color}33)`,boxShadow:`2px 0 12px ${s.color}40` }}/>
-                {/* Corner radial glow */}
-                <div style={{ position:"absolute",top:0,right:0,width:100,height:100,background:`radial-gradient(circle at top right,${s.color}22,transparent 60%)`,pointerEvents:"none" }}/>
-                {/* Icon pill */}
-                <div style={{ width:32,height:32,borderRadius:9,background:s.color+"22",border:`1px solid ${s.color}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,color:s.color,marginBottom:14,letterSpacing:"-0.02em",boxShadow:`0 0 12px ${s.color}30` }}>{s.icon}</div>
-                <div style={{ fontSize:28,fontWeight:800,letterSpacing:"-0.04em",lineHeight:1,marginBottom:7 }}>
+                <div style={{ position:"absolute",left:0,top:0,bottom:0,width:4,borderRadius:"14px 0 0 14px",background:`linear-gradient(180deg,${s.color},${s.color}33)`,boxShadow:`2px 0 12px ${s.color}40` }}/>
+                <div style={{ position:"absolute",top:0,right:0,width:80,height:80,background:`radial-gradient(circle at top right,${s.color}22,transparent 60%)`,pointerEvents:"none" }}/>
+                <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:10 }}>
+                  <div style={{ width:26,height:26,borderRadius:7,background:s.color+"22",border:`1px solid ${s.color}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900,color:s.color,flexShrink:0 }}>{s.icon}</div>
+                  <div style={{ fontSize:9,color:T.textMuted,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase" as const }}>{s.label}</div>
+                </div>
+                <div style={{ fontSize:26,fontWeight:800,letterSpacing:"-0.04em",lineHeight:1 }}>
                   {typeof s.value==="number" ? <AnimNum value={s.value} color={s.color}/> : <span style={{color:s.color}}>{s.value}</span>}
                 </div>
-                <div style={{ fontSize:10,color:T.textMuted,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase" as const }}>{s.label}</div>
               </div>
             ))}
           </div>
@@ -1510,6 +1568,7 @@ function AdminDashboard() {
         </div>
 
         {/* Search + filters */}
+                {/* Search + filters */}
         <div style={{ display:"flex",gap:10,marginBottom:20,flexWrap:"wrap" as const,alignItems:"center" }}>
           <input type="text" placeholder="⌕  Search clients by name or industry…" value={search} onChange={e=>setSearch(e.target.value)} style={inp}/>
           <div style={{ display:"flex",gap:2,background:T.raised,border:`1px solid ${T.border}`,borderRadius:9,padding:3,boxShadow:T.shadow }}>
