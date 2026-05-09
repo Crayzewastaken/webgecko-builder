@@ -366,7 +366,7 @@ function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:
 
 // ── Client slide-over panel ────────────────────────────────────────────────────
 function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:string; onClose:()=>void; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
-  const [tab, setTab] = useState<"overview"|"analytics"|"seo"|"site"|"payments"|"actions"|"requests">("overview");
+  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"payments"|"actions"|"requests">("perf");
   const [featureRequests, setFeatureRequests] = useState<any[]>([]);
   const [frLoading, setFrLoading] = useState(false);
   const [frUpdating, setFrUpdating] = useState<string|null>(null);
@@ -408,7 +408,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   }
 
   const pending = featureRequests.filter(r=>r.status==="pending"||r.status==="draft").length;
-  const tabs = ["overview","analytics","seo","site","payments","actions","requests"] as const;
+  const tabs = ["perf","engagement","seo","site","payments","actions","requests"] as const;
 
   const sectionTitle = (text:string) => (
     <div style={{ fontSize:10, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.09em", fontWeight:700, marginBottom:12, paddingBottom:8, borderBottom:`1px solid ${T.border}` }}>{text}</div>
@@ -463,8 +463,8 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
 
         {/* Tabs */}
         <div style={{ display:"flex", gap:4, padding:"10px 24px", borderBottom:`1px solid ${T.border}`, background:T.bg, flexWrap:"wrap" as const, flexShrink:0 }}>
-          {tabBtn("overview","Overview")}
-          {tabBtn("analytics","Analytics")}
+          {tabBtn("perf","Performance")}
+          {tabBtn("engagement","Engagement")}
           {tabBtn("seo","SEO")}
           {tabBtn("site","Site")}
           {tabBtn("payments","Payments")}
@@ -475,24 +475,53 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
         {/* Tab content */}
         <div key={tab} className="wg-tab" style={{ flex:1, overflowY:"auto" as const, padding:"24px" }}>
 
-          {/* OVERVIEW */}
-          {tab==="overview"&&(
+          {/* PERFORMANCE */}
+          {tab==="perf"&&(
             <>
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))", gap:10, marginBottom:24 }}>
+              {/* 6 mini KPI cards */}
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))", gap:10, marginBottom:20 }}>
                 {[
                   {label:"Views/month",value:a?.thisMonth.views??0,color:T.blue},
                   {label:"Today",value:a?.today.views??0,color:T.green},
-                  {label:"All-time",value:a?.totals.views??0,color:T.textSec},
+                  {label:"All-time views",value:a?.totals.views??0,color:T.textSec},
                   {label:"Booking clicks",value:a?.thisMonth.bookingClicks??0,color:T.amber},
                   {label:"Bookings",value:c.bookingCount,color:T.purple},
                   {label:"Form submits",value:a?.totals.formSubmits??0,color:T.cyan},
                 ].map(s=>(
-                  <div key={s.label} style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:10, padding:"14px 16px", boxShadow:T.shadow }}>
-                    <div style={{ fontSize:22,fontWeight:700,color:s.color,letterSpacing:"-0.02em",lineHeight:1 }}>{s.value}</div>
-                    <div style={{ fontSize:11,color:T.textMuted,marginTop:5,fontWeight:500 }}>{s.label}</div>
+                  <div key={s.label} style={{ background:T.surface, border:`1px solid ${s.color}28`, borderRadius:10, padding:"14px 16px", boxShadow:`0 0 0 1px ${s.color}10, 0 4px 20px rgba(0,0,0,0.6)`, position:"relative", overflow:"hidden" }}>
+                    <div style={{ position:"absolute",left:0,top:0,bottom:0,width:3,borderRadius:"10px 0 0 10px",background:`linear-gradient(180deg,${s.color},${s.color}40)` }}/>
+                    <div style={{ position:"absolute",top:0,right:0,width:60,height:60,background:`radial-gradient(circle at top right,${s.color}18,transparent 65%)`,pointerEvents:"none" }}/>
+                    <div style={{ fontSize:24,fontWeight:800,color:s.color,letterSpacing:"-0.03em",lineHeight:1,marginBottom:6 }}><AnimNum value={s.value} color={s.color}/></div>
+                    <div style={{ fontSize:10,color:T.textMuted,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase" as const }}>{s.label}</div>
                   </div>
                 ))}
               </div>
+              {/* Traffic breakdown bar */}
+              {a&&(()=>{
+                const views = a.thisMonth.views||1;
+                const bars = [
+                  {label:"Views",val:a.thisMonth.views,color:T.blue,pct:100},
+                  {label:"Booking clicks",val:a.thisMonth.bookingClicks,color:T.amber,pct:Math.round(a.thisMonth.bookingClicks/views*100)},
+                  {label:"Bookings",val:c.bookingCount,color:T.purple,pct:Math.round(c.bookingCount/views*100)},
+                  {label:"Form submits",val:a.totals.formSubmits,color:T.cyan,pct:Math.round(a.totals.formSubmits/views*100)},
+                ];
+                return (
+                  <div style={{ background:T.raised, border:`1px solid ${T.border}`, borderRadius:12, padding:"16px 18px", marginBottom:20 }}>
+                    {sectionTitle("Traffic breakdown")}
+                    {bars.map(b=>(
+                      <div key={b.label} style={{ marginBottom:10 }}>
+                        <div style={{ display:"flex",justifyContent:"space-between",fontSize:11,color:T.textSec,marginBottom:4 }}>
+                          <span>{b.label}</span>
+                          <span style={{ color:b.color,fontWeight:600 }}>{b.val} ({b.pct}%)</span>
+                        </div>
+                        <div style={{ height:6,borderRadius:99,background:T.surface,overflow:"hidden" }}>
+                          <div style={{ width:`${Math.min(b.pct,100)}%`,height:"100%",borderRadius:99,background:b.color,transition:"width 0.6s cubic-bezier(0.22,1,0.36,1)" }}/>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20 }}>
                 <div>
                   {sectionTitle("Client info")}
@@ -533,8 +562,8 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
             </>
           )}
 
-          {/* ANALYTICS */}
-          {tab==="analytics"&&(
+          {/* ENGAGEMENT */}
+          {tab==="engagement"&&(
             <>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))", gap:10, marginBottom:20 }}>
                 {[
@@ -1028,6 +1057,274 @@ function PipelineLogsPanel() {
   );
 }
 
+// ── Analytics view ─────────────────────────────────────────────────────────────
+function AnalyticsView({ clients, onOpenClient }: { clients: ClientAnalytics[]; onOpenClient: (c: ClientAnalytics) => void }) {
+  const total = clients.length || 1;
+  const active = clients.filter(c=>c.paymentState?.monthlyActive).length;
+  const mrr = active * 109;
+  const todayViews = clients.reduce((a,c)=>a+(c.analytics?.today.views||0),0);
+  const monthViews = clients.reduce((a,c)=>a+(c.analytics?.thisMonth.views||0),0);
+  const totalBookings = clients.reduce((a,c)=>a+c.bookingCount,0);
+  const totalForms = clients.reduce((a,c)=>a+(c.analytics?.totals.formSubmits||0),0);
+
+  // Revenue breakdown
+  const monthly = clients.filter(c=>c.paymentState?.monthlyActive).length;
+  const finalPaidOnly = clients.filter(c=>c.paymentState?.finalPaid&&!c.paymentState?.monthlyActive).length;
+  const depositOnly = clients.filter(c=>c.paymentState?.depositPaid&&!c.paymentState?.finalPaid&&!c.paymentState?.monthlyActive).length;
+  const unpaid = clients.filter(c=>!c.paymentState?.depositPaid).length;
+
+  // Top performers by thisMonth views
+  const topPerformers = [...clients]
+    .sort((a,b)=>(b.analytics?.thisMonth.views||0)-(a.analytics?.thisMonth.views||0))
+    .slice(0,8);
+  const maxViews = topPerformers[0]?.analytics?.thisMonth.views || 1;
+
+  // Build pipeline
+  const pipelineCounts = {
+    completed: clients.filter(c=>c.buildStatus==="completed"||c.buildStatus==="complete").length,
+    building: clients.filter(c=>c.buildStatus==="building").length,
+    pending: clients.filter(c=>!c.buildStatus||c.buildStatus==="pending").length,
+    failed: clients.filter(c=>c.buildStatus==="failed").length,
+  };
+
+  // Industries
+  const industryMap: Record<string,number> = {};
+  clients.forEach(c=>{ if(c.industry) industryMap[c.industry]=(industryMap[c.industry]||0)+1; });
+  const topIndustries = Object.entries(industryMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxIndustryCount = topIndustries[0]?.[1] || 1;
+
+  // Funnel
+  const totalBookingClicks = clients.reduce((a,c)=>a+(c.analytics?.totals.bookingClicks||0),0);
+  const allTimeViews = clients.reduce((a,c)=>a+(c.analytics?.totals.views||0),1);
+  const funnelSteps = [
+    {label:"All-time views",value:allTimeViews,color:T.blue},
+    {label:"Booking clicks",value:totalBookingClicks,color:T.amber},
+    {label:"Bookings",value:totalBookings,color:T.purple},
+    {label:"Form submits",value:totalForms,color:T.cyan},
+  ];
+
+  // Needs attention
+  const failed = clients.filter(c=>c.buildStatus==="failed");
+  const stuck = clients.filter(c=>c.buildStatus==="building"&&!c.builtAt);
+  const unpaidClients = clients.filter(c=>!c.paymentState?.depositPaid);
+  const needsAttention = [
+    ...failed.map(c=>({c,badge:"Failed",color:T.red})),
+    ...stuck.map(c=>({c,badge:"Stuck building",color:T.amber})),
+    ...unpaidClients.map(c=>({c,badge:"Unpaid",color:T.textMuted})),
+  ];
+
+  // Recent builds
+  const recentBuilds = [...clients]
+    .filter(c=>!!c.builtAt)
+    .sort((a,b)=>new Date(b.builtAt!).getTime()-new Date(a.builtAt!).getTime())
+    .slice(0,8);
+
+  const kpi = (label:string,value:number|string,color:string,icon:string,sub?:string) => (
+    <div key={label} className="wg-card wg-stat-scan" style={{ background:T.surface,border:`1px solid ${color}28`,borderRadius:16,padding:"20px 20px 18px 26px",position:"relative",overflow:"hidden",boxShadow:`0 0 0 1px ${color}14, 0 6px 32px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)`,transition:"border-color 0.2s, box-shadow 0.2s" }}
+      onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=color+"55";el.style.boxShadow=`0 0 32px ${color}22, 0 8px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06)`;}}
+      onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=color+"28";el.style.boxShadow=`0 0 0 1px ${color}14, 0 6px 32px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)`;}}
+    >
+      <div style={{ position:"absolute",left:0,top:0,bottom:0,width:4,borderRadius:"16px 0 0 16px",background:`linear-gradient(180deg,${color},${color}33)`,boxShadow:`2px 0 12px ${color}40` }}/>
+      <div style={{ position:"absolute",top:0,right:0,width:100,height:100,background:`radial-gradient(circle at top right,${color}22,transparent 60%)`,pointerEvents:"none" }}/>
+      <div style={{ width:32,height:32,borderRadius:9,background:color+"22",border:`1px solid ${color}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,color,marginBottom:14,boxShadow:`0 0 12px ${color}30` }}>{icon}</div>
+      <div style={{ fontSize:28,fontWeight:800,letterSpacing:"-0.04em",lineHeight:1,marginBottom:sub?4:7 }}>
+        {typeof value==="number" ? <AnimNum value={value} color={color}/> : <span style={{color}}>{value}</span>}
+      </div>
+      {sub&&<div style={{ fontSize:11,color:color,opacity:0.7,marginBottom:7 }}>{sub}</div>}
+      <div style={{ fontSize:10,color:T.textMuted,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase" as const }}>{label}</div>
+    </div>
+  );
+
+  const sectionDivider = (title:string) => (
+    <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:16,marginTop:32 }}>
+      <div style={{ height:1,width:20,background:"rgba(79,158,255,0.35)" }}/>
+      <span style={{ fontSize:10,fontWeight:800,letterSpacing:"0.14em",color:"rgba(79,158,255,0.55)",textTransform:"uppercase" as const }}>{title}</span>
+      <div style={{ height:1,flex:1,background:"linear-gradient(90deg,rgba(79,158,255,0.2),transparent)" }}/>
+    </div>
+  );
+
+  const cardStyle:React.CSSProperties = { background:T.surface, border:`1px solid ${T.border}`, borderRadius:14, padding:"20px 22px", boxShadow:T.shadow };
+
+  const initials = (name:string) => name.split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();
+  const statusColor = (s:string) => s==="completed"||s==="complete" ? T.green : s==="building" ? T.amber : s==="failed" ? T.red : T.textMuted;
+
+  return (
+    <div className="wg-tab">
+      {/* A. Hero KPI row */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(175px,1fr))", gap:14, marginBottom:8 }}>
+        {kpi("Est. MRR","$"+mrr.toLocaleString(),T.green,"$")}
+        {kpi("Active plans",active,T.green,"●")}
+        {kpi("Today's views",todayViews,T.cyan,"◎",monthViews.toLocaleString()+" this month")}
+        {kpi("Views this month",monthViews,T.blue,"◈")}
+        {kpi("Total bookings",totalBookings,T.amber,"◆")}
+        {kpi("Form submits",totalForms,T.purple,"⬡")}
+      </div>
+
+      {/* B. Revenue breakdown + Top performers */}
+      {sectionDivider("Breakdown")}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:8 }}>
+        {/* Revenue breakdown */}
+        <div style={cardStyle}>
+          <div style={{ fontSize:12,fontWeight:700,color:T.text,marginBottom:16,letterSpacing:"-0.01em" }}>Revenue Breakdown</div>
+          {[
+            {label:"Monthly Plans",count:monthly,color:T.green},
+            {label:"Final Paid",count:finalPaidOnly,color:T.blue},
+            {label:"Deposit Only",count:depositOnly,color:T.amber},
+            {label:"Unpaid",count:unpaid,color:T.red},
+          ].map(row=>(
+            <div key={row.label} style={{ marginBottom:12 }}>
+              <div style={{ display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:5 }}>
+                <span style={{ color:T.textSec }}>{row.label}</span>
+                <span style={{ color:row.color,fontWeight:700 }}>{row.count}/{total}</span>
+              </div>
+              <div style={{ height:7,borderRadius:99,background:T.raised,overflow:"hidden" }}>
+                <div style={{ width:`${Math.round(row.count/total*100)}%`,height:"100%",borderRadius:99,background:row.color,boxShadow:`0 0 8px ${row.color}60`,transition:"width 0.7s cubic-bezier(0.22,1,0.36,1)" }}/>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Top performers */}
+        <div style={cardStyle}>
+          <div style={{ fontSize:12,fontWeight:700,color:T.text,marginBottom:16,letterSpacing:"-0.01em" }}>Top Performers</div>
+          {topPerformers.map((cl,i)=>{
+            const sc = statusColor(cl.buildStatus);
+            const views = cl.analytics?.thisMonth.views||0;
+            const rankColor = i===0?T.amber:i===1?"#c0c0c0":i===2?T.amber:T.textMuted;
+            return (
+              <div key={cl.slug} style={{ display:"flex",alignItems:"center",gap:10,marginBottom:10 }}>
+                <span style={{ fontSize:11,fontWeight:800,color:rankColor,width:20,flexShrink:0,textAlign:"right" as const }}>#{i+1}</span>
+                <div style={{ width:28,height:28,borderRadius:7,background:`linear-gradient(135deg,${sc}30,${sc}10)`,border:`1px solid ${sc}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:sc,flexShrink:0 }}>{initials(cl.businessName)}</div>
+                <div style={{ flex:1,minWidth:0 }}>
+                  <div style={{ fontSize:11,fontWeight:600,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" as const }}>{cl.businessName}</div>
+                  <div style={{ height:4,borderRadius:99,background:T.raised,overflow:"hidden",marginTop:3 }}>
+                    <div style={{ width:`${Math.round(views/maxViews*100)}%`,height:"100%",background:"linear-gradient(90deg,#4f9eff,#00e5ff)",borderRadius:99 }}/>
+                  </div>
+                </div>
+                <span style={{ fontSize:11,fontWeight:700,color:T.cyan,flexShrink:0 }}>{views.toLocaleString()}</span>
+              </div>
+            );
+          })}
+          {topPerformers.length===0&&<div style={{ fontSize:12,color:T.textMuted }}>No analytics data yet.</div>}
+        </div>
+      </div>
+
+      {/* C. Build Pipeline + Industries + Engagement Funnel */}
+      {sectionDivider("Platform health")}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16, marginBottom:8 }}>
+        {/* Build pipeline */}
+        <div style={cardStyle}>
+          <div style={{ fontSize:12,fontWeight:700,color:T.text,marginBottom:16,letterSpacing:"-0.01em" }}>Build Pipeline</div>
+          {([
+            {label:"Completed",count:pipelineCounts.completed,color:T.green},
+            {label:"Building",count:pipelineCounts.building,color:T.amber},
+            {label:"Pending",count:pipelineCounts.pending,color:T.textMuted},
+            {label:"Failed",count:pipelineCounts.failed,color:T.red},
+          ] as {label:string;count:number;color:string}[]).map(row=>(
+            <div key={row.label} style={{ display:"flex",alignItems:"center",gap:8,marginBottom:10 }}>
+              <div style={{ width:8,height:8,borderRadius:"50%",background:row.color,boxShadow:`0 0 6px ${row.color}70`,flexShrink:0 }}/>
+              <span style={{ fontSize:11,color:T.textSec,flex:1 }}>{row.label}</span>
+              <span style={{ fontSize:13,fontWeight:700,color:row.color }}>{row.count}</span>
+            </div>
+          ))}
+          {/* Segmented bar */}
+          <div style={{ display:"flex",height:8,borderRadius:99,overflow:"hidden",marginTop:12,gap:1 }}>
+            {([
+              {count:pipelineCounts.completed,color:T.green},
+              {count:pipelineCounts.building,color:T.amber},
+              {count:pipelineCounts.pending,color:T.textMuted},
+              {count:pipelineCounts.failed,color:T.red},
+            ] as {count:number;color:string}[]).map((seg,i)=>seg.count>0&&(
+              <div key={i} style={{ flex:seg.count,background:seg.color,minWidth:2 }}/>
+            ))}
+          </div>
+        </div>
+
+        {/* Industries */}
+        <div style={cardStyle}>
+          <div style={{ fontSize:12,fontWeight:700,color:T.text,marginBottom:16,letterSpacing:"-0.01em" }}>Industries Served</div>
+          {topIndustries.map(([industry,count])=>(
+            <div key={industry} style={{ marginBottom:10 }}>
+              <div style={{ display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4 }}>
+                <span style={{ color:T.textSec,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" as const,flex:1,marginRight:8 }}>{industry}</span>
+                <span style={{ color:T.purple,fontWeight:600,flexShrink:0 }}>{count}</span>
+              </div>
+              <div style={{ height:5,borderRadius:99,background:T.raised,overflow:"hidden" }}>
+                <div style={{ width:`${Math.round(count/maxIndustryCount*100)}%`,height:"100%",borderRadius:99,background:"linear-gradient(90deg,#b085ff,#4f9eff)" }}/>
+              </div>
+            </div>
+          ))}
+          {topIndustries.length===0&&<div style={{ fontSize:12,color:T.textMuted }}>No industries found.</div>}
+        </div>
+
+        {/* Engagement funnel */}
+        <div style={cardStyle}>
+          <div style={{ fontSize:12,fontWeight:700,color:T.text,marginBottom:16,letterSpacing:"-0.01em" }}>Engagement Funnel</div>
+          {funnelSteps.map(step=>{
+            const pct = Math.round(step.value/allTimeViews*100);
+            return (
+              <div key={step.label} style={{ marginBottom:12 }}>
+                <div style={{ display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4 }}>
+                  <span style={{ color:T.textSec }}>{step.label}</span>
+                  <span style={{ color:step.color,fontWeight:600 }}>{step.value.toLocaleString()} ({pct}%)</span>
+                </div>
+                <div style={{ height:6,borderRadius:99,background:T.raised,overflow:"hidden" }}>
+                  <div style={{ width:`${Math.min(pct,100)}%`,height:"100%",borderRadius:99,background:step.color }}/>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* D. Needs Attention */}
+      {sectionDivider("Needs attention")}
+      <div style={{ ...cardStyle, marginBottom:8 }}>
+        {needsAttention.length===0 ? (
+          <div style={{ display:"flex",alignItems:"center",gap:10,padding:"8px 0" }}>
+            <div style={{ width:28,height:28,borderRadius:8,background:T.green+"20",border:`1px solid ${T.green}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14 }}>✓</div>
+            <span style={{ fontSize:13,color:T.green,fontWeight:600 }}>All systems normal — no clients need attention.</span>
+          </div>
+        ) : (
+          <div style={{ display:"flex",flexDirection:"column" as const,gap:8 }}>
+            {needsAttention.map(({c:cl,badge,color},i)=>(
+              <div key={`${cl.slug}-${badge}-${i}`} style={{ display:"flex",alignItems:"center",gap:12,background:T.raised,borderRadius:10,padding:"12px 16px",borderLeft:`3px solid ${color}` }}>
+                <div style={{ width:32,height:32,borderRadius:8,background:color+"20",border:`1px solid ${color}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color,flexShrink:0 }}>{initials(cl.businessName)}</div>
+                <div style={{ flex:1,minWidth:0 }}>
+                  <div style={{ fontSize:13,fontWeight:600,color:T.text }}>{cl.businessName}</div>
+                  <div style={{ fontSize:11,color:T.textMuted }}>{cl.industry}</div>
+                </div>
+                <Pill color={color}>{badge}</Pill>
+                <button onClick={()=>onOpenClient(cl)} style={{ background:color+"15",color,border:`1px solid ${color}35`,borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",flexShrink:0 }}>Open →</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* E. Recent Builds */}
+      {recentBuilds.length>0&&(
+        <>
+          {sectionDivider("Recent builds")}
+          <div style={{ display:"flex",gap:12,overflowX:"auto" as const,paddingBottom:8 }}>
+            {recentBuilds.map(cl=>{
+              const sc = statusColor(cl.buildStatus);
+              return (
+                <div key={cl.slug} onClick={()=>onOpenClient(cl)} className="wg-cc" style={{ flexShrink:0,width:180,background:T.surface,border:`1px solid ${sc}25`,borderRadius:12,padding:"14px 16px",cursor:"pointer",boxShadow:`0 4px 20px rgba(0,0,0,0.5)` }}>
+                  <div style={{ width:36,height:36,borderRadius:9,background:`linear-gradient(135deg,${sc}30,${sc}10)`,border:`1px solid ${sc}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:sc,marginBottom:10 }}>{initials(cl.businessName)}</div>
+                  <div style={{ fontSize:12,fontWeight:600,color:T.text,marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" as const }}>{cl.businessName}</div>
+                  <div style={{ fontSize:10,color:T.textMuted,marginBottom:6 }}>{cl.industry}</div>
+                  <div style={{ fontSize:10,color:T.textMuted,fontFamily:"monospace" }}>{cl.builtAt?new Date(cl.builtAt).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"}):""}</div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Admin dashboard ────────────────────────────────────────────────────────────
 function AdminDashboard() {
   const [dark, setDark] = useState(true);
@@ -1037,11 +1334,16 @@ function AdminDashboard() {
   const [clients, setClients] = useState<ClientAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [view, setView] = useState<"clients"|"logs">("clients");
+  const [view, setView] = useState<"analytics"|"clients"|"logs">("analytics");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all"|"active"|"building"|"unpaid">("all");
   const [sort, setSort] = useState<"views"|"name"|"status">("views");
+  const [selectedClient, setSelectedClient] = useState<ClientAnalytics|null>(null);
   const { toasts, add: toast } = useToast();
+
+  function openClient(c: ClientAnalytics) {
+    setSelectedClient(c);
+  }
 
   function toggleTheme() {
     const next=!dark; setDark(next);
@@ -1179,13 +1481,24 @@ function AdminDashboard() {
         {error&&<div style={{ background:T.red+"0a",border:`1px solid ${T.red}25`,borderRadius:10,padding:"14px 18px",color:T.red,marginBottom:20,fontSize:13 }}>{error}</div>}
 
         {/* View toggle */}
-        <div style={{ display:"flex",gap:3,background:T.surface,border:`1px solid ${T.border}`,borderRadius:9,padding:3,marginBottom:20,width:"fit-content",boxShadow:T.shadow }}>
-          {(["clients","logs"] as const).map(v=>(
-            <button key={v} onClick={()=>setView(v)} className={view===v?"wg-view-active":""} style={{ padding:"7px 22px",fontSize:12,fontWeight:view===v?700:400,color:view===v?T.text:T.textMuted,background:view===v?T.raised:"transparent",border:view===v?`1px solid ${T.border}`:"1px solid transparent",borderRadius:7,cursor:"pointer",transition:"all 0.18s",letterSpacing:"0.01em" }}>
-              {v==="clients"?"⬡ Clients":"⧉ Pipeline Logs"}
+        <div style={{ display:"flex",gap:3,background:T.raised,border:`1px solid ${T.border}`,borderRadius:10,padding:4,marginBottom:20,width:"fit-content",boxShadow:T.shadow }}>
+          {([
+            {v:"analytics" as const,label:"◈ Analytics"},
+            {v:"clients" as const,label:"⬡ Clients"},
+            {v:"logs" as const,label:"⧉ Pipeline"},
+          ]).map(({v,label})=>(
+            <button key={v} onClick={()=>setView(v)} className={view===v?"wg-view-active":""} style={{ padding:"7px 22px",fontSize:12,fontWeight:view===v?700:400,color:view===v?T.text:T.textMuted,background:"transparent",border:"1px solid transparent",borderRadius:7,cursor:"pointer",transition:"all 0.18s",letterSpacing:"0.01em" }}>
+              {label}
             </button>
           ))}
         </div>
+
+        {/* Global selected-client panel (from Analytics view) */}
+        {selectedClient&&<ClientPanel c={selectedClient} secret="" onClose={()=>setSelectedClient(null)} toast={toast}/>}
+
+        {view==="analytics"&&!loading&&!error&&(
+          <AnalyticsView clients={clients} onOpenClient={openClient}/>
+        )}
 
         {view==="logs"&&<PipelineLogsPanel/>}
 
