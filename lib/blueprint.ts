@@ -311,21 +311,32 @@ BUSINESS BRIEF:
 - Images: ${imageSection}
 - Additional Notes: ${additionalNotes || "none"}
 ${serpGuidance}${lsiInstruction}
-CRITICAL RULES:
-1. Respond ONLY with a valid JSON object - no markdown, no backticks, no explanation
+CRITICAL RULES — VIOLATING ANY WILL BREAK THE BUILD:
+1. Respond ONLY with a valid JSON object — no markdown, no backticks, no explanation
 2. Start with { and end with }
 3. Inside ALL string values use only single quotes, never raw double quotes
-4. NEVER use markdown syntax (** or *) anywhere in stitchPrompt, heroHeadline, heroSubheadline, or any other string field — write plain text only
-5. stitchPrompt must be minimum 800 words and MUST include ALL of the following EXACTLY:
+4. NEVER use markdown syntax (** or *) anywhere — plain text only
+5. stitchPrompt must be 1000-2000 words and contain every section below
 
-STRUCTURE (non-negotiable — these exact HTML attributes must appear):
+ABSOLUTE LINK RULE — THE MOST CRITICAL RULE IN THIS ENTIRE PROMPT:
+Every CTA button and nav link must use href='#' with an onclick scroll handler.
+NEVER put any external URL (https://...) in any button or CTA href — ever.
+Forbidden hrefs: webgecko-builder.vercel.app, vercel.app, any domain not owned by the client.
+Allowed external links ONLY: mailto:, tel:, and social media footer icons.
+
+STRUCTURE (non-negotiable — every section needs the exact id shown):
    - header with sticky nav: logo left, desktop links right, and a button with id=hamburger class=md:hidden that toggles div with id=mobile-menu
    - div id=mobile-menu sliding drawer with all nav links duplicated, hidden by default, closed by a button with aria-label=Close menu
-   - section id=hero full viewport hero with bold headline and a CTA button that scrolls to the contact/enquiry section (id=contact) or booking section (id=booking) if booking is enabled — the CTA button must use href='#' or onclick scroll, NEVER an external URL
+   - <section id=hero> full viewport, bold headline, ONE primary CTA button: href='#' onclick scrolls to #contact (or #booking if booking enabled). NO external URL in href. EVER.
    - section id=services services grid
    - section id=testimonials with 3+ Australian names and 5-star ratings
    - section id=faq accordion with 6+ Q&A pairs
-   - section id=contact with a simple ENQUIRY form (fields: name, email, phone, message — nothing else). This is a contact/help form only, NOT a registration or sign-up form. Include real email ${clientEmail} and real phone ${clientPhone} as contact details next to the form. Heading must be 'Get in Touch', 'Contact Us', or 'Send Us a Message'. Do NOT include password, username, or account creation fields.
+   - <section id=contact> ENQUIRY FORM — exactly 4 input fields: Full Name, Email Address, Phone Number, Message.
+     NOTHING ELSE. No Business Name field. No Company field. No Project Goals dropdown. No Service Type.
+     No Subject field. No checkbox group. No password. No username. No account creation of any kind.
+     Form heading must be exactly: "Get in Touch" or "Contact Us" or "Send Us a Message".
+     Show ${clientEmail} and ${clientPhone} as visible contact details beside the form.
+     Submit button text: "Send Message" — not "Initialize Transmission", not "Submit Brief", not "Launch".
    - footer with copyright ${currentYear} ${businessName}
    ${bookingInstruction}
    ${isMultiPage
@@ -358,10 +369,10 @@ CONTENT:
    - Hook readers in hero copy with a punchy, specific opening (avoid generic "welcome to our website")
    - Keep paragraphs short (2-3 sentences) — highly skimmable with bolded key phrases
 
-HERO COPY RULES (critical):
-- heroHeadline: punchy benefit-led headline, max 8 words, NO business name, NO address
-- heroSubheadline: 1-2 sentence value proposition only — NO address, NO suburb, NO postcode, NO street name
-- The address ONLY appears in the contact section of the stitchPrompt, never in hero copy
+HERO COPY RULES — STRICTLY ENFORCED:
+- heroHeadline: benefit-driven, max 8 words. NO business name. NO address. NO suburb. NO postcode.
+- heroSubheadline: 1-2 sentences, value proposition ONLY. NO address. NO suburb. NO postcode. NO street. NO location at all.
+- The physical address ONLY appears inside section id=contact. Nowhere else. Not in hero. Not in stats. Not in subheadline.
 
 Return exactly this JSON shape (no other text):
 {

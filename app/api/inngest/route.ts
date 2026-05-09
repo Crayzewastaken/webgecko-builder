@@ -428,14 +428,27 @@ const buildWebsite = inngest.createFunction(
       // existingWebsite is reference-only and is never used as a CTA destination.
       const ctaOnclick = `event.preventDefault();var el=document.getElementById('${bookingNavTarget}');if(el){el.scrollIntoView({behavior:'smooth'});}else if(window.navigateTo){window.navigateTo('${bookingNavTarget}');}`;
 
-      // Wire <a> CTA links — catches href="#", href="", javascript:void(0), and bare anchors
-      html = html.replace(/<a([^>]*href=["'](?:#|javascript:void\(0\)|)["'][^>]*)>([\s\S]*?)<\/a>/gi, (match: string, attrs: string, inner: string) => {
+      // Wire <a> CTA links — catches ALL hrefs: #, empty, void, AND external URLs that aren't the client domain
+      html = html.replace(/<a([^>]*)>([\s\S]*?)<\/a>/gi, (match: string, attrs: string, inner: string) => {
         const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
         if (!ctaKeywords.some(k => txt.includes(k))) return match;
         if (attrs.includes('navigateTo') || attrs.includes('scrollIntoView')) return match;
+        if (attrs.includes('type="submit"')) return match;
+        // Skip mailto: and tel: links
+        if (/href=["'](?:mailto:|tel:)/i.test(attrs)) return match;
+        // Skip links that already point to a real section anchor on the client's own domain
+        const hrefMatch = attrs.match(/href=["']([^"']+)["']/i);
+        const href = hrefMatch ? hrefMatch[1] : '';
+        // If href is a real in-page anchor pointing to an existing section, keep it
+        if (href.startsWith('#') && href.length > 1) {
+          const sectionId = href.slice(1);
+          if (html.includes(`id="${sectionId}"`) || html.includes(`id='${sectionId}'`)) return match;
+        }
         // Strip dummy onclick handlers Stitch generates (alert, return false, void)
         const cleanAttrs = attrs.replace(/\s*onclick=["'][^"']*(?:alert|return false|void\(0\))[^"']*["']/gi, '');
-        return `<a${cleanAttrs} onclick="${ctaOnclick}">${inner}</a>`;
+        // Remove the old href entirely and replace with onclick scroll
+        const attrsNoHref = cleanAttrs.replace(/\s*href=["'][^"']*["']/gi, '');
+        return `<a${attrsNoHref} href="#" onclick="${ctaOnclick}">${inner}</a>`;
       });
 
       // Wire <button> CTA tags — Stitch often generates these instead of <a>
@@ -447,6 +460,16 @@ const buildWebsite = inngest.createFunction(
         const cleanAttrs = attrs.replace(/\s*onclick=["'][^"']*(?:alert|return false|void\(0\))[^"']*["']/gi, '');
         return `<button${cleanAttrs} onclick="${ctaOnclick}">${inner}</button>`;
       });
+
+      // ── Hard-fix contact form: remove any signup/registration fields Stitch generates ──
+      // Replace known bad field patterns with nothing (name, email, phone, message are kept)
+      // Remove: Business Name, Company, Project Goals/Type dropdowns, subject, username, password
+      html = html.replace(/<(?:div|p|label|tr)[^>]*>[^<]*(?:Business Name|Company Name|Organisation|Organization|Project (?:Goals?|Type|Details?|Description)|Subject|Username|Password|Confirm Password|Account Type|Service Type|Service Interest|How did you hear)[^<]*<\/(?:div|p|label|tr)>\s*/gi, '');
+      html = html.replace(/<(?:input|select|textarea)[^>]*(?:name=["'](?:business|company|organisation|organization|subject|username|password|confirm|project_type|service_type|how_hear)[^"']*["']|placeholder=["'][^"']*(?:Business Name|Company|Organization|Project Type|Service Type|Password|Username)[^"']*["'])[^>]*>(?:<\/(?:input|select|textarea)>)?/gi, '');
+      // Replace bad submit button text ("Initialize Transmission", "Send Brief", "Submit Request", etc.)
+      html = html.replace(/(?:Initialize Transmission|Send Brief|Submit Request|Submit Inquiry|Send Brief|Launch Project|Start Project|Begin Project)/gi, 'Send Message');
+      // Fix contact section heading if it reads like a project intake form
+      html = html.replace(/(?:Start Your Project|Launch Your Project|Begin Your Project|Project Inquiry|Project Brief|Start a Project)/gi, 'Get in Touch');
 
       // Wire bare href="#" nav links in footer/nav by matching visible text to page IDs
       const navLinkMap: Record<string, string> = {
@@ -475,9 +498,11 @@ const buildWebsite = inngest.createFunction(
         const mapsEmbed = process.env.GOOGLE_MAPS_API_KEY
           ? `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;display:block;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`
           : `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;display:block;" loading="lazy" allowfullscreen src="https://www.openstreetmap.org/export/embed.html?bbox=&layer=mapnik&marker=&query=${encodeURIComponent(businessAddress)}" title="Map"></iframe><small style="display:block;text-align:right;font-size:10px;color:#94a3b8;margin-top:4px;"><a href="https://www.openstreetmap.org/search?query=${encodeURIComponent(businessAddress)}" target="_blank" style="color:#94a3b8;">View larger map</a></small></div>`;
-        // Remove any Stitch-generated map iframes first to avoid duplicates
+        // Remove any Stitch-generated map iframes/links first to avoid duplicates
         html = html.replace(/<div[^>]*>\s*<iframe[^>]*(?:google\.com\/maps|maps\.googleapis|openstreetmap)[^>]*>[\s\S]*?<\/iframe>\s*<\/div>/gi, '');
         html = html.replace(/<iframe[^>]*(?:google\.com\/maps|maps\.googleapis|openstreetmap)[^>]*>[\s\S]*?<\/iframe>/gi, '');
+        // Also strip bare <a href="...maps..."> links Stitch sometimes generates instead of iframes
+        html = html.replace(/<a[^>]*href=["'][^"']*(?:google\.com\/maps|maps\.googleapis\.com)[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '');
         if (true) {
           let mapInjected = false;
           const beforeMapLen = html.length;
