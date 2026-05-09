@@ -134,7 +134,7 @@ function InfoRow({ label, value, mono=false }: { label:string; value?:string|nul
 // ── Action button ──────────────────────────────────────────────────────────────
 function ActionBtn({ label, color, confirm, onConfirm, fill=false, toast }: {
   label:string; color:string; confirm:string; onConfirm:()=>Promise<any>; fill?:boolean;
-  toast?:(msg:string,type:"ok"|"err")=>void;
+  toast?:(msg:string,type:"ok"|"err"|"info")=>void;
 }) {
   const [st, setSt] = useState<"idle"|"confirming"|"loading"|"ok"|"err">("idle");
   const [msg, setMsg] = useState("");
