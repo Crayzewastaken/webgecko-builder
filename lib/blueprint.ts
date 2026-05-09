@@ -507,4 +507,8 @@ export async function requestGoogleIndexing(url: string): Promise<void> {
       console.warn(`[Indexing] API returned ${indexRes.status}: ${errText.slice(0, 200)}`);
     }
   } catch (e) {
-    console.warn("[Indexing] Failed (non-fatal):", e instanceof Error ? e.message
+    console.warn("[Indexing] Failed (non-fatal):", e instanceof Error ? e.message : String(e));
+  }
+} : String(e));
+  }
+}
