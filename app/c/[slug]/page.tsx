@@ -28,26 +28,26 @@ const LIGHT = {
 };
 
 const DARK = {
-  bg:         "#07070c",
-  surface:    "#0e0e18",
-  raised:     "#141420",
-  border:     "#1e1e2e",
-  borderHov:  "#2e2e44",
-  text:       "#eeeef4",
-  textSec:    "#9090b0",
-  textMuted:  "#44445a",
-  accent:     "#00d47e",
+  bg:         "#030813",
+  surface:    "#070d1e",
+  raised:     "#0c1428",
+  border:     "#1a2545",
+  borderHov:  "#2d4575",
+  text:       "#dde5f8",
+  textSec:    "#6a80b8",
+  textMuted:  "#364870",
+  accent:     "#00e87a",
   accentBg:   "#001a10",
   accentBlue: "#4f9eff",
-  amber:      "#f5a030",
+  amber:      "#ffaa33",
   amberBg:    "#1a0e00",
-  red:        "#ff5c5c",
-  redBg:      "#1a0505",
-  purple:     "#9d6fff",
-  navBg:      "#0a0a12",
-  navBorder:  "#1c1c2c",
-  shadow:     "0 2px 8px rgba(0,0,0,0.5)",
-  shadowMd:   "0 8px 28px rgba(0,0,0,0.6)",
+  red:        "#ff4f6b",
+  redBg:      "#1a0508",
+  purple:     "#a78bfa",
+  navBg:      "rgba(3,8,19,0.9)",
+  navBorder:  "#1a2545",
+  shadow:     "0 2px 12px rgba(0,0,0,0.6)",
+  shadowMd:   "0 8px 32px rgba(0,0,0,0.8)",
 };
 
 // C is set dynamically inside the component via useTheme(); module-level fallback for sub-components
@@ -915,33 +915,43 @@ export default function ClientPortal() {
       minHeight: "100vh",
       background: C.bg,
       color: C.text,
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      fontFamily: "'Space Grotesk','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
       transition: "background 0.25s ease, color 0.25s ease",
+      backgroundImage: dark
+        ? "radial-gradient(ellipse 80% 40% at 50% -10%, rgba(79,158,255,0.06) 0%, transparent 60%), linear-gradient(rgba(79,158,255,0.022) 1px, transparent 1px), linear-gradient(90deg, rgba(79,158,255,0.022) 1px, transparent 1px)"
+        : "none",
+      backgroundSize: dark ? "100% 100%, 48px 48px, 48px 48px" : "auto",
     } as React.CSSProperties,
 
     header: {
       background: C.navBg,
       borderBottom: `1px solid ${C.navBorder}`,
       padding: "0 20px",
-      height: 58,
+      height: 60,
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
       position: "sticky" as const,
       top: 0,
       zIndex: 50,
-      boxShadow: `${C.shadow}, 0 0 0 1px ${C.navBorder}`,
-      backdropFilter: "blur(12px)",
+      backdropFilter: "blur(20px) saturate(180%)",
+      WebkitBackdropFilter: "blur(20px) saturate(180%)",
       transition: "background 0.25s ease, border-color 0.25s ease",
     } as React.CSSProperties,
 
     logoMark: {
-      width: 28,
-      height: 28,
-      background: `linear-gradient(135deg, ${C.accent}, #0ea5e9)`,
-      borderRadius: 8,
+      width: 30,
+      height: 30,
+      background: "linear-gradient(135deg, #4f9eff, #a78bfa)",
+      borderRadius: 9,
       flexShrink: 0,
-      boxShadow: `0 2px 8px ${C.accent}40`,
+      boxShadow: "0 0 16px rgba(79,158,255,0.4)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 13,
+      fontWeight: 900,
+      color: "#fff",
     } as React.CSSProperties,
 
     tabBar: {
@@ -951,39 +961,43 @@ export default function ClientPortal() {
       overflowX: "auto" as const,
       scrollbarWidth: "none" as const,
       padding: "0 8px",
+      backdropFilter: dark ? "blur(20px) saturate(180%)" : "none",
       transition: "background 0.25s ease",
     } as React.CSSProperties,
 
     tabBtn: (active: boolean): React.CSSProperties => ({
-      padding: "14px 16px",
-      fontSize: "13px",
-      fontWeight: active ? 600 : 400,
-      color: active ? C.accent : C.textMuted,
+      padding: "14px 18px",
+      fontSize: "12px",
+      fontWeight: active ? 700 : 400,
+      color: active ? C.text : C.textMuted,
       borderTop: "none",
       borderLeft: "none",
       borderRight: "none",
-      borderBottom: `2px solid ${active ? C.accent : "transparent"}`,
+      borderBottom: active ? `2px solid ${C.accentBlue}` : "2px solid transparent",
       background: "none",
       cursor: "pointer",
       whiteSpace: "nowrap" as const,
-      letterSpacing: "0.01em",
+      letterSpacing: "0.03em",
       transition: "color 0.18s ease, border-color 0.18s ease",
+      textTransform: "uppercase" as const,
     }),
 
     body: {
-      padding: "20px 16px 40px",
-      maxWidth: 700,
+      padding: "24px 20px 48px",
+      maxWidth: 720,
       margin: "0 auto",
     } as React.CSSProperties,
 
     card: {
       background: C.surface,
       border: `1px solid ${C.border}`,
-      borderRadius: 16,
+      borderRadius: 14,
       padding: "20px 22px",
       marginBottom: 14,
       boxShadow: C.shadow,
       transition: "background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease",
+      position: "relative" as const,
+      overflow: "hidden" as const,
     } as React.CSSProperties,
 
     label: {
@@ -1091,30 +1105,51 @@ export default function ClientPortal() {
   );
 
   // ─────────────────────────────────────────────────────────────────────────────
+  const portalCss = `
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
+    *, *::before, *::after { box-sizing: border-box; }
+    @keyframes wg-ping  { 0%{transform:scale(1);opacity:.9} 100%{transform:scale(2.4);opacity:0} }
+    @keyframes wg-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    @keyframes wg-fade  { from{opacity:0} to{opacity:1} }
+    @keyframes wg-up    { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    ::-webkit-scrollbar { width:4px; height:4px }
+    ::-webkit-scrollbar-track { background:transparent }
+    ::-webkit-scrollbar-thumb { background:rgba(79,158,255,0.25); border-radius:99px }
+    button { font-family:inherit; transition:opacity 0.15s, transform 0.12s, box-shadow 0.15s !important }
+    button:active:not(:disabled) { transform:scale(0.96) !important }
+    input, textarea, select { font-family:inherit }
+  `;
+
   return (
     <div style={S.page}>
+      <style>{portalCss}</style>
 
       {/* Header */}
       <header style={S.header}>
+        {/* Rainbow gradient top line */}
+        <div style={{ position:"absolute", top:0, left:0, right:0, height:2, background:"linear-gradient(90deg,#4f9eff,#a78bfa,#00e87a,transparent)", opacity:0.85, pointerEvents:"none" }}/>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={S.logoMark} />
+          <div style={S.logoMark}>W</div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, letterSpacing: "-0.02em", lineHeight: 1 }}>WebGecko</div>
+            <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 1, background:"linear-gradient(135deg,#e0ecff 30%,#a78bfa 100%)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" }}>WebGecko</div>
             <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{client.businessName}</div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {client.launchReady && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, background: C.accent + "15", border: `1px solid ${C.accent}30`, borderRadius: 20, padding: "3px 10px" }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent, animation: "wg-ping 1.6s ease-in-out infinite" }}/>
-              <span style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>Live</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: C.accent + "15", border: `1px solid ${C.accent}30`, borderRadius: 20, padding: "4px 12px" }}>
+              <div style={{ position:"relative", width:7, height:7 }}>
+                <div style={{ position:"absolute", inset:0, borderRadius:"50%", background:C.accent, animation:"wg-ping 1.6s ease-in-out infinite", opacity:0.7 }}/>
+                <div style={{ position:"absolute", inset:0, borderRadius:"50%", background:C.accent }}/>
+              </div>
+              <span style={{ fontSize: 11, color: C.accent, fontWeight: 700 }}>Live</span>
             </div>
           )}
           <button
             onClick={toggleTheme}
             title={dark ? "Light mode" : "Dark mode"}
             style={{ background: C.raised, border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 8, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 14 }}
-          >{dark ? "☀️" : "🌙"}</button>
+          >{dark ? "☀" : "🌙"}</button>
           <button style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }} onClick={signOut}>Sign out</button>
         </div>
       </header>
@@ -1260,8 +1295,14 @@ export default function ClientPortal() {
         {tab === "overview" && (
           <>
             {/* Status */}
-            <div style={{ background: client.launchReady ? "#00c89612" : "#0099ff10", border: `1px solid ${client.launchReady ? "#00c89630" : "#0099ff25"}`, borderRadius: 10, padding: "14px 16px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, fontSize: 14, fontWeight: 600, color: client.launchReady ? C.accent : "#60aaff" }}>
-              <span>{client.launchReady ? "🚀" : "⚡"}</span>
+            <div style={{ background: client.launchReady ? C.accent+"10" : C.accentBlue+"0e", border: `1px solid ${client.launchReady ? C.accent+"30" : C.accentBlue+"25"}`, borderRadius: 12, padding: "16px 20px", marginBottom: 14, display: "flex", alignItems: "center", gap: 12, fontSize: 14, fontWeight: 700, color: client.launchReady ? C.accent : C.accentBlue, position:"relative", overflow:"hidden" }}>
+              <div style={{ position:"absolute",top:0,right:0,width:120,height:60,background:`radial-gradient(circle at top right,${client.launchReady?C.accent:C.accentBlue}14,transparent 65%)`,pointerEvents:"none" }}/>
+              {client.launchReady ? (
+                <div style={{ position:"relative", width:8, height:8 }}>
+                  <div style={{ position:"absolute", inset:0, borderRadius:"50%", background:C.accent, animation:"wg-ping 1.6s ease-in-out infinite", opacity:0.7 }}/>
+                  <div style={{ position:"absolute", inset:0, borderRadius:"50%", background:C.accent }}/>
+                </div>
+              ) : <span style={{ fontSize:16 }}>⚡</span>}
               {client.launchReady ? "Your site is live!" : "Your website is being built"}
             </div>
 
@@ -1299,16 +1340,18 @@ export default function ClientPortal() {
 
             {/* Stats */}
             {hasBooking && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10, marginBottom: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10, marginBottom: 14 }}>
                 {[
-                  { n: upcomingBookings.length, l: "Upcoming bookings", c: C.accent },
-                  { n: bookingsThisMonth.length, l: "Bookings this month", c: "#0099ff" },
+                  { n: upcomingBookings.length, l: "Upcoming", c: C.accent },
+                  { n: bookingsThisMonth.length, l: "This month", c: C.accentBlue },
                   { n: `$${monthlyRevenue}`, l: "Monthly plan", c: C.purple },
                   { n: bookings.filter(b => b.status === "confirmed").length, l: "Total confirmed", c: C.amber },
                 ].map(({ n, l, c }) => (
-                  <div key={l} style={{ background: C.surface, border: `1px solid ${c}25`, borderRadius: 12, padding: 16 }}>
-                    <div style={{ fontSize: 26, fontWeight: 800, color: C.text, lineHeight: 1, marginBottom: 4 }}>{n}</div>
-                    <div style={{ fontSize: 12, color: C.textMuted }}>{l}</div>
+                  <div key={l} style={{ background: C.surface, border: `1px solid ${c}28`, borderRadius: 12, padding: "16px 18px 14px 22px", position: "relative", overflow: "hidden" }}>
+                    <div style={{ position:"absolute", left:0, top:10, bottom:10, width:3, borderRadius:"0 3px 3px 0", background:`linear-gradient(180deg,${c},${c}55)` }}/>
+                    <div style={{ position:"absolute", top:0, right:0, width:60, height:60, background:`radial-gradient(circle at top right,${c}14,transparent 65%)`, pointerEvents:"none" }}/>
+                    <div style={{ fontSize: 26, fontWeight: 800, color: c, lineHeight: 1, marginBottom: 5, letterSpacing:"-0.03em" }}>{n}</div>
+                    <div style={{ fontSize: 11, color: C.textMuted, fontWeight:600, letterSpacing:"0.04em", textTransform:"uppercase" as const }}>{l}</div>
                   </div>
                 ))}
               </div>

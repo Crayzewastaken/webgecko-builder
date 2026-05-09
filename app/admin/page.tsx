@@ -25,46 +25,101 @@ interface ClientAnalytics {
 
 // ── Themes ─────────────────────────────────────────────────────────────────────
 const DARK = {
-  bg:"#07070c", surface:"#0e0e17", raised:"#14141f", border:"#1c1c2a", borderHov:"#2d2d42",
-  text:"#e8e8f0", textSec:"#8888a8", textMuted:"#44445a",
-  green:"#00d47e", blue:"#4f9eff", amber:"#f5a030", red:"#ff5c5c", purple:"#9d6fff", cyan:"#00d4ff",
-  overlay:"rgba(4,4,8,0.82)", shadow:"0 2px 8px rgba(0,0,0,0.45)", shadowLg:"0 12px 40px rgba(0,0,0,0.65)", shadowXl:"0 24px 72px rgba(0,0,0,0.85)",
+  bg:"#030813", surface:"#070d1e", raised:"#0c1428", border:"#1a2545", borderHov:"#2d4575",
+  text:"#dde5f8", textSec:"#6a80b8", textMuted:"#364870",
+  green:"#00e87a", blue:"#4f9eff", amber:"#ffaa33", red:"#ff4f6b", purple:"#a78bfa", cyan:"#00e5ff",
+  overlay:"rgba(3,8,19,0.9)", shadow:"0 2px 12px rgba(0,0,0,0.6)", shadowLg:"0 8px 32px rgba(0,0,0,0.8)", shadowXl:"-4px 0 48px rgba(0,0,0,0.92)",
 };
 const LIGHT = {
-  bg:"#f3f4f8", surface:"#ffffff", raised:"#eef0f6", border:"#dde1ee", borderHov:"#b8bed6",
-  text:"#0d0f1a", textSec:"#3a4260", textMuted:"#8892aa",
-  green:"#00a85a", blue:"#2563eb", amber:"#b45309", red:"#dc2626", purple:"#7c3aed", cyan:"#0891b2",
-  overlay:"rgba(0,0,0,0.55)", shadow:"0 1px 4px rgba(0,0,0,0.08)", shadowLg:"0 8px 28px rgba(0,0,0,0.14)", shadowXl:"0 20px 52px rgba(0,0,0,0.2)",
+  bg:"#f0f2fa", surface:"#ffffff", raised:"#eaecf8", border:"#d4d8f0", borderHov:"#a0acdc",
+  text:"#080d22", textSec:"#2a3460", textMuted:"#7080aa",
+  green:"#059669", blue:"#2563eb", amber:"#d97706", red:"#dc2626", purple:"#7c3aed", cyan:"#0284c7",
+  overlay:"rgba(0,0,0,0.55)", shadow:"0 1px 4px rgba(0,0,0,0.08)", shadowLg:"0 8px 28px rgba(0,0,0,0.12)", shadowXl:"0 20px 52px rgba(0,0,0,0.18)",
 };
 let T = DARK;
 
 // ── Global CSS ─────────────────────────────────────────────────────────────────
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700;800&display=swap');
   *, *::before, *::after { box-sizing: border-box; }
   body { margin: 0; }
-  @keyframes wg-fade { from { opacity: 0 } to { opacity: 1 } }
-  @keyframes wg-up { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
-  @keyframes wg-panel { from { transform:translateX(100%); opacity:0 } to { transform:translateX(0); opacity:1 } }
-  @keyframes wg-ping { 0% { transform:scale(1); opacity:.9 } 100% { transform:scale(2.4); opacity:0 } }
-  @keyframes wg-spin { from { transform:rotate(0deg) } to { transform:rotate(360deg) } }
+
+  /* Keyframes */
+  @keyframes wg-fade  { from{opacity:0} to{opacity:1} }
+  @keyframes wg-up    { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes wg-panel { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+  @keyframes wg-ping  { 0%{transform:scale(1);opacity:.9} 100%{transform:scale(2.4);opacity:0} }
+  @keyframes wg-spin  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
   @keyframes wg-toast { 0%{opacity:0;transform:translateY(8px) scale(.95)} 100%{opacity:1;transform:none} }
   @keyframes wg-shimmer { 0%{background-position:-800px 0} 100%{background-position:800px 0} }
-  .wg-panel { animation: wg-panel 0.28s cubic-bezier(0.25,0.46,0.45,0.94) }
-  .wg-card { animation: wg-up 0.22s ease both }
-  .wg-tab { animation: wg-fade 0.16s ease }
-  .wg-toast { animation: wg-toast 0.2s ease }
-  .wg-cc { transition: all 0.18s ease; cursor:pointer }
-  .wg-cc:hover { transform:translateY(-2px) }
-  button { transition: opacity 0.15s ease, transform 0.12s ease !important }
+  @keyframes wg-glow  { 0%,100%{opacity:.5} 50%{opacity:1} }
+  @keyframes wg-scan  { 0%{transform:translateY(-100%)} 100%{transform:translateY(400%)} }
+
+  /* Component animations */
+  .wg-panel { animation: wg-panel 0.3s cubic-bezier(0.22,1,0.36,1) }
+  .wg-card  { animation: wg-up 0.25s cubic-bezier(0.22,1,0.36,1) both }
+  .wg-tab   { animation: wg-fade 0.18s ease }
+  .wg-toast { animation: wg-toast 0.22s ease }
+
+  /* Grid bg — subtle blueprint grid */
+  .wg-grid-bg {
+    background-image:
+      radial-gradient(ellipse 80% 40% at 50% -10%, rgba(79,158,255,0.07) 0%, transparent 60%),
+      linear-gradient(rgba(79,158,255,0.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,158,255,0.028) 1px, transparent 1px);
+    background-size: 100% 100%, 48px 48px, 48px 48px;
+  }
+
+  /* Client card */
+  .wg-cc {
+    transition: transform 0.2s cubic-bezier(0.22,1,0.36,1), box-shadow 0.2s ease, border-color 0.2s ease;
+    cursor: pointer;
+  }
+  .wg-cc:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(79,158,255,0.15) !important;
+  }
+
+  /* Glow card hover */
+  .wg-glow:hover { box-shadow: 0 0 28px rgba(79,158,255,0.1), 0 8px 32px rgba(0,0,0,0.6) !important; }
+
+  /* Gradient text */
+  .wg-brand-text {
+    background: linear-gradient(135deg, #e0ecff 30%, #a78bfa 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glass — used on nav */
+  .wg-glass {
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  /* Scan line effect on stat cards */
+  .wg-stat-scan::after {
+    content:''; position:absolute; inset:0; background:linear-gradient(transparent 40%, rgba(255,255,255,0.03) 50%, transparent 60%);
+    animation: wg-scan 3s linear infinite; pointer-events:none; border-radius:inherit;
+  }
+
+  button { transition: opacity 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease !important }
   button:active:not(:disabled) { transform: scale(0.95) !important }
   ::-webkit-scrollbar { width:4px; height:4px }
   ::-webkit-scrollbar-track { background:transparent }
-  ::-webkit-scrollbar-thumb { background:#2a2a3a; border-radius:99px }
+  ::-webkit-scrollbar-thumb { background:rgba(79,158,255,0.25); border-radius:99px }
+  ::-webkit-scrollbar-thumb:hover { background:rgba(79,158,255,0.45) }
   input, textarea, select { font-family: inherit }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: rgba(79,158,255,0.55) !important; box-shadow: 0 0 0 3px rgba(79,158,255,0.1) !important; }
+
+  /* View toggle active tab */
+  .wg-view-active {
+    background: linear-gradient(135deg, rgba(79,158,255,0.18), rgba(167,139,250,0.12)) !important;
+    color: #dde5f8 !important;
+    border-color: rgba(79,158,255,0.3) !important;
+  }
   .wg-shimmer {
-    background: linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(255,255,255,.1) 50%, rgba(255,255,255,.04) 75%);
-    background-size: 800px 100%; animation: wg-shimmer 1.5s infinite;
+    background: linear-gradient(90deg, rgba(255,255,255,.03) 25%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.03) 75%);
+    background-size: 800px 100%; animation: wg-shimmer 1.8s infinite;
   }
 `;
 
@@ -754,13 +809,15 @@ function ClientCard({ c, secret, dark, toast }: { c:ClientAnalytics; secret:stri
       {open&&<ClientPanel c={c} secret={secret} onClose={()=>setOpen(false)} toast={toast}/>}
       <div className="wg-card wg-cc" onClick={()=>setOpen(true)} style={{
         background:T.surface, border:`1px solid ${T.border}`, borderRadius:14,
-        padding:"18px 20px", boxShadow:T.shadow, position:"relative", overflow:"hidden",
+        padding:"18px 20px 18px 23px", boxShadow:T.shadow, position:"relative", overflow:"hidden",
       }}
-      onMouseEnter={e=>(e.currentTarget as HTMLElement).style.borderColor=T.borderHov}
-      onMouseLeave={e=>(e.currentTarget as HTMLElement).style.borderColor=T.border}
+      onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=statusColor+"55";el.style.boxShadow=`0 0 24px ${statusColor}12, ${T.shadowLg}`;}}
+      onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=T.border;el.style.boxShadow=T.shadow;}}
       >
+        {/* Left accent bar */}
+        <div style={{ position:"absolute",left:0,top:10,bottom:10,width:3,borderRadius:"0 3px 3px 0",background:`linear-gradient(180deg,${statusColor},${statusColor}55)` }}/>
         {/* Status glow */}
-        <div style={{ position:"absolute", top:0, right:0, width:100, height:100, background:`radial-gradient(circle at top right, ${statusColor}15, transparent 70%)`, pointerEvents:"none" }}/>
+        <div style={{ position:"absolute", top:0, right:0, width:100, height:100, background:`radial-gradient(circle at top right, ${statusColor}12, transparent 70%)`, pointerEvents:"none" }}/>
 
         {/* Building pulse */}
         {isBuilding&&(
@@ -1036,56 +1093,66 @@ function AdminDashboard() {
     mrr:clients.filter(c=>c.paymentState?.monthlyActive).length*109,
   };
 
-  const inp:React.CSSProperties={flex:1,minWidth:200,background:T.surface,border:`1px solid ${T.border}`,borderRadius:8,padding:"9px 14px",color:T.text,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
+  const inp:React.CSSProperties={flex:1,minWidth:200,background:T.raised,border:`1px solid ${T.border}`,borderRadius:9,padding:"9px 14px",color:T.text,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",transition:"border-color 0.2s, box-shadow 0.2s"};
 
   return (
-    <div style={{ minHeight:"100vh", background:T.bg, color:T.text, fontFamily:"'Inter',-apple-system,BlinkMacSystemFont,sans-serif", transition:"background 0.25s, color 0.25s" }}>
+    <div className="wg-grid-bg" style={{ minHeight:"100vh", background:T.bg, color:T.text, fontFamily:"'Space Grotesk','Inter',-apple-system,sans-serif", transition:"background 0.25s, color 0.25s" }}>
       <style>{CSS}</style>
       <Toasts toasts={toasts}/>
 
       {/* Top nav */}
-      <div style={{ background:T.surface, borderBottom:`1px solid ${T.border}`, padding:"0 24px", display:"flex", alignItems:"center", justifyContent:"space-between", height:56, position:"sticky" as const, top:0, zIndex:100, boxShadow:T.shadow, transition:"background 0.25s, border-color 0.25s" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-          <div style={{ width:30,height:30,borderRadius:8,background:`linear-gradient(135deg,${T.green},#0ea5e9)`,flexShrink:0 }}/>
-          <span style={{ fontSize:15,fontWeight:800,color:T.text,letterSpacing:"-0.03em" }}>WebGecko</span>
-          <span style={{ fontSize:10,color:T.textMuted,background:T.raised,border:`1px solid ${T.border}`,borderRadius:5,padding:"2px 7px",fontWeight:700,letterSpacing:"0.07em" }}>ADMIN</span>
+      <div className="wg-glass" style={{ background: dark ? "rgba(3,8,19,0.85)" : "rgba(255,255,255,0.9)", borderBottom:`1px solid ${T.border}`, padding:"0 24px", display:"flex", alignItems:"center", justifyContent:"space-between", height:60, position:"sticky" as const, top:0, zIndex:100, transition:"background 0.25s, border-color 0.25s" }}>
+        {/* Gradient line at very top */}
+        <div style={{ position:"absolute", top:0, left:0, right:0, height:2, background:"linear-gradient(90deg, #4f9eff, #9d6fff, #00e87a, transparent)", opacity:0.8, pointerEvents:"none" }}/>
+        <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+          {/* Logo mark */}
+          <div style={{ width:34,height:34,borderRadius:10,background:"linear-gradient(135deg,#4f9eff,#9d6fff)",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 16px rgba(79,158,255,0.4)",fontSize:15,fontWeight:900,color:"#fff" }}>W</div>
+          <span className="wg-brand-text" style={{ fontSize:16,fontWeight:800,letterSpacing:"-0.04em" }}>WebGecko</span>
+          <span style={{ fontSize:9,color:T.blue,background:T.blue+"18",border:`1px solid ${T.blue}35`,borderRadius:5,padding:"2px 8px",fontWeight:800,letterSpacing:"0.1em" }}>ADMIN</span>
           {clients.some(c=>c.buildStatus==="building")&&(
-            <div style={{ display:"flex",alignItems:"center",gap:6,background:T.amber+"12",border:`1px solid ${T.amber}30`,borderRadius:20,padding:"3px 10px" }}>
-              <div style={{ width:6,height:6,borderRadius:"50%",background:T.amber,animation:"wg-ping 1.2s infinite" }}/>
-              <span style={{ fontSize:11,color:T.amber,fontWeight:600 }}>{clients.filter(c=>c.buildStatus==="building").length} building</span>
+            <div style={{ display:"flex",alignItems:"center",gap:6,background:T.amber+"14",border:`1px solid ${T.amber}35`,borderRadius:20,padding:"4px 12px" }}>
+              <div style={{ position:"relative",width:7,height:7 }}>
+                <div style={{ position:"absolute",inset:0,borderRadius:"50%",background:T.amber,animation:"wg-ping 1.2s infinite" }}/>
+                <div style={{ position:"absolute",inset:0,borderRadius:"50%",background:T.amber }}/>
+              </div>
+              <span style={{ fontSize:11,color:T.amber,fontWeight:700 }}>{clients.filter(c=>c.buildStatus==="building").length} building</span>
             </div>
           )}
         </div>
         <div style={{ display:"flex",gap:8,alignItems:"center" }}>
-          <button onClick={loadDashboard} style={{ background:T.raised,border:`1px solid ${T.border}`,color:T.textMuted,borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer" }}>↻ Refresh</button>
-          <button onClick={toggleTheme} title={dark?"Light mode":"Dark mode"} style={{ background:T.raised,border:`1px solid ${T.border}`,color:T.textMuted,borderRadius:8,padding:"6px 10px",fontSize:14,cursor:"pointer",width:36,height:32,display:"flex",alignItems:"center",justifyContent:"center" }}>
-            {dark?"☀️":"🌙"}
+          <button onClick={loadDashboard} style={{ background:T.raised,border:`1px solid ${T.border}`,color:T.textSec,borderRadius:8,padding:"7px 16px",fontSize:12,fontWeight:500,cursor:"pointer" }}>↻ Refresh</button>
+          <button onClick={toggleTheme} title={dark?"Light mode":"Dark mode"} style={{ background:T.raised,border:`1px solid ${T.border}`,color:T.textMuted,borderRadius:8,padding:"7px 10px",fontSize:14,cursor:"pointer",width:36,height:34,display:"flex",alignItems:"center",justifyContent:"center" }}>
+            {dark?"☀":"🌙"}
           </button>
-          <button onClick={handleLogout} style={{ background:"transparent",color:T.textMuted,border:`1px solid ${T.border}`,borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer" }}>Sign out</button>
+          <button onClick={handleLogout} style={{ background:"transparent",color:T.textMuted,border:`1px solid ${T.border}`,borderRadius:8,padding:"7px 16px",fontSize:12,cursor:"pointer" }}>Sign out</button>
         </div>
       </div>
 
-      <div style={{ maxWidth:1100,margin:"0 auto",padding:"28px 24px" }}>
+      <div style={{ maxWidth:1140,margin:"0 auto",padding:"32px 24px" }}>
 
         {/* Stats */}
         {!loading&&!error&&(
           <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(175px,1fr))",gap:12,marginBottom:28 }}>
             {[
-              {label:"Total clients",value:totals.clients,color:T.text,icon:"👥"},
-              {label:"Monthly active",value:totals.active,color:T.green,icon:"✅"},
-              {label:"Est. MRR",value:"$"+totals.mrr.toLocaleString(),color:T.green,icon:"💰"},
-              {label:"Views this month",value:totals.views,color:T.blue,icon:"👁"},
-              {label:"Total bookings",value:totals.bookings,color:T.amber,icon:"📅"},
+              {label:"Total clients",value:totals.clients,color:T.blue,icon:"◈"},
+              {label:"Monthly active",value:totals.active,color:T.green,icon:"◉"},
+              {label:"Est. MRR",value:"$"+totals.mrr.toLocaleString(),color:T.green,icon:"$"},
+              {label:"Views this month",value:totals.views,color:T.cyan,icon:"◎"},
+              {label:"Total bookings",value:totals.bookings,color:T.amber,icon:"◆"},
             ].map(s=>(
-              <div key={s.label} className="wg-card" style={{ background:T.surface,border:`1px solid ${T.border}`,borderRadius:14,padding:"18px 20px",boxShadow:T.shadow,position:"relative",overflow:"hidden",transition:"border-color 0.2s" }}
-                onMouseEnter={e=>(e.currentTarget as HTMLElement).style.borderColor=s.color+"50"}
-                onMouseLeave={e=>(e.currentTarget as HTMLElement).style.borderColor=T.border}>
-                <div style={{ position:"absolute",top:0,right:0,width:80,height:80,background:`radial-gradient(circle at top right,${s.color}12,transparent 70%)`,pointerEvents:"none" }}/>
-                <div style={{ fontSize:20,marginBottom:10 }}>{s.icon}</div>
+              <div key={s.label} className="wg-card wg-stat-scan" style={{ background:T.surface,border:`1px solid ${T.border}`,borderRadius:14,padding:"18px 20px 18px 24px",boxShadow:T.shadow,position:"relative",overflow:"hidden",transition:"border-color 0.2s, box-shadow 0.2s" }}
+                onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=s.color+"55";el.style.boxShadow=`0 0 28px ${s.color}18, ${T.shadowLg}`;}}
+                onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=T.border;el.style.boxShadow=T.shadow;}}>
+                {/* Left accent bar */}
+                <div style={{ position:"absolute",left:0,top:12,bottom:12,width:3,borderRadius:"0 3px 3px 0",background:`linear-gradient(180deg,${s.color},${s.color}55)` }}/>
+                {/* Corner radial glow */}
+                <div style={{ position:"absolute",top:0,right:0,width:90,height:90,background:`radial-gradient(circle at top right,${s.color}14,transparent 65%)`,pointerEvents:"none" }}/>
+                {/* Icon pill */}
+                <div style={{ width:30,height:30,borderRadius:8,background:s.color+"18",border:`1px solid ${s.color}28`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:s.color,marginBottom:12,letterSpacing:"-0.02em" }}>{s.icon}</div>
                 <div style={{ fontSize:26,fontWeight:700,letterSpacing:"-0.03em",lineHeight:1,marginBottom:6 }}>
                   {typeof s.value==="number" ? <AnimNum value={s.value} color={s.color}/> : <span style={{color:s.color}}>{s.value}</span>}
                 </div>
-                <div style={{ fontSize:12,color:T.textMuted,fontWeight:500 }}>{s.label}</div>
+                <div style={{ fontSize:11,color:T.textMuted,fontWeight:600,letterSpacing:"0.04em",textTransform:"uppercase" as const }}>{s.label}</div>
               </div>
             ))}
           </div>
@@ -1095,10 +1162,10 @@ function AdminDashboard() {
         {error&&<div style={{ background:T.red+"0a",border:`1px solid ${T.red}25`,borderRadius:10,padding:"14px 18px",color:T.red,marginBottom:20,fontSize:13 }}>{error}</div>}
 
         {/* View toggle */}
-        <div style={{ display:"flex",gap:4,background:T.surface,border:`1px solid ${T.border}`,borderRadius:8,padding:3,marginBottom:16,width:"fit-content" }}>
+        <div style={{ display:"flex",gap:3,background:T.surface,border:`1px solid ${T.border}`,borderRadius:9,padding:3,marginBottom:20,width:"fit-content",boxShadow:T.shadow }}>
           {(["clients","logs"] as const).map(v=>(
-            <button key={v} onClick={()=>setView(v)} style={{ padding:"6px 18px",fontSize:12,fontWeight:view===v?600:400,color:view===v?T.text:T.textMuted,background:view===v?T.raised:"transparent",border:view===v?`1px solid ${T.border}`:"1px solid transparent",borderRadius:6,cursor:"pointer",transition:"all 0.15s" }}>
-              {v==="clients"?"Clients":"Pipeline Logs"}
+            <button key={v} onClick={()=>setView(v)} className={view===v?"wg-view-active":""} style={{ padding:"7px 22px",fontSize:12,fontWeight:view===v?700:400,color:view===v?T.text:T.textMuted,background:view===v?T.raised:"transparent",border:view===v?`1px solid ${T.border}`:"1px solid transparent",borderRadius:7,cursor:"pointer",transition:"all 0.18s",letterSpacing:"0.01em" }}>
+              {v==="clients"?"⬡ Clients":"⧉ Pipeline Logs"}
             </button>
           ))}
         </div>
@@ -1107,21 +1174,21 @@ function AdminDashboard() {
 
         {view==="clients"&&(<>
         {/* Search + filters */}
-        <div style={{ display:"flex",gap:10,marginBottom:16,flexWrap:"wrap" as const,alignItems:"center" }}>
-          <input type="text" placeholder="Search clients by name or industry…" value={search} onChange={e=>setSearch(e.target.value)} style={inp}/>
-          <div style={{ display:"flex",gap:3,background:T.surface,border:`1px solid ${T.border}`,borderRadius:8,padding:3 }}>
+        <div style={{ display:"flex",gap:10,marginBottom:20,flexWrap:"wrap" as const,alignItems:"center" }}>
+          <input type="text" placeholder="⌕  Search clients by name or industry…" value={search} onChange={e=>setSearch(e.target.value)} style={inp}/>
+          <div style={{ display:"flex",gap:2,background:T.raised,border:`1px solid ${T.border}`,borderRadius:9,padding:3,boxShadow:T.shadow }}>
             {(["all","active","building","unpaid"] as const).map(f=>(
-              <button key={f} onClick={()=>setFilter(f)} style={{ padding:"5px 12px",fontSize:12,fontWeight:filter===f?600:400,color:filter===f?T.text:T.textMuted,background:filter===f?T.raised:"transparent",border:filter===f?`1px solid ${T.border}`:"1px solid transparent",borderRadius:6,cursor:"pointer",transition:"all 0.15s" }}>
+              <button key={f} onClick={()=>setFilter(f)} style={{ padding:"5px 12px",fontSize:11,fontWeight:filter===f?700:400,color:filter===f?T.text:T.textMuted,background:filter===f?T.surface:"transparent",border:filter===f?`1px solid ${T.border}`:"1px solid transparent",borderRadius:7,cursor:"pointer",transition:"all 0.15s",letterSpacing:"0.02em" }}>
                 {f==="all"?"All":f.charAt(0).toUpperCase()+f.slice(1)}
               </button>
             ))}
           </div>
-          <select value={sort} onChange={e=>setSort(e.target.value as any)} style={{ background:T.surface,border:`1px solid ${T.border}`,borderRadius:8,padding:"7px 12px",color:T.text,fontSize:12,cursor:"pointer",outline:"none" }}>
+          <select value={sort} onChange={e=>setSort(e.target.value as any)} style={{ background:T.raised,border:`1px solid ${T.border}`,borderRadius:9,padding:"7px 12px",color:T.textSec,fontSize:12,cursor:"pointer",outline:"none",fontFamily:"inherit" }}>
             <option value="views">Sort: Views</option>
             <option value="name">Sort: Name</option>
             <option value="status">Sort: Status</option>
           </select>
-          <div style={{ marginLeft:"auto",fontSize:12,color:T.textMuted }}>{filtered.length} of {clients.length} clients</div>
+          <div style={{ marginLeft:"auto",fontSize:11,color:T.textMuted,letterSpacing:"0.02em" }}>{filtered.length} <span style={{color:T.border}}/> of {clients.length}</div>
         </div>
 
         {/* Grid */}
