@@ -211,13 +211,14 @@ const buildWebsite = inngest.createFunction(
       const stitchPrompt = (spec.stitchPrompt || "")
         .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
         .replace(/\s{3,}/g, "  ")
-        .slice(0, 5000);
+        .slice(0, 12000);
       console.log(`[Inngest] STEP 3a: Stitch generate (prompt: ${stitchPrompt.length} chars)`);
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           const project = stitchSdk.project(projectId);
           const screen = await project.generate(stitchPrompt, "DESKTOP");
-          console.log(`[Inngest] STEP 3a DONE: screenId=${screen.screenId} (attempt ${attempt})`);
+          console.log(`[Inngest] STEP 3a DONE: screenId=${screen.screenId} screenKeys=${Object.keys(screen || {}).join(",")} (attempt ${attempt})`);
+          if (!screen.screenId) throw new Error(`Stitch generate returned no screenId — keys: ${Object.keys(screen || {}).join(",")}`);
           return screen.screenId as string;
         } catch (e: any) {
           const msg = e?.message || String(e);
@@ -229,35 +230,44 @@ const buildWebsite = inngest.createFunction(
       throw new Error("Stitch: generate failed after 3 attempts");
     }) as string;
 
-    // ── Sleep 45s — yield to Inngest, zero Vercel serverless time consumed ────
+    // ── Sleep 90s — yield to Inngest, zero Vercel serverless time consumed ────
+    // Stitch generation typically takes 60–120s; 45s was too short.
     if (!savedHtmlForRebuild) {
-      await step.sleep("step3-wait-for-stitch", "45s");
+      await step.sleep("step3-wait-for-stitch", "90s");
     }
 
     // ── STEP 3b: Fetch rendered HTML from Stitch ──────────────────────────────
     const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3b-stitch-fetch", async () => {
       const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-      // Poll up to 5x for the signed URL (already waited 45s above)
+      // Poll up to 8x for the signed URL (already waited 90s above; 8×20s = 160s more)
       let url = "";
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 8; i++) {
+        // Try getScreen by ID first
         try {
           const project = stitchSdk.project(projectId);
           const fetched = await project.getScreen(stitchScreenId);
           url = await fetched.getHtml();
-          if (url) { console.log(`[Inngest] STEP 3b: got signed URL (poll ${i + 1})`); break; }
-        } catch (_) {}
+          if (url) { console.log(`[Inngest] STEP 3b: got signed URL via getScreen (poll ${i + 1})`); break; }
+          console.log(`[Inngest] STEP 3b: getScreen returned screen but getHtml was empty (poll ${i + 1})`);
+        } catch (e: any) {
+          console.log(`[Inngest] STEP 3b: getScreen error (poll ${i + 1}): ${e?.message || String(e)}`);
+        }
+        // Fallback: list all screens in the project
         try {
           const project = stitchSdk.project(projectId);
           const screens = await project.screens();
-          console.log(`[Inngest] STEP 3b: list_screens returned ${screens.length} screens`);
+          console.log(`[Inngest] STEP 3b: list_screens returned ${screens.length} screens (poll ${i + 1})`);
           if (screens.length > 0) {
+            console.log(`[Inngest] STEP 3b: screen IDs: ${screens.map((s: any) => s.screenId).join(", ")}`);
             const match = screens.find((s: any) => s.screenId === stitchScreenId) || screens[screens.length - 1];
             if (match) { url = await match.getHtml(); }
             if (url) { console.log(`[Inngest] STEP 3b: got URL via list_screens (poll ${i + 1})`); break; }
           }
-        } catch (_) {}
-        if (i < 4) await sleep(15000);
+        } catch (e: any) {
+          console.log(`[Inngest] STEP 3b: list_screens error (poll ${i + 1}): ${e?.message || String(e)}`);
+        }
+        if (i < 7) await sleep(20000);
       }
       if (!url) throw new Error("Stitch: no signed URL after polling");
 
@@ -491,6 +501,27 @@ const buildWebsite = inngest.createFunction(
         // Strip dummy onclick handlers
         const cleanAttrs = attrs.replace(/\s*onclick=["'][^"']*(?:alert|return false|void\(0\))[^"']*["']/gi, '');
         return `<button${cleanAttrs} onclick="${ctaOnclick}">${inner}</button>`;
+      });
+
+      // Wire bare href="#" nav links in footer/nav by matching visible text to page IDs
+      const navLinkMap: Record<string, string> = {
+        "home": "home", "about": "about", "about us": "about",
+        "services": "services", "our services": "services", "what we do": "services",
+        "gallery": "gallery", "portfolio": "gallery", "our work": "gallery",
+        "contact": "contact", "contact us": "contact", "get in touch": "contact",
+        "faq": "faq", "faqs": "faq", "pricing": "pricing", "packages": "pricing",
+        "shop": "shop", "blog": "blog", "team": "team", "booking": "booking",
+        "testimonials": "testimonials", "reviews": "testimonials",
+        "view portfolio": "gallery", "view all work": "gallery", "our projects": "gallery",
+      };
+      html = html.replace(/<a([^>]*href=["']#["'][^>]*)>([\s\S]*?)<\/a>/gi, (match: string, attrs: string, inner: string) => {
+        if (attrs.includes('navigateTo') || attrs.includes('scrollIntoView')) return match;
+        const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
+        const target = navLinkMap[txt] || Object.entries(navLinkMap).find(([k]) => txt.includes(k))?.[1];
+        if (!target) return match;
+        // Only wire if this page actually exists in the site
+        if (!html.includes(`id="${target}"`) && !html.includes(`data-page="${target}"`)) return match;
+        return `<a${attrs} onclick="event.preventDefault();window.navigateTo&&window.navigateTo('${target}')">${inner}</a>`;
       });
 
       if (businessAddress) {
