@@ -318,6 +318,9 @@ Primary keyword placement: weave "${industry} ${location.split(",")[0]?.trim()}"
   <p style='font-size:1.1rem;font-weight:600'>Message sent! We will be in touch shortly.</p>
 </div>`;
 
+  const ctaText = hasBooking ? "Book Now" : goal?.toLowerCase().includes("quote") ? "Get a Quote" : "Get Started";
+  const heroUrl = videoUrl || "";
+
   const prompt = `You are a world-class web designer. Produce a Site Blueprint JSON for this business.
 
 BUSINESS:
