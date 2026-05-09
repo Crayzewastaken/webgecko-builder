@@ -327,7 +327,7 @@ Allowed external links ONLY: mailto:, tel:, and social media footer icons.
 STRUCTURE (non-negotiable — every section needs the exact id shown):
    - header with sticky nav: logo left, desktop links right, and a button with id=hamburger class=md:hidden that toggles div with id=mobile-menu
    - div id=mobile-menu sliding drawer with all nav links duplicated, hidden by default, closed by a button with aria-label=Close menu
-   - <section id=hero> full viewport, bold headline, ONE primary CTA button: href='#' onclick scrolls to #contact (or #booking if booking enabled). NO external URL in href. EVER.
+   - <section id=hero> full viewport, bold headline, ONE primary CTA button: href='#' onclick scrolls to ${hasBooking ? "#booking" : "#contact"}. Use text like "Book Now" or "Get Started". NO external URL in href — the pipeline injects the correct destination automatically.
    - section id=services services grid
    - section id=testimonials with 3+ Australian names and 5-star ratings
    - section id=faq accordion with 6+ Q&A pairs

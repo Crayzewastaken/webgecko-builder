@@ -255,9 +255,13 @@ export function checkAndFixLinks(html: string, pages: string[]): { html: string;
     console.log(`Link Fix [D]: injected "${templateKey || "generic"}" section for id="${pageId}"`);
   }
 
-  const firstTarget = allTargets[0] || "contact";
+  // Prefer booking → contact → first known target for legacy bare-href buttons in this pass.
+  // Step5 in route.ts does a more thorough per-keyword sweep; this is a final safety net.
+  const fallbackTarget = allTargets.includes("booking") ? "booking"
+    : allTargets.includes("contact") ? "contact"
+    : allTargets[0] || "contact";
   fixed = fixed.replace(/href="#"(?=[^>]*>(?:Book Now|Get Started|Join Now|Contact Us|Sign Up|Learn More|Get Quote)[^<]*<)/gi,
-    `onclick="window.navigateTo && window.navigateTo('${firstTarget}')" href="#"`);
+    `onclick="window.navigateTo && window.navigateTo('${fallbackTarget}')" href="#"`);
 
   const deadLinks = (html.match(/href="#"(?!\w)/g) || []).length;
   if (deadLinks) issues.push(`Found ${deadLinks} dead href="#" links`);

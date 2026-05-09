@@ -431,62 +431,91 @@ const buildWebsite = inngest.createFunction(
         html = html.replace(/MAP PLACEHOLDER[:\s]*[A-Z\s]+/gi, businessAddress);
       }
 
-      const ctaKeywords = [
+      // ── Three-tier CTA keyword system ────────────────────────────────────────────
+      // booking → link to bookingUrl externally (if external URL, no iframe) or scroll to #booking
+      // contact → always scroll to #contact, never #booking
+      // general → scroll to bookingNavTarget (booking if available, else contact)
+      const bookingCtaKeywords = [
         'book now','book a session','book a call','book a consult','book consultation','book free',
-        'get started','get a quote','get free quote','get quote','get in touch',
-        'join now','sign up','free trial','try free','start today','start free',
-        'start starter','start business','start premium','start plan','start now',
-        'reserve','enquire now','enquire','contact us','contact','send message',
-        'schedule now','schedule a call','learn more','find out more','discover more',
-        'request a quote','request quote','claim offer','claim now','apply now',
-        'speak to us','talk to us','call us','email us','reach out',
-        'book today','order now','buy now','explore capability','explore','launch',
+        'book today','book online',
+        'join now','sign up','free trial','try free',
+        'reserve','schedule now','schedule a call','claim offer','claim now','apply now',
+        'start today','start free','start starter','start business','start premium','start plan','start now',
       ];
-      // CTA always scrolls within the site: to booking if booking feature, else contact section.
-      // existingWebsite is reference-only and is never used as a CTA destination.
-      // Use navigateTo exclusively — it handles both single-page scroll and multi-page
-      // show/hide correctly. scrollIntoView fails silently on hidden elements in multi-page sites.
-      const ctaOnclick = `event.preventDefault();window.navigateTo&&window.navigateTo('${bookingNavTarget}')`;
+      const contactCtaKeywords = [
+        'get in touch','contact us','reach out',
+      ];
+      const generalCtaKeywords = [
+        'get started','get a quote','get free quote','get quote',
+        'enquire now','enquire','learn more','find out more','discover more',
+        'request a quote','request quote','order now','buy now',
+        'explore capability','explore','launch',
+      ];
+      const allCtaKeywords = [...bookingCtaKeywords, ...contactCtaKeywords, ...generalCtaKeywords];
 
-      // Hard sweep: replace ANY link pointing to webgecko-builder or generic vercel domains with CTA scroll
+      // Booking CTA destination:
+      // - If user supplied an external booking URL without embedding it (no hasBookingFeature),
+      //   open that URL in a new tab so the click is useful.
+      // - Otherwise scroll to #booking (embedded iframe) or #contact if no booking at all.
+      const bookingCtaOnclick = bookingUrl && !hasBookingFeature
+        ? `window.open('${bookingUrl}','_blank')`
+        : `event.preventDefault();window.navigateTo&&window.navigateTo('${hasBookingFeature ? "booking" : "contact"}')`;
+      const contactCtaOnclick = `event.preventDefault();window.navigateTo&&window.navigateTo('contact')`;
+      const generalCtaOnclick = `event.preventDefault();window.navigateTo&&window.navigateTo('${bookingNavTarget}')`;
+
+      const getCtaOnclick = (txt: string): string => {
+        if (bookingCtaKeywords.some((k: string) => txt.includes(k))) return bookingCtaOnclick;
+        if (contactCtaKeywords.some((k: string) => txt.includes(k))) return contactCtaOnclick;
+        return generalCtaOnclick;
+      };
+
+      // Hard sweep: replace ANY link pointing to webgecko-builder or generic vercel domains
       // This catches Stitch hard-coding the builder URL regardless of button text
       html = html.replace(/<a([^>]*)href=["']https?:\/\/(?:[\w-]+\.)?(?:webgecko-builder|vercel)\.(?:app|com|io)[^"']*["']([^>]*)>([\s\S]*?)<\/a>/gi, (_m: string, pre: string, post: string, inner: string) => {
+        const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
+        const onclick = getCtaOnclick(txt);
         const cleanPre = pre.replace(/\s*onclick=["'][^"']*["']/gi, '');
         const cleanPost = post.replace(/\s*onclick=["'][^"']*["']/gi, '');
-        return `<a${cleanPre}${cleanPost} href="#" onclick="${ctaOnclick}">${inner}</a>`;
+        return `<a${cleanPre}${cleanPost} href="#" onclick="${onclick}">${inner}</a>`;
       });
 
-      // Wire <a> CTA links — catches ALL hrefs: #, empty, void, AND external URLs that aren't the client domain
+      // Wire <a> CTA links — catches ALL hrefs: #, empty, void, AND external URLs
       html = html.replace(/<a([^>]*)>([\s\S]*?)<\/a>/gi, (match: string, attrs: string, inner: string) => {
         const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
-        if (!ctaKeywords.some(k => txt.includes(k))) return match;
+        if (!allCtaKeywords.some((k: string) => txt.includes(k))) return match;
         if (attrs.includes('navigateTo') || attrs.includes('scrollIntoView')) return match;
         if (attrs.includes('type="submit"')) return match;
         // Skip mailto: and tel: links
         if (/href=["'](?:mailto:|tel:)/i.test(attrs)) return match;
-        // Skip links that already point to a real section anchor on the client's own domain
         const hrefMatch = attrs.match(/href=["']([^"']+)["']/i);
         const href = hrefMatch ? hrefMatch[1] : '';
-        // If href is a real in-page anchor pointing to an existing section, keep it
+        // Preserve real in-page anchors that point to existing sections
         if (href.startsWith('#') && href.length > 1) {
           const sectionId = href.slice(1);
           if (html.includes(`id="${sectionId}"`) || html.includes(`id='${sectionId}'`)) return match;
         }
+        // Preserve links to the client's own custom domain — don't override them
+        if (rawDomain && href.startsWith('http')) {
+          const hrefDomain = href.replace(/^https?:\/\/(?:www\.)?/, '').split('/')[0].toLowerCase();
+          if (hrefDomain === rawDomain || hrefDomain.endsWith('.' + rawDomain)) return match;
+        }
         // Strip dummy onclick handlers Stitch generates (alert, return false, void)
         const cleanAttrs = attrs.replace(/\s*onclick=["'][^"']*(?:alert|return false|void\(0\))[^"']*["']/gi, '');
-        // Remove the old href entirely and replace with onclick scroll
+        // Remove the old href entirely and replace with onclick handler
         const attrsNoHref = cleanAttrs.replace(/\s*href=["'][^"']*["']/gi, '');
-        return `<a${attrsNoHref} href="#" onclick="${ctaOnclick}">${inner}</a>`;
+        const onclick = getCtaOnclick(txt);
+        return `<a${attrsNoHref} href="#" onclick="${onclick}">${inner}</a>`;
       });
 
       // Wire <button> CTA tags — Stitch often generates these instead of <a>
       html = html.replace(/<button([^>]*)>([\s\S]*?)<\/button>/gi, (match: string, attrs: string, inner: string) => {
         const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
-        if (!ctaKeywords.some(k => txt.includes(k))) return match;
+        if (!allCtaKeywords.some((k: string) => txt.includes(k))) return match;
         if (attrs.includes('type="submit"') || attrs.includes('navigateTo') || attrs.includes('scrollIntoView')) return match;
         // Strip dummy onclick handlers
         const cleanAttrs = attrs.replace(/\s*onclick=["'][^"']*(?:alert|return false|void\(0\))[^"']*["']/gi, '');
-        return `<button${cleanAttrs} onclick="${ctaOnclick}">${inner}</button>`;
+        const onclick = getCtaOnclick(txt);
+        return `<button${cleanAttrs} onclick="${onclick}">${inner}</button>`;
       });
 
       // ── Hard-fix contact form: remove any signup/registration fields Stitch generates ──
