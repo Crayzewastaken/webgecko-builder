@@ -219,7 +219,7 @@ function EditableChange({ index, item, onUpdate, onDelete }: {
 
   return (
     <div style={{
-      background: C.raised, border: "1px solid #1e2d42", borderRadius: 8,
+      background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8,
       padding: "9px 12px", display: "flex", gap: 8, alignItems: "flex-start",
     }}>
       <span style={{ color: C.textMuted, fontSize: 11, minWidth: 18, marginTop: editing ? 10 : 2, fontWeight: 600 }}>{index + 1}.</span>
@@ -364,14 +364,14 @@ function BookingManager({ slug, client, paymentStatus }: { slug: string; client:
   const upcoming = bookings.filter(b => b.date >= today && !["cancelled", "declined"].includes(b.status)).length;
   const STATUS_COLOR: Record<string, string> = { confirmed: C.accent, pending: C.amber, declined: C.red, cancelled: "#6b7280", rescheduled: C.accentBlue };
   const pll = (color: string): React.CSSProperties => ({ display: "inline-block", background: `${color}18`, color, border: `1px solid ${color}33`, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600, textTransform: "capitalize" as const });
-  const inp: React.CSSProperties = { width: "100%", background: C.surface, border: "1px solid #1e2531", borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 14, boxSizing: "border-box" as const, outline: "none", marginBottom: 10 };
+  const inp: React.CSSProperties = { width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 14, boxSizing: "border-box" as const, outline: "none", marginBottom: 10 };
   const abt = (color: string, bg = "transparent"): React.CSSProperties => ({ flex: 1, minWidth: 60, padding: "8px 10px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: `1px solid ${color}44`, color, background: bg });
   const ovl: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 };
-  const mdb: React.CSSProperties = { background: C.surface, border: "1px solid #1e2531", borderRadius: 16, padding: 24, width: "100%", maxWidth: 440, maxHeight: "90vh", overflowY: "auto" as const };
+  const mdb: React.CSSProperties = { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 24, width: "100%", maxWidth: 440, maxHeight: "90vh", overflowY: "auto" as const };
 
   if (!paymentStatus?.previewUnlocked) {
     return (
-      <div style={{ background: C.surface, border: "1px solid #1e2531", borderRadius: 12, textAlign: "center", padding: "48px 24px" }}>
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, textAlign: "center", padding: "48px 24px" }}>
         <div style={{ fontSize: 36, marginBottom: 12 }}>🔒</div>
         <div style={{ color: C.textMuted, fontSize: 15 }}>Bookings will appear here once your site is released.</div>
       </div>
@@ -397,7 +397,7 @@ function BookingManager({ slug, client, paymentStatus }: { slug: string; client:
       {/* Stats */}
       <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" as const }}>
         {[{ label: "Total", value: bookings.length, color: C.text }, { label: "Upcoming", value: upcoming, color: C.accent }, { label: "Past/Cancelled", value: bookings.length - upcoming, color: C.textMuted }].map(st => (
-          <div key={st.label} style={{ background: C.surface, border: "1px solid #1e2531", borderRadius: 10, padding: "14px 16px", flex: 1, textAlign: "center" as const, minWidth: 80 }}>
+          <div key={st.label} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 16px", flex: 1, textAlign: "center" as const, minWidth: 80 }}>
             <div style={{ fontSize: 22, fontWeight: 800, color: st.color }}>{st.value}</div>
             <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{st.label}</div>
           </div>
@@ -412,18 +412,18 @@ function BookingManager({ slug, client, paymentStatus }: { slug: string; client:
         style={{ ...inp, marginBottom: 12 }} />
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" as const }}>
         {(["upcoming", "past", "all"] as const).map(f => (
-          <button key={f} onClick={() => setBFilter(f)} style={{ padding: "7px 16px", borderRadius: 20, fontSize: 13, fontWeight: bFilter === f ? 600 : 400, background: bFilter === f ? "linear-gradient(135deg,#00c896,#0099ff)" : "none", border: bFilter === f ? "none" : "1px solid #1e2531", color: bFilter === f ? "#000" : C.textMuted, cursor: "pointer" }}>
+          <button key={f} onClick={() => setBFilter(f)} style={{ padding: "7px 16px", borderRadius: 20, fontSize: 13, fontWeight: bFilter === f ? 600 : 400, background: bFilter === f ? "linear-gradient(135deg,#00c896,#0099ff)" : "none", border: bFilter === f ? "none" : `1px solid ${C.border}`, color: bFilter === f ? "#000" : C.textMuted, cursor: "pointer" }}>
             {f.charAt(0).toUpperCase() + f.slice(1)}
           </button>
         ))}
-        <button onClick={loadBookings} style={{ marginLeft: "auto", background: "none", border: "1px solid #1e2531", color: C.textMuted, borderRadius: 8, padding: "7px 12px", fontSize: 12, cursor: "pointer" }}>↻ Refresh</button>
+        <button onClick={loadBookings} style={{ marginLeft: "auto", background: "none", border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 8, padding: "7px 12px", fontSize: 12, cursor: "pointer" }}>↻ Refresh</button>
       </div>
 
       {/* Booking list */}
       {loading ? (
         <div style={{ textAlign: "center", padding: 40, color: C.textMuted }}>Loading bookings…</div>
       ) : filtered.length === 0 ? (
-        <div style={{ background: C.surface, border: "1px solid #1e2531", borderRadius: 12, textAlign: "center", padding: 40 }}>
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, textAlign: "center", padding: 40 }}>
           <div style={{ fontSize: 28, marginBottom: 10 }}>📅</div>
           <div style={{ color: C.textMuted, fontSize: 14 }}>{bFilter === "upcoming" ? "No upcoming bookings." : "No bookings found."}</div>
         </div>
@@ -1195,7 +1195,7 @@ export default function ClientPortal() {
                             onChange={e => setFeedbackText(e.target.value)}
                             onKeyDown={e => e.key === "Enter" && submitFeedback()}
                             placeholder="e.g. Change the hero button to blue"
-                            style={{ flex: 1, background: C.raised, border: "1px solid #1e2d42", borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none" }}
+                            style={{ flex: 1, background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none" }}
                           />
                           <button
                             onClick={submitFeedback}
@@ -1226,7 +1226,7 @@ export default function ClientPortal() {
                 </div>
               </div>
             ) : (
-              <div style={{ margin: "16px", background: C.surface, border: "1px solid #1e2531", borderRadius: 12, textAlign: "center", padding: "48px 24px" }}>
+              <div style={{ margin: "16px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, textAlign: "center", padding: "48px 24px" }}>
                 <div style={{ fontSize: 36, marginBottom: 12 }}>🏗️</div>
                 <div style={{ color: C.textMuted, fontSize: 15 }}>Your site is being built.</div>
               </div>
@@ -1352,7 +1352,7 @@ export default function ClientPortal() {
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ ...S.label, marginBottom: 6 }}>Pages</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {(client.pages as string[]).map(p => <span key={p} style={{ fontSize: 12, color: C.textSec, background: "#1a2233", borderRadius: 6, padding: "3px 9px" }}>{p}</span>)}
+                    {(client.pages as string[]).map(p => <span key={p} style={{ fontSize: 12, color: C.textSec, background: C.raised, border: `1px solid ${C.border}`, borderRadius: 6, padding: "3px 9px" }}>{p}</span>)}
                   </div>
                 </div>
               )}
@@ -1377,7 +1377,7 @@ export default function ClientPortal() {
                 <div style={S.label}>Your Features</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
                   {hasBooking && (
-                    <a href={`/c/${slug}/bookings`} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: "1px solid #1e2531", borderRadius: 10, textDecoration: "none" }}>
+                    <a href={`/c/${slug}/bookings`} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, textDecoration: "none" }}>
                       <span style={{ fontSize: 20 }}>📅</span>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Bookings Dashboard</div>
@@ -1387,7 +1387,7 @@ export default function ClientPortal() {
                     </a>
                   )}
                   {hasShop && (
-                    <div style={{ padding: "14px", background: C.bg, border: "1px solid #1e2531", borderRadius: 10 }}>
+                    <div style={{ padding: "14px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: squareConnected ? 0 : 12 }}>
                         <span style={{ fontSize: 20 }}>🛒</span>
                         <div style={{ flex: 1 }}>
@@ -1414,7 +1414,7 @@ export default function ClientPortal() {
                               placeholder="https://square.link/... or paypal.me/... or stripe.com/..."
                               value={shopPaymentUrl}
                               onChange={e => setShopPaymentUrl(e.target.value)}
-                              style={{ flex: 1, background: C.raised, border: "1px solid #1e2531", borderRadius: 8, padding: "8px 12px", color: C.text, fontSize: 12, outline: "none" }}
+                              style={{ flex: 1, background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.text, fontSize: 12, outline: "none" }}
                             />
                             <button
                               onClick={saveShopPaymentUrl}
@@ -1435,7 +1435,7 @@ export default function ClientPortal() {
                     </div>
                   )}
                   {hasBlog && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: "1px solid #1e2531", borderRadius: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10 }}>
                       <span style={{ fontSize: 20 }}>📰</span>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Blog & Content</div>
@@ -1444,7 +1444,7 @@ export default function ClientPortal() {
                     </div>
                   )}
                   {hasGallery && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: "1px solid #1e2531", borderRadius: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10 }}>
                       <span style={{ fontSize: 20 }}>🖼️</span>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Photo Gallery</div>
@@ -1453,7 +1453,7 @@ export default function ClientPortal() {
                     </div>
                   )}
                   {hasGrowth && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: "1px solid #1e2531", borderRadius: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10 }}>
                       <span style={{ fontSize: 20 }}>📈</span>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Growth & Marketing</div>
@@ -1491,7 +1491,7 @@ export default function ClientPortal() {
                       onChange={e => setReportText(e.target.value)}
                       placeholder="Describe the issue you're experiencing…"
                       rows={3}
-                      style={{ width: "100%", background: C.raised, border: "1px solid #1e2d42", borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" as const, marginBottom: 8 }}
+                      style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" as const, marginBottom: 8 }}
                     />
                     <button
                       onClick={submitReport}
@@ -1672,11 +1672,11 @@ export default function ClientPortal() {
                       <span style={{ color: C.accent, fontSize: 10 }}>✓</span>{f}
                     </div>
                   ))}
-                  <div style={{ marginTop: 14, background: C.raised, border: "1px solid #1e2531", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: C.textMuted }}>
+                  <div style={{ marginTop: 14, background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: C.textMuted }}>
                     After 3 months, plan renews at <span style={{ color: C.text, fontWeight: 600 }}>$119/mo</span>. Email us anytime to discuss your plan.
                   </div>
                   <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Plan query — " + client.businessName)}&body=${encodeURIComponent("Hi, I wanted to ask about my hosting plan.\n\nBusiness: " + client.businessName)}`}
-                    style={{ display: "block", textAlign: "center", marginTop: 12, background: "#1a2233", color: C.textSec, borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+                    style={{ display: "block", textAlign: "center", marginTop: 12, background: C.raised, border: `1px solid ${C.border}`, color: C.textSec, borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
                     Contact us about your plan
                   </a>
                 </div>
@@ -1707,7 +1707,7 @@ export default function ClientPortal() {
                       { r: "other", label: "💬 Something else" },
                     ].map(({ r, label }) => (
                       <button key={r} onClick={() => { setCancelReason(r); setSubStep("option"); }}
-                        style={{ display: "block", width: "100%", textAlign: "left", background: cancelReason === r ? "#0d1a2e" : C.bg, border: "1px solid #1e2531", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: C.textSec, cursor: "pointer", marginBottom: 8 }}>
+                        style={{ display: "block", width: "100%", textAlign: "left", background: cancelReason === r ? C.raised : C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 14px", fontSize: 13, color: C.textSec, cursor: "pointer", marginBottom: 8 }}>
                         {label}
                       </button>
                     ))}
@@ -1748,7 +1748,7 @@ export default function ClientPortal() {
                     <div style={{ ...S.label, marginTop: 8 }}>Or choose a cancellation option</div>
                     {CANCEL_OPTIONS.map(opt => (
                       <button key={opt.id} onClick={() => { setCancelOption(opt); setSubStep("confirm"); }}
-                        style={{ display: "block", width: "100%", textAlign: "left", background: C.bg, border: "1px solid #1e2531", borderRadius: 10, padding: "14px 16px", fontSize: 13, color: C.textSec, cursor: "pointer", marginBottom: 10 }}>
+                        style={{ display: "block", width: "100%", textAlign: "left", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 16px", fontSize: 13, color: C.textSec, cursor: "pointer", marginBottom: 10 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                           <div style={{ display: "flex", gap: 10 }}>
                             <span style={{ fontSize: 20 }}>{opt.icon}</span>
@@ -1773,13 +1773,13 @@ export default function ClientPortal() {
                 {subStep === "confirm" && cancelOption && (
                   <>
                     <div style={{ fontWeight: 700, fontSize: 15, color: C.text, marginBottom: 4 }}>Confirm your choice</div>
-                    <div style={{ background: C.bg, border: "1px solid #1e2531", borderRadius: 10, padding: "16px", marginBottom: 16 }}>
+                    <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "16px", marginBottom: 16 }}>
                       <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
                         <span style={{ fontSize: 24 }}>{cancelOption.icon}</span>
                         <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{cancelOption.label}</div>
                       </div>
                       <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 8 }}>{cancelOption.desc}</div>
-                      <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid #1e2531" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
                         <span style={{ fontSize: 13, color: C.textMuted }}>Exit fee</span>
                         <span style={{ fontSize: 14, fontWeight: 700, color: cancelOption.id === "stop" ? C.textSec : "#ffcc55" }}>
                           {cancelOption.priceCalc(buildPrice) === 0 ? "Free" : `$${cancelOption.priceCalc(buildPrice).toLocaleString()}`}
@@ -1862,7 +1862,7 @@ export default function ClientPortal() {
                         onChange={e => setUpgradeMessage(e.target.value)}
                         placeholder="e.g. I'd like the booking system to offer 30-minute slots for haircuts…"
                         rows={3}
-                        style={{ width: "100%", background: C.raised, border: "1px solid #1e2d42", borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" as const, marginBottom: 12 }}
+                        style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" as const, marginBottom: 12 }}
                       />
                       <button onClick={submitUpgradeRequest} disabled={upgradeSubmitting}
                         style={{ ...S.btn("primary", upgradeSubmitting), width: "100%", fontSize: 14, fontWeight: 700 }}>
