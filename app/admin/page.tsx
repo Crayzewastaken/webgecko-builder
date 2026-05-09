@@ -25,10 +25,10 @@ interface ClientAnalytics {
 
 // ── Themes ─────────────────────────────────────────────────────────────────────
 const DARK = {
-  bg:"#030813", surface:"#070d1e", raised:"#0c1428", border:"#1a2545", borderHov:"#2d4575",
-  text:"#dde5f8", textSec:"#6a80b8", textMuted:"#364870",
-  green:"#00e87a", blue:"#4f9eff", amber:"#ffaa33", red:"#ff4f6b", purple:"#a78bfa", cyan:"#00e5ff",
-  overlay:"rgba(3,8,19,0.9)", shadow:"0 2px 12px rgba(0,0,0,0.6)", shadowLg:"0 8px 32px rgba(0,0,0,0.8)", shadowXl:"-4px 0 48px rgba(0,0,0,0.92)",
+  bg:"#04080f", surface:"#0a1628", raised:"#102240", border:"#1e3560", borderHov:"#3060a0",
+  text:"#e0eaff", textSec:"#7a9ad4", textMuted:"#3a5080",
+  green:"#00f080", blue:"#4f9eff", amber:"#ffa830", red:"#ff4060", purple:"#b085ff", cyan:"#00e5ff",
+  overlay:"rgba(4,8,15,0.92)", shadow:"0 4px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)", shadowLg:"0 12px 40px rgba(0,0,0,0.85)", shadowXl:"-4px 0 60px rgba(0,0,0,0.95)",
 };
 const LIGHT = {
   bg:"#f0f2fa", surface:"#ffffff", raised:"#eaecf8", border:"#d4d8f0", borderHov:"#a0acdc",
@@ -45,77 +45,84 @@ const CSS = `
   body { margin: 0; }
 
   /* Keyframes */
-  @keyframes wg-fade  { from{opacity:0} to{opacity:1} }
-  @keyframes wg-up    { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes wg-panel { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
-  @keyframes wg-ping  { 0%{transform:scale(1);opacity:.9} 100%{transform:scale(2.4);opacity:0} }
-  @keyframes wg-spin  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-  @keyframes wg-toast { 0%{opacity:0;transform:translateY(8px) scale(.95)} 100%{opacity:1;transform:none} }
+  @keyframes wg-fade    { from{opacity:0} to{opacity:1} }
+  @keyframes wg-up      { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes wg-panel   { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+  @keyframes wg-ping    { 0%{transform:scale(1);opacity:.9} 100%{transform:scale(2.4);opacity:0} }
+  @keyframes wg-spin    { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  @keyframes wg-toast   { 0%{opacity:0;transform:translateY(8px) scale(.95)} 100%{opacity:1;transform:none} }
   @keyframes wg-shimmer { 0%{background-position:-800px 0} 100%{background-position:800px 0} }
-  @keyframes wg-glow  { 0%,100%{opacity:.5} 50%{opacity:1} }
-  @keyframes wg-scan  { 0%{transform:translateY(-100%)} 100%{transform:translateY(400%)} }
+  @keyframes wg-pulse   { 0%,100%{opacity:.6} 50%{opacity:1} }
+  @keyframes wg-scan    { 0%{transform:translateY(-100%)} 100%{transform:translateY(500%)} }
+  @keyframes wg-border  { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
 
   /* Component animations */
   .wg-panel { animation: wg-panel 0.3s cubic-bezier(0.22,1,0.36,1) }
-  .wg-card  { animation: wg-up 0.25s cubic-bezier(0.22,1,0.36,1) both }
+  .wg-card  { animation: wg-up 0.3s cubic-bezier(0.22,1,0.36,1) both }
   .wg-tab   { animation: wg-fade 0.18s ease }
   .wg-toast { animation: wg-toast 0.22s ease }
 
-  /* Grid bg — subtle blueprint grid */
+  /* Grid bg — visible blueprint grid */
   .wg-grid-bg {
+    background-color: #04080f;
     background-image:
-      radial-gradient(ellipse 80% 40% at 50% -10%, rgba(79,158,255,0.07) 0%, transparent 60%),
-      linear-gradient(rgba(79,158,255,0.028) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(79,158,255,0.028) 1px, transparent 1px);
-    background-size: 100% 100%, 48px 48px, 48px 48px;
+      radial-gradient(ellipse 70% 50% at 50% 0%, rgba(79,158,255,0.13) 0%, transparent 55%),
+      radial-gradient(ellipse 40% 30% at 80% 80%, rgba(167,133,255,0.07) 0%, transparent 55%),
+      linear-gradient(rgba(79,158,255,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,158,255,0.06) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 52px 52px, 52px 52px;
   }
 
-  /* Client card */
+  /* Client card — clickable grid item */
   .wg-cc {
-    transition: transform 0.2s cubic-bezier(0.22,1,0.36,1), box-shadow 0.2s ease, border-color 0.2s ease;
+    transition: transform 0.22s cubic-bezier(0.22,1,0.36,1), box-shadow 0.22s ease, border-color 0.22s ease;
     cursor: pointer;
   }
-  .wg-cc:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(79,158,255,0.15) !important;
-  }
-
-  /* Glow card hover */
-  .wg-glow:hover { box-shadow: 0 0 28px rgba(79,158,255,0.1), 0 8px 32px rgba(0,0,0,0.6) !important; }
+  .wg-cc:hover { transform: translateY(-4px) scale(1.005); }
 
   /* Gradient text */
   .wg-brand-text {
-    background: linear-gradient(135deg, #e0ecff 30%, #a78bfa 100%);
+    background: linear-gradient(130deg, #cce0ff 20%, #b085ff 80%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .wg-accent-text {
+    background: linear-gradient(130deg, #4f9eff 0%, #00e5ff 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  /* Glass — used on nav */
+  /* Glass — nav */
   .wg-glass {
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
   }
 
   /* Scan line effect on stat cards */
   .wg-stat-scan::after {
-    content:''; position:absolute; inset:0; background:linear-gradient(transparent 40%, rgba(255,255,255,0.03) 50%, transparent 60%);
-    animation: wg-scan 3s linear infinite; pointer-events:none; border-radius:inherit;
+    content:''; position:absolute; inset:0;
+    background: linear-gradient(transparent 45%, rgba(79,158,255,0.05) 50%, transparent 55%);
+    animation: wg-scan 4s linear infinite; pointer-events:none; border-radius:inherit;
   }
 
-  button { transition: opacity 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease !important }
+  /* Neon glow ring around a card — apply as extra class */
+  .wg-neon { box-shadow: 0 0 0 1px rgba(79,158,255,0.12), 0 4px 28px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.05) !important; }
+
+  button { font-family:inherit; transition: opacity 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease !important }
   button:active:not(:disabled) { transform: scale(0.95) !important }
   ::-webkit-scrollbar { width:4px; height:4px }
   ::-webkit-scrollbar-track { background:transparent }
-  ::-webkit-scrollbar-thumb { background:rgba(79,158,255,0.25); border-radius:99px }
-  ::-webkit-scrollbar-thumb:hover { background:rgba(79,158,255,0.45) }
+  ::-webkit-scrollbar-thumb { background:rgba(79,158,255,0.3); border-radius:99px }
+  ::-webkit-scrollbar-thumb:hover { background:rgba(79,158,255,0.55) }
   input, textarea, select { font-family: inherit }
-  input:focus, textarea:focus, select:focus { outline: none; border-color: rgba(79,158,255,0.55) !important; box-shadow: 0 0 0 3px rgba(79,158,255,0.1) !important; }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: rgba(79,158,255,0.6) !important; box-shadow: 0 0 0 3px rgba(79,158,255,0.12) !important; }
 
   /* View toggle active tab */
   .wg-view-active {
-    background: linear-gradient(135deg, rgba(79,158,255,0.18), rgba(167,139,250,0.12)) !important;
-    color: #dde5f8 !important;
-    border-color: rgba(79,158,255,0.3) !important;
+    background: linear-gradient(135deg, rgba(79,158,255,0.22) 0%, rgba(167,139,250,0.15) 100%) !important;
+    color: #e0eaff !important;
+    border-color: rgba(79,158,255,0.4) !important;
+    box-shadow: 0 0 16px rgba(79,158,255,0.1) !important;
   }
   .wg-shimmer {
     background: linear-gradient(90deg, rgba(255,255,255,.03) 25%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.03) 75%);
@@ -808,16 +815,17 @@ function ClientCard({ c, secret, dark, toast }: { c:ClientAnalytics; secret:stri
     <>
       {open&&<ClientPanel c={c} secret={secret} onClose={()=>setOpen(false)} toast={toast}/>}
       <div className="wg-card wg-cc" onClick={()=>setOpen(true)} style={{
-        background:T.surface, border:`1px solid ${T.border}`, borderRadius:14,
-        padding:"18px 20px 18px 23px", boxShadow:T.shadow, position:"relative", overflow:"hidden",
+        background:T.surface, border:`1px solid ${statusColor}25`, borderRadius:16,
+        padding:"18px 20px 18px 24px", position:"relative", overflow:"hidden",
+        boxShadow:`0 0 0 1px ${statusColor}12, 0 6px 28px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)`,
       }}
-      onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=statusColor+"55";el.style.boxShadow=`0 0 24px ${statusColor}12, ${T.shadowLg}`;}}
-      onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=T.border;el.style.boxShadow=T.shadow;}}
+      onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=statusColor+"55";el.style.boxShadow=`0 0 28px ${statusColor}25, 0 8px 40px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.06)`;}}
+      onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=statusColor+"25";el.style.boxShadow=`0 0 0 1px ${statusColor}12, 0 6px 28px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)`;}}
       >
         {/* Left accent bar */}
-        <div style={{ position:"absolute",left:0,top:10,bottom:10,width:3,borderRadius:"0 3px 3px 0",background:`linear-gradient(180deg,${statusColor},${statusColor}55)` }}/>
-        {/* Status glow */}
-        <div style={{ position:"absolute", top:0, right:0, width:100, height:100, background:`radial-gradient(circle at top right, ${statusColor}12, transparent 70%)`, pointerEvents:"none" }}/>
+        <div style={{ position:"absolute",left:0,top:0,bottom:0,width:4,borderRadius:"16px 0 0 16px",background:`linear-gradient(180deg,${statusColor},${statusColor}30)`,boxShadow:`2px 0 10px ${statusColor}35` }}/>
+        {/* Status glow corner */}
+        <div style={{ position:"absolute", top:0, right:0, width:110, height:110, background:`radial-gradient(circle at top right, ${statusColor}18, transparent 65%)`, pointerEvents:"none" }}/>
 
         {/* Building pulse */}
         {isBuilding&&(
@@ -830,7 +838,7 @@ function ClientCard({ c, secret, dark, toast }: { c:ClientAnalytics; secret:stri
         )}
 
         <div style={{ display:"flex", alignItems:"flex-start", gap:12, marginBottom:14 }}>
-          <div style={{ width:40,height:40,borderRadius:10,background:`linear-gradient(135deg,${statusColor}28,${statusColor}0c)`,border:`1px solid ${statusColor}35`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:statusColor,flexShrink:0 }}>
+          <div style={{ width:42,height:42,borderRadius:11,background:`linear-gradient(135deg,${statusColor}40,${statusColor}18)`,border:`1.5px solid ${statusColor}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:800,color:statusColor,flexShrink:0,boxShadow:`0 0 16px ${statusColor}35, inset 0 1px 0 rgba(255,255,255,0.1)`,letterSpacing:"-0.02em" }}>
             {initials}
           </div>
           <div style={{ flex:1, minWidth:0 }}>
@@ -1101,14 +1109,14 @@ function AdminDashboard() {
       <Toasts toasts={toasts}/>
 
       {/* Top nav */}
-      <div className="wg-glass" style={{ background: dark ? "rgba(3,8,19,0.85)" : "rgba(255,255,255,0.9)", borderBottom:`1px solid ${T.border}`, padding:"0 24px", display:"flex", alignItems:"center", justifyContent:"space-between", height:60, position:"sticky" as const, top:0, zIndex:100, transition:"background 0.25s, border-color 0.25s" }}>
+      <div className="wg-glass" style={{ background: dark ? "rgba(4,8,15,0.88)" : "rgba(255,255,255,0.92)", borderBottom:`1px solid rgba(79,158,255,0.15)`, padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:62, position:"sticky" as const, top:0, zIndex:100, transition:"background 0.25s, border-color 0.25s", boxShadow:"0 1px 0 rgba(79,158,255,0.08), 0 4px 24px rgba(0,0,0,0.5)" }}>
         {/* Gradient line at very top */}
-        <div style={{ position:"absolute", top:0, left:0, right:0, height:2, background:"linear-gradient(90deg, #4f9eff, #9d6fff, #00e87a, transparent)", opacity:0.8, pointerEvents:"none" }}/>
+        <div style={{ position:"absolute", top:0, left:0, right:0, height:2, background:"linear-gradient(90deg, #4f9eff 0%, #b085ff 40%, #00f080 70%, transparent 100%)", pointerEvents:"none" }}/>
         <div style={{ display:"flex", alignItems:"center", gap:14 }}>
           {/* Logo mark */}
-          <div style={{ width:34,height:34,borderRadius:10,background:"linear-gradient(135deg,#4f9eff,#9d6fff)",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 16px rgba(79,158,255,0.4)",fontSize:15,fontWeight:900,color:"#fff" }}>W</div>
-          <span className="wg-brand-text" style={{ fontSize:16,fontWeight:800,letterSpacing:"-0.04em" }}>WebGecko</span>
-          <span style={{ fontSize:9,color:T.blue,background:T.blue+"18",border:`1px solid ${T.blue}35`,borderRadius:5,padding:"2px 8px",fontWeight:800,letterSpacing:"0.1em" }}>ADMIN</span>
+          <div style={{ width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#4f9eff,#9d6fff)",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 24px rgba(79,158,255,0.55), 0 0 48px rgba(79,158,255,0.2)",fontSize:16,fontWeight:900,color:"#fff" }}>W</div>
+          <span className="wg-brand-text" style={{ fontSize:17,fontWeight:800,letterSpacing:"-0.04em" }}>WebGecko</span>
+          <span style={{ fontSize:9,color:"#4f9eff",background:"rgba(79,158,255,0.15)",border:"1px solid rgba(79,158,255,0.3)",borderRadius:5,padding:"3px 9px",fontWeight:800,letterSpacing:"0.12em",boxShadow:"0 0 10px rgba(79,158,255,0.15)" }}>ADMIN</span>
           {clients.some(c=>c.buildStatus==="building")&&(
             <div style={{ display:"flex",alignItems:"center",gap:6,background:T.amber+"14",border:`1px solid ${T.amber}35`,borderRadius:20,padding:"4px 12px" }}>
               <div style={{ position:"relative",width:7,height:7 }}>
@@ -1128,31 +1136,40 @@ function AdminDashboard() {
         </div>
       </div>
 
-      <div style={{ maxWidth:1140,margin:"0 auto",padding:"32px 24px" }}>
+      <div style={{ maxWidth:1140,margin:"0 auto",padding:"36px 28px" }}>
+
+        {/* Section label */}
+        {!loading&&!error&&(
+          <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:18 }}>
+            <div style={{ height:1,flex:1,background:"linear-gradient(90deg,rgba(79,158,255,0.3),transparent)" }}/>
+            <span style={{ fontSize:10,fontWeight:800,letterSpacing:"0.14em",color:"rgba(79,158,255,0.6)",textTransform:"uppercase" as const }}>Platform Overview</span>
+            <div style={{ height:1,flex:1,background:"linear-gradient(90deg,transparent,rgba(79,158,255,0.3))" }}/>
+          </div>
+        )}
 
         {/* Stats */}
         {!loading&&!error&&(
-          <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(175px,1fr))",gap:12,marginBottom:28 }}>
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(175px,1fr))",gap:14,marginBottom:32 }}>
             {[
               {label:"Total clients",value:totals.clients,color:T.blue,icon:"◈"},
-              {label:"Monthly active",value:totals.active,color:T.green,icon:"◉"},
+              {label:"Monthly active",value:totals.active,color:T.green,icon:"●"},
               {label:"Est. MRR",value:"$"+totals.mrr.toLocaleString(),color:T.green,icon:"$"},
-              {label:"Views this month",value:totals.views,color:T.cyan,icon:"◎"},
+              {label:"Views / month",value:totals.views,color:T.cyan,icon:"◎"},
               {label:"Total bookings",value:totals.bookings,color:T.amber,icon:"◆"},
             ].map(s=>(
-              <div key={s.label} className="wg-card wg-stat-scan" style={{ background:T.surface,border:`1px solid ${T.border}`,borderRadius:14,padding:"18px 20px 18px 24px",boxShadow:T.shadow,position:"relative",overflow:"hidden",transition:"border-color 0.2s, box-shadow 0.2s" }}
-                onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=s.color+"55";el.style.boxShadow=`0 0 28px ${s.color}18, ${T.shadowLg}`;}}
-                onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=T.border;el.style.boxShadow=T.shadow;}}>
-                {/* Left accent bar */}
-                <div style={{ position:"absolute",left:0,top:12,bottom:12,width:3,borderRadius:"0 3px 3px 0",background:`linear-gradient(180deg,${s.color},${s.color}55)` }}/>
+              <div key={s.label} className="wg-card wg-stat-scan" style={{ background:T.surface,border:`1px solid ${s.color}28`,borderRadius:16,padding:"20px 20px 18px 26px",position:"relative",overflow:"hidden",transition:"border-color 0.2s, box-shadow 0.2s",boxShadow:`0 0 0 1px ${s.color}14, 0 6px 32px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)` }}
+                onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=s.color+"55";el.style.boxShadow=`0 0 32px ${s.color}22, 0 8px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06)`;}}
+                onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=s.color+"28";el.style.boxShadow=`0 0 0 1px ${s.color}14, 0 6px 32px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)`;}}>
+                {/* Left accent bar — full height */}
+                <div style={{ position:"absolute",left:0,top:0,bottom:0,width:4,borderRadius:"16px 0 0 16px",background:`linear-gradient(180deg,${s.color},${s.color}33)`,boxShadow:`2px 0 12px ${s.color}40` }}/>
                 {/* Corner radial glow */}
-                <div style={{ position:"absolute",top:0,right:0,width:90,height:90,background:`radial-gradient(circle at top right,${s.color}14,transparent 65%)`,pointerEvents:"none" }}/>
+                <div style={{ position:"absolute",top:0,right:0,width:100,height:100,background:`radial-gradient(circle at top right,${s.color}22,transparent 60%)`,pointerEvents:"none" }}/>
                 {/* Icon pill */}
-                <div style={{ width:30,height:30,borderRadius:8,background:s.color+"18",border:`1px solid ${s.color}28`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:s.color,marginBottom:12,letterSpacing:"-0.02em" }}>{s.icon}</div>
-                <div style={{ fontSize:26,fontWeight:700,letterSpacing:"-0.03em",lineHeight:1,marginBottom:6 }}>
+                <div style={{ width:32,height:32,borderRadius:9,background:s.color+"22",border:`1px solid ${s.color}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,color:s.color,marginBottom:14,letterSpacing:"-0.02em",boxShadow:`0 0 12px ${s.color}30` }}>{s.icon}</div>
+                <div style={{ fontSize:28,fontWeight:800,letterSpacing:"-0.04em",lineHeight:1,marginBottom:7 }}>
                   {typeof s.value==="number" ? <AnimNum value={s.value} color={s.color}/> : <span style={{color:s.color}}>{s.value}</span>}
                 </div>
-                <div style={{ fontSize:11,color:T.textMuted,fontWeight:600,letterSpacing:"0.04em",textTransform:"uppercase" as const }}>{s.label}</div>
+                <div style={{ fontSize:10,color:T.textMuted,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase" as const }}>{s.label}</div>
               </div>
             ))}
           </div>
@@ -1173,6 +1190,12 @@ function AdminDashboard() {
         {view==="logs"&&<PipelineLogsPanel/>}
 
         {view==="clients"&&(<>
+        {/* Client grid header */}
+        <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:14 }}>
+          <div style={{ height:1,width:24,background:"rgba(79,158,255,0.4)" }}/>
+          <span style={{ fontSize:10,fontWeight:800,letterSpacing:"0.14em",color:"rgba(79,158,255,0.55)",textTransform:"uppercase" as const }}>Clients</span>
+        </div>
+
         {/* Search + filters */}
         <div style={{ display:"flex",gap:10,marginBottom:20,flexWrap:"wrap" as const,alignItems:"center" }}>
           <input type="text" placeholder="⌕  Search clients by name or industry…" value={search} onChange={e=>setSearch(e.target.value)} style={inp}/>
