@@ -204,93 +204,40 @@ const buildWebsite = inngest.createFunction(
       return pid;
     }) as string;
 
-    // ── STEP 3a: Stitch generate — fire and return screenId ───────────────────
-    // Strip URLs from prompt (causes "expected object at projection path" error).
-    // Retry up to 3x on transient failures. Inngest sleeps between 3a and 3b.
-    const stitchScreenId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step3a-stitch-trigger", async () => {
+    // ── STEP 3: Stitch generate + fetch HTML in one blocking step ─────────────
+    // generate() is synchronous/blocking — it waits until the screen is fully
+    // rendered before returning. We call getHtml() immediately on the returned
+    // screen object (no sleep, no polling needed).
+    const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3-stitch-generate", async () => {
+      const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
       const stitchPrompt = (spec.stitchPrompt || "")
         .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
         .replace(/\s{3,}/g, "  ")
         .slice(0, 12000);
-      console.log(`[Inngest] STEP 3a: Stitch generate (prompt: ${stitchPrompt.length} chars)`);
+      console.log(`[Inngest] STEP 3: Stitch generate (prompt: ${stitchPrompt.length} chars, projectId=${projectId})`);
+
+      let html = "";
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           const project = stitchSdk.project(projectId);
           const screen = await project.generate(stitchPrompt, "DESKTOP");
-          console.log(`[Inngest] STEP 3a DONE: screenId=${screen.screenId} screenKeys=${Object.keys(screen || {}).join(",")} (attempt ${attempt})`);
-          if (!screen.screenId) throw new Error(`Stitch generate returned no screenId — keys: ${Object.keys(screen || {}).join(",")}`);
-          return screen.screenId as string;
-        } catch (e: any) {
-          const msg = e?.message || String(e);
-          console.warn(`[Inngest] STEP 3a attempt ${attempt} failed: ${msg}`);
-          if (attempt === 3) throw e;
-          await new Promise(r => setTimeout(r, 5000 * attempt));
-        }
-      }
-      throw new Error("Stitch: generate failed after 3 attempts");
-    }) as string;
+          console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
 
-    // ── Sleep 90s — yield to Inngest, zero Vercel serverless time consumed ────
-    // Stitch generation typically takes 60–120s; 45s was too short.
-    if (!savedHtmlForRebuild) {
-      await step.sleep("step3-wait-for-stitch", "90s");
-    }
+          // generate() is blocking — HTML is ready immediately
+          const url = await screen.getHtml();
+          console.log(`[Inngest] STEP 3: getHtml() returned url length=${url?.length ?? 0}`);
+          if (!url) throw new Error("Stitch getHtml() returned empty URL after generate()");
 
-    // ── STEP 3b: Fetch rendered HTML from Stitch ──────────────────────────────
-    const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3b-stitch-fetch", async () => {
-      const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-      // Poll up to 8x for the signed URL (already waited 90s above; 8×20s = 160s more)
-      let url = "";
-      for (let i = 0; i < 8; i++) {
-        // Try getScreen by ID first
-        try {
-          const project = stitchSdk.project(projectId);
-          const fetched = await project.getScreen(stitchScreenId);
-          url = await fetched.getHtml();
-          if (url) { console.log(`[Inngest] STEP 3b: got signed URL via getScreen (poll ${i + 1})`); break; }
-          console.log(`[Inngest] STEP 3b: getScreen returned screen but getHtml was empty (poll ${i + 1})`);
-        } catch (e: any) {
-          console.log(`[Inngest] STEP 3b: getScreen error (poll ${i + 1}): ${e?.message || String(e)}`);
-        }
-        // Fallback: list all screens in the project
-        try {
-          const project = stitchSdk.project(projectId);
-          const screens = await project.screens();
-          console.log(`[Inngest] STEP 3b: list_screens returned ${screens.length} screens (poll ${i + 1})`);
-          if (screens.length > 0) {
-            console.log(`[Inngest] STEP 3b: screen IDs: ${screens.map((s: any) => s.screenId).join(", ")}`);
-            const match = screens.find((s: any) => s.screenId === stitchScreenId) || screens[screens.length - 1];
-            if (match) { url = await match.getHtml(); }
-            if (url) { console.log(`[Inngest] STEP 3b: got URL via list_screens (poll ${i + 1})`); break; }
-          }
-        } catch (e: any) {
-          console.log(`[Inngest] STEP 3b: list_screens error (poll ${i + 1}): ${e?.message || String(e)}`);
-        }
-        if (i < 7) await sleep(20000);
-      }
-      if (!url) throw new Error("Stitch: no signed URL after polling");
-
-      // Fetch HTML — retry up to 3x with fresh signed URLs
-      let html = "";
-      for (let fetchAttempt = 1; fetchAttempt <= 3; fetchAttempt++) {
-        try {
           const fetchRes = await fetch(url);
           const text = await fetchRes.text();
-          console.log(`[Inngest] STEP 3b: fetch ${fetchAttempt} — status=${fetchRes.status} length=${text.length}`);
+          console.log(`[Inngest] STEP 3: fetched HTML — status=${fetchRes.status} length=${text.length}`);
           if (text.length > 5000 && text.includes("<")) { html = text; break; }
-          if (fetchAttempt < 3) {
-            await sleep(8000);
-            try {
-              const project = stitchSdk.project(projectId);
-              const freshScreen = await project.getScreen(stitchScreenId);
-              const freshUrl = await freshScreen.getHtml();
-              if (freshUrl) url = freshUrl;
-            } catch (_) {}
-          }
-        } catch (e) {
-          console.warn(`[Inngest] STEP 3b: fetch ${fetchAttempt} threw:`, e);
-          if (fetchAttempt < 3) await sleep(5000);
+          throw new Error(`Stitch HTML too short or not HTML (${text.length} chars, status=${fetchRes.status})`);
+        } catch (e: any) {
+          const msg = e?.message || String(e);
+          console.warn(`[Inngest] STEP 3: attempt ${attempt} failed: ${msg}`);
+          if (attempt === 3) throw e;
+          await sleep(10000 * attempt);
         }
       }
 
@@ -301,7 +248,7 @@ const buildWebsite = inngest.createFunction(
       if (styleLen < 100 && inlineStyleCount < 20) {
         throw new Error(`Stitch HTML has no CSS (styleLen=${styleLen}, inlineStyles=${inlineStyleCount})`);
       }
-      console.log(`[Inngest] STEP 3b DONE: HTML ${html.length} chars`);
+      console.log(`[Inngest] STEP 3 DONE: HTML ${html.length} chars`);
       return html;
     }) as string;
 

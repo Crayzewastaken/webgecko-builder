@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.89.0",
-    "@google/stitch-sdk": "^0.1.0",
+    "@google/stitch-sdk": "^0.3.4",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.105.1",
     "@upstash/redis": "^1.37.0",
