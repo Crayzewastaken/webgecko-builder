@@ -223,10 +223,27 @@ const buildWebsite = inngest.createFunction(
           const screen = await project.generate(stitchPrompt, "DESKTOP");
           console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
 
-          // generate() is blocking — HTML is ready immediately
-          const url = await screen.getHtml();
-          console.log(`[Inngest] STEP 3: getHtml() returned url length=${url?.length ?? 0}`);
-          if (!url) throw new Error("Stitch getHtml() returned empty URL after generate()");
+          // generate() returns a Screen — try getHtml() on it first (uses cached downloadUrl if present)
+          let url = await screen.getHtml();
+          console.log(`[Inngest] STEP 3: getHtml() from generate response — url length=${url?.length ?? 0}`);
+
+          // If generate() response didn't include htmlCode.downloadUrl, fetch it explicitly via get_screen
+          if (!url && screen.screenId) {
+            console.log(`[Inngest] STEP 3: retrying via project.getScreen(${screen.screenId})`);
+            for (let poll = 1; poll <= 5; poll++) {
+              await sleep(5000 * poll);
+              try {
+                const freshScreen = await stitchSdk.project(projectId).getScreen(screen.screenId);
+                url = await freshScreen.getHtml();
+                console.log(`[Inngest] STEP 3: get_screen poll ${poll} — url length=${url?.length ?? 0}`);
+                if (url) break;
+              } catch (pe: any) {
+                console.log(`[Inngest] STEP 3: get_screen poll ${poll} error: ${pe?.message}`);
+              }
+            }
+          }
+
+          if (!url) throw new Error(`Stitch getHtml() returned empty URL (screenId=${screen.screenId})`);
 
           const fetchRes = await fetch(url);
           const text = await fetchRes.text();
