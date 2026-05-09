@@ -374,7 +374,7 @@ Return exactly this JSON shape (no other text):
   "heroSubheadline": "1-2 sentences value prop only, NO address or suburb",
   "ctaText": "...",
   "uniqueDesignIdea": "...",
-  "stitchPrompt": "800-1200 words MAX, single quotes only inside — be concise and specific, no filler"
+  "stitchPrompt": "800-2000 words, single quotes only inside — be detailed and specific, include all sections, no filler"
 }${exampleHtmls.length > 0 ? `
 
 REFERENCE EXAMPLES (admin-uploaded HTML examples for this industry — use these as inspiration for layout structure, section patterns, and content depth. Do NOT copy text verbatim):
@@ -426,7 +426,7 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
   blueprint.stitchPrompt = blueprint.stitchPrompt
     .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
     .replace(/\s{3,}/g, "  ")
-    .slice(0, 5000);
+    .slice(0, 12000);
 
   // Attach SEO metadata to the returned blueprint
   blueprint.lsiKeywords = lsiKeywords;
@@ -507,6 +507,4 @@ export async function requestGoogleIndexing(url: string): Promise<void> {
       console.warn(`[Indexing] API returned ${indexRes.status}: ${errText.slice(0, 200)}`);
     }
   } catch (e) {
-    console.warn("[Indexing] Failed (non-fatal):", e instanceof Error ? e.message : String(e));
-  }
-}
+    console.warn("[Indexing] Failed (non-fatal):", e instanceof Error ? e.message

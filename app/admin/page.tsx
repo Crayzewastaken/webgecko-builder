@@ -619,7 +619,7 @@ function ClientDashboard({ c, secret, onClose, dark = false }: { c: ClientAnalyt
                       <div style={{ color: T.textMuted, fontSize: 13 }}>⏳ Building… preview will appear when complete</div>
                     </div>
                   ) : (
-                    <PreviewFrame previewUrl={c.previewUrl} T={T} />
+                    <PreviewFrame previewUrl={c.previewUrl} builtAt={c.builtAt} T={T} />
                   )}
                 </div>
               )}
@@ -869,15 +869,22 @@ function ClientDashboard({ c, secret, onClose, dark = false }: { c: ClientAnalyt
 
 // ─── Live preview components ──────────────────────────────────────────────────
 // Vercel blocks iframes via X-Frame-Options, so we show a rich preview card instead.
-function PreviewFrame({ previewUrl, T }: { previewUrl: string; T: typeof T_LIGHT }) {
+function PreviewFrame({ previewUrl, builtAt, T }: { previewUrl: string; builtAt?: string; T: typeof T_LIGHT }) {
   const [thumbErr, setThumbErr] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(() => Math.floor(Date.now() / 60000)); // per-minute key
+  // Use builtAt timestamp as initial key so a new build always forces a fresh screenshot
+  const [refreshKey, setRefreshKey] = useState(() => builtAt ? new Date(builtAt).getTime() : Math.floor(Date.now() / 60000));
   const [refreshing, setRefreshing] = useState(false);
 
-  // screenshotone.com free tier — no API key needed, genuinely fresh on each unique URL
-  // We bust cache by appending a timestamp to the TARGET url so screenshotone treats it as a new page
+  // Reset key when builtAt changes (new build completed)
+  const prevBuiltAt = useState(builtAt)[0];
+  if (builtAt !== prevBuiltAt && builtAt) {
+    setRefreshKey(new Date(builtAt).getTime());
+    setThumbErr(false);
+  }
+
+  // screenshotone.com free tier — bust cache by appending build timestamp to the target URL
   const targetWithBust = `${previewUrl}${previewUrl.includes("?") ? "&" : "?"}_wg=${refreshKey}`;
-  const thumbUrl = `https://api.screenshotone.com/take?url=${encodeURIComponent(targetWithBust)}&viewport_width=1280&viewport_height=800&format=jpg&image_quality=85&block_ads=true&block_cookie_banners=true&cache=false&delay=2`;
+  const thumbUrl = `https://api.screenshotone.com/take?url=${encodeURIComponent(targetWithBust)}&viewport_width=1280&viewport_height=800&format=jpg&image_quality=85&block_ads=true&block_cookie_banners=true&cache=false&delay=3`;
 
   function handleRefresh() {
     setThumbErr(false);
