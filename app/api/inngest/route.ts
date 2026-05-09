@@ -158,14 +158,10 @@ const buildWebsite = inngest.createFunction(
     // Handles: "All CTA buttons should link to https://...", "link to https://...", etc.
     // Takes priority over bookingUrl for general/booking CTAs when set.
     const ctaExternalUrl = (() => {
-      const internalDomains = ["webgecko-builder.vercel.app", "webgecko.au", "localhost"];
       const sources = [userInput.additionalNotes || "", userInput.goal || ""];
       for (const text of sources) {
-        const m = text.match(/(?:link\s+to|point\s+to|go\s+to|direct\s+to|should\s+link\s+to|cta[^.\n]*?:?\s+)(https?:\/\/[^\s,;)\n]+)/i);
-        if (m) {
-          const url = m[1].replace(/[.,;)]+$/, "");
-          if (!internalDomains.some(d => url.includes(d))) return url;
-        }
+        const m = text.match(/(?:link\s+to|point\s+to|go\s+to|direct\s+to|should\s+link\s+to|buttons?\s+should\s+link\s+to|cta[^.\n]*?:?\s+)(https?:\/\/[^\s,;)\n]+)/i);
+        if (m) return m[1].replace(/[.,;)]+$/, "");
       }
       return "";
     })();
