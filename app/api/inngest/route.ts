@@ -426,7 +426,9 @@ const buildWebsite = inngest.createFunction(
       ];
       // CTA always scrolls within the site: to booking if booking feature, else contact section.
       // existingWebsite is reference-only and is never used as a CTA destination.
-      const ctaOnclick = `event.preventDefault();var el=document.getElementById('${bookingNavTarget}');if(el){el.scrollIntoView({behavior:'smooth'});}else if(window.navigateTo){window.navigateTo('${bookingNavTarget}');}`;
+      // Use navigateTo exclusively — it handles both single-page scroll and multi-page
+      // show/hide correctly. scrollIntoView fails silently on hidden elements in multi-page sites.
+      const ctaOnclick = `event.preventDefault();window.navigateTo&&window.navigateTo('${bookingNavTarget}')`;
 
       // Wire <a> CTA links — catches ALL hrefs: #, empty, void, AND external URLs that aren't the client domain
       html = html.replace(/<a([^>]*)>([\s\S]*?)<\/a>/gi, (match: string, attrs: string, inner: string) => {

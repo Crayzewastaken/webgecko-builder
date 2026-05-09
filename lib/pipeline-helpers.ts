@@ -809,32 +809,6 @@ export function injectEssentials(html: string, email: string, phone: string, job
   const script = `
 <script>
 (function() {
-// ── Fix navigateTo targets — Stitch often wires all nav links to 'home' ──────
-(function() {
-  var labelMap = {
-    "home": "home", "about": "about", "about us": "about",
-    "services": "services", "our services": "services",
-    "booking": "booking", "book": "booking", "book now": "booking",
-    "appointments": "booking", "schedule": "booking",
-    "contact": "contact", "contact us": "contact", "get in touch": "contact",
-    "faq": "faq", "faqs": "faq", "frequently asked": "faq",
-    "testimonials": "testimonials", "reviews": "testimonials",
-    "gallery": "gallery", "portfolio": "gallery",
-    "pricing": "pricing", "plans": "pricing",
-    "blog": "blog", "news": "blog",
-  };
-  document.querySelectorAll("a[onclick*='navigateTo'], button[onclick*='navigateTo']").forEach(function(el) {
-    var txt = (el.textContent || "").trim().toLowerCase();
-    var target = labelMap[txt];
-    if (!target) return;
-    var oc = el.getAttribute("onclick") || "";
-    // Only fix if current target is wrong (e.g. 'home' when text says 'booking')
-    var currentTarget = (oc.match(/navigateTo\\(['"](\\w+)['"]\\)/) || [])[1];
-    if (currentTarget && currentTarget !== target) {
-      el.setAttribute("onclick", oc.replace(/navigateTo\\(['"](\\w+)['"]\\)/, "navigateTo('" + target + "')"));
-    }
-  });
-})();
 // Authoritative navigateTo — always defined here, Stitch version stripped in Step 5.
 // Handles multi-page (fade transition) and single-page (smooth scroll).
 window.navigateTo = function(pageId) {
@@ -898,7 +872,7 @@ document.querySelectorAll("a,button").forEach(function(el) {
   if (oc.includes("navigateTo")) return;
   if (dn) { el.addEventListener("click", function(e) { e.preventDefault(); window.navigateTo(dn); }); return; }
   if (dp) { el.addEventListener("click", function(e) { e.preventDefault(); window.navigateTo(dp); }); return; }
-  if (hr.startsWith("#") && hr.length > 1) { el.addEventListener("click", function(e) { var t = document.querySelector(hr); if (t) { e.preventDefault(); t.scrollIntoView({ behavior: "smooth" }); } }); }
+  if (hr.startsWith("#") && hr.length > 1) { el.addEventListener("click", function(e) { e.preventDefault(); window.navigateTo(hr.substring(1)); }); }
 });
 // Hamburger — catches id="hamburger", id="menu-toggle", class*=hamburger, aria-label patterns
 document.querySelectorAll("#hamburger,#hamburger-btn,#menu-toggle,[class*='hamburger'],[aria-label='Open menu'],[aria-label='Menu'],[aria-label='Toggle menu']").forEach(function(btn) {
