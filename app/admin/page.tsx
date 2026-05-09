@@ -172,38 +172,35 @@ function ActionBtn({ label, color, confirm, onConfirm, fill=false, toast }: {
 
 // ── Preview frame ──────────────────────────────────────────────────────────────
 function PreviewFrame({ previewUrl, builtAt }: { previewUrl:string; builtAt?:string }) {
-  const [thumbErr, setThumbErr] = useState(false);
-  const [key, setKey] = useState(() => builtAt ? new Date(builtAt).getTime() : Math.floor(Date.now()/60000));
-  const [refreshing, setRefreshing] = useState(false);
+  const [key, setKey] = useState(()=>Date.now());
   const prevRef = useRef(builtAt);
-  useEffect(() => {
-    if (builtAt && builtAt!==prevRef.current) { prevRef.current=builtAt; setKey(new Date(builtAt).getTime()); setThumbErr(false); }
-  }, [builtAt]);
-  const bust = `${previewUrl}${previewUrl.includes("?")?"&":"?"}_wg=${key}`;
-  const thumb = `https://api.screenshotone.com/take?url=${encodeURIComponent(bust)}&viewport_width=1280&viewport_height=800&format=jpg&image_quality=80&block_ads=true&cache=false&delay=3`;
-  const doRefresh = () => { setThumbErr(false); setRefreshing(true); setKey(Math.floor(Date.now()/1000)); setTimeout(()=>setRefreshing(false),6000); };
+  useEffect(()=>{
+    if(builtAt!==prevRef.current){prevRef.current=builtAt;setKey(Date.now());}
+  },[builtAt]);
+  const doRefresh = ()=>setKey(Date.now());
+  // Scale 1280px iframe to fit ~710px panel content width
+  const SCALE=0.55, IW=1280, IH=800;
+  const containerH=Math.round(IH*SCALE);
+  const src=`${previewUrl}${previewUrl.includes("?")?"&":"?"}_wg=${key}`;
   return (
-    <div style={{ borderRadius:12, overflow:"hidden", border:`1px solid ${T.border}` }}>
-      <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:T.surface, borderBottom:`1px solid ${T.border}` }}>
-        <div style={{ display:"flex", gap:5 }}>
-          {["#ff5f57","#febc2e","#28c840"].map((c,i)=><div key={i} style={{ width:10,height:10,borderRadius:"50%",background:c }}/>)}
+    <div style={{borderRadius:12,overflow:"hidden",border:`1px solid ${T.border}`}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:T.surface,borderBottom:`1px solid ${T.border}`}}>
+        <div style={{display:"flex",gap:5}}>
+          {["#ff5f57","#febc2e","#28c840"].map((c,i)=><div key={i} style={{width:10,height:10,borderRadius:"50%",background:c}}/>)}
         </div>
-        <div style={{ flex:1, background:T.raised, borderRadius:6, padding:"3px 10px", fontSize:11, color:T.textMuted, fontFamily:"monospace", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const }}>{previewUrl}</div>
-        <button onClick={doRefresh} disabled={refreshing} style={{ background:"none", border:`1px solid ${T.border}`, borderRadius:6, padding:"3px 8px", fontSize:12, cursor:refreshing?"wait":"pointer", color:T.textMuted }}>
-          {refreshing?"⏳":"↺"}
-        </button>
-        <a href={previewUrl} target="_blank" rel="noreferrer" style={{ background:T.green+"20", color:T.green, border:`1px solid ${T.green}35`, borderRadius:6, padding:"3px 10px", fontSize:11, fontWeight:700, textDecoration:"none" }}>Open →</a>
+        <div style={{flex:1,background:T.raised,borderRadius:6,padding:"3px 10px",fontSize:11,color:T.textMuted,fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" as const}}>{previewUrl}</div>
+        <button onClick={doRefresh} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:6,padding:"3px 8px",fontSize:12,cursor:"pointer",color:T.textMuted}}>↺</button>
+        <a href={previewUrl} target="_blank" rel="noreferrer" style={{background:T.green+"20",color:T.green,border:`1px solid ${T.green}35`,borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700,textDecoration:"none"}}>Open →</a>
       </div>
-      <a href={previewUrl} target="_blank" rel="noreferrer" style={{ display:"block", position:"relative" }}>
-        {refreshing && <div style={{ position:"absolute", inset:0, background:T.raised+"cc", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1, fontSize:13, color:T.textMuted }}>Taking screenshot…</div>}
-        {!thumbErr
-          ? <img key={key} src={thumb} alt="Preview" onError={()=>setThumbErr(true)} style={{ width:"100%", display:"block", maxHeight:380, objectFit:"cover", objectPosition:"top" }}/>
-          : <div style={{ height:240, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, color:T.textMuted }}>
-              <div style={{ fontSize:28 }}>🌐</div>
-              <div style={{ fontSize:13, color:T.textSec, fontWeight:600 }}>Click to open site</div>
-              <button onClick={e=>{e.preventDefault();doRefresh();}} style={{ fontSize:11,color:T.blue,background:"none",border:"none",cursor:"pointer",textDecoration:"underline" }}>Retry screenshot</button>
-            </div>}
-      </a>
+      <div style={{position:"relative",height:containerH,overflow:"hidden",background:T.raised}}>
+        <iframe
+          key={key}
+          src={src}
+          style={{width:IW,height:IH,border:"none",transform:`scale(${SCALE})`,transformOrigin:"top left",pointerEvents:"none"}}
+          sandbox="allow-scripts allow-same-origin"
+          title="Site preview"
+        />
+      </div>
     </div>
   );
 }

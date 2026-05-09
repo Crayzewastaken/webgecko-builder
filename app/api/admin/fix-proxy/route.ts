@@ -80,15 +80,29 @@ export async function GET(req: NextRequest) {
     html = html.replace(/\b0400\s000\s000\b/g, clientPhone);
     html = html.replace(/\+61\s0[0-9]{3}\s000\s000/g, clientPhone);
 
-    // FIX 2: CTA buttons
+    // FIX 2: CTA buttons — <a href="#"> and standalone <button> elements
     const bookingNavTarget = hasBookingFeature ? "booking" : "contact";
     const ctaKeywords = ['Book Now','Book a Session','Get Started','Join Now','Sign Up','Free Trial','Book Free','Reserve','Enquire Now','Get a Quote','Start Today','Book Today','Schedule Now','Try Free','Get Free Quote','Book Consultation'];
+    const planKeywords = ['choose','select plan','buy now','purchase','subscribe','get plan','upgrade'];
+    const navSnippet = (target: string) => `var el=document.getElementById('${target}');if(el){el.scrollIntoView({behavior:'smooth'});}else if(window.navigateTo){window.navigateTo('${target}');}`;
+    // <a href="#"> CTAs
     html = html.replace(/<a([^>]*href=["']#["'][^>]*)>([\s\S]*?)<\/a>/g, (match: string, attrs: string, inner: string) => {
       const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
+      if (attrs.includes('onclick')) return match;
       const isBooking = ctaKeywords.some(k => txt.includes(k.toLowerCase()));
-      if (isBooking && !attrs.includes('navigateTo') && !attrs.includes('onclick')) {
-        return `<a${attrs} onclick="event.preventDefault();var el=document.getElementById('${bookingNavTarget}');if(el){el.scrollIntoView({behavior:'smooth'});}else if(window.navigateTo){window.navigateTo('${bookingNavTarget}');}">${inner}</a>`;
-      }
+      if (isBooking) return `<a${attrs} onclick="event.preventDefault();${navSnippet(bookingNavTarget)}">${inner}</a>`;
+      const isPlan = planKeywords.some(k => txt.includes(k));
+      if (isPlan) return `<a${attrs} onclick="event.preventDefault();${navSnippet('contact')}">${inner}</a>`;
+      return match;
+    });
+    // <button> CTAs that have no onclick — plan selection buttons (Choose Starter, etc.)
+    html = html.replace(/<button([^>]*)>([\s\S]*?)<\/button>/g, (match: string, attrs: string, inner: string) => {
+      if (attrs.includes('onclick') || attrs.includes('type="submit"') || attrs.includes("type='submit'")) return match;
+      const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
+      const isBooking = ctaKeywords.some(k => txt.includes(k.toLowerCase()));
+      if (isBooking) return `<button${attrs} onclick="${navSnippet(bookingNavTarget)}">${inner}</button>`;
+      const isPlan = planKeywords.some(k => txt.includes(k)) || /^choose\b|^select\b/.test(txt);
+      if (isPlan) return `<button${attrs} onclick="${navSnippet('contact')}">${inner}</button>`;
       return match;
     });
 
@@ -96,16 +110,24 @@ export async function GET(req: NextRequest) {
     const businessAddress = userInput?.businessAddress || "";
     if (businessAddress && process.env.GOOGLE_MAPS_API_KEY) {
       const mapsEmbed = `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`;
+      // Remove Stitch-generated fake canvas/SVG maps so we don't end up with two maps
+      html = html.replace(/<(div|section)([^>]*(?:id|class)="[^"]*(?:map|location|directions|gmap)[^"]*"[^>]*)>([\s\S]*?)<\/(div|section)>/gi, (m: string, tag: string, attrs: string, body: string, closeTag: string) => {
+        if (body.includes('<canvas') || (body.includes('<svg') && (body.includes('stroke') || body.includes('path')))) {
+          return `<${tag}${attrs}></${closeTag}>`;
+        }
+        return m;
+      });
       if (!html.includes('maps.google') && !html.includes('maps.embed') && !html.includes('google.com/maps')) {
         let mapInjected = false;
         const beforeLen = html.length;
         html = html.replace(/<div[^>]*>\s*MAP PLACEHOLDER[^<]*<\/div>/gi, mapsEmbed);
         if (html.length !== beforeLen) mapInjected = true;
+        // Target div OR section with map-related id/class
         if (!mapInjected) {
-          html = html.replace(/<div([^>]*(?:id|class)="[^"]*(?:map|location|directions|gmap)[^"]*"[^>]*)>([\s\S]*?)<\/div>/gi, (match: string, attrs: string) => {
+          html = html.replace(/<(div|section)([^>]*(?:id|class)="[^"]*(?:map|location|directions|gmap)[^"]*"[^>]*)>([\s\S]*?)<\/(div|section)>/gi, (match: string, tag: string, attrs: string, body: string, closeTag: string) => {
             if (match.includes('iframe')) return match;
             mapInjected = true;
-            return `<div${attrs}>${mapsEmbed}</div>`;
+            return `<${tag}${attrs}>${mapsEmbed}</${closeTag}>`;
           });
         }
         if (!mapInjected) {
