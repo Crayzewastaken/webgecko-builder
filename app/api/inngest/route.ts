@@ -433,19 +433,28 @@ const buildWebsite = inngest.createFunction(
 
       const ctaKeywords = [
         'book now','book a session','book a call','book a consult','book consultation','book free',
-        'get started','get a quote','get free quote','get quote',
+        'get started','get a quote','get free quote','get quote','get in touch',
         'join now','sign up','free trial','try free','start today','start free',
+        'start starter','start business','start premium','start plan','start now',
         'reserve','enquire now','enquire','contact us','contact','send message',
         'schedule now','schedule a call','learn more','find out more','discover more',
         'request a quote','request quote','claim offer','claim now','apply now',
         'speak to us','talk to us','call us','email us','reach out',
-        'book today','order now','buy now',
+        'book today','order now','buy now','explore capability','explore','launch',
       ];
       // CTA always scrolls within the site: to booking if booking feature, else contact section.
       // existingWebsite is reference-only and is never used as a CTA destination.
       // Use navigateTo exclusively — it handles both single-page scroll and multi-page
       // show/hide correctly. scrollIntoView fails silently on hidden elements in multi-page sites.
       const ctaOnclick = `event.preventDefault();window.navigateTo&&window.navigateTo('${bookingNavTarget}')`;
+
+      // Hard sweep: replace ANY link pointing to webgecko-builder or generic vercel domains with CTA scroll
+      // This catches Stitch hard-coding the builder URL regardless of button text
+      html = html.replace(/<a([^>]*)href=["']https?:\/\/(?:[\w-]+\.)?(?:webgecko-builder|vercel)\.(?:app|com|io)[^"']*["']([^>]*)>([\s\S]*?)<\/a>/gi, (_m: string, pre: string, post: string, inner: string) => {
+        const cleanPre = pre.replace(/\s*onclick=["'][^"']*["']/gi, '');
+        const cleanPost = post.replace(/\s*onclick=["'][^"']*["']/gi, '');
+        return `<a${cleanPre}${cleanPost} href="#" onclick="${ctaOnclick}">${inner}</a>`;
+      });
 
       // Wire <a> CTA links — catches ALL hrefs: #, empty, void, AND external URLs that aren't the client domain
       html = html.replace(/<a([^>]*)>([\s\S]*?)<\/a>/gi, (match: string, attrs: string, inner: string) => {
@@ -522,32 +531,43 @@ const buildWebsite = inngest.createFunction(
         html = html.replace(/<iframe[^>]*(?:google\.com\/maps|maps\.googleapis|openstreetmap)[^>]*>[\s\S]*?<\/iframe>/gi, '');
         // Also strip bare <a href="...maps..."> links Stitch sometimes generates instead of iframes
         html = html.replace(/<a[^>]*href=["'][^"']*(?:google\.com\/maps|maps\.googleapis\.com)[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '');
-        if (true) {
-          let mapInjected = false;
-          const beforeMapLen = html.length;
-          html = html.replace(/<div[^>]*>\s*MAP PLACEHOLDER[^<]*<\/div>/gi, mapsEmbed);
-          if (html.length !== beforeMapLen) mapInjected = true;
-          if (!mapInjected) {
-            html = html.replace(/<div([^>]*(?:id|class)="[^"]*(?:map|location|directions|gmap)[^"]*"[^>]*)>([\s\S]*?)<\/div>/gi, (match: string, attrs: string) => {
-              if (match.includes('iframe')) return match;
-              mapInjected = true;
-              return `<div${attrs}>${mapsEmbed}</div>`;
-            });
+        // Always inject map as a full-width block AFTER the contact section, never inside it.
+        // This prevents the map overlapping the two-column contact layout.
+        const mapBlock = `<div id="map-section" style="width:100%;padding:0 0 60px;background:inherit;">${mapsEmbed}</div>`;
+        let mapInjected = false;
+
+        // 1. Replace explicit MAP PLACEHOLDER divs
+        const beforeMapLen = html.length;
+        html = html.replace(/<div[^>]*>\s*MAP PLACEHOLDER[^<]*<\/div>/gi, mapBlock);
+        if (html.length !== beforeMapLen) mapInjected = true;
+
+        // 2. Replace existing map-class divs (e.g. Stitch put a placeholder div)
+        if (!mapInjected) {
+          html = html.replace(/<div([^>]*(?:id|class)="[^"]*(?:^map$|^map-|location-map|directions|gmap)[^"]*"[^>]*)>([\s\S]*?)<\/div>/gi, (match: string, attrs: string) => {
+            if (match.includes('iframe')) return match;
+            mapInjected = true;
+            return mapBlock;
+          });
+        }
+
+        // 3. Inject AFTER the closing tag of id="contact", not inside it
+        if (!mapInjected) {
+          html = html.replace(/(<\/(?:section|div)>)(\s*(?=<(?:section|div|footer)[^>]*(?:id="(?:footer|testimonials|faq|blog|newsletter|cta)|class="[^"]*footer)|<footer))/, (match: string, closeTag: string, after: string) => {
+            // Find the contact section close tag by checking if we just closed contact
+            return match; // placeholder — handled below
+          });
+          // Simpler: find </section> or </div> right after id="contact" body and insert after
+          const contactCloseMatch = html.match(/(<(?:section|div)[^>]*id="contact"[^>]*>[\s\S]*?<\/(?:section|div)>)/i);
+          if (contactCloseMatch) {
+            const idx = html.indexOf(contactCloseMatch[0]) + contactCloseMatch[0].length;
+            html = html.slice(0, idx) + "\n" + mapBlock + html.slice(idx);
+            mapInjected = true;
           }
-          if (!mapInjected) {
-            // Try id="contact" section (auditor ensures this exists)
-            html = html.replace(/(<(?:section|div)[^>]*id="contact"[^>]*>)([\s\S]*?)(<\/(?:section|div)>)/i, (_match: string, open: string, body: string, close: string) => {
-              if (_match.includes('iframe')) return _match;
-              mapInjected = true;
-              const lastDiv = body.lastIndexOf('</div>');
-              if (lastDiv !== -1) return open + body.slice(0, lastDiv) + mapsEmbed + body.slice(lastDiv) + close;
-              return open + body + mapsEmbed + close;
-            });
-          }
-          if (!mapInjected) {
-            // Last resort: inject map block before </body>
-            html = html.replace("</body>", `<div style="padding:40px 24px;background:#0a0f1a;">${mapsEmbed}</div>\n</body>`);
-          }
+        }
+
+        // 4. Last resort: before </body>
+        if (!mapInjected) {
+          html = html.replace("</body>", mapBlock + "\n</body>");
         }
       }
 
