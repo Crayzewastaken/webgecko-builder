@@ -158,10 +158,14 @@ const buildWebsite = inngest.createFunction(
     // Handles: "All CTA buttons should link to https://...", "link to https://...", etc.
     // Takes priority over bookingUrl for general/booking CTAs when set.
     const ctaExternalUrl = (() => {
+      const internalDomains = ["webgecko-builder.vercel.app", "webgecko.au", "localhost"];
       const sources = [userInput.additionalNotes || "", userInput.goal || ""];
       for (const text of sources) {
         const m = text.match(/(?:link\s+to|point\s+to|go\s+to|direct\s+to|should\s+link\s+to|cta[^.\n]*?:?\s+)(https?:\/\/[^\s,;)\n]+)/i);
-        if (m) return m[1].replace(/[.,;)]+$/, "");
+        if (m) {
+          const url = m[1].replace(/[.,;)]+$/, "");
+          if (!internalDomains.some(d => url.includes(d))) return url;
+        }
       }
       return "";
     })();
@@ -240,14 +244,18 @@ const buildWebsite = inngest.createFunction(
           let url = await screen.getHtml();
           console.log(`[Inngest] STEP 3: getHtml() from generate response — url length=${url?.length ?? 0}`);
 
-          // If generate() response didn't include htmlCode.downloadUrl, fetch it explicitly via get_screen
+          // If generate() response didn't include htmlCode.downloadUrl, poll via get_screen
           if (!url && screen.screenId) {
             console.log(`[Inngest] STEP 3: retrying via project.getScreen(${screen.screenId})`);
-            for (let poll = 1; poll <= 5; poll++) {
-              await sleep(5000 * poll);
+            // Intervals: 6s × 5, then 10s × 7 = 100s total polling window
+            const pollIntervals = [6,6,6,6,6,10,10,10,10,10,10,10];
+            for (let poll = 1; poll <= pollIntervals.length; poll++) {
+              await sleep(pollIntervals[poll - 1] * 1000);
               try {
+                // Try fresh getScreen first, fall back to retrying on the original screen object
                 const freshScreen = await stitchSdk.project(projectId).getScreen(screen.screenId);
                 url = await freshScreen.getHtml();
+                if (!url) url = await screen.getHtml();
                 console.log(`[Inngest] STEP 3: get_screen poll ${poll} — url length=${url?.length ?? 0}`);
                 if (url) break;
               } catch (pe: any) {
