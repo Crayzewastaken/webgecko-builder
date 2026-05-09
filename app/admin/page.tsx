@@ -209,7 +209,7 @@ function PreviewFrame({ previewUrl, builtAt }: { previewUrl:string; builtAt?:str
 }
 
 // ── Client HTML upload ─────────────────────────────────────────────────────────
-function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:"ok"|"err")=>void }) {
+function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
   const [files, setFiles] = useState<{name:string;label:string;size:number;createdAt:string}[]>([]);
   const [uploading, setUploading] = useState(false);
   const [label, setLabel] = useState("");
@@ -264,7 +264,7 @@ function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:
 }
 
 // ── Client slide-over panel ────────────────────────────────────────────────────
-function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:string; onClose:()=>void; toast:(msg:string,t:"ok"|"err")=>void }) {
+function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:string; onClose:()=>void; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
   const [tab, setTab] = useState<"overview"|"analytics"|"seo"|"site"|"payments"|"actions"|"requests">("overview");
   const [featureRequests, setFeatureRequests] = useState<any[]>([]);
   const [frLoading, setFrLoading] = useState(false);
@@ -769,7 +769,7 @@ function ClientCard({ c, secret, dark, toast }: { c:ClientAnalytics; secret:stri
 }
 
 // ── Example HTML library ───────────────────────────────────────────────────────
-function ExampleHtmlsPanel({ toast }: { toast:(msg:string,t:"ok"|"err")=>void }) {
+function ExampleHtmlsPanel({ toast }: { toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
   const [files, setFiles] = useState<{name:string;label:string;industry:string;size:number;createdAt:string}[]>([]);
   const [open, setOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
