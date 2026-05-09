@@ -9,7 +9,7 @@ import {
   getServicesForIndustry,
 } from "@/lib/pipeline-helpers";
 import { generateBookingWidget } from "@/lib/booking-widget";
-import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailability } from "@/lib/db";
+import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailability, appendPipelineLog } from "@/lib/db";
 import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 
 export const maxDuration = 300;
@@ -44,8 +44,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
+  let job: Awaited<ReturnType<typeof getJob>> | null = null;
   try {
-    const job = await getJob(jobId);
+    job = await getJob(jobId);
     if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
     const { userInput, logoUrl, heroUrl, photoUrls = [], productsWithPhotos = [], hasBooking, clientSlug } = job;
@@ -210,10 +211,13 @@ export async function GET(req: NextRequest) {
       });
     } catch (e) { console.error("[Fix-Proxy] Email failed:", e); }
 
+    await appendPipelineLog(jobId, { level: "info", step: "fix_proxy", msg: `Fix pass complete → ${stableUrl}`, businessName: userInput?.businessName });
     return NextResponse.json({ ok: true, previewUrl: stableUrl, businessName: userInput?.businessName });
 
   } catch (err) {
+    const errMsg = err instanceof Error ? err.message : "Unknown error";
     console.error("[Fix-Proxy] Error:", err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 });
+    await appendPipelineLog(jobId, { level: "error", step: "fix_proxy", msg: errMsg, businessName: job?.userInput?.businessName }).catch(()=>{});
+    return NextResponse.json({ error: errMsg }, { status: 500 });
   }
 }

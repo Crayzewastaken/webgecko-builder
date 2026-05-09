@@ -910,6 +910,61 @@ function Skeleton() {
   );
 }
 
+// ── Pipeline logs panel ────────────────────────────────────────────────────────
+function PipelineLogsPanel() {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lvl, setLvl] = useState<"all"|"warn"|"error">("all");
+
+  async function load() {
+    setLoading(true);
+    try { const r=await fetch("/api/admin/logs"); if(r.ok){const d=await r.json();setLogs(d.logs||[]);} }
+    catch {} finally { setLoading(false); }
+  }
+  useEffect(()=>{load();const iv=setInterval(load,30000);return()=>clearInterval(iv);},[]);
+
+  const filtered = lvl==="all" ? logs : logs.filter(l=>l.level===lvl);
+  const lvlColor = (l:string) => l==="error"?T.red:l==="warn"?T.amber:T.textMuted;
+  const lvlBg   = (l:string) => l==="error"?T.red+"15":l==="warn"?T.amber+"15":T.raised;
+
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,flexWrap:"wrap" as const}}>
+        <div style={{fontSize:12,color:T.textMuted,fontWeight:600,marginRight:4}}>Filter:</div>
+        {(["all","warn","error"] as const).map(f=>(
+          <button key={f} onClick={()=>setLvl(f)} style={{padding:"5px 14px",fontSize:12,fontWeight:lvl===f?600:400,color:lvl===f?T.text:T.textMuted,background:lvl===f?T.raised:"transparent",border:lvl===f?`1px solid ${T.border}`:"1px solid transparent",borderRadius:6,cursor:"pointer"}}>
+            {f==="all"?"All":f.charAt(0).toUpperCase()+f.slice(1)}
+            {f!=="all"&&<span style={{marginLeft:5,color:lvlColor(f),fontWeight:700}}>{logs.filter(l=>l.level===f).length}</span>}
+          </button>
+        ))}
+        <button onClick={load} style={{marginLeft:"auto",background:T.raised,border:`1px solid ${T.border}`,color:T.textMuted,borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer"}}>↻ Refresh</button>
+      </div>
+      {loading&&<div style={{color:T.textMuted,fontSize:13,padding:"40px 0",textAlign:"center" as const}}>Loading logs…</div>}
+      {!loading&&filtered.length===0&&(
+        <div style={{textAlign:"center" as const,padding:"60px 0",color:T.textMuted}}>
+          <div style={{fontSize:32,marginBottom:10}}>✅</div>
+          <div style={{fontSize:14,fontWeight:600,color:T.textSec}}>No {lvl==="all"?"":lvl} log entries</div>
+        </div>
+      )}
+      {!loading&&filtered.length>0&&(
+        <div style={{display:"flex",flexDirection:"column" as const,gap:4}}>
+          {filtered.map((l,i)=>(
+            <div key={i} style={{background:lvlBg(l.level),border:`1px solid ${lvlColor(l.level)}25`,borderRadius:8,padding:"10px 14px",display:"grid",gridTemplateColumns:"auto auto auto 1fr",gap:"0 14px",alignItems:"start"}}>
+              <span style={{fontSize:10,fontWeight:700,color:lvlColor(l.level),background:lvlColor(l.level)+"20",borderRadius:4,padding:"2px 7px",whiteSpace:"nowrap" as const,marginTop:1}}>{l.level.toUpperCase()}</span>
+              <span style={{fontSize:11,color:T.textMuted,fontFamily:"monospace",whiteSpace:"nowrap" as const}}>{l.ts ? new Date(l.ts).toLocaleString("en-AU",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",second:"2-digit"}) : ""}</span>
+              <span style={{fontSize:11,color:T.blue,background:T.blue+"12",borderRadius:4,padding:"2px 7px",fontFamily:"monospace",whiteSpace:"nowrap" as const}}>{l.step||"—"}</span>
+              <div>
+                {l.businessName&&<span style={{fontSize:11,fontWeight:600,color:T.text,marginRight:8}}>{l.businessName}</span>}
+                <span style={{fontSize:11,color:T.textSec,wordBreak:"break-word" as const}}>{l.msg}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Admin dashboard ────────────────────────────────────────────────────────────
 function AdminDashboard() {
   const [dark, setDark] = useState(true);
@@ -919,6 +974,7 @@ function AdminDashboard() {
   const [clients, setClients] = useState<ClientAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [view, setView] = useState<"clients"|"logs">("clients");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all"|"active"|"building"|"unpaid">("all");
   const [sort, setSort] = useState<"views"|"name"|"status">("views");
@@ -1040,6 +1096,18 @@ function AdminDashboard() {
         {/* Error */}
         {error&&<div style={{ background:T.red+"0a",border:`1px solid ${T.red}25`,borderRadius:10,padding:"14px 18px",color:T.red,marginBottom:20,fontSize:13 }}>{error}</div>}
 
+        {/* View toggle */}
+        <div style={{ display:"flex",gap:4,background:T.surface,border:`1px solid ${T.border}`,borderRadius:8,padding:3,marginBottom:16,width:"fit-content" }}>
+          {(["clients","logs"] as const).map(v=>(
+            <button key={v} onClick={()=>setView(v)} style={{ padding:"6px 18px",fontSize:12,fontWeight:view===v?600:400,color:view===v?T.text:T.textMuted,background:view===v?T.raised:"transparent",border:view===v?`1px solid ${T.border}`:"1px solid transparent",borderRadius:6,cursor:"pointer",transition:"all 0.15s" }}>
+              {v==="clients"?"Clients":"Pipeline Logs"}
+            </button>
+          ))}
+        </div>
+
+        {view==="logs"&&<PipelineLogsPanel/>}
+
+        {view==="clients"&&(<>
         {/* Search + filters */}
         <div style={{ display:"flex",gap:10,marginBottom:16,flexWrap:"wrap" as const,alignItems:"center" }}>
           <input type="text" placeholder="Search clients by name or industry…" value={search} onChange={e=>setSearch(e.target.value)} style={inp}/>
@@ -1082,6 +1150,7 @@ function AdminDashboard() {
         )}
 
         {!loading&&<ExampleHtmlsPanel toast={toast}/>}
+        </>)}
 
       </div>
     </div>
