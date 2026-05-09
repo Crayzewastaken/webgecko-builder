@@ -317,8 +317,10 @@ const buildWebsite = inngest.createFunction(
       }
 
       // 2. Wire existing hamburger/SVG menu button OR inject our own if missing
-      const hasHamburger = html.includes('id="hamburger"') || html.includes("id='hamburger'");
-      const hasMobileMenu = html.includes('id="mobile-menu"') || html.includes("id='mobile-menu'");
+      // Tailwind exports use md:hidden / lg:hidden on a button — treat that as a native mobile nav
+      const hasTailwindMobileNav = /class="[^"]*(?:md|lg|sm):hidden[^"]*"/.test(html);
+      const hasHamburger = html.includes('id="hamburger"') || html.includes("id='hamburger'") || hasTailwindMobileNav;
+      const hasMobileMenu = html.includes('id="mobile-menu"') || html.includes("id='mobile-menu'") || hasTailwindMobileNav;
 
       if (!hasHamburger) {
         // Try to wire an existing button that looks like a hamburger (SVG icon, aria-label, data-*)

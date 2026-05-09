@@ -268,7 +268,9 @@ function jobToDbJob(id: string, job: Record<string, any>) {
     ...(job.squareMerchantId !== undefined ? { square_merchant_id: job.squareMerchantId } : {}),
     ...(job.squareLocationId !== undefined ? { square_location_id: job.squareLocationId } : {}),
     // Metadata jsonb — stores sub-user creds, extra intake fields, etc.
-    ...(job.metadata !== undefined ? { metadata: job.metadata } : {}),
+    ...(job.metadata !== undefined || job.builtAt !== undefined ? {
+      metadata: { ...(job.metadata || {}), ...(job.builtAt ? { builtAt: job.builtAt } : {}) }
+    } : {}),
   };
 }
 
@@ -289,6 +291,7 @@ function dbJobToJob(row: Record<string, any>) {
     hasBooking: row.has_booking,
     userInput: row.user_input,
     fixedAt: row.fixed_at,
+    builtAt: row.metadata?.builtAt || row.fixed_at || null,
     createdAt: row.created_at,
     supersaasUrl: row.supersaas_url,
     supersaasId: row.supersaas_id,

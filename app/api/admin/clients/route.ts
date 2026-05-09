@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
       previewUrl: c.preview_url || job.preview_url || "",
       buildStatus: job.status || "pending",
       hasBooking: job.has_booking || false,
-      builtAt: job.created_at || c.created_at || null,
+      builtAt: job.metadata?.builtAt || job.fixed_at || job.created_at || c.created_at || null,
       domain: c.domain || userInput.domain || "",
       liveDomain: userInput.domain || "",
       liveUrl: c.preview_url || job.preview_url || "",

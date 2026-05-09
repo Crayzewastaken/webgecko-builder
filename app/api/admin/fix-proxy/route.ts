@@ -171,7 +171,8 @@ export async function GET(req: NextRequest) {
     const stableUrl = await deployToVercel(html, vercelProjectName);
 
     // Save to Supabase
-    await saveJob(jobId, { ...job, html, previewUrl: stableUrl, fixedAt: new Date().toISOString() });
+    const now = new Date().toISOString();
+    await saveJob(jobId, { ...job, html, previewUrl: stableUrl, fixedAt: now, builtAt: now });
     if (clientSlug) {
       const existingClient = await getClient(clientSlug);
       if (existingClient) await saveClient(clientSlug, { ...existingClient, preview_url: stableUrl });
