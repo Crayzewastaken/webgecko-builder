@@ -243,10 +243,24 @@ export async function generateSiteBlueprint(context: {
     exampleHtmls = [],
   } = context;
 
-  // Extract city/location from businessAddress for SERP + LSI queries
-  const location = businessAddress
-    ? businessAddress.split(",").slice(-2).join(",").trim()
-    : "Australia";
+  // Extract suburb/city from address for SERP + LSI — never use the full street address.
+  // "9 kondalilla parade forest lake" → "forest lake"
+  // "123 Main St, Brisbane QLD 4000" → "Brisbane QLD"
+  const location = (() => {
+    if (!businessAddress) return "Australia";
+    const parts = businessAddress.split(",");
+    if (parts.length >= 2) {
+      return parts.slice(-2).join(",").trim().replace(/\s*\d{4}\s*$/, "").trim();
+    }
+    // No commas — strip leading number and street-type words, keep suburb/city at the end
+    const cleaned = businessAddress
+      .replace(/^\d+[a-zA-Z]?\s+/, "")
+      .replace(/\b(?:street|st|road|rd|avenue|ave|drive|dr|parade|pde|place|pl|court|ct|way|lane|ln|boulevard|blvd|crescent|cres|close|circuit|cct|highway|hwy|terrace|tce|grove|gr|rise|row|square|sq|walk|track)\b/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    const words = cleaned.split(/\s+/).filter((w: string) => w.length > 1);
+    return words.slice(-2).join(" ") || businessAddress;
+  })();
 
   // ── Pre-step A: SERP intelligence + LSI keywords (parallel, non-blocking) ──
   const [serpInsights, lsiKeywords] = await Promise.all([

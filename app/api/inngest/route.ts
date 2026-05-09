@@ -154,6 +154,19 @@ const buildWebsite = inngest.createFunction(
       });
 
 
+    // ── Parse explicit CTA destination URL from additionalNotes / goal ────────
+    // Handles: "All CTA buttons should link to https://...", "link to https://...", etc.
+    // Takes priority over bookingUrl for general/booking CTAs when set.
+    const ctaExternalUrl = (() => {
+      const sources = [userInput.additionalNotes || "", userInput.goal || ""];
+      for (const text of sources) {
+        const m = text.match(/(?:link\s+to|point\s+to|go\s+to|direct\s+to|should\s+link\s+to|cta[^.\n]*?:?\s+)(https?:\/\/[^\s,;)\n]+)/i);
+        if (m) return m[1].replace(/[.,;)]+$/, "");
+      }
+      return "";
+    })();
+    if (ctaExternalUrl) console.log(`[Route] ctaExternalUrl parsed from notes: ${ctaExternalUrl}`);
+
     // ── STEP 1: Claude Haiku — Site Blueprint (Brain 1: Architect) ──────────
     // Fetch any admin-uploaded example HTMLs for this industry to use as reference
     const exampleHtmls = savedHtmlForRebuild ? [] : await step.run("step1a-example-htmls", async () => {
@@ -453,15 +466,23 @@ const buildWebsite = inngest.createFunction(
       ];
       const allCtaKeywords = [...bookingCtaKeywords, ...contactCtaKeywords, ...generalCtaKeywords];
 
+      // ctaExternalUrl: explicit URL from additionalNotes/goal takes top priority.
+      // Falls back to bookingUrl when hasBookingFeature is false (user provided own booking link).
+      const effectiveExternalCta = ctaExternalUrl || (bookingUrl && !hasBookingFeature ? bookingUrl : "");
+      // Domain of the explicitly requested CTA URL — used to whitelist it in the hard sweep below.
+      const ctaExternalDomain = effectiveExternalCta
+        ? effectiveExternalCta.replace(/^https?:\/\/(?:www\.)?/, "").split("/")[0].toLowerCase()
+        : "";
+
       // Booking CTA destination:
-      // - If user supplied an external booking URL without embedding it (no hasBookingFeature),
-      //   open that URL in a new tab so the click is useful.
-      // - Otherwise scroll to #booking (embedded iframe) or #contact if no booking at all.
-      const bookingCtaOnclick = bookingUrl && !hasBookingFeature
-        ? `window.open('${bookingUrl}','_blank')`
+      const bookingCtaOnclick = effectiveExternalCta
+        ? `window.open('${effectiveExternalCta}','_blank')`
         : `event.preventDefault();window.navigateTo&&window.navigateTo('${hasBookingFeature ? "booking" : "contact"}')`;
       const contactCtaOnclick = `event.preventDefault();window.navigateTo&&window.navigateTo('contact')`;
-      const generalCtaOnclick = `event.preventDefault();window.navigateTo&&window.navigateTo('${bookingNavTarget}')`;
+      // General CTAs (Get Started, Explore, etc.) use explicit CTA URL when provided
+      const generalCtaOnclick = effectiveExternalCta
+        ? `window.open('${effectiveExternalCta}','_blank')`
+        : `event.preventDefault();window.navigateTo&&window.navigateTo('${bookingNavTarget}')`;
 
       const getCtaOnclick = (txt: string): string => {
         if (bookingCtaKeywords.some((k: string) => txt.includes(k))) return bookingCtaOnclick;
@@ -469,13 +490,15 @@ const buildWebsite = inngest.createFunction(
         return generalCtaOnclick;
       };
 
-      // Hard sweep: replace ANY link pointing to webgecko-builder or generic vercel domains
-      // This catches Stitch hard-coding the builder URL regardless of button text
-      html = html.replace(/<a([^>]*)href=["']https?:\/\/(?:[\w-]+\.)?(?:webgecko-builder|vercel)\.(?:app|com|io)[^"']*["']([^>]*)>([\s\S]*?)<\/a>/gi, (_m: string, pre: string, post: string, inner: string) => {
-        const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
+      // Hard sweep: replace ANY link pointing to webgecko-builder or generic vercel domains.
+      // EXCEPTION: if the URL matches ctaExternalDomain the user explicitly requested it — preserve it.
+      html = html.replace(/<a([^>]*)href=["'](https?:\/\/(?:[\w-]+\.)?(?:webgecko-builder|vercel)\.(?:app|com|io)[^"']*)["']([^>]*)>([\s\S]*?)<\/a>/gi, (_m: string, pre: string, href: string, post: string, inner: string) => {
+        const hrefDomain = href.replace(/^https?:\/\/(?:www\.)?/, "").split("/")[0].toLowerCase();
+        if (ctaExternalDomain && hrefDomain === ctaExternalDomain) return _m; // user asked for this URL — keep it
+        const txt = inner.replace(/<[^>]+>/g, "").trim().toLowerCase();
         const onclick = getCtaOnclick(txt);
-        const cleanPre = pre.replace(/\s*onclick=["'][^"']*["']/gi, '');
-        const cleanPost = post.replace(/\s*onclick=["'][^"']*["']/gi, '');
+        const cleanPre = pre.replace(/\s*onclick=["'][^"']*["']/gi, "");
+        const cleanPost = post.replace(/\s*onclick=["'][^"']*["']/gi, "");
         return `<a${cleanPre}${cleanPost} href="#" onclick="${onclick}">${inner}</a>`;
       });
 
@@ -579,18 +602,36 @@ const buildWebsite = inngest.createFunction(
           });
         }
 
-        // 3. Inject AFTER the closing tag of id="contact", not inside it
+        // 3. Inject AFTER the outer closing tag of id="contact" using depth counter
         if (!mapInjected) {
-          html = html.replace(/(<\/(?:section|div)>)(\s*(?=<(?:section|div|footer)[^>]*(?:id="(?:footer|testimonials|faq|blog|newsletter|cta)|class="[^"]*footer)|<footer))/, (match: string, closeTag: string, after: string) => {
-            // Find the contact section close tag by checking if we just closed contact
-            return match; // placeholder — handled below
-          });
-          // Simpler: find </section> or </div> right after id="contact" body and insert after
-          const contactCloseMatch = html.match(/(<(?:section|div)[^>]*id="contact"[^>]*>[\s\S]*?<\/(?:section|div)>)/i);
-          if (contactCloseMatch) {
-            const idx = html.indexOf(contactCloseMatch[0]) + contactCloseMatch[0].length;
-            html = html.slice(0, idx) + "\n" + mapBlock + html.slice(idx);
-            mapInjected = true;
+          const contactOpenRe = /<(section|div)[^>]*id=["']contact["'][^>]*>/i;
+          const contactOpenM = contactOpenRe.exec(html);
+          if (contactOpenM) {
+            const tagName = contactOpenM[1].toLowerCase();
+            let depth = 1;
+            let pos = contactOpenM.index + contactOpenM[0].length;
+            const openRe = new RegExp(`<${tagName}[\\s>]`, 'gi');
+            const closeRe = new RegExp(`<\\/${tagName}>`, 'gi');
+            let endIdx = -1;
+            while (depth > 0 && pos < html.length) {
+              openRe.lastIndex = pos;
+              closeRe.lastIndex = pos;
+              const nextOpen = openRe.exec(html);
+              const nextClose = closeRe.exec(html);
+              if (!nextClose) break;
+              if (nextOpen && nextOpen.index < nextClose.index) {
+                depth++;
+                pos = nextOpen.index + nextOpen[0].length;
+              } else {
+                depth--;
+                pos = nextClose.index + nextClose[0].length;
+                if (depth === 0) endIdx = pos;
+              }
+            }
+            if (endIdx > 0) {
+              html = html.slice(0, endIdx) + "\n" + mapBlock + html.slice(endIdx);
+              mapInjected = true;
+            }
           }
         }
 
