@@ -208,6 +208,48 @@ function PreviewFrame({ previewUrl, builtAt }: { previewUrl:string; builtAt?:str
   );
 }
 
+// ── Deploy HTML as live preview ────────────────────────────────────────────────
+function DeployHtmlLive({ jobId, onDeployed, toast }: { jobId:string; onDeployed:(url:string)=>void; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
+  const [deploying, setDeploying] = useState(false);
+  const [err, setErr] = useState("");
+  const [done, setDone] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleDeploy(e: React.FormEvent) {
+    e.preventDefault(); setErr(""); setDone("");
+    const file = fileRef.current?.files?.[0];
+    if (!file) { setErr("Select an HTML file first"); return; }
+    setDeploying(true);
+    try {
+      const fd = new FormData(); fd.append("file", file); fd.append("jobId", jobId);
+      const r = await fetch("/api/admin/deploy-html", { method:"POST", body:fd });
+      const d = await r.json();
+      if (!r.ok) { setErr(d.error || "Deploy failed"); return; }
+      setDone(d.previewUrl);
+      onDeployed(d.previewUrl);
+      toast("Deployed as live preview", "ok");
+      if (fileRef.current) fileRef.current.value = "";
+    } catch(e) { setErr(String(e)); }
+    finally { setDeploying(false); }
+  }
+
+  const inp:React.CSSProperties = {background:T.raised,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"inherit"};
+  return (
+    <div style={{ background:`${T.green}0a`, border:`1px solid ${T.green}30`, borderRadius:12, padding:"18px 20px" }}>
+      <div style={{ fontSize:11, fontWeight:700, color:T.green, marginBottom:4, textTransform:"uppercase" as const, letterSpacing:"0.07em" }}>Deploy HTML as Live Preview</div>
+      <div style={{ fontSize:11, color:T.textMuted, marginBottom:14, lineHeight:1.6 }}>Upload a hand-edited HTML file to instantly replace what's shown at the client's preview URL. Bypasses the build pipeline entirely.</div>
+      <form onSubmit={handleDeploy} style={{ display:"flex", gap:8, flexWrap:"wrap" as const, alignItems:"center" }}>
+        <input ref={fileRef} type="file" accept=".html,.htm" style={{fontSize:12,color:T.textSec,flex:1}}/>
+        <button type="submit" disabled={deploying} style={{background:`linear-gradient(135deg,${T.green},#00b365)`,color:"#000",border:"none",borderRadius:8,padding:"8px 18px",fontSize:12,fontWeight:700,cursor:"pointer",opacity:deploying?.6:1,boxShadow:`0 4px 14px ${T.green}30`}}>
+          {deploying?"Deploying…":"Deploy Live →"}
+        </button>
+      </form>
+      {err && <div style={{fontSize:12,color:T.red,marginTop:8}}>{err}</div>}
+      {done && <div style={{fontSize:11,color:T.green,marginTop:8}}>✓ Live at <a href={done} target="_blank" rel="noreferrer" style={{color:T.green}}>{done}</a></div>}
+    </div>
+  );
+}
+
 // ── Client HTML upload ─────────────────────────────────────────────────────────
 function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
   const [files, setFiles] = useState<{name:string;label:string;size:number;createdAt:string}[]>([]);
@@ -270,6 +312,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   const [frLoading, setFrLoading] = useState(false);
   const [frUpdating, setFrUpdating] = useState<string|null>(null);
   const [feeInputs, setFeeInputs] = useState<Record<string,string>>({});
+  const [deployedAt, setDeployedAt] = useState<string|null>(null);
   const a = c.analytics;
   const seo = c.metadata?.seo;
   const ui = c.userInput||{};
@@ -537,12 +580,16 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                 {c.metadata?.domainUrl&&<InfoRow label="Domain URL" value={c.metadata.domainUrl} mono/>}
                 <InfoRow label="Vercel project" value={c.vercelProjectName} mono/>
               </div>
+              <div style={{marginBottom:20}}>
+                {sectionTitle("Deploy HTML as live preview")}
+                <DeployHtmlLive jobId={jid} onDeployed={()=>setDeployedAt(new Date().toISOString())} toast={toast}/>
+              </div>
               {c.previewUrl&&(
                 <div style={{marginBottom:20}}>
                   {sectionTitle("Live preview")}
                   {c.buildStatus==="building"
                     ? <div style={{borderRadius:10,border:`1px solid ${T.border}`,background:T.raised,height:160,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:T.textMuted,fontSize:13}}>⏳ Building… preview appears when done</div></div>
-                    : <PreviewFrame previewUrl={c.previewUrl} builtAt={c.builtAt}/>}
+                    : <PreviewFrame previewUrl={c.previewUrl} builtAt={deployedAt||c.builtAt}/>}
                 </div>
               )}
               {c.hasBooking&&(

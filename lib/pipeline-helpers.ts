@@ -206,7 +206,7 @@ export function checkAndFixLinks(html: string, pages: string[]): { html: string;
     // Strategy B: scan heading text for semantic match
     const escapedId = pageId.replace(/[-_]/g, "[\\s\\-_]?");
     const headingPattern = new RegExp(
-      "(<(?:section|div|article|main)(?:[^>](?!id=))*>)(?:[\\s\\S]{0,2000}?)<(?:h1|h2|h3)[^>]*>[^<]*" + escapedId + "[^<]*</(?:h1|h2|h3)>",
+      "(<(?:section|div|article|main)(?:[^>](?!id=))*>)(?:[\\s\\S]{0,5000}?)<(?:h1|h2|h3)[^>]*>[^<]*" + escapedId + "[^<]*</(?:h1|h2|h3)>",
       "i"
     );
     const headingMatch = headingPattern.exec(fixed);
@@ -521,14 +521,6 @@ const FALLBACK_PAGE_CONTENT: Record<string, (businessName: string, accentColor: 
       <div><h1 style="color:#f1f5f9;font-size:3rem;font-weight:900;margin:0 0 16px;">${biz}</h1>
       <p style="color:#94a3b8;font-size:1.2rem;margin:0 0 32px;">Quality service you can trust.</p>
       <a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('contact')" style="display:inline-block;background:${ac};color:#fff;font-weight:700;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:1.1rem;">Get Started</a></div>
-    </section>
-    <section id="testimonials" style="padding:80px 24px;background:#0f172a;">
-      <div style="max-width:900px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;text-align:center;margin-bottom:40px;">What Our Clients Say</h2>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;">
-        <div style="background:#1e293b;border-radius:12px;padding:24px;border:1px solid #334155;"><p style="color:#e2e8f0;margin-bottom:12px;">"Absolutely fantastic service!"</p><p style="color:${ac};font-weight:700;">— Sarah M.</p></div>
-        <div style="background:#1e293b;border-radius:12px;padding:24px;border:1px solid #334155;"><p style="color:#e2e8f0;margin-bottom:12px;">"Highly recommend to anyone."</p><p style="color:${ac};font-weight:700;">— James T.</p></div>
-        <div style="background:#1e293b;border-radius:12px;padding:24px;border:1px solid #334155;"><p style="color:#e2e8f0;margin-bottom:12px;">"Professional and reliable."</p><p style="color:${ac};font-weight:700;">— Emily R.</p></div>
-      </div></div>
     </section>`,
   about: (_biz, ac) => `
     <div style="padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;">
