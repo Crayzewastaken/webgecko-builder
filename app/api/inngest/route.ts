@@ -424,7 +424,8 @@ const buildWebsite = inngest.createFunction(
         'speak to us','talk to us','call us','email us','reach out',
         'book today','order now','buy now',
       ];
-      const clientCtaUrl = (userInput.existingWebsite || "").trim();
+      // CTA always scrolls within the site: to booking if booking feature, else contact section.
+      // existingWebsite is reference-only and is never used as a CTA destination.
       const ctaOnclick = `event.preventDefault();var el=document.getElementById('${bookingNavTarget}');if(el){el.scrollIntoView({behavior:'smooth'});}else if(window.navigateTo){window.navigateTo('${bookingNavTarget}');}`;
 
       // Wire <a> CTA links — catches href="#", href="", javascript:void(0), and bare anchors
@@ -434,9 +435,6 @@ const buildWebsite = inngest.createFunction(
         if (attrs.includes('navigateTo') || attrs.includes('scrollIntoView')) return match;
         // Strip dummy onclick handlers Stitch generates (alert, return false, void)
         const cleanAttrs = attrs.replace(/\s*onclick=["'][^"']*(?:alert|return false|void\(0\))[^"']*["']/gi, '');
-        if (clientCtaUrl && clientCtaUrl.startsWith('http')) {
-          return `<a${cleanAttrs.replace(/href=["'][^"']*["']/, `href="${clientCtaUrl}"`)} target="_blank" rel="noopener">${inner}</a>`;
-        }
         return `<a${cleanAttrs} onclick="${ctaOnclick}">${inner}</a>`;
       });
 
@@ -477,7 +475,10 @@ const buildWebsite = inngest.createFunction(
         const mapsEmbed = process.env.GOOGLE_MAPS_API_KEY
           ? `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;display:block;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`
           : `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;display:block;" loading="lazy" allowfullscreen src="https://www.openstreetmap.org/export/embed.html?bbox=&layer=mapnik&marker=&query=${encodeURIComponent(businessAddress)}" title="Map"></iframe><small style="display:block;text-align:right;font-size:10px;color:#94a3b8;margin-top:4px;"><a href="https://www.openstreetmap.org/search?query=${encodeURIComponent(businessAddress)}" target="_blank" style="color:#94a3b8;">View larger map</a></small></div>`;
-        if (!/<iframe[^>]*google\.com\/maps/i.test(html) && !/<iframe[^>]*maps\.googleapis/i.test(html) && !/<iframe[^>]*openstreetmap/i.test(html)) {
+        // Remove any Stitch-generated map iframes first to avoid duplicates
+        html = html.replace(/<div[^>]*>\s*<iframe[^>]*(?:google\.com\/maps|maps\.googleapis|openstreetmap)[^>]*>[\s\S]*?<\/iframe>\s*<\/div>/gi, '');
+        html = html.replace(/<iframe[^>]*(?:google\.com\/maps|maps\.googleapis|openstreetmap)[^>]*>[\s\S]*?<\/iframe>/gi, '');
+        if (true) {
           let mapInjected = false;
           const beforeMapLen = html.length;
           html = html.replace(/<div[^>]*>\s*MAP PLACEHOLDER[^<]*<\/div>/gi, mapsEmbed);

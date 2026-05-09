@@ -321,11 +321,11 @@ CRITICAL RULES:
 STRUCTURE (non-negotiable — these exact HTML attributes must appear):
    - header with sticky nav: logo left, desktop links right, and a button with id=hamburger class=md:hidden that toggles div with id=mobile-menu
    - div id=mobile-menu sliding drawer with all nav links duplicated, hidden by default, closed by a button with aria-label=Close menu
-   - section id=hero full viewport hero with bold headline and CTA button that scrolls to booking
+   - section id=hero full viewport hero with bold headline and a CTA button that scrolls to the contact/enquiry section (id=contact) or booking section (id=booking) if booking is enabled — the CTA button must use href='#' or onclick scroll, NEVER an external URL
    - section id=services services grid
    - section id=testimonials with 3+ Australian names and 5-star ratings
    - section id=faq accordion with 6+ Q&A pairs
-   - section id=contact with working form, real email ${clientEmail}, real phone ${clientPhone}
+   - section id=contact with a simple ENQUIRY form (fields: name, email, phone, message — nothing else). This is a contact/help form only, NOT a registration or sign-up form. Include real email ${clientEmail} and real phone ${clientPhone} as contact details next to the form. Heading must be 'Get in Touch', 'Contact Us', or 'Send Us a Message'. Do NOT include password, username, or account creation fields.
    - footer with copyright ${currentYear} ${businessName}
    ${bookingInstruction}
    ${isMultiPage

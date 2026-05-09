@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Suspense } from "react";
 
 interface SeoData {
@@ -875,12 +875,15 @@ function PreviewFrame({ previewUrl, builtAt, T }: { previewUrl: string; builtAt?
   const [refreshKey, setRefreshKey] = useState(() => builtAt ? new Date(builtAt).getTime() : Math.floor(Date.now() / 60000));
   const [refreshing, setRefreshing] = useState(false);
 
-  // Reset key when builtAt changes (new build completed)
-  const prevBuiltAt = useState(builtAt)[0];
-  if (builtAt !== prevBuiltAt && builtAt) {
-    setRefreshKey(new Date(builtAt).getTime());
-    setThumbErr(false);
-  }
+  // Reset key when builtAt changes (new build completed) — useRef tracks previous value correctly
+  const prevBuiltAtRef = useRef(builtAt);
+  useEffect(() => {
+    if (builtAt && builtAt !== prevBuiltAtRef.current) {
+      prevBuiltAtRef.current = builtAt;
+      setRefreshKey(new Date(builtAt).getTime());
+      setThumbErr(false);
+    }
+  }, [builtAt]);
 
   // screenshotone.com free tier — bust cache by appending build timestamp to the target URL
   const targetWithBust = `${previewUrl}${previewUrl.includes("?") ? "&" : "?"}_wg=${refreshKey}`;
