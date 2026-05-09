@@ -1016,9 +1016,12 @@ document.querySelectorAll("button,a").forEach(function(btn) { var txt = (btn.tex
 document.querySelectorAll("form").forEach(function(form) {
   // Skip forms inside the booking widget — it manages its own fetch-based submit
   if (form.closest("#booking") || form.closest(".bw-container") || form.id === "bw-form") return;
+  // Skip newsletter and popup forms — they have their own handlers
+  if (form.id === "newsletter-form" || form.id === "wg-popup-form") return;
   form.addEventListener("submit", function(e) {
     e.preventDefault();
     if (form.querySelector(".wg-success")) return;
+    // Email delivery handled by the analytics tracker script (WG_CONTACT endpoint)
     var s = document.createElement("div"); s.className = "wg-success";
     s.style.cssText = "background:#22c55e;color:white;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;font-family:sans-serif;";
     s.textContent = "Thank you! We will be in touch within 24 hours.";
@@ -1083,11 +1086,13 @@ document.querySelectorAll("form").forEach(function(form) {
 
   // WebGecko analytics tracker
   const wgApiBase = (process.env.NEXT_PUBLIC_BASE_URL || "https://webgecko.au") + "/api/analytics/track";
+  const contactSubmitApi = wgApiBase.replace("/analytics/track", "/contact/submit");
   const trackerScript = jobId ? [
     '<script>',
     '(function(){',
     '  var WG_JOB="' + jobId + '";',
     '  var WG_API="' + wgApiBase + '";',
+    '  var WG_CONTACT="' + contactSubmitApi + '";',
     '  function wgTrack(event,page){try{fetch(WG_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:WG_JOB,event:event,page:page||window.location.pathname})});}catch(e){}}',
     '  wgTrack("page_view",document.title||window.location.pathname);',
     '  document.addEventListener("click",function(e){',
@@ -1099,7 +1104,18 @@ document.querySelectorAll("form").forEach(function(form) {
     '    if(txt.includes("book")||oc.includes("booking")||href.includes("booking")){wgTrack("booking_click");}',
     '    else if(txt.includes("contact")||oc.includes("contact")||href.includes("contact")){wgTrack("contact_click");}',
     '  });',
-    '  document.addEventListener("submit",function(e){wgTrack("form_submit");});',
+    // Contact form → POST to /api/contact/submit for real email delivery
+    '  document.addEventListener("submit",function(e){',
+    '    var form=e.target;if(!form||form.tagName!=="FORM")return;',
+    '    if(form.closest("#booking")||form.closest(".bw-container")||form.id==="bw-form"||form.id==="newsletter-form"||form.id==="wg-popup-form")return;',
+    '    wgTrack("form_submit");',
+    "    var nm=(form.querySelector('input[name=\'name\'],input[placeholder*=\'Name\']')||{value:''}).value;",
+    "    var em=(form.querySelector('input[name=\'email\'],input[type=\'email\']')||{value:''}).value;",
+    "    var ph=(form.querySelector('input[name=\'phone\'],input[type=\'tel\'],input[placeholder*=\'Phone\']')||{value:''}).value;",
+    "    var mg=(form.querySelector('textarea[name=\'message\'],textarea')||{value:''}).value;",
+    '    if(!em&&!nm)return;',
+    '    fetch(WG_CONTACT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:WG_JOB,name:nm,email:em,phone:ph,message:mg})}).catch(function(){});',
+    '  });',
     '})();',
     '</script>',
   ].join("\n") : "";

@@ -25,108 +25,46 @@ interface ClientAnalytics {
 
 // ── Themes ─────────────────────────────────────────────────────────────────────
 const DARK = {
-  bg:"#04080f", surface:"#0a1628", raised:"#102240", border:"#1e3560", borderHov:"#3060a0",
-  text:"#e0eaff", textSec:"#7a9ad4", textMuted:"#3a5080",
-  green:"#00f080", blue:"#4f9eff", amber:"#ffa830", red:"#ff4060", purple:"#b085ff", cyan:"#00e5ff",
-  overlay:"rgba(4,8,15,0.92)", shadow:"0 4px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)", shadowLg:"0 12px 40px rgba(0,0,0,0.85)", shadowXl:"-4px 0 60px rgba(0,0,0,0.95)",
+  bg:"#07070c", surface:"#0e0e17", raised:"#14141f", border:"#1c1c2a", borderHov:"#2d2d42",
+  text:"#e8e8f0", textSec:"#8888a8", textMuted:"#44445a",
+  green:"#00d47e", blue:"#4f9eff", amber:"#f5a030", red:"#ff5c5c", purple:"#9d6fff", cyan:"#00d4ff",
+  overlay:"rgba(4,4,8,0.82)", shadow:"0 2px 8px rgba(0,0,0,0.45)", shadowLg:"0 12px 40px rgba(0,0,0,0.65)", shadowXl:"0 24px 72px rgba(0,0,0,0.85)",
 };
 const LIGHT = {
-  bg:"#f0f2fa", surface:"#ffffff", raised:"#eaecf8", border:"#d4d8f0", borderHov:"#a0acdc",
-  text:"#080d22", textSec:"#2a3460", textMuted:"#7080aa",
-  green:"#059669", blue:"#2563eb", amber:"#d97706", red:"#dc2626", purple:"#7c3aed", cyan:"#0284c7",
-  overlay:"rgba(0,0,0,0.55)", shadow:"0 1px 4px rgba(0,0,0,0.08)", shadowLg:"0 8px 28px rgba(0,0,0,0.12)", shadowXl:"0 20px 52px rgba(0,0,0,0.18)",
+  bg:"#f3f4f8", surface:"#ffffff", raised:"#eef0f6", border:"#dde1ee", borderHov:"#b8bed6",
+  text:"#0d0f1a", textSec:"#3a4260", textMuted:"#8892aa",
+  green:"#00a85a", blue:"#2563eb", amber:"#b45309", red:"#dc2626", purple:"#7c3aed", cyan:"#0891b2",
+  overlay:"rgba(0,0,0,0.55)", shadow:"0 1px 4px rgba(0,0,0,0.08)", shadowLg:"0 8px 28px rgba(0,0,0,0.14)", shadowXl:"0 20px 52px rgba(0,0,0,0.2)",
 };
 let T = DARK;
 
 // ── Global CSS ─────────────────────────────────────────────────────────────────
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
   *, *::before, *::after { box-sizing: border-box; }
   body { margin: 0; }
-
-  /* Keyframes */
-  @keyframes wg-fade    { from{opacity:0} to{opacity:1} }
-  @keyframes wg-up      { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes wg-panel   { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
-  @keyframes wg-ping    { 0%{transform:scale(1);opacity:.9} 100%{transform:scale(2.4);opacity:0} }
-  @keyframes wg-spin    { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-  @keyframes wg-toast   { 0%{opacity:0;transform:translateY(8px) scale(.95)} 100%{opacity:1;transform:none} }
+  @keyframes wg-fade { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes wg-up { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
+  @keyframes wg-panel { from { transform:translateX(100%); opacity:0 } to { transform:translateX(0); opacity:1 } }
+  @keyframes wg-ping { 0% { transform:scale(1); opacity:.9 } 100% { transform:scale(2.4); opacity:0 } }
+  @keyframes wg-spin { from { transform:rotate(0deg) } to { transform:rotate(360deg) } }
+  @keyframes wg-toast { 0%{opacity:0;transform:translateY(8px) scale(.95)} 100%{opacity:1;transform:none} }
   @keyframes wg-shimmer { 0%{background-position:-800px 0} 100%{background-position:800px 0} }
-  @keyframes wg-pulse   { 0%,100%{opacity:.6} 50%{opacity:1} }
-  @keyframes wg-scan    { 0%{transform:translateY(-100%)} 100%{transform:translateY(500%)} }
-  @keyframes wg-border  { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
-
-  /* Component animations */
-  .wg-panel { animation: wg-panel 0.3s cubic-bezier(0.22,1,0.36,1) }
-  .wg-card  { animation: wg-up 0.3s cubic-bezier(0.22,1,0.36,1) both }
-  .wg-tab   { animation: wg-fade 0.18s ease }
-  .wg-toast { animation: wg-toast 0.22s ease }
-
-  /* Grid bg — visible blueprint grid */
-  .wg-grid-bg {
-    background-color: #04080f;
-    background-image:
-      radial-gradient(ellipse 70% 50% at 50% 0%, rgba(79,158,255,0.13) 0%, transparent 55%),
-      radial-gradient(ellipse 40% 30% at 80% 80%, rgba(167,133,255,0.07) 0%, transparent 55%),
-      linear-gradient(rgba(79,158,255,0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(79,158,255,0.06) 1px, transparent 1px);
-    background-size: 100% 100%, 100% 100%, 52px 52px, 52px 52px;
-  }
-
-  /* Client card — clickable grid item */
-  .wg-cc {
-    transition: transform 0.22s cubic-bezier(0.22,1,0.36,1), box-shadow 0.22s ease, border-color 0.22s ease;
-    cursor: pointer;
-  }
-  .wg-cc:hover { transform: translateY(-4px) scale(1.005); }
-
-  /* Gradient text */
-  .wg-brand-text {
-    background: linear-gradient(130deg, #cce0ff 20%, #b085ff 80%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  .wg-accent-text {
-    background: linear-gradient(130deg, #4f9eff 0%, #00e5ff 100%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  /* Glass — nav */
-  .wg-glass {
-    backdrop-filter: blur(24px) saturate(200%);
-    -webkit-backdrop-filter: blur(24px) saturate(200%);
-  }
-
-  /* Scan line effect on stat cards */
-  .wg-stat-scan::after {
-    content:''; position:absolute; inset:0;
-    background: linear-gradient(transparent 45%, rgba(79,158,255,0.05) 50%, transparent 55%);
-    animation: wg-scan 4s linear infinite; pointer-events:none; border-radius:inherit;
-  }
-
-  /* Neon glow ring around a card — apply as extra class */
-  .wg-neon { box-shadow: 0 0 0 1px rgba(79,158,255,0.12), 0 4px 28px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.05) !important; }
-
-  button { font-family:inherit; transition: opacity 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease !important }
+  .wg-panel { animation: wg-panel 0.28s cubic-bezier(0.25,0.46,0.45,0.94) }
+  .wg-card { animation: wg-up 0.22s ease both }
+  .wg-tab { animation: wg-fade 0.16s ease }
+  .wg-toast { animation: wg-toast 0.2s ease }
+  .wg-cc { transition: all 0.18s ease; cursor:pointer }
+  .wg-cc:hover { transform:translateY(-2px) }
+  button { transition: opacity 0.15s ease, transform 0.12s ease !important }
   button:active:not(:disabled) { transform: scale(0.95) !important }
   ::-webkit-scrollbar { width:4px; height:4px }
   ::-webkit-scrollbar-track { background:transparent }
-  ::-webkit-scrollbar-thumb { background:rgba(79,158,255,0.3); border-radius:99px }
-  ::-webkit-scrollbar-thumb:hover { background:rgba(79,158,255,0.55) }
+  ::-webkit-scrollbar-thumb { background:#2a2a3a; border-radius:99px }
   input, textarea, select { font-family: inherit }
-  input:focus, textarea:focus, select:focus { outline: none; border-color: rgba(79,158,255,0.6) !important; box-shadow: 0 0 0 3px rgba(79,158,255,0.12) !important; }
-
-  /* View toggle active tab */
-  .wg-view-active {
-    background: linear-gradient(135deg, rgba(79,158,255,0.22) 0%, rgba(167,139,250,0.15) 100%) !important;
-    color: #e0eaff !important;
-    border-color: rgba(79,158,255,0.4) !important;
-    box-shadow: 0 0 16px rgba(79,158,255,0.1) !important;
-  }
   .wg-shimmer {
-    background: linear-gradient(90deg, rgba(255,255,255,.03) 25%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.03) 75%);
-    background-size: 800px 100%; animation: wg-shimmer 1.8s infinite;
+    background: linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(255,255,255,.1) 50%, rgba(255,255,255,.04) 75%);
+    background-size: 800px 100%; animation: wg-shimmer 1.5s infinite;
   }
 `;
 
@@ -366,7 +304,7 @@ function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:
 
 // ── Client slide-over panel ────────────────────────────────────────────────────
 function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:string; onClose:()=>void; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
-  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"payments"|"actions"|"requests">("perf");
+  const [tab, setTab] = useState<"overview"|"analytics"|"seo"|"site"|"payments"|"actions"|"requests">("overview");
   const [featureRequests, setFeatureRequests] = useState<any[]>([]);
   const [frLoading, setFrLoading] = useState(false);
   const [frUpdating, setFrUpdating] = useState<string|null>(null);
@@ -408,7 +346,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   }
 
   const pending = featureRequests.filter(r=>r.status==="pending"||r.status==="draft").length;
-  const tabs = ["perf","engagement","seo","site","payments","actions","requests"] as const;
+  const tabs = ["overview","analytics","seo","site","payments","actions","requests"] as const;
 
   const sectionTitle = (text:string) => (
     <div style={{ fontSize:10, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.09em", fontWeight:700, marginBottom:12, paddingBottom:8, borderBottom:`1px solid ${T.border}` }}>{text}</div>
@@ -463,8 +401,8 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
 
         {/* Tabs */}
         <div style={{ display:"flex", gap:4, padding:"10px 24px", borderBottom:`1px solid ${T.border}`, background:T.bg, flexWrap:"wrap" as const, flexShrink:0 }}>
-          {tabBtn("perf","Performance")}
-          {tabBtn("engagement","Engagement")}
+          {tabBtn("overview","Overview")}
+          {tabBtn("analytics","Analytics")}
           {tabBtn("seo","SEO")}
           {tabBtn("site","Site")}
           {tabBtn("payments","Payments")}
@@ -475,53 +413,24 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
         {/* Tab content */}
         <div key={tab} className="wg-tab" style={{ flex:1, overflowY:"auto" as const, padding:"24px" }}>
 
-          {/* PERFORMANCE */}
-          {tab==="perf"&&(
+          {/* OVERVIEW */}
+          {tab==="overview"&&(
             <>
-              {/* 6 mini KPI cards */}
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))", gap:10, marginBottom:20 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))", gap:10, marginBottom:24 }}>
                 {[
                   {label:"Views/month",value:a?.thisMonth.views??0,color:T.blue},
                   {label:"Today",value:a?.today.views??0,color:T.green},
-                  {label:"All-time views",value:a?.totals.views??0,color:T.textSec},
+                  {label:"All-time",value:a?.totals.views??0,color:T.textSec},
                   {label:"Booking clicks",value:a?.thisMonth.bookingClicks??0,color:T.amber},
                   {label:"Bookings",value:c.bookingCount,color:T.purple},
                   {label:"Form submits",value:a?.totals.formSubmits??0,color:T.cyan},
                 ].map(s=>(
-                  <div key={s.label} style={{ background:T.surface, border:`1px solid ${s.color}28`, borderRadius:10, padding:"14px 16px", boxShadow:`0 0 0 1px ${s.color}10, 0 4px 20px rgba(0,0,0,0.6)`, position:"relative", overflow:"hidden" }}>
-                    <div style={{ position:"absolute",left:0,top:0,bottom:0,width:3,borderRadius:"10px 0 0 10px",background:`linear-gradient(180deg,${s.color},${s.color}40)` }}/>
-                    <div style={{ position:"absolute",top:0,right:0,width:60,height:60,background:`radial-gradient(circle at top right,${s.color}18,transparent 65%)`,pointerEvents:"none" }}/>
-                    <div style={{ fontSize:24,fontWeight:800,color:s.color,letterSpacing:"-0.03em",lineHeight:1,marginBottom:6 }}><AnimNum value={s.value} color={s.color}/></div>
-                    <div style={{ fontSize:10,color:T.textMuted,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase" as const }}>{s.label}</div>
+                  <div key={s.label} style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:10, padding:"14px 16px", boxShadow:T.shadow }}>
+                    <div style={{ fontSize:22,fontWeight:700,color:s.color,letterSpacing:"-0.02em",lineHeight:1 }}>{s.value}</div>
+                    <div style={{ fontSize:11,color:T.textMuted,marginTop:5,fontWeight:500 }}>{s.label}</div>
                   </div>
                 ))}
               </div>
-              {/* Traffic breakdown bar */}
-              {a&&(()=>{
-                const views = a.thisMonth.views||1;
-                const bars = [
-                  {label:"Views",val:a.thisMonth.views,color:T.blue,pct:100},
-                  {label:"Booking clicks",val:a.thisMonth.bookingClicks,color:T.amber,pct:Math.round(a.thisMonth.bookingClicks/views*100)},
-                  {label:"Bookings",val:c.bookingCount,color:T.purple,pct:Math.round(c.bookingCount/views*100)},
-                  {label:"Form submits",val:a.totals.formSubmits,color:T.cyan,pct:Math.round(a.totals.formSubmits/views*100)},
-                ];
-                return (
-                  <div style={{ background:T.raised, border:`1px solid ${T.border}`, borderRadius:12, padding:"16px 18px", marginBottom:20 }}>
-                    {sectionTitle("Traffic breakdown")}
-                    {bars.map(b=>(
-                      <div key={b.label} style={{ marginBottom:10 }}>
-                        <div style={{ display:"flex",justifyContent:"space-between",fontSize:11,color:T.textSec,marginBottom:4 }}>
-                          <span>{b.label}</span>
-                          <span style={{ color:b.color,fontWeight:600 }}>{b.val} ({b.pct}%)</span>
-                        </div>
-                        <div style={{ height:6,borderRadius:99,background:T.surface,overflow:"hidden" }}>
-                          <div style={{ width:`${Math.min(b.pct,100)}%`,height:"100%",borderRadius:99,background:b.color,transition:"width 0.6s cubic-bezier(0.22,1,0.36,1)" }}/>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20 }}>
                 <div>
                   {sectionTitle("Client info")}
@@ -562,8 +471,8 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
             </>
           )}
 
-          {/* ENGAGEMENT */}
-          {tab==="engagement"&&(
+          {/* ANALYTICS */}
+          {tab==="analytics"&&(
             <>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))", gap:10, marginBottom:20 }}>
                 {[
@@ -844,17 +753,14 @@ function ClientCard({ c, secret, dark, toast }: { c:ClientAnalytics; secret:stri
     <>
       {open&&<ClientPanel c={c} secret={secret} onClose={()=>setOpen(false)} toast={toast}/>}
       <div className="wg-card wg-cc" onClick={()=>setOpen(true)} style={{
-        background:T.surface, border:`1px solid ${statusColor}25`, borderRadius:16,
-        padding:"18px 20px 18px 24px", position:"relative", overflow:"hidden",
-        boxShadow:`0 0 0 1px ${statusColor}12, 0 6px 28px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)`,
+        background:T.surface, border:`1px solid ${T.border}`, borderRadius:14,
+        padding:"18px 20px", boxShadow:T.shadow, position:"relative", overflow:"hidden",
       }}
-      onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=statusColor+"55";el.style.boxShadow=`0 0 28px ${statusColor}25, 0 8px 40px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.06)`;}}
-      onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=statusColor+"25";el.style.boxShadow=`0 0 0 1px ${statusColor}12, 0 6px 28px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)`;}}
+      onMouseEnter={e=>(e.currentTarget as HTMLElement).style.borderColor=T.borderHov}
+      onMouseLeave={e=>(e.currentTarget as HTMLElement).style.borderColor=T.border}
       >
-        {/* Left accent bar */}
-        <div style={{ position:"absolute",left:0,top:0,bottom:0,width:4,borderRadius:"16px 0 0 16px",background:`linear-gradient(180deg,${statusColor},${statusColor}30)`,boxShadow:`2px 0 10px ${statusColor}35` }}/>
-        {/* Status glow corner */}
-        <div style={{ position:"absolute", top:0, right:0, width:110, height:110, background:`radial-gradient(circle at top right, ${statusColor}18, transparent 65%)`, pointerEvents:"none" }}/>
+        {/* Status glow */}
+        <div style={{ position:"absolute", top:0, right:0, width:100, height:100, background:`radial-gradient(circle at top right, ${statusColor}15, transparent 70%)`, pointerEvents:"none" }}/>
 
         {/* Building pulse */}
         {isBuilding&&(
@@ -867,7 +773,7 @@ function ClientCard({ c, secret, dark, toast }: { c:ClientAnalytics; secret:stri
         )}
 
         <div style={{ display:"flex", alignItems:"flex-start", gap:12, marginBottom:14 }}>
-          <div style={{ width:42,height:42,borderRadius:11,background:`linear-gradient(135deg,${statusColor}40,${statusColor}18)`,border:`1.5px solid ${statusColor}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:800,color:statusColor,flexShrink:0,boxShadow:`0 0 16px ${statusColor}35, inset 0 1px 0 rgba(255,255,255,0.1)`,letterSpacing:"-0.02em" }}>
+          <div style={{ width:40,height:40,borderRadius:10,background:`linear-gradient(135deg,${statusColor}28,${statusColor}0c)`,border:`1px solid ${statusColor}35`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:statusColor,flexShrink:0 }}>
             {initials}
           </div>
           <div style={{ flex:1, minWidth:0 }}>
@@ -1057,274 +963,6 @@ function PipelineLogsPanel() {
   );
 }
 
-// ── Analytics view ─────────────────────────────────────────────────────────────
-function AnalyticsView({ clients, onOpenClient }: { clients: ClientAnalytics[]; onOpenClient: (c: ClientAnalytics) => void }) {
-  const total = clients.length || 1;
-  const active = clients.filter(c=>c.paymentState?.monthlyActive).length;
-  const mrr = active * 109;
-  const todayViews = clients.reduce((a,c)=>a+(c.analytics?.today.views||0),0);
-  const monthViews = clients.reduce((a,c)=>a+(c.analytics?.thisMonth.views||0),0);
-  const totalBookings = clients.reduce((a,c)=>a+c.bookingCount,0);
-  const totalForms = clients.reduce((a,c)=>a+(c.analytics?.totals.formSubmits||0),0);
-
-  // Revenue breakdown
-  const monthly = clients.filter(c=>c.paymentState?.monthlyActive).length;
-  const finalPaidOnly = clients.filter(c=>c.paymentState?.finalPaid&&!c.paymentState?.monthlyActive).length;
-  const depositOnly = clients.filter(c=>c.paymentState?.depositPaid&&!c.paymentState?.finalPaid&&!c.paymentState?.monthlyActive).length;
-  const unpaid = clients.filter(c=>!c.paymentState?.depositPaid).length;
-
-  // Top performers by thisMonth views
-  const topPerformers = [...clients]
-    .sort((a,b)=>(b.analytics?.thisMonth.views||0)-(a.analytics?.thisMonth.views||0))
-    .slice(0,8);
-  const maxViews = topPerformers[0]?.analytics?.thisMonth.views || 1;
-
-  // Build pipeline
-  const pipelineCounts = {
-    completed: clients.filter(c=>c.buildStatus==="completed"||c.buildStatus==="complete").length,
-    building: clients.filter(c=>c.buildStatus==="building").length,
-    pending: clients.filter(c=>!c.buildStatus||c.buildStatus==="pending").length,
-    failed: clients.filter(c=>c.buildStatus==="failed").length,
-  };
-
-  // Industries
-  const industryMap: Record<string,number> = {};
-  clients.forEach(c=>{ if(c.industry) industryMap[c.industry]=(industryMap[c.industry]||0)+1; });
-  const topIndustries = Object.entries(industryMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
-  const maxIndustryCount = topIndustries[0]?.[1] || 1;
-
-  // Funnel
-  const totalBookingClicks = clients.reduce((a,c)=>a+(c.analytics?.totals.bookingClicks||0),0);
-  const allTimeViews = clients.reduce((a,c)=>a+(c.analytics?.totals.views||0),1);
-  const funnelSteps = [
-    {label:"All-time views",value:allTimeViews,color:T.blue},
-    {label:"Booking clicks",value:totalBookingClicks,color:T.amber},
-    {label:"Bookings",value:totalBookings,color:T.purple},
-    {label:"Form submits",value:totalForms,color:T.cyan},
-  ];
-
-  // Needs attention
-  const failed = clients.filter(c=>c.buildStatus==="failed");
-  const stuck = clients.filter(c=>c.buildStatus==="building"&&!c.builtAt);
-  const unpaidClients = clients.filter(c=>!c.paymentState?.depositPaid);
-  const needsAttention = [
-    ...failed.map(c=>({c,badge:"Failed",color:T.red})),
-    ...stuck.map(c=>({c,badge:"Stuck building",color:T.amber})),
-    ...unpaidClients.map(c=>({c,badge:"Unpaid",color:T.textMuted})),
-  ];
-
-  // Recent builds
-  const recentBuilds = [...clients]
-    .filter(c=>!!c.builtAt)
-    .sort((a,b)=>new Date(b.builtAt!).getTime()-new Date(a.builtAt!).getTime())
-    .slice(0,8);
-
-  const kpi = (label:string,value:number|string,color:string,icon:string,sub?:string) => (
-    <div key={label} className="wg-card wg-stat-scan" style={{ background:T.surface,border:`1px solid ${color}28`,borderRadius:16,padding:"20px 20px 18px 26px",position:"relative",overflow:"hidden",boxShadow:`0 0 0 1px ${color}14, 0 6px 32px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)`,transition:"border-color 0.2s, box-shadow 0.2s" }}
-      onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=color+"55";el.style.boxShadow=`0 0 32px ${color}22, 0 8px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06)`;}}
-      onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=color+"28";el.style.boxShadow=`0 0 0 1px ${color}14, 0 6px 32px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)`;}}
-    >
-      <div style={{ position:"absolute",left:0,top:0,bottom:0,width:4,borderRadius:"16px 0 0 16px",background:`linear-gradient(180deg,${color},${color}33)`,boxShadow:`2px 0 12px ${color}40` }}/>
-      <div style={{ position:"absolute",top:0,right:0,width:100,height:100,background:`radial-gradient(circle at top right,${color}22,transparent 60%)`,pointerEvents:"none" }}/>
-      <div style={{ width:32,height:32,borderRadius:9,background:color+"22",border:`1px solid ${color}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,color,marginBottom:14,boxShadow:`0 0 12px ${color}30` }}>{icon}</div>
-      <div style={{ fontSize:28,fontWeight:800,letterSpacing:"-0.04em",lineHeight:1,marginBottom:sub?4:7 }}>
-        {typeof value==="number" ? <AnimNum value={value} color={color}/> : <span style={{color}}>{value}</span>}
-      </div>
-      {sub&&<div style={{ fontSize:11,color:color,opacity:0.7,marginBottom:7 }}>{sub}</div>}
-      <div style={{ fontSize:10,color:T.textMuted,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase" as const }}>{label}</div>
-    </div>
-  );
-
-  const sectionDivider = (title:string) => (
-    <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:16,marginTop:32 }}>
-      <div style={{ height:1,width:20,background:"rgba(79,158,255,0.35)" }}/>
-      <span style={{ fontSize:10,fontWeight:800,letterSpacing:"0.14em",color:"rgba(79,158,255,0.55)",textTransform:"uppercase" as const }}>{title}</span>
-      <div style={{ height:1,flex:1,background:"linear-gradient(90deg,rgba(79,158,255,0.2),transparent)" }}/>
-    </div>
-  );
-
-  const cardStyle:React.CSSProperties = { background:T.surface, border:`1px solid ${T.border}`, borderRadius:14, padding:"20px 22px", boxShadow:T.shadow };
-
-  const initials = (name:string) => name.split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();
-  const statusColor = (s:string) => s==="completed"||s==="complete" ? T.green : s==="building" ? T.amber : s==="failed" ? T.red : T.textMuted;
-
-  return (
-    <div className="wg-tab">
-      {/* A. Hero KPI row */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(175px,1fr))", gap:14, marginBottom:8 }}>
-        {kpi("Est. MRR","$"+mrr.toLocaleString(),T.green,"$")}
-        {kpi("Active plans",active,T.green,"●")}
-        {kpi("Today's views",todayViews,T.cyan,"◎",monthViews.toLocaleString()+" this month")}
-        {kpi("Views this month",monthViews,T.blue,"◈")}
-        {kpi("Total bookings",totalBookings,T.amber,"◆")}
-        {kpi("Form submits",totalForms,T.purple,"⬡")}
-      </div>
-
-      {/* B. Revenue breakdown + Top performers */}
-      {sectionDivider("Breakdown")}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:8 }}>
-        {/* Revenue breakdown */}
-        <div style={cardStyle}>
-          <div style={{ fontSize:12,fontWeight:700,color:T.text,marginBottom:16,letterSpacing:"-0.01em" }}>Revenue Breakdown</div>
-          {[
-            {label:"Monthly Plans",count:monthly,color:T.green},
-            {label:"Final Paid",count:finalPaidOnly,color:T.blue},
-            {label:"Deposit Only",count:depositOnly,color:T.amber},
-            {label:"Unpaid",count:unpaid,color:T.red},
-          ].map(row=>(
-            <div key={row.label} style={{ marginBottom:12 }}>
-              <div style={{ display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:5 }}>
-                <span style={{ color:T.textSec }}>{row.label}</span>
-                <span style={{ color:row.color,fontWeight:700 }}>{row.count}/{total}</span>
-              </div>
-              <div style={{ height:7,borderRadius:99,background:T.raised,overflow:"hidden" }}>
-                <div style={{ width:`${Math.round(row.count/total*100)}%`,height:"100%",borderRadius:99,background:row.color,boxShadow:`0 0 8px ${row.color}60`,transition:"width 0.7s cubic-bezier(0.22,1,0.36,1)" }}/>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Top performers */}
-        <div style={cardStyle}>
-          <div style={{ fontSize:12,fontWeight:700,color:T.text,marginBottom:16,letterSpacing:"-0.01em" }}>Top Performers</div>
-          {topPerformers.map((cl,i)=>{
-            const sc = statusColor(cl.buildStatus);
-            const views = cl.analytics?.thisMonth.views||0;
-            const rankColor = i===0?T.amber:i===1?"#c0c0c0":i===2?T.amber:T.textMuted;
-            return (
-              <div key={cl.slug} style={{ display:"flex",alignItems:"center",gap:10,marginBottom:10 }}>
-                <span style={{ fontSize:11,fontWeight:800,color:rankColor,width:20,flexShrink:0,textAlign:"right" as const }}>#{i+1}</span>
-                <div style={{ width:28,height:28,borderRadius:7,background:`linear-gradient(135deg,${sc}30,${sc}10)`,border:`1px solid ${sc}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:sc,flexShrink:0 }}>{initials(cl.businessName)}</div>
-                <div style={{ flex:1,minWidth:0 }}>
-                  <div style={{ fontSize:11,fontWeight:600,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" as const }}>{cl.businessName}</div>
-                  <div style={{ height:4,borderRadius:99,background:T.raised,overflow:"hidden",marginTop:3 }}>
-                    <div style={{ width:`${Math.round(views/maxViews*100)}%`,height:"100%",background:"linear-gradient(90deg,#4f9eff,#00e5ff)",borderRadius:99 }}/>
-                  </div>
-                </div>
-                <span style={{ fontSize:11,fontWeight:700,color:T.cyan,flexShrink:0 }}>{views.toLocaleString()}</span>
-              </div>
-            );
-          })}
-          {topPerformers.length===0&&<div style={{ fontSize:12,color:T.textMuted }}>No analytics data yet.</div>}
-        </div>
-      </div>
-
-      {/* C. Build Pipeline + Industries + Engagement Funnel */}
-      {sectionDivider("Platform health")}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16, marginBottom:8 }}>
-        {/* Build pipeline */}
-        <div style={cardStyle}>
-          <div style={{ fontSize:12,fontWeight:700,color:T.text,marginBottom:16,letterSpacing:"-0.01em" }}>Build Pipeline</div>
-          {([
-            {label:"Completed",count:pipelineCounts.completed,color:T.green},
-            {label:"Building",count:pipelineCounts.building,color:T.amber},
-            {label:"Pending",count:pipelineCounts.pending,color:T.textMuted},
-            {label:"Failed",count:pipelineCounts.failed,color:T.red},
-          ] as {label:string;count:number;color:string}[]).map(row=>(
-            <div key={row.label} style={{ display:"flex",alignItems:"center",gap:8,marginBottom:10 }}>
-              <div style={{ width:8,height:8,borderRadius:"50%",background:row.color,boxShadow:`0 0 6px ${row.color}70`,flexShrink:0 }}/>
-              <span style={{ fontSize:11,color:T.textSec,flex:1 }}>{row.label}</span>
-              <span style={{ fontSize:13,fontWeight:700,color:row.color }}>{row.count}</span>
-            </div>
-          ))}
-          {/* Segmented bar */}
-          <div style={{ display:"flex",height:8,borderRadius:99,overflow:"hidden",marginTop:12,gap:1 }}>
-            {([
-              {count:pipelineCounts.completed,color:T.green},
-              {count:pipelineCounts.building,color:T.amber},
-              {count:pipelineCounts.pending,color:T.textMuted},
-              {count:pipelineCounts.failed,color:T.red},
-            ] as {count:number;color:string}[]).map((seg,i)=>seg.count>0&&(
-              <div key={i} style={{ flex:seg.count,background:seg.color,minWidth:2 }}/>
-            ))}
-          </div>
-        </div>
-
-        {/* Industries */}
-        <div style={cardStyle}>
-          <div style={{ fontSize:12,fontWeight:700,color:T.text,marginBottom:16,letterSpacing:"-0.01em" }}>Industries Served</div>
-          {topIndustries.map(([industry,count])=>(
-            <div key={industry} style={{ marginBottom:10 }}>
-              <div style={{ display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4 }}>
-                <span style={{ color:T.textSec,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" as const,flex:1,marginRight:8 }}>{industry}</span>
-                <span style={{ color:T.purple,fontWeight:600,flexShrink:0 }}>{count}</span>
-              </div>
-              <div style={{ height:5,borderRadius:99,background:T.raised,overflow:"hidden" }}>
-                <div style={{ width:`${Math.round(count/maxIndustryCount*100)}%`,height:"100%",borderRadius:99,background:"linear-gradient(90deg,#b085ff,#4f9eff)" }}/>
-              </div>
-            </div>
-          ))}
-          {topIndustries.length===0&&<div style={{ fontSize:12,color:T.textMuted }}>No industries found.</div>}
-        </div>
-
-        {/* Engagement funnel */}
-        <div style={cardStyle}>
-          <div style={{ fontSize:12,fontWeight:700,color:T.text,marginBottom:16,letterSpacing:"-0.01em" }}>Engagement Funnel</div>
-          {funnelSteps.map(step=>{
-            const pct = Math.round(step.value/allTimeViews*100);
-            return (
-              <div key={step.label} style={{ marginBottom:12 }}>
-                <div style={{ display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4 }}>
-                  <span style={{ color:T.textSec }}>{step.label}</span>
-                  <span style={{ color:step.color,fontWeight:600 }}>{step.value.toLocaleString()} ({pct}%)</span>
-                </div>
-                <div style={{ height:6,borderRadius:99,background:T.raised,overflow:"hidden" }}>
-                  <div style={{ width:`${Math.min(pct,100)}%`,height:"100%",borderRadius:99,background:step.color }}/>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* D. Needs Attention */}
-      {sectionDivider("Needs attention")}
-      <div style={{ ...cardStyle, marginBottom:8 }}>
-        {needsAttention.length===0 ? (
-          <div style={{ display:"flex",alignItems:"center",gap:10,padding:"8px 0" }}>
-            <div style={{ width:28,height:28,borderRadius:8,background:T.green+"20",border:`1px solid ${T.green}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14 }}>✓</div>
-            <span style={{ fontSize:13,color:T.green,fontWeight:600 }}>All systems normal — no clients need attention.</span>
-          </div>
-        ) : (
-          <div style={{ display:"flex",flexDirection:"column" as const,gap:8 }}>
-            {needsAttention.map(({c:cl,badge,color},i)=>(
-              <div key={`${cl.slug}-${badge}-${i}`} style={{ display:"flex",alignItems:"center",gap:12,background:T.raised,borderRadius:10,padding:"12px 16px",borderLeft:`3px solid ${color}` }}>
-                <div style={{ width:32,height:32,borderRadius:8,background:color+"20",border:`1px solid ${color}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color,flexShrink:0 }}>{initials(cl.businessName)}</div>
-                <div style={{ flex:1,minWidth:0 }}>
-                  <div style={{ fontSize:13,fontWeight:600,color:T.text }}>{cl.businessName}</div>
-                  <div style={{ fontSize:11,color:T.textMuted }}>{cl.industry}</div>
-                </div>
-                <Pill color={color}>{badge}</Pill>
-                <button onClick={()=>onOpenClient(cl)} style={{ background:color+"15",color,border:`1px solid ${color}35`,borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",flexShrink:0 }}>Open →</button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* E. Recent Builds */}
-      {recentBuilds.length>0&&(
-        <>
-          {sectionDivider("Recent builds")}
-          <div style={{ display:"flex",gap:12,overflowX:"auto" as const,paddingBottom:8 }}>
-            {recentBuilds.map(cl=>{
-              const sc = statusColor(cl.buildStatus);
-              return (
-                <div key={cl.slug} onClick={()=>onOpenClient(cl)} className="wg-cc" style={{ flexShrink:0,width:180,background:T.surface,border:`1px solid ${sc}25`,borderRadius:12,padding:"14px 16px",cursor:"pointer",boxShadow:`0 4px 20px rgba(0,0,0,0.5)` }}>
-                  <div style={{ width:36,height:36,borderRadius:9,background:`linear-gradient(135deg,${sc}30,${sc}10)`,border:`1px solid ${sc}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:sc,marginBottom:10 }}>{initials(cl.businessName)}</div>
-                  <div style={{ fontSize:12,fontWeight:600,color:T.text,marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" as const }}>{cl.businessName}</div>
-                  <div style={{ fontSize:10,color:T.textMuted,marginBottom:6 }}>{cl.industry}</div>
-                  <div style={{ fontSize:10,color:T.textMuted,fontFamily:"monospace" }}>{cl.builtAt?new Date(cl.builtAt).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"}):""}</div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 // ── Admin dashboard ────────────────────────────────────────────────────────────
 function AdminDashboard() {
   const [dark, setDark] = useState(true);
@@ -1334,16 +972,11 @@ function AdminDashboard() {
   const [clients, setClients] = useState<ClientAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [view, setView] = useState<"analytics"|"clients"|"logs">("analytics");
+  const [view, setView] = useState<"clients"|"logs">("clients");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all"|"active"|"building"|"unpaid">("all");
   const [sort, setSort] = useState<"views"|"name"|"status">("views");
-  const [selectedClient, setSelectedClient] = useState<ClientAnalytics|null>(null);
   const { toasts, add: toast } = useToast();
-
-  function openClient(c: ClientAnalytics) {
-    setSelectedClient(c);
-  }
 
   function toggleTheme() {
     const next=!dark; setDark(next);
@@ -1403,75 +1036,56 @@ function AdminDashboard() {
     mrr:clients.filter(c=>c.paymentState?.monthlyActive).length*109,
   };
 
-  const inp:React.CSSProperties={flex:1,minWidth:200,background:T.raised,border:`1px solid ${T.border}`,borderRadius:9,padding:"9px 14px",color:T.text,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",transition:"border-color 0.2s, box-shadow 0.2s"};
+  const inp:React.CSSProperties={flex:1,minWidth:200,background:T.surface,border:`1px solid ${T.border}`,borderRadius:8,padding:"9px 14px",color:T.text,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit"};
 
   return (
-    <div className="wg-grid-bg" style={{ minHeight:"100vh", background:T.bg, color:T.text, fontFamily:"'Space Grotesk','Inter',-apple-system,sans-serif", transition:"background 0.25s, color 0.25s" }}>
+    <div style={{ minHeight:"100vh", background:T.bg, color:T.text, fontFamily:"'Inter',-apple-system,BlinkMacSystemFont,sans-serif", transition:"background 0.25s, color 0.25s" }}>
       <style>{CSS}</style>
       <Toasts toasts={toasts}/>
 
       {/* Top nav */}
-      <div className="wg-glass" style={{ background: dark ? "rgba(4,8,15,0.88)" : "rgba(255,255,255,0.92)", borderBottom:`1px solid rgba(79,158,255,0.15)`, padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:62, position:"sticky" as const, top:0, zIndex:100, transition:"background 0.25s, border-color 0.25s", boxShadow:"0 1px 0 rgba(79,158,255,0.08), 0 4px 24px rgba(0,0,0,0.5)" }}>
-        {/* Gradient line at very top */}
-        <div style={{ position:"absolute", top:0, left:0, right:0, height:2, background:"linear-gradient(90deg, #4f9eff 0%, #b085ff 40%, #00f080 70%, transparent 100%)", pointerEvents:"none" }}/>
-        <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-          {/* Logo mark */}
-          <div style={{ width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#4f9eff,#9d6fff)",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 24px rgba(79,158,255,0.55), 0 0 48px rgba(79,158,255,0.2)",fontSize:16,fontWeight:900,color:"#fff" }}>W</div>
-          <span className="wg-brand-text" style={{ fontSize:17,fontWeight:800,letterSpacing:"-0.04em" }}>WebGecko</span>
-          <span style={{ fontSize:9,color:"#4f9eff",background:"rgba(79,158,255,0.15)",border:"1px solid rgba(79,158,255,0.3)",borderRadius:5,padding:"3px 9px",fontWeight:800,letterSpacing:"0.12em",boxShadow:"0 0 10px rgba(79,158,255,0.15)" }}>ADMIN</span>
+      <div style={{ background:T.surface, borderBottom:`1px solid ${T.border}`, padding:"0 24px", display:"flex", alignItems:"center", justifyContent:"space-between", height:56, position:"sticky" as const, top:0, zIndex:100, boxShadow:T.shadow, transition:"background 0.25s, border-color 0.25s" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:30,height:30,borderRadius:8,background:`linear-gradient(135deg,${T.green},#0ea5e9)`,flexShrink:0 }}/>
+          <span style={{ fontSize:15,fontWeight:800,color:T.text,letterSpacing:"-0.03em" }}>WebGecko</span>
+          <span style={{ fontSize:10,color:T.textMuted,background:T.raised,border:`1px solid ${T.border}`,borderRadius:5,padding:"2px 7px",fontWeight:700,letterSpacing:"0.07em" }}>ADMIN</span>
           {clients.some(c=>c.buildStatus==="building")&&(
-            <div style={{ display:"flex",alignItems:"center",gap:6,background:T.amber+"14",border:`1px solid ${T.amber}35`,borderRadius:20,padding:"4px 12px" }}>
-              <div style={{ position:"relative",width:7,height:7 }}>
-                <div style={{ position:"absolute",inset:0,borderRadius:"50%",background:T.amber,animation:"wg-ping 1.2s infinite" }}/>
-                <div style={{ position:"absolute",inset:0,borderRadius:"50%",background:T.amber }}/>
-              </div>
-              <span style={{ fontSize:11,color:T.amber,fontWeight:700 }}>{clients.filter(c=>c.buildStatus==="building").length} building</span>
+            <div style={{ display:"flex",alignItems:"center",gap:6,background:T.amber+"12",border:`1px solid ${T.amber}30`,borderRadius:20,padding:"3px 10px" }}>
+              <div style={{ width:6,height:6,borderRadius:"50%",background:T.amber,animation:"wg-ping 1.2s infinite" }}/>
+              <span style={{ fontSize:11,color:T.amber,fontWeight:600 }}>{clients.filter(c=>c.buildStatus==="building").length} building</span>
             </div>
           )}
         </div>
         <div style={{ display:"flex",gap:8,alignItems:"center" }}>
-          <button onClick={loadDashboard} style={{ background:T.raised,border:`1px solid ${T.border}`,color:T.textSec,borderRadius:8,padding:"7px 16px",fontSize:12,fontWeight:500,cursor:"pointer" }}>↻ Refresh</button>
-          <button onClick={toggleTheme} title={dark?"Light mode":"Dark mode"} style={{ background:T.raised,border:`1px solid ${T.border}`,color:T.textMuted,borderRadius:8,padding:"7px 10px",fontSize:14,cursor:"pointer",width:36,height:34,display:"flex",alignItems:"center",justifyContent:"center" }}>
-            {dark?"☀":"🌙"}
+          <button onClick={loadDashboard} style={{ background:T.raised,border:`1px solid ${T.border}`,color:T.textMuted,borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer" }}>↻ Refresh</button>
+          <button onClick={toggleTheme} title={dark?"Light mode":"Dark mode"} style={{ background:T.raised,border:`1px solid ${T.border}`,color:T.textMuted,borderRadius:8,padding:"6px 10px",fontSize:14,cursor:"pointer",width:36,height:32,display:"flex",alignItems:"center",justifyContent:"center" }}>
+            {dark?"☀️":"🌙"}
           </button>
-          <button onClick={handleLogout} style={{ background:"transparent",color:T.textMuted,border:`1px solid ${T.border}`,borderRadius:8,padding:"7px 16px",fontSize:12,cursor:"pointer" }}>Sign out</button>
+          <button onClick={handleLogout} style={{ background:"transparent",color:T.textMuted,border:`1px solid ${T.border}`,borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer" }}>Sign out</button>
         </div>
       </div>
 
-      <div style={{ maxWidth:1140,margin:"0 auto",padding:"36px 28px" }}>
-
-        {/* Section label */}
-        {!loading&&!error&&(
-          <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:18 }}>
-            <div style={{ height:1,flex:1,background:"linear-gradient(90deg,rgba(79,158,255,0.3),transparent)" }}/>
-            <span style={{ fontSize:10,fontWeight:800,letterSpacing:"0.14em",color:"rgba(79,158,255,0.6)",textTransform:"uppercase" as const }}>Platform Overview</span>
-            <div style={{ height:1,flex:1,background:"linear-gradient(90deg,transparent,rgba(79,158,255,0.3))" }}/>
-          </div>
-        )}
+      <div style={{ maxWidth:1100,margin:"0 auto",padding:"28px 24px" }}>
 
         {/* Stats */}
         {!loading&&!error&&(
-          <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(175px,1fr))",gap:14,marginBottom:32 }}>
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(175px,1fr))",gap:12,marginBottom:28 }}>
             {[
-              {label:"Total clients",value:totals.clients,color:T.blue,icon:"◈"},
-              {label:"Monthly active",value:totals.active,color:T.green,icon:"●"},
-              {label:"Est. MRR",value:"$"+totals.mrr.toLocaleString(),color:T.green,icon:"$"},
-              {label:"Views / month",value:totals.views,color:T.cyan,icon:"◎"},
-              {label:"Total bookings",value:totals.bookings,color:T.amber,icon:"◆"},
+              {label:"Total clients",value:totals.clients,color:T.text,icon:"👥"},
+              {label:"Monthly active",value:totals.active,color:T.green,icon:"✅"},
+              {label:"Est. MRR",value:"$"+totals.mrr.toLocaleString(),color:T.green,icon:"💰"},
+              {label:"Views this month",value:totals.views,color:T.blue,icon:"👁"},
+              {label:"Total bookings",value:totals.bookings,color:T.amber,icon:"📅"},
             ].map(s=>(
-              <div key={s.label} className="wg-card wg-stat-scan" style={{ background:T.surface,border:`1px solid ${s.color}28`,borderRadius:16,padding:"20px 20px 18px 26px",position:"relative",overflow:"hidden",transition:"border-color 0.2s, box-shadow 0.2s",boxShadow:`0 0 0 1px ${s.color}14, 0 6px 32px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)` }}
-                onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=s.color+"55";el.style.boxShadow=`0 0 32px ${s.color}22, 0 8px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06)`;}}
-                onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=s.color+"28";el.style.boxShadow=`0 0 0 1px ${s.color}14, 0 6px 32px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)`;}}>
-                {/* Left accent bar — full height */}
-                <div style={{ position:"absolute",left:0,top:0,bottom:0,width:4,borderRadius:"16px 0 0 16px",background:`linear-gradient(180deg,${s.color},${s.color}33)`,boxShadow:`2px 0 12px ${s.color}40` }}/>
-                {/* Corner radial glow */}
-                <div style={{ position:"absolute",top:0,right:0,width:100,height:100,background:`radial-gradient(circle at top right,${s.color}22,transparent 60%)`,pointerEvents:"none" }}/>
-                {/* Icon pill */}
-                <div style={{ width:32,height:32,borderRadius:9,background:s.color+"22",border:`1px solid ${s.color}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,color:s.color,marginBottom:14,letterSpacing:"-0.02em",boxShadow:`0 0 12px ${s.color}30` }}>{s.icon}</div>
-                <div style={{ fontSize:28,fontWeight:800,letterSpacing:"-0.04em",lineHeight:1,marginBottom:7 }}>
+              <div key={s.label} className="wg-card" style={{ background:T.surface,border:`1px solid ${T.border}`,borderRadius:14,padding:"18px 20px",boxShadow:T.shadow,position:"relative",overflow:"hidden",transition:"border-color 0.2s" }}
+                onMouseEnter={e=>(e.currentTarget as HTMLElement).style.borderColor=s.color+"50"}
+                onMouseLeave={e=>(e.currentTarget as HTMLElement).style.borderColor=T.border}>
+                <div style={{ position:"absolute",top:0,right:0,width:80,height:80,background:`radial-gradient(circle at top right,${s.color}12,transparent 70%)`,pointerEvents:"none" }}/>
+                <div style={{ fontSize:20,marginBottom:10 }}>{s.icon}</div>
+                <div style={{ fontSize:26,fontWeight:700,letterSpacing:"-0.03em",lineHeight:1,marginBottom:6 }}>
                   {typeof s.value==="number" ? <AnimNum value={s.value} color={s.color}/> : <span style={{color:s.color}}>{s.value}</span>}
                 </div>
-                <div style={{ fontSize:10,color:T.textMuted,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase" as const }}>{s.label}</div>
+                <div style={{ fontSize:12,color:T.textMuted,fontWeight:500 }}>{s.label}</div>
               </div>
             ))}
           </div>
@@ -1481,50 +1095,33 @@ function AdminDashboard() {
         {error&&<div style={{ background:T.red+"0a",border:`1px solid ${T.red}25`,borderRadius:10,padding:"14px 18px",color:T.red,marginBottom:20,fontSize:13 }}>{error}</div>}
 
         {/* View toggle */}
-        <div style={{ display:"flex",gap:3,background:T.raised,border:`1px solid ${T.border}`,borderRadius:10,padding:4,marginBottom:20,width:"fit-content",boxShadow:T.shadow }}>
-          {([
-            {v:"analytics" as const,label:"◈ Analytics"},
-            {v:"clients" as const,label:"⬡ Clients"},
-            {v:"logs" as const,label:"⧉ Pipeline"},
-          ]).map(({v,label})=>(
-            <button key={v} onClick={()=>setView(v)} className={view===v?"wg-view-active":""} style={{ padding:"7px 22px",fontSize:12,fontWeight:view===v?700:400,color:view===v?T.text:T.textMuted,background:"transparent",border:"1px solid transparent",borderRadius:7,cursor:"pointer",transition:"all 0.18s",letterSpacing:"0.01em" }}>
-              {label}
+        <div style={{ display:"flex",gap:4,background:T.surface,border:`1px solid ${T.border}`,borderRadius:8,padding:3,marginBottom:16,width:"fit-content" }}>
+          {(["clients","logs"] as const).map(v=>(
+            <button key={v} onClick={()=>setView(v)} style={{ padding:"6px 18px",fontSize:12,fontWeight:view===v?600:400,color:view===v?T.text:T.textMuted,background:view===v?T.raised:"transparent",border:view===v?`1px solid ${T.border}`:"1px solid transparent",borderRadius:6,cursor:"pointer",transition:"all 0.15s" }}>
+              {v==="clients"?"Clients":"Pipeline Logs"}
             </button>
           ))}
         </div>
 
-        {/* Global selected-client panel (from Analytics view) */}
-        {selectedClient&&<ClientPanel c={selectedClient} secret="" onClose={()=>setSelectedClient(null)} toast={toast}/>}
-
-        {view==="analytics"&&!loading&&!error&&(
-          <AnalyticsView clients={clients} onOpenClient={openClient}/>
-        )}
-
         {view==="logs"&&<PipelineLogsPanel/>}
 
         {view==="clients"&&(<>
-        {/* Client grid header */}
-        <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:14 }}>
-          <div style={{ height:1,width:24,background:"rgba(79,158,255,0.4)" }}/>
-          <span style={{ fontSize:10,fontWeight:800,letterSpacing:"0.14em",color:"rgba(79,158,255,0.55)",textTransform:"uppercase" as const }}>Clients</span>
-        </div>
-
         {/* Search + filters */}
-        <div style={{ display:"flex",gap:10,marginBottom:20,flexWrap:"wrap" as const,alignItems:"center" }}>
-          <input type="text" placeholder="⌕  Search clients by name or industry…" value={search} onChange={e=>setSearch(e.target.value)} style={inp}/>
-          <div style={{ display:"flex",gap:2,background:T.raised,border:`1px solid ${T.border}`,borderRadius:9,padding:3,boxShadow:T.shadow }}>
+        <div style={{ display:"flex",gap:10,marginBottom:16,flexWrap:"wrap" as const,alignItems:"center" }}>
+          <input type="text" placeholder="Search clients by name or industry…" value={search} onChange={e=>setSearch(e.target.value)} style={inp}/>
+          <div style={{ display:"flex",gap:3,background:T.surface,border:`1px solid ${T.border}`,borderRadius:8,padding:3 }}>
             {(["all","active","building","unpaid"] as const).map(f=>(
-              <button key={f} onClick={()=>setFilter(f)} style={{ padding:"5px 12px",fontSize:11,fontWeight:filter===f?700:400,color:filter===f?T.text:T.textMuted,background:filter===f?T.surface:"transparent",border:filter===f?`1px solid ${T.border}`:"1px solid transparent",borderRadius:7,cursor:"pointer",transition:"all 0.15s",letterSpacing:"0.02em" }}>
+              <button key={f} onClick={()=>setFilter(f)} style={{ padding:"5px 12px",fontSize:12,fontWeight:filter===f?600:400,color:filter===f?T.text:T.textMuted,background:filter===f?T.raised:"transparent",border:filter===f?`1px solid ${T.border}`:"1px solid transparent",borderRadius:6,cursor:"pointer",transition:"all 0.15s" }}>
                 {f==="all"?"All":f.charAt(0).toUpperCase()+f.slice(1)}
               </button>
             ))}
           </div>
-          <select value={sort} onChange={e=>setSort(e.target.value as any)} style={{ background:T.raised,border:`1px solid ${T.border}`,borderRadius:9,padding:"7px 12px",color:T.textSec,fontSize:12,cursor:"pointer",outline:"none",fontFamily:"inherit" }}>
+          <select value={sort} onChange={e=>setSort(e.target.value as any)} style={{ background:T.surface,border:`1px solid ${T.border}`,borderRadius:8,padding:"7px 12px",color:T.text,fontSize:12,cursor:"pointer",outline:"none" }}>
             <option value="views">Sort: Views</option>
             <option value="name">Sort: Name</option>
             <option value="status">Sort: Status</option>
           </select>
-          <div style={{ marginLeft:"auto",fontSize:11,color:T.textMuted,letterSpacing:"0.02em" }}>{filtered.length} <span style={{color:T.border}}/> of {clients.length}</div>
+          <div style={{ marginLeft:"auto",fontSize:12,color:T.textMuted }}>{filtered.length} of {clients.length} clients</div>
         </div>
 
         {/* Grid */}
