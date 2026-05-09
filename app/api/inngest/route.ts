@@ -3,7 +3,7 @@ export const maxDuration = 300;
 
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest";
-import { stitchCreateProject, stitchGenerateScreen, stitchGetScreen, stitchFetchHtml, stitchListLatestScreen } from "@/lib/stitch";
+import { stitchSdk } from "@/lib/stitch";
 import Anthropic from "@anthropic-ai/sdk";
 import { Resend } from "resend";
 import {
@@ -197,108 +197,95 @@ const buildWebsite = inngest.createFunction(
     // ── STEP 2: Create Stitch project ─────────────────────────────────────────
     const projectId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step2-stitch-create", async () => {
       console.log(`[Inngest] STEP 2 START: creating Stitch project "${spec.projectTitle}"`);
-      const project = await stitchCreateProject(spec.projectTitle);
+      const project = await stitchSdk.createProject(spec.projectTitle);
       const pid = project.projectId;
-      if (!pid) throw new Error("Stitch MCP: no projectId returned from create_project");
+      if (!pid) throw new Error("Stitch SDK: no projectId returned from createProject");
       console.log(`[Inngest] STEP 2 DONE: projectId=${pid}`);
       return pid;
     }) as string;
 
-
-    // ── STEP 3a: Fire Stitch generation — returns screenId or throws ─────────────
-    // generate_screen_from_text takes 1–3 min. We fire it and grab the screenId.
-    // Inngest will retry this step automatically if it throws (up to its default limit).
-    const stitchScreenId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step3a-stitch-trigger-v2", async () => {
+    // ── STEP 3a: Stitch generate — fire and return screenId ───────────────────
+    // Strip URLs from prompt (causes "expected object at projection path" error).
+    // Retry up to 3x on transient failures. Inngest sleeps between 3a and 3b.
+    const stitchScreenId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step3a-stitch-trigger", async () => {
       const stitchPrompt = (spec.stitchPrompt || "")
         .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
         .replace(/\s{3,}/g, "  ")
         .slice(0, 5000);
-      console.log(`[Inngest] STEP 3a: firing Stitch MCP generate (prompt: ${stitchPrompt.length} chars)`);
-
-      const screen = await stitchGenerateScreen(projectId, stitchPrompt, "DESKTOP", "GEMINI_3_1_PRO");
-      const sid = screen.screenId || "";
-
-      // If Stitch returned HTML inline in the generate response, return it directly
-      // prefixed with "HTML:" so step 3b knows to use it without polling
-      if (screen.inlineHtml && screen.inlineHtml.length > 1000) {
-        console.log(`[Inngest] STEP 3a: got inline HTML (${screen.inlineHtml.length} chars) — skipping poll`);
-        return `HTML:${screen.inlineHtml}`;
-      }
-      if (screen.htmlUri) {
-        console.log(`[Inngest] STEP 3a: got htmlUri directly — skipping poll`);
-        return `URI:${screen.htmlUri}`;
-      }
-      console.log(`[Inngest] STEP 3a DONE: screenId="${sid}" — will poll in 3b`);
-      return sid;
-    }) as string;
-
-    // ── Sleep 2 min — Inngest yields here, zero Vercel serverless time consumed ───
-    if (!savedHtmlForRebuild) {
-      await step.sleep("step3-wait-for-stitch-v2", "3m");
-    }
-
-    // ── STEP 3b: Extract HTML from 3a result or poll until ready ─────────────────
-    const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3b-stitch-fetch-v2", async () => {
-      const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-      // Fast path: 3a already returned the HTML or a direct URI
-      if (stitchScreenId.startsWith("HTML:")) {
-        const html = stitchScreenId.slice(5);
-        console.log(`[Inngest] STEP 3b: using inline HTML from 3a (${html.length} chars)`);
-        return html;
-      }
-      if (stitchScreenId.startsWith("URI:")) {
-        const uri = stitchScreenId.slice(4);
-        console.log(`[Inngest] STEP 3b: fetching HTML from URI returned by 3a`);
-        const res = await fetch(uri);
-        const html = await res.text();
-        console.log(`[Inngest] STEP 3b: fetched ${html.length} chars from URI`);
-        return html;
-      }
-
-      // Slow path: poll list_screens until a screen appears
-      let screen: any = null;
-
-      for (let i = 0; i < 5; i++) {
-        try {
-          const latest = await stitchListLatestScreen(projectId);
-          if (latest?.screenId) {
-            // Now poll get_screen with the real screenId
-            screen = await stitchGetScreen(projectId, latest.screenId);
-            console.log(`[Inngest] STEP 3b poll ${i + 1}: screenId=${latest.screenId} state=${screen.state} htmlUri=${!!screen.htmlUri}`);
-            if (screen?.htmlUri) {
-              console.log(`[Inngest] STEP 3b: htmlUri ready on poll ${i + 1}`);
-              break;
-            }
-          } else {
-            console.log(`[Inngest] STEP 3b poll ${i + 1}: no screens listed yet`);
-          }
-        } catch (e: any) {
-          console.warn(`[Inngest] STEP 3b poll ${i + 1} error: ${e?.message}`);
-        }
-        if (i < 4) await sleep(30000);
-      }
-
-      if (!screen?.htmlUri) throw new Error("Stitch MCP: no htmlUri after 5 polls");
-
-      // Fetch HTML from the signed URL, retry up to 3x with fresh URLs
-      let html = "";
+      console.log(`[Inngest] STEP 3a: Stitch generate (prompt: ${stitchPrompt.length} chars)`);
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          html = await stitchFetchHtml(screen);
-          console.log(`[Inngest] STEP 3b: fetched HTML (attempt ${attempt}) — ${html.length} chars`);
-          break;
+          const project = stitchSdk.project(projectId);
+          const screen = await project.generate(stitchPrompt, "DESKTOP");
+          console.log(`[Inngest] STEP 3a DONE: screenId=${screen.screenId} (attempt ${attempt})`);
+          return screen.screenId as string;
         } catch (e: any) {
-          console.warn(`[Inngest] STEP 3b fetch attempt ${attempt} failed: ${e?.message}`);
-          if (attempt < 3) {
-            await sleep(10000);
-            try { screen = await stitchListLatestScreen(projectId); } catch (_) {}
+          const msg = e?.message || String(e);
+          console.warn(`[Inngest] STEP 3a attempt ${attempt} failed: ${msg}`);
+          if (attempt === 3) throw e;
+          await new Promise(r => setTimeout(r, 5000 * attempt));
+        }
+      }
+      throw new Error("Stitch: generate failed after 3 attempts");
+    }) as string;
+
+    // ── Sleep 45s — yield to Inngest, zero Vercel serverless time consumed ────
+    if (!savedHtmlForRebuild) {
+      await step.sleep("step3-wait-for-stitch", "45s");
+    }
+
+    // ── STEP 3b: Fetch rendered HTML from Stitch ──────────────────────────────
+    const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3b-stitch-fetch", async () => {
+      const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+      // Poll up to 5x for the signed URL (already waited 45s above)
+      let url = "";
+      for (let i = 0; i < 5; i++) {
+        try {
+          const project = stitchSdk.project(projectId);
+          const fetched = await project.getScreen(stitchScreenId);
+          url = await fetched.getHtml();
+          if (url) { console.log(`[Inngest] STEP 3b: got signed URL (poll ${i + 1})`); break; }
+        } catch (_) {}
+        try {
+          const project = stitchSdk.project(projectId);
+          const screens = await project.screens();
+          console.log(`[Inngest] STEP 3b: list_screens returned ${screens.length} screens`);
+          if (screens.length > 0) {
+            const match = screens.find((s: any) => s.screenId === stitchScreenId) || screens[screens.length - 1];
+            if (match) { url = await match.getHtml(); }
+            if (url) { console.log(`[Inngest] STEP 3b: got URL via list_screens (poll ${i + 1})`); break; }
           }
+        } catch (_) {}
+        if (i < 4) await sleep(15000);
+      }
+      if (!url) throw new Error("Stitch: no signed URL after polling");
+
+      // Fetch HTML — retry up to 3x with fresh signed URLs
+      let html = "";
+      for (let fetchAttempt = 1; fetchAttempt <= 3; fetchAttempt++) {
+        try {
+          const fetchRes = await fetch(url);
+          const text = await fetchRes.text();
+          console.log(`[Inngest] STEP 3b: fetch ${fetchAttempt} — status=${fetchRes.status} length=${text.length}`);
+          if (text.length > 5000 && text.includes("<")) { html = text; break; }
+          if (fetchAttempt < 3) {
+            await sleep(8000);
+            try {
+              const project = stitchSdk.project(projectId);
+              const freshScreen = await project.getScreen(stitchScreenId);
+              const freshUrl = await freshScreen.getHtml();
+              if (freshUrl) url = freshUrl;
+            } catch (_) {}
+          }
+        } catch (e) {
+          console.warn(`[Inngest] STEP 3b: fetch ${fetchAttempt} threw:`, e);
+          if (fetchAttempt < 3) await sleep(5000);
         }
       }
 
       if (html.length < 5000) throw new Error(`Stitch HTML too short (${html.length} chars)`);
-      if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton placeholder");
+      if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton");
       const styleLen = (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
       const inlineStyleCount = (html.match(/\bstyle=/gi) || []).length;
       if (styleLen < 100 && inlineStyleCount < 20) {
@@ -338,20 +325,44 @@ const buildWebsite = inngest.createFunction(
         html = html.replace(/(<(?:section|div)\b)(?![^>]*\bid=)/, '$1 id="hero"');
       }
 
-      // 2. Inject mobile nav if hamburger button is missing
-      if (!html.includes('id="hamburger"')) {
-        const mobileNav = `
+      // 2. Wire existing hamburger/SVG menu button OR inject our own if missing
+      const hasHamburger = html.includes('id="hamburger"') || html.includes("id='hamburger'");
+      const hasMobileMenu = html.includes('id="mobile-menu"') || html.includes("id='mobile-menu'");
+
+      if (!hasHamburger) {
+        // Try to wire an existing button that looks like a hamburger (SVG icon, aria-label, data-*)
+        const svgHamburgerRe = /<button([^>]*(?:aria-label=["'][^"']*(?:menu|nav|toggle)[^"']*["']|class=["'][^"']*(?:hamburger|menu-btn|nav-toggle|mobile-toggle)[^"']*["'])[^>]*)>/gi;
+        let wiredExisting = false;
+        html = html.replace(svgHamburgerRe, (match: string, attrs: string) => {
+          if (attrs.includes('onclick')) return match; // already wired
+          wiredExisting = true;
+          console.log('[Step4b] Wiring existing SVG hamburger button');
+          return `<button${attrs} id="hamburger" onclick="document.getElementById('mobile-menu')&&(document.getElementById('mobile-menu').style.display='block')">`;
+        });
+
+        if (!wiredExisting) {
+          // Inject our own hamburger + mobile drawer
+          const mobileNav = `
 <div id="mobile-menu" style="display:none;position:fixed;top:0;right:0;width:80%;max-width:300px;height:100vh;z-index:9999;background:#1e293b;padding:24px;box-shadow:-4px 0 24px rgba(0,0,0,0.4);">
   <button onclick="document.getElementById('mobile-menu').style.display='none'" style="float:right;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;">&times;</button>
-  ${requestedPageIds.map((id: string) => `<a href="#${id}" onclick="document.getElementById('mobile-menu').style.display='none'" style="display:block;padding:12px 0;color:#f1f5f9;text-decoration:none;font-size:1rem;border-bottom:1px solid #334155;">${id.charAt(0).toUpperCase() + id.slice(1)}</a>`).join("\n  ")}
+  ${requestedPageIds.map((id: string) => `<a href="#" onclick="event.preventDefault();document.getElementById('mobile-menu').style.display='none';window.navigateTo&&window.navigateTo('${id}')" style="display:block;padding:12px 0;color:#f1f5f9;text-decoration:none;font-size:1rem;border-bottom:1px solid #334155;">${id.charAt(0).toUpperCase() + id.slice(1)}</a>`).join("\n  ")}
 </div>
-<button id="hamburger" onclick="document.getElementById('mobile-menu').style.display='block'" style="display:none;position:fixed;top:16px;right:16px;z-index:10000;background:none;border:none;cursor:pointer;padding:8px;">
+<button id="hamburger" onclick="document.getElementById('mobile-menu').style.display='block'" style="display:none;position:fixed;top:16px;right:16px;z-index:10000;background:none;border:none;cursor:pointer;padding:8px;" aria-label="Open menu">
   <span style="display:block;width:24px;height:2px;background:#fff;margin:5px 0;"></span>
   <span style="display:block;width:24px;height:2px;background:#fff;margin:5px 0;"></span>
   <span style="display:block;width:24px;height:2px;background:#fff;margin:5px 0;"></span>
 </button>
 <style>@media(max-width:768px){#hamburger{display:block!important;}}</style>`;
-        html = html.replace(/<body[^>]*>/, (m: string) => m + mobileNav);
+          html = html.replace(/<body[^>]*>/, (m: string) => m + mobileNav);
+        } else if (!hasMobileMenu) {
+          // We wired an existing button but there's no mobile menu — inject the drawer only
+          const mobileDrawer = `
+<div id="mobile-menu" style="display:none;position:fixed;top:0;right:0;width:80%;max-width:300px;height:100vh;z-index:9999;background:#1e293b;padding:24px;box-shadow:-4px 0 24px rgba(0,0,0,0.4);">
+  <button onclick="document.getElementById('mobile-menu').style.display='none'" style="float:right;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;">&times;</button>
+  ${requestedPageIds.map((id: string) => `<a href="#" onclick="event.preventDefault();document.getElementById('mobile-menu').style.display='none';window.navigateTo&&window.navigateTo('${id}')" style="display:block;padding:12px 0;color:#f1f5f9;text-decoration:none;font-size:1rem;border-bottom:1px solid #334155;">${id.charAt(0).toUpperCase() + id.slice(1)}</a>`).join("\n  ")}
+</div>`;
+          html = html.replace(/<body[^>]*>/, (m: string) => m + mobileDrawer);
+        }
       }
 
       // 3. Inject id="contact" section if missing
@@ -446,27 +457,40 @@ const buildWebsite = inngest.createFunction(
         html = html.replace(/MAP PLACEHOLDER[:\s]*[A-Z\s]+/gi, businessAddress);
       }
 
-      const ctaKeywords = ['Book Now','Book a Session','Get Started','Join Now','Sign Up','Free Trial','Book Free','Reserve','Enquire Now','Get a Quote','Start Today','Book Today','Schedule Now','Try Free','Get Free Quote','Book Consultation'];
+      const ctaKeywords = [
+        'book now','book a session','book a call','book a consult','book consultation','book free',
+        'get started','get a quote','get free quote','get quote',
+        'join now','sign up','free trial','try free','start today','start free',
+        'reserve','enquire now','enquire','contact us','contact','send message',
+        'schedule now','schedule a call','learn more','find out more','discover more',
+        'request a quote','request quote','claim offer','claim now','apply now',
+        'speak to us','talk to us','call us','email us','reach out',
+        'book today','order now','buy now',
+      ];
       const clientCtaUrl = (userInput.existingWebsite || "").trim();
       const ctaOnclick = `event.preventDefault();var el=document.getElementById('${bookingNavTarget}');if(el){el.scrollIntoView({behavior:'smooth'});}else if(window.navigateTo){window.navigateTo('${bookingNavTarget}');}`;
 
-      // Wire <a href="#"> CTA links
-      html = html.replace(/<a([^>]*href=["']#["'][^>]*)>([\s\S]*?)<\/a>/g, (match: string, attrs: string, inner: string) => {
+      // Wire <a> CTA links — catches href="#", href="", javascript:void(0), and bare anchors
+      html = html.replace(/<a([^>]*href=["'](?:#|javascript:void\(0\)|)["'][^>]*)>([\s\S]*?)<\/a>/gi, (match: string, attrs: string, inner: string) => {
         const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
-        if (!ctaKeywords.some(k => txt.includes(k.toLowerCase()))) return match;
-        if (attrs.includes('navigateTo') || attrs.includes('onclick')) return match;
+        if (!ctaKeywords.some(k => txt.includes(k))) return match;
+        if (attrs.includes('navigateTo') || attrs.includes('scrollIntoView')) return match;
+        // Strip dummy onclick handlers Stitch generates (alert, return false, void)
+        const cleanAttrs = attrs.replace(/\s*onclick=["'][^"']*(?:alert|return false|void\(0\))[^"']*["']/gi, '');
         if (clientCtaUrl && clientCtaUrl.startsWith('http')) {
-          return `<a${attrs.replace(/href=["']#["']/, `href="${clientCtaUrl}"`)} target="_blank" rel="noopener">${inner}</a>`;
+          return `<a${cleanAttrs.replace(/href=["'][^"']*["']/, `href="${clientCtaUrl}"`)} target="_blank" rel="noopener">${inner}</a>`;
         }
-        return `<a${attrs} onclick="${ctaOnclick}">${inner}</a>`;
+        return `<a${cleanAttrs} onclick="${ctaOnclick}">${inner}</a>`;
       });
 
-      // Wire <button> CTA tags that have no onclick handler (Stitch often generates these instead of <a>)
-      html = html.replace(/<button([^>]*)>([\s\S]*?)<\/button>/g, (match: string, attrs: string, inner: string) => {
+      // Wire <button> CTA tags — Stitch often generates these instead of <a>
+      html = html.replace(/<button([^>]*)>([\s\S]*?)<\/button>/gi, (match: string, attrs: string, inner: string) => {
         const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
-        if (!ctaKeywords.some(k => txt.includes(k.toLowerCase()))) return match;
-        if (attrs.includes('onclick') || attrs.includes('navigateTo') || attrs.includes('type="submit"')) return match;
-        return `<button${attrs} onclick="${ctaOnclick}">${inner}</button>`;
+        if (!ctaKeywords.some(k => txt.includes(k))) return match;
+        if (attrs.includes('type="submit"') || attrs.includes('navigateTo') || attrs.includes('scrollIntoView')) return match;
+        // Strip dummy onclick handlers
+        const cleanAttrs = attrs.replace(/\s*onclick=["'][^"']*(?:alert|return false|void\(0\))[^"']*["']/gi, '');
+        return `<button${cleanAttrs} onclick="${ctaOnclick}">${inner}</button>`;
       });
 
       if (businessAddress) {

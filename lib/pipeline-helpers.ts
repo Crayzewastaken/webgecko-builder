@@ -128,6 +128,7 @@ export function extractCSS(html: string): string {
 // ─── Fix navigateTo targets at HTML level ─────────────────────────────────────
 // Stitch often sets onclick="navigateTo('home')" on ALL nav links regardless of label.
 // This function rewrites navigateTo targets based on the link's visible text content.
+// Also handles window.navigateTo(...) and hyphenated page IDs like 'contact-us'.
 export function fixNavigateToTargets(html: string): string {
   const labelMap: Record<string, string> = {
     "home": "home", "about": "about", "about us": "about",
@@ -136,30 +137,41 @@ export function fixNavigateToTargets(html: string): string {
     "appointments": "booking", "book an appointment": "booking", "reserve": "booking",
     "schedule": "booking", "book a session": "booking", "book online": "booking",
     "contact": "contact", "contact us": "contact", "get in touch": "contact",
-    "enquire": "contact", "enquire now": "contact",
+    "enquire": "contact", "enquire now": "contact", "reach us": "contact",
     "gallery": "gallery", "our work": "gallery", "portfolio": "gallery",
-    "faq": "faq", "faqs": "faq", "questions": "faq",
-    "testimonials": "testimonials", "reviews": "testimonials",
-    "pricing": "pricing", "prices": "pricing", "packages": "pricing",
+    "faq": "faq", "faqs": "faq", "questions": "faq", "frequently asked": "faq",
+    "testimonials": "testimonials", "reviews": "testimonials", "what clients say": "testimonials",
+    "pricing": "pricing", "prices": "pricing", "packages": "pricing", "plans": "pricing",
     "shop": "shop", "store": "shop", "products": "shop",
     "blog": "blog", "news": "blog", "articles": "blog",
-    "team": "team", "our team": "team",
+    "team": "team", "our team": "team", "meet the team": "team",
     "menu": "menu",
   };
 
-  // Match any element with onclick containing navigateTo and extract inner text
+  // Normalise hyphenated targets to match our page IDs (contact-us → contact)
+  const normaliseTarget = (t: string) => t.replace(/-/g, "").toLowerCase();
+
+  // Match navigateTo() and window.navigateTo() in onclick attributes
   return html.replace(
-    /(<(?:a|button)([^>]*onclick=["'][^"']*navigateTo\(['"]([^'"]+)['"]\)[^"']*["'][^>]*)>)([\s\S]*?)(<\/(?:a|button)>)/gi,
+    /(<(?:a|button)([^>]*onclick=["'][^"']*(?:window\.)?navigateTo\(['"]([^'"]+)['"]\)[^"']*["'][^>]*)>)([\s\S]*?)(<\/(?:a|button)>)/gi,
     (match, openTag, attrs, currentTarget, innerContent, closeTag) => {
-      // Get visible text from inner content
       const text = innerContent.replace(/<[^>]+>/g, "").trim().toLowerCase();
-      const mappedTarget = labelMap[text];
-      if (mappedTarget && mappedTarget !== currentTarget) {
+      // Try exact text match first, then normalised target lookup
+      const mappedTarget = labelMap[text] || Object.entries(labelMap).find(([k]) => text.includes(k))?.[1];
+      const normalisedCurrent = normaliseTarget(currentTarget);
+      const normalisedMapped = mappedTarget ? normaliseTarget(mappedTarget) : null;
+
+      if (mappedTarget && normalisedMapped !== normalisedCurrent) {
         const fixedTag = openTag.replace(
-          /navigateTo\(['"][^'"]+['"]\)/,
-          `navigateTo('${mappedTarget}')`
+          /(?:window\.)?navigateTo\(['"][^'"]+['"]\)/,
+          `window.navigateTo('${mappedTarget}')`
         );
         console.log(`[fixNavigateTo] "${text}": '${currentTarget}' → '${mappedTarget}'`);
+        return fixedTag + innerContent + closeTag;
+      }
+      // Even if target is correct, normalise window.navigateTo for consistency
+      if (openTag.includes('navigateTo') && !openTag.includes('window.navigateTo')) {
+        const fixedTag = openTag.replace(/(?<![.\w])navigateTo\(/g, 'window.navigateTo(');
         return fixedTag + innerContent + closeTag;
       }
       return match;
