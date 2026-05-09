@@ -36,6 +36,34 @@ export async function listJobs(limit = 50) {
   return (data || []).map(dbJobToJob);
 }
 
+export async function appendPipelineLog(
+  jobId: string,
+  entry: { level: "info" | "warn" | "error"; step: string; msg: string; businessName?: string }
+) {
+  try {
+    const { data } = await supabase.from("jobs").select("metadata").eq("id", jobId).single();
+    const meta = data?.metadata || {};
+    const logs = [...((meta.logs || []) as any[]).slice(-199), { ts: new Date().toISOString(), jobId, ...entry }];
+    await supabase.from("jobs").update({ metadata: { ...meta, logs } }).eq("id", jobId);
+  } catch { /* non-fatal */ }
+}
+
+export async function getPipelineLogs(limit = 300) {
+  const { data } = await supabase
+    .from("jobs")
+    .select("id, metadata, user_input")
+    .not("metadata", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(100);
+  const entries: any[] = [];
+  for (const row of data || []) {
+    const logs: any[] = row.metadata?.logs || [];
+    const name = row.user_input?.businessName || row.id;
+    for (const l of logs) entries.push({ ...l, businessName: l.businessName || name, jobId: l.jobId || row.id });
+  }
+  return entries.sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, limit);
+}
+
 // ============================================================
 // CLIENTS
 // ============================================================

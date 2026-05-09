@@ -23,7 +23,7 @@ import {
 } from "@/lib/pipeline-helpers";
 import { createSuperSaasSchedule } from "@/lib/supersaas";
 import { createClientShopCatalogue } from "@/lib/square";
-import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailability, getAnalyticsCount, getBookingsForJob } from "@/lib/db";
+import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailability, getAnalyticsCount, getBookingsForJob, appendPipelineLog } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { createTawktoProperty } from "@/lib/tawkto";
 import { subscribeToNewsletter } from "@/lib/beehiiv";
@@ -270,6 +270,7 @@ const buildWebsite = inngest.createFunction(
         } catch (e: any) {
           const msg = e?.message || String(e);
           console.warn(`[Inngest] STEP 3: attempt ${attempt} failed: ${msg}`);
+          appendPipelineLog(jobId, { level: attempt === 3 ? "error" : "warn", step: "stitch", msg: `Attempt ${attempt} failed: ${msg}`, businessName: userInput.businessName }).catch(()=>{});
           if (attempt === 3) throw e;
           await sleep(10000 * attempt);
         }
@@ -1155,6 +1156,7 @@ const buildWebsite = inngest.createFunction(
       const failures = validateForDeploy(finalHtmlWithShop, requestedPageIds, isMultiPage, hasBookingFeature);
       if (failures.length > 0) {
         console.error("[Step7b] Pre-deploy validation FAILED:", failures.join("; "));
+        appendPipelineLog(jobId, { level: "error", step: "validate", msg: failures.join("; "), businessName: userInput.businessName }).catch(()=>{});
 
         // Pass 1: structural repair (truncated tags, missing footer/body/html)
         let repaired = repairHtml(finalHtmlWithShop, userInput.businessName, new Date().getFullYear());
@@ -1194,6 +1196,7 @@ const buildWebsite = inngest.createFunction(
             subject: "⚠️ Pre-deploy validation failed — " + userInput.businessName,
             html: "<p>Build for <strong>" + userInput.businessName + "</strong> (job: " + jobId + ") has validation failures:<br><ul>" + failuresAfterRepair.map((f: string) => "<li>" + f + "</li>").join("") + "</ul></p>",
           }).catch(() => {});
+          appendPipelineLog(jobId, { level: "error", step: "validate_repair", msg: failuresAfterRepair.join("; "), businessName: userInput.businessName }).catch(()=>{});
           throw new Error("[Step7b] Pre-deploy validation failed after repair: " + failuresAfterRepair.join("; "));
         }
         console.log("[Step7b] Repaired HTML passes validation");
@@ -1227,7 +1230,7 @@ const buildWebsite = inngest.createFunction(
           projectSettings: { framework: null, outputDirectory: "./" },
         }),
       });
-      if (!deployRes.ok) { console.error("[Inngest] Deploy failed:", await deployRes.text()); return ""; }
+      if (!deployRes.ok) { const deployErr = await deployRes.text(); console.error("[Inngest] Deploy failed:", deployErr); appendPipelineLog(jobId, { level: "error", step: "deploy", msg: `Deploy failed: ${deployErr.slice(0,300)}`, businessName: userInput.businessName }).catch(()=>{}); return ""; }
       const siteUrl = `https://${vercelProjectName}.vercel.app`;
       // Fire-and-forget Google Indexing API ping — never blocks deploy
       requestGoogleIndexing(siteUrl).catch(() => {});
