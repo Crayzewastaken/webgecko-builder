@@ -62,6 +62,20 @@ export async function GET(req: NextRequest) {
 
     console.log(`[Fix-Proxy] Running fix for ${jobId} — ${userInput?.businessName}`);
 
+    // Parse explicit CTA destination URL from notes (same logic as Inngest pipeline)
+    const ctaExternalUrl = (() => {
+      const sources = [userInput?.additionalNotes || "", userInput?.goal || ""];
+      for (const text of sources) {
+        const m = text.match(/(?:link\s+to|point\s+to|go\s+to|direct\s+to|should\s+link\s+to|buttons?\s+should\s+link\s+to|cta[^.\n]*?:?\s+)(https?:\/\/[^\s,;)\n]+)/i);
+        if (m) return m[1].replace(/[.,;)]+$/, "");
+      }
+      return "";
+    })();
+
+    // PRE-PASS: strip <canvas> elements entirely — static HTML sites never use canvas legitimately
+    // They are always Stitch-generated fake map/animation placeholders
+    html = html.replace(/<canvas[^>]*>[\s\S]*?<\/canvas>/gi, "");
+
     // FIX 1: Contact details — only replace clearly fake emails
     const clientDomain = clientEmail.split("@")[1] || "";
     const businessSlug = (userInput?.businessName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -105,6 +119,23 @@ export async function GET(req: NextRequest) {
       if (isPlan) return `<button${attrs} onclick="${navSnippet('contact')}">${inner}</button>`;
       return match;
     });
+
+    // FIX 2b: ctaExternalUrl — if client specified a URL in notes, inject it into ALL hero/primary CTAs
+    if (ctaExternalUrl) {
+      const allCtaKeywords = [...ctaKeywords, ...planKeywords, 'get started', 'learn more', 'explore', 'view', 'discover'];
+      html = html.replace(/<a([^>]*)>([\s\S]*?)<\/a>/g, (match: string, attrs: string, inner: string) => {
+        const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
+        if (!allCtaKeywords.some(k => txt.includes(k.toLowerCase()))) return match;
+        if (/href=["'](?:mailto:|tel:|#\w)/i.test(attrs)) return match; // preserve real anchors
+        return `<a${attrs.replace(/\s*href=["'][^"']*["']/gi, '').replace(/\s*onclick=["'][^"']*["']/gi, '')} href="${ctaExternalUrl}" target="_blank" rel="noopener">${inner}</a>`;
+      });
+      html = html.replace(/<button([^>]*)>([\s\S]*?)<\/button>/g, (match: string, attrs: string, inner: string) => {
+        const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
+        if (attrs.includes('type="submit"') || attrs.includes("type='submit'")) return match;
+        if (!allCtaKeywords.some(k => txt.includes(k.toLowerCase()))) return match;
+        return `<button${attrs.replace(/\s*onclick=["'][^"']*["']/gi, '')} onclick="window.open('${ctaExternalUrl}','_blank')">${inner}</button>`;
+      });
+    }
 
     // FIX 3: Google Maps
     const businessAddress = userInput?.businessAddress || "";
