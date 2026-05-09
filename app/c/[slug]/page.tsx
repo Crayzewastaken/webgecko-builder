@@ -5,15 +5,15 @@ import { useRouter, useParams } from "next/navigation";
 
 // ─── Theme tokens — light (default) + dark ────────────────────────────────────
 const LIGHT = {
-  bg:         "#f8f9fb",
+  bg:         "#f2f3f8",
   surface:    "#ffffff",
-  raised:     "#f1f3f7",
-  border:     "#e4e7ef",
-  borderHov:  "#c9cedb",
-  text:       "#0f1117",
-  textSec:    "#3d4559",
-  textMuted:  "#8892a4",
-  accent:     "#16a34a",
+  raised:     "#eceef6",
+  border:     "#dde0ee",
+  borderHov:  "#b8bcd8",
+  text:       "#0d0f1c",
+  textSec:    "#363c58",
+  textMuted:  "#8090aa",
+  accent:     "#009960",
   accentBg:   "#f0fdf4",
   accentBlue: "#2563eb",
   amber:      "#b45309",
@@ -22,32 +22,32 @@ const LIGHT = {
   redBg:      "#fef2f2",
   purple:     "#7c3aed",
   navBg:      "#ffffff",
-  navBorder:  "#e4e7ef",
-  shadow:     "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
-  shadowMd:   "0 4px 12px rgba(0,0,0,0.08)",
+  navBorder:  "#dde0ee",
+  shadow:     "0 1px 4px rgba(0,0,0,0.07)",
+  shadowMd:   "0 6px 20px rgba(0,0,0,0.1)",
 };
 
 const DARK = {
-  bg:         "#0d0d10",
-  surface:    "#141417",
-  raised:     "#1c1c21",
-  border:     "#2a2a33",
-  borderHov:  "#3d3d4a",
-  text:       "#eeeef2",
-  textSec:    "#a0a0b8",
-  textMuted:  "#5c5c74",
-  accent:     "#4ade80",
-  accentBg:   "#052e16",
-  accentBlue: "#60a5fa",
-  amber:      "#fbbf24",
-  amberBg:    "#1c1500",
-  red:        "#f87171",
-  redBg:      "#1f0a0a",
-  purple:     "#c084fc",
-  navBg:      "#141417",
-  navBorder:  "#2a2a33",
-  shadow:     "0 1px 3px rgba(0,0,0,0.3)",
-  shadowMd:   "0 4px 12px rgba(0,0,0,0.4)",
+  bg:         "#07070c",
+  surface:    "#0e0e18",
+  raised:     "#141420",
+  border:     "#1e1e2e",
+  borderHov:  "#2e2e44",
+  text:       "#eeeef4",
+  textSec:    "#9090b0",
+  textMuted:  "#44445a",
+  accent:     "#00d47e",
+  accentBg:   "#001a10",
+  accentBlue: "#4f9eff",
+  amber:      "#f5a030",
+  amberBg:    "#1a0e00",
+  red:        "#ff5c5c",
+  redBg:      "#1a0505",
+  purple:     "#9d6fff",
+  navBg:      "#0a0a12",
+  navBorder:  "#1c1c2c",
+  shadow:     "0 2px 8px rgba(0,0,0,0.5)",
+  shadowMd:   "0 8px 28px rgba(0,0,0,0.6)",
 };
 
 // C is set dynamically inside the component via useTheme(); module-level fallback for sub-components
@@ -923,39 +923,41 @@ export default function ClientPortal() {
       background: C.navBg,
       borderBottom: `1px solid ${C.navBorder}`,
       padding: "0 20px",
-      height: 56,
+      height: 58,
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
       position: "sticky" as const,
       top: 0,
       zIndex: 50,
-      boxShadow: C.shadow,
+      boxShadow: `${C.shadow}, 0 0 0 1px ${C.navBorder}`,
+      backdropFilter: "blur(12px)",
       transition: "background 0.25s ease, border-color 0.25s ease",
     } as React.CSSProperties,
 
     logoMark: {
-      width: 26,
-      height: 26,
+      width: 28,
+      height: 28,
       background: `linear-gradient(135deg, ${C.accent}, #0ea5e9)`,
-      borderRadius: 7,
+      borderRadius: 8,
       flexShrink: 0,
+      boxShadow: `0 2px 8px ${C.accent}40`,
     } as React.CSSProperties,
 
     tabBar: {
-      background: C.surface,
-      borderBottom: `1px solid ${C.border}`,
+      background: C.navBg,
+      borderBottom: `1px solid ${C.navBorder}`,
       display: "flex",
       overflowX: "auto" as const,
       scrollbarWidth: "none" as const,
-      padding: "0 4px",
+      padding: "0 8px",
       transition: "background 0.25s ease",
     } as React.CSSProperties,
 
     tabBtn: (active: boolean): React.CSSProperties => ({
       padding: "14px 16px",
       fontSize: "13px",
-      fontWeight: active ? 500 : 400,
+      fontWeight: active ? 600 : 400,
       color: active ? C.accent : C.textMuted,
       borderTop: "none",
       borderLeft: "none",
@@ -965,19 +967,19 @@ export default function ClientPortal() {
       cursor: "pointer",
       whiteSpace: "nowrap" as const,
       letterSpacing: "0.01em",
-      transition: "color 0.2s ease, border-color 0.2s ease",
+      transition: "color 0.18s ease, border-color 0.18s ease",
     }),
 
     body: {
-      padding: "24px 16px",
-      maxWidth: 680,
+      padding: "20px 16px 40px",
+      maxWidth: 700,
       margin: "0 auto",
     } as React.CSSProperties,
 
     card: {
       background: C.surface,
       border: `1px solid ${C.border}`,
-      borderRadius: 14,
+      borderRadius: 16,
       padding: "20px 22px",
       marginBottom: 14,
       boxShadow: C.shadow,
@@ -989,8 +991,8 @@ export default function ClientPortal() {
       fontWeight: 700,
       color: C.textMuted,
       textTransform: "uppercase" as const,
-      letterSpacing: "0.09em",
-      marginBottom: 6,
+      letterSpacing: "0.1em",
+      marginBottom: 8,
     } as React.CSSProperties,
 
     val: {
@@ -1017,20 +1019,20 @@ export default function ClientPortal() {
       alignItems: "center",
       justifyContent: "center",
       gap: 6,
-      padding: "9px 20px",
-      borderRadius: 8,
+      padding: "10px 22px",
+      borderRadius: 10,
       fontSize: 13,
-      fontWeight: 500,
+      fontWeight: 600,
       cursor: disabled ? "not-allowed" : "pointer",
       opacity: disabled ? 0.45 : 1,
       letterSpacing: "0.01em",
-      transition: "opacity 0.2s ease, background 0.2s ease",
+      transition: "opacity 0.18s ease, background 0.18s ease, box-shadow 0.18s ease",
       ...(v === "primary"
-        ? { background: C.accent, color: dark ? "#000" : "#fff", border: "none" }
+        ? { background: `linear-gradient(135deg, ${C.accent}, #00b365)`, color: "#000", border: "none", boxShadow: disabled ? "none" : `0 4px 16px ${C.accent}35` }
         : v === "secondary"
         ? { background: C.raised, color: C.textSec, border: `1px solid ${C.border}` }
         : v === "danger"
-        ? { background: C.redBg, color: C.red, border: `1px solid ${C.red}28` }
+        ? { background: C.redBg, color: C.red, border: `1px solid ${C.red}30` }
         : { background: "none", color: C.textMuted, border: `1px solid ${C.border}` }),
     }),
 
@@ -1054,26 +1056,39 @@ export default function ClientPortal() {
     payBtn: (active: boolean, v: "primary"|"secondary" = "primary"): React.CSSProperties => ({
       width: "100%",
       background: active
-        ? (v === "primary" ? C.accent : C.raised)
+        ? (v === "primary" ? `linear-gradient(135deg, ${C.accent}, #00b365)` : C.raised)
         : C.raised,
       color: active
-        ? (v === "primary" ? (dark ? "#000" : "#fff") : C.text)
+        ? (v === "primary" ? "#000" : C.text)
         : C.textMuted,
       border: active && v === "secondary" ? `1px solid ${C.border}` : "none",
-      borderRadius: 10,
-      padding: "13px 20px",
+      borderRadius: 12,
+      padding: "14px 20px",
       fontSize: 14,
-      fontWeight: 600,
+      fontWeight: 700,
       cursor: active ? "pointer" : "not-allowed",
       marginTop: 12,
       letterSpacing: "0.01em",
-      transition: "background 0.2s ease",
+      boxShadow: active && v === "primary" ? `0 4px 18px ${C.accent}35` : "none",
+      transition: "background 0.2s ease, box-shadow 0.2s ease",
     }),
   };
 
   // ── Loading / error ──────────────────────────────────────────────────────────
-  if (loading) return <div style={{ ...S.page, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ color: C.textMuted, fontSize: 13, fontFamily: "Inter,sans-serif" }}>Loading…</div></div>;
-  if (error || !client) return <div style={{ ...S.page, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ color: C.red, fontSize: 13 }}>{error || "Project not found."}</div></div>;
+  if (loading) return (
+    <div style={{ minHeight:"100vh", background:DARK.bg, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16, fontFamily:"Inter,sans-serif" }}>
+      <div style={{ fontSize:36, animation:"wg-float 2s ease-in-out infinite" }}>🦎</div>
+      <div style={{ color:DARK.textMuted, fontSize:13 }}>Loading your portal…</div>
+      <style>{`@keyframes wg-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}`}</style>
+    </div>
+  );
+  if (error || !client) return (
+    <div style={{ minHeight:"100vh", background:DARK.bg, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:12, fontFamily:"Inter,sans-serif" }}>
+      <div style={{ fontSize:36 }}>🔒</div>
+      <div style={{ color:DARK.red, fontSize:14, fontWeight:600 }}>{error || "Project not found."}</div>
+      <a href="/c" style={{ color:DARK.accent, fontSize:13, textDecoration:"none" }}>← Back to login</a>
+    </div>
+  );
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
@@ -1083,21 +1098,29 @@ export default function ClientPortal() {
       <header style={S.header}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={S.logoMark} />
-          <span style={{ fontSize: 14, fontWeight: 700, color: C.text, letterSpacing: "-0.02em" }}>WebGecko</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, letterSpacing: "-0.02em", lineHeight: 1 }}>WebGecko</div>
+            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{client.businessName}</div>
+          </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 12, color: C.textMuted, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.businessName}</span>
+          {client.launchReady && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: C.accent + "15", border: `1px solid ${C.accent}30`, borderRadius: 20, padding: "3px 10px" }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.accent, animation: "wg-ping 1.6s ease-in-out infinite" }}/>
+              <span style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>Live</span>
+            </div>
+          )}
           <button
             onClick={toggleTheme}
-            title={dark ? "Switch to light mode" : "Switch to dark mode"}
-            style={{ background: C.raised, border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 7, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 14, transition: "background 0.2s ease" }}
+            title={dark ? "Light mode" : "Dark mode"}
+            style={{ background: C.raised, border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 8, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 14 }}
           >{dark ? "☀️" : "🌙"}</button>
-          <button style={{ background: "none", border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 7, padding: "5px 12px", fontSize: 12, cursor: "pointer", fontFamily: "inherit", transition: "border-color 0.2s ease" }} onClick={signOut}>Sign out</button>
+          <button style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }} onClick={signOut}>Sign out</button>
         </div>
       </header>
 
       {/* Tab bar */}
-      <div style={S.tabBar}>
+      <div data-tab-bar style={S.tabBar}>
         {tabs.map(t => <button key={t.id} style={S.tabBtn(tab === t.id)} onClick={() => setTab(t.id)}>{t.label}</button>)}
       </div>
 
@@ -1212,11 +1235,24 @@ export default function ClientPortal() {
       )}
 
       <style>{`
-        @keyframes wg-fadeSlide { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        *, *::before, *::after { box-sizing: border-box; }
+        body { margin: 0; }
+        @keyframes wg-fadeSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes wg-fade { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes wg-ping { 0%{transform:scale(1);opacity:.9} 100%{transform:scale(2.2);opacity:0} }
+        @keyframes wg-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+        @keyframes wg-spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
         .wg-tab { animation: wg-fadeSlide 0.22s cubic-bezier(0.34,1.1,0.64,1); }
-        button, a { transition: opacity 0.15s ease, transform 0.15s ease, background 0.18s ease, box-shadow 0.18s ease !important; }
-        button:hover:not(:disabled), a:hover { opacity: 0.85; }
+        button, a { transition: opacity 0.15s ease, transform 0.14s ease, background 0.18s ease, box-shadow 0.18s ease !important; }
+        button:hover:not(:disabled) { opacity: 0.88; }
         button:active:not(:disabled) { transform: scale(0.96) !important; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 99px; }
+        input, textarea, select { font-family: inherit; }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: ${C.accent} !important; box-shadow: 0 0 0 3px ${C.accent}18 !important; }
+        [data-tab-bar] button { outline: none; }
       `}</style>
       <div key={tab} className="wg-tab" style={tab === "preview" ? { display: "none" } : S.body}>
 
