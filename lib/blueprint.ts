@@ -509,6 +509,4 @@ export async function requestGoogleIndexing(url: string): Promise<void> {
   } catch (e) {
     console.warn("[Indexing] Failed (non-fatal):", e instanceof Error ? e.message : String(e));
   }
-} : String(e));
-  }
 }
