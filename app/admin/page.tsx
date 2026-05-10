@@ -1408,8 +1408,8 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                 icon:"🔒",
                 items:[
                   { key:"termly_account", label:"Create a free Termly account", detail:"Go to termly.io and sign up with your WebGecko email. You only need one account — add each client as a separate website.", link:"https://termly.io", linkLabel:"Open Termly →", required:true },
-                  { key:"termly_add_site", label:'Click "Add Website" in Termly dashboard', detail:`Enter the following:\n• Website name: ${biz}\n• Website URL: ${siteUrl||"(client domain — add after launch)"}\n• Country: Australia\n• Industry: select closest match to "${c.industry}"`, link:termlyPrivacyUrl, linkLabel:"Add website in Termly →", required:true },
-                  { key:"termly_privacy_wizard", label:"Complete the Privacy Policy wizard", detail:`Answer each question:\n• Do you collect names/emails? YES (contact form)\n• Do you use analytics? ${hasGA4?"YES — select Google Analytics":"NO"}\n• Do you process payments? ${hasShop?"YES — select Square":"NO"}\n• Do you use cookies? YES (standard)\n• Business country: Australia\n• Contact email: ${email}\n• Business address: ${addr||"(enter client address)"}`, required:true },
+                  { key:"termly_add_site", label:'Click "Add Website" in Termly dashboard', detail:`QUESTIONS\nWebsite name?\nWebsite URL?\nCountry?\nIndustry?\nANSWERS\n${biz}\n${siteUrl||"(client domain — add after launch)"}\nAustralia\n${c.industry||"(select closest match)"}`, link:termlyPrivacyUrl, linkLabel:"Add website in Termly →", required:true },
+                  { key:"termly_privacy_wizard", label:"Complete the Privacy Policy wizard", detail:`QUESTIONS\nDo you collect names/emails?\nDo you use analytics?\nDo you process payments?\nDo you use cookies?\nBusiness country?\nContact email?\nBusiness address?\nANSWERS\nYES (contact form)\n${hasGA4?"YES — select Google Analytics":"NO"}\n${hasShop?"YES — select Square":"NO"}\nYES (standard)\nAustralia\n${email||"(enter client email)"}\n${addr||"(enter client address)"}`, required:true },
                   { key:"termly_privacy_embed", label:"Copy the Privacy Policy hosted URL and paste below", detail:'In Termly, after generating the policy, click "Embed" → copy the "Hosted Policy URL" (looks like https://app.termly.io/document/privacy-policy/xxxx). Paste it in the box below — it will be saved to this client record.', required:true, linkInput:{ label:"Termly Privacy Policy URL", placeholder:"https://app.termly.io/document/privacy-policy/xxxx" } },
                   { key:"termly_privacy_footer", label:"Update footer link on live site", detail:"In the client site HTML, find the Privacy Policy footer link and change the href from navigateTo to the Termly URL you just pasted. Redeploy via the Actions tab." },
                 ],
@@ -1420,8 +1420,8 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                 color:T.purple,
                 icon:"📄",
                 items:[
-                  { key:"termly_tos_wizard", label:'In same website on Termly, generate Terms of Service', detail:`Click "Terms and Conditions" in the Termly sidebar for this website.\n\nFill in:\n• Website/company name: ${biz}\n• Website URL: ${siteUrl||"(client domain)"}\n• Governing law: Australia${abn?`\n• ABN: ${abn}`:""}\n• Contact email: ${email}\n• Business address: ${addr||"(enter client address)"}`, link:termlyTosUrl, linkLabel:"Open Termly →", required:true },
-                  { key:"termly_tos_clauses", label:"Select applicable clauses in the ToS wizard", detail:`Check the boxes that apply:\n• Contact/enquiry forms: YES\n${hasShop?"• Online purchases / e-commerce: YES — select Square as payment processor\n":""}${hasBooking?"• Bookings or appointments: YES\n":""}• User-generated content: NO (unless client has reviews/blog)\n• Limitation of liability: YES\n• Governing jurisdiction: Australia`, required:true },
+                  { key:"termly_tos_wizard", label:'In same website on Termly, generate Terms of Service', detail:`QUESTIONS\nWebsite / company name?\nWebsite URL?\nGoverning law?${abn?"\nABN?":""}\nContact email?\nBusiness address?\nANSWERS\n${biz}\n${siteUrl||"(client domain)"}\nAustralia${abn?"\n"+abn:""}\n${email||"(enter client email)"}\n${addr||"(enter client address)"}`, link:termlyTosUrl, linkLabel:"Open Termly →", required:true },
+                  { key:"termly_tos_clauses", label:"Select applicable clauses in the ToS wizard", detail:`QUESTIONS\nContact / enquiry forms?\n${hasShop?"Online purchases / e-commerce?\n":""}${hasBooking?"Bookings or appointments?\n":""}User-generated content?\nLimitation of liability?\nGoverning jurisdiction?\nANSWERS\nYES\n${hasShop?"YES — select Square as payment processor\n":""}${hasBooking?"YES\n":""}NO\nYES\nAustralia`, required:true },
                   { key:"termly_tos_embed", label:"Copy the Terms of Service hosted URL and paste below", detail:'In Termly, after generating, click "Embed" → copy the hosted URL. Paste it in the box below.', linkInput:{ label:"Termly Terms of Service URL", placeholder:"https://app.termly.io/document/terms-of-service/xxxx" } },
                 ],
               },
@@ -1536,7 +1536,26 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                                   <div style={{fontSize:13,fontWeight:600,color:done?T.textMuted:T.text,textDecoration:done?"line-through":"none"}}>{item.label}</div>
                                   {item.required&&!done&&<span style={{fontSize:10,fontWeight:700,color:section.color,background:`${section.color}18`,padding:"1px 7px",borderRadius:20,flexShrink:0}}>REQUIRED</span>}
                                 </div>
-                                <div style={{fontSize:12,color:T.textMuted,lineHeight:1.7,whiteSpace:"pre-line" as const}}>{item.detail}</div>
+                                {(()=>{
+                                  if(!item.detail.startsWith("QUESTIONS\n")){
+                                    return <div style={{fontSize:12,color:T.textMuted,lineHeight:1.7,whiteSpace:"pre-line" as const}}>{item.detail}</div>;
+                                  }
+                                  const [qBlock,aBlock] = item.detail.split("\nANSWERS\n");
+                                  const qs = qBlock.replace("QUESTIONS\n","").split("\n");
+                                  const as = (aBlock||"").split("\n");
+                                  return (
+                                    <div style={{marginTop:4,display:"grid",gridTemplateColumns:"1fr 1fr",gap:"2px 16px"}}>
+                                      <div style={{fontSize:10,fontWeight:700,color:T.textMuted,textTransform:"uppercase" as const,letterSpacing:"0.08em",marginBottom:4}}>Question</div>
+                                      <div style={{fontSize:10,fontWeight:700,color:section.color,textTransform:"uppercase" as const,letterSpacing:"0.08em",marginBottom:4}}>Your Answer</div>
+                                      {qs.map((q,i)=>(
+                                        <>
+                                          <div key={"q"+i} style={{fontSize:12,color:T.textMuted,padding:"5px 0",borderTop:`1px solid ${T.border}`,lineHeight:1.5}}>{q}</div>
+                                          <div key={"a"+i} onClick={()=>{try{navigator.clipboard.writeText(as[i]||"")}catch{}}} title="Click to copy" style={{fontSize:12,color:T.text,fontWeight:500,padding:"5px 0",borderTop:`1px solid ${T.border}`,lineHeight:1.5,cursor:"copy",userSelect:"all" as const}}>{as[i]||"—"}</div>
+                                        </>
+                                      ))}
+                                    </div>
+                                  );
+                                })()}
                                 {item.link&&(
                                   <a href={item.link} target="_blank" rel="noopener noreferrer" style={{display:"inline-block",marginTop:10,fontSize:11,fontWeight:600,color:section.color,textDecoration:"none",background:`${section.color}15`,border:`1px solid ${section.color}40`,borderRadius:6,padding:"5px 12px"}}>
                                     {item.linkLabel||item.link} ↗
