@@ -24,6 +24,8 @@ _All issues logged here. Format: symptom → root cause → fix → status. Date
 | 017 | Multi-page: step 4b Claude destroyed page-switching structure | ✅ Fixed | 2026-05-02 |
 | 018 | Multi-page: Stitch's .active CSS overridden by inline styles | ✅ Fixed | 2026-05-02 |
 | 019 | Stitch incomplete multi-page: 1 page, no nav, missing sections | ✅ Fixed | 2026-05-03 |
+| 020 | Admin preview iframe shows stale/old site after fix-proxy or deploy-html | ✅ Fixed | 2026-05-10 |
+| 021 | Generated site output too basic / thin content (webgeckoaus) | 🔲 Open | 2026-05-10 |
 
 ---
 
@@ -231,3 +233,22 @@ _All issues logged here. Format: symptom → root cause → fix → status. Date
   - Steps 5–10 (inject, audit, deploy, smoke, save) run normally on the saved HTML → incremental fixes only
 **Files changed:** `lib/pipeline-helpers.ts`, `app/api/inngest/route.ts`, `app/api/pipeline/run/route.ts`
 **Status:** ✅ Fixed
+
+---
+
+## ISSUE 020 — Admin preview iframe shows stale site after fix-proxy or deploy-html
+**Date:** 2026-05-10
+**Symptom:** After uploading new HTML via deploy-html or running fix-proxy, the admin preview iframe still shows the old site.
+**Root cause:** `PreviewFrame` passed the raw Vercel stable alias URL (`https://wg-xyz.vercel.app`) to the iframe. Vercel CDN caches this URL aggressively. Even with `_wg` cache-bust param, the URL is the same stable alias pointing to the old deployment.
+**Fix:** `PreviewFrame` now uses `/api/preview/proxy?jobId=...` as the iframe src when `jobId` is available. The proxy serves HTML directly from Supabase with `Cache-Control: no-store`. The address bar and "Open →" link still show the real Vercel URL.
+**Files changed:** `app/admin/page.tsx` — `PreviewFrame` accepts `jobId` prop; call site passes `{jid}`.
+**Status:** ✅ Fixed
+
+---
+
+## ISSUE 021 — Generated site output too basic / thin content (webgeckoaus)
+**Date:** 2026-05-10
+**Symptom:** WebGecko's own site (webgeckoaus) came out generic — sparse sections, weak copy, no pricing section, no process/how-it-works, no portfolio showcase.
+**Root cause:** Blueprint prompt and Stitch prompt don't enforce sufficient section density or content depth for agency/web-design industry types. Stitch generates a minimal layout; Step 4b Claude fill is also thin.
+**Fix needed:** Improve blueprint prompt to require minimum section count (≥6 on home page), add web-agency-specific sections to the industry section map, strengthen Step 4b requirements for agency sites. Also: deploy an improved hand-crafted HTML directly via deploy-html for webgeckoaus specifically.
+**Status:** 🔲 Open — needs blueprint improvements + manual redeploy for webgeckoaus

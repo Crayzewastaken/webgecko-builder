@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>WebGecko — Premium Websites in 2 Weeks</title>
+<meta name="description" content="WebGecko builds premium, SEO-optimised websites for Australian small businesses in 2 weeks — not months. Based in Forest Lake, Brisbane. Affordable, fast, professional."/>
+<meta name="keywords" content="web design brisbane, affordable web design forest lake, fast website development brisbane, cheap website design queensland, web design near me, professional website brisbane, small business website design"/>
+<meta name="robots" content="index, follow"/>
+<link rel="canonical" href="https://webgecko.com.au"/>
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="WebGecko — Premium Websites in 2 Weeks"/>
+<meta property="og:description" content="Affordable, fast, professional web design for Australian small businesses. Built in Brisbane, delivered in 2 weeks."/>
+<meta property="og:url" content="https://webgecko.com.au"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "brand": "#22c55e",
+        "brand-dim": "#16a34a",
+        "brand-glow": "rgba(34,197,94,0.15)",
+        "dark-base": "#050d1a",
+        "dark-surface": "#0b1627",
+        "dark-raised": "#111e35",
+        "dark-card": "#162338",
+        "dark-border": "#1e3050",
+        "text-bright": "#f0f6ff",
+        "text-mid": "#8ba4cc",
+        "text-dim": "#4a6080",
+      },
+      fontFamily: {
+        "display": ["Space Grotesk", "sans-serif"],
+        "body": ["Inter", "sans-serif"],
+      }
+    }
+  }
+}
+</script>
+<style>
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: #050d1a;
+    color: #f0f6ff;
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  .page-section { display: none; min-height: 100vh; }
+  .page-section.active { display: block; }
+
+  /* Glow effects */
+  .glow-green { box-shadow: 0 0 40px rgba(34,197,94,0.25); }
+  .glow-text { text-shadow: 0 0 30px rgba(34,197,94,0.4); }
+
+  /* Gradient text */
+  .grad-text {
+    background: linear-gradient(135deg, #22c55e 0%, #4ade80 50%, #86efac 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Card hover */
+  .card-hover {
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(34,197,94,0.2);
+    border-color: rgba(34,197,94,0.3) !important;
+  }
+
+  /* Nav */
+  .glass-nav {
+    background: rgba(5, 13, 26, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  /* Animated gradient hero bg */
+  .hero-bg {
+    background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(34,197,94,0.12) 0%, transparent 70%),
+                radial-gradient(ellipse 60% 40% at 80% 80%, rgba(34,197,94,0.06) 0%, transparent 60%),
+                linear-gradient(180deg, #050d1a 0%, #071220 60%, #050d1a 100%);
+  }
+
+  /* Grid dots bg */
+  .dots-bg {
+    background-image: radial-gradient(rgba(34,197,94,0.07) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  /* Process step line */
+  .step-line::before {
+    content: '';
+    position: absolute;
+    left: 24px;
+    top: 56px;
+    bottom: -24px;
+    width: 2px;
+    background: linear-gradient(180deg, rgba(34,197,94,0.4), transparent);
+  }
+
+  /* FAQ */
+  details summary { list-style: none; cursor: pointer; }
+  details summary::-webkit-details-marker { display: none; }
+  details[open] summary .faq-icon { transform: rotate(45deg); }
+  .faq-icon { transition: transform 0.2s ease; }
+
+  /* Shimmer on load */
+  @keyframes shimmer {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  .hero-animate { animation: shimmer 0.7s ease forwards; }
+  .hero-animate-delay { animation: shimmer 0.7s ease 0.15s forwards; opacity: 0; }
+  .hero-animate-delay2 { animation: shimmer 0.7s ease 0.3s forwards; opacity: 0; }
+
+  /* Pill badge */
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25);
+    color: #4ade80; border-radius: 9999px;
+    padding: 5px 14px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em;
+  }
+
+  /* Pricing card */
+  .pricing-popular {
+    background: linear-gradient(135deg, rgba(34,197,94,0.12), rgba(34,197,94,0.04));
+    border-color: rgba(34,197,94,0.4) !important;
+    position: relative;
+  }
+
+  /* Star */
+  .star { color: #fbbf24; }
+
+  /* Section title line */
+  .section-label {
+    display: inline-block;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: #22c55e;
+    margin-bottom: 12px;
+  }
+
+  /* Input */
+  .wg-input {
+    width: 100%; padding: 14px 16px; border-radius: 10px;
+    border: 1px solid #1e3050; background: #0b1627;
+    color: #f0f6ff; font-size: 15px; outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    font-family: inherit;
+  }
+  .wg-input:focus {
+    border-color: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34,197,94,0.1);
+  }
+
+  /* Mobile menu */
+  #mobile-menu {
+    display: none;
+    position: fixed; top: 0; right: 0;
+    width: 80%; max-width: 300px; height: 100vh;
+    background: #0b1627; z-index: 9999;
+    flex-direction: column; padding: 24px;
+    box-shadow: -8px 0 40px rgba(0,0,0,0.5);
+  }
+  #mobile-menu.open { display: flex; }
+  #wg-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6); z-index: 9998;
+  }
+  #wg-overlay.open { display: block; }
+</style>
+<style data-wg="wg-footer-fix">body{display:flex;flex-direction:column;min-height:100vh;}[data-page]{flex:1 0 auto;}footer,#wg-footer{margin-top:auto;flex-shrink:0;}</style>
+</head>
+<body>
+
+<!-- ══ NAVIGATION ══════════════════════════════════════════════════════════════ -->
+<header class="fixed top-0 left-0 right-0 z-50 glass-nav border-b border-dark-border" style="height:72px;">
+  <div style="max-width:1200px;margin:0 auto;padding:0 24px;height:100%;display:flex;align-items:center;justify-content:space-between;">
+    <!-- Logo -->
+    <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="window.navigateTo('home')">
+      <div style="width:36px;height:36px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;color:#f0f6ff;">Web<span style="color:#22c55e;">Gecko</span></span>
+    </div>
+    <!-- Desktop Nav -->
+    <nav style="display:none;" id="desktop-nav" class="md:flex" style="gap:8px;align-items:center;">
+      <button onclick="window.navigateTo('home')" id="nav-home" style="padding:8px 16px;border-radius:8px;background:transparent;border:none;color:#8ba4cc;font-size:14px;font-weight:500;cursor:pointer;transition:color 0.2s;" onmouseover="this.style.color='#f0f6ff'" onmouseout="this.style.color='#8ba4cc'">Home</button>
+      <button onclick="window.navigateTo('services')" style="padding:8px 16px;border-radius:8px;background:transparent;border:none;color:#8ba4cc;font-size:14px;font-weight:500;cursor:pointer;" onmouseover="this.style.color='#f0f6ff'" onmouseout="this.style.color='#8ba4cc'">Services</button>
+      <button onclick="window.navigateTo('about')" style="padding:8px 16px;border-radius:8px;background:transparent;border:none;color:#8ba4cc;font-size:14px;font-weight:500;cursor:pointer;" onmouseover="this.style.color='#f0f6ff'" onmouseout="this.style.color='#8ba4cc'">About</button>
+      <button onclick="window.navigateTo('pricing')" style="padding:8px 16px;border-radius:8px;background:transparent;border:none;color:#8ba4cc;font-size:14px;font-weight:500;cursor:pointer;" onmouseover="this.style.color='#f0f6ff'" onmouseout="this.style.color='#8ba4cc'">Pricing</button>
+      <button onclick="window.navigateTo('contact')" style="padding:8px 16px;border-radius:8px;background:transparent;border:none;color:#8ba4cc;font-size:14px;font-weight:500;cursor:pointer;" onmouseover="this.style.color='#f0f6ff'" onmouseout="this.style.color='#8ba4cc'">Contact</button>
+      <button onclick="window.navigateTo('contact')" style="margin-left:8px;padding:10px 22px;background:#22c55e;color:#000;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='#22c55e'">Get Started →</button>
+    </nav>
+    <!-- Hamburger -->
+    <button id="hamburger" style="display:flex;flex-direction:column;gap:5px;padding:8px;background:none;border:none;cursor:pointer;" aria-label="Menu">
+      <span style="display:block;width:22px;height:2px;background:#f0f6ff;border-radius:2px;"></span>
+      <span style="display:block;width:22px;height:2px;background:#f0f6ff;border-radius:2px;"></span>
+      <span style="display:block;width:22px;height:2px;background:#f0f6ff;border-radius:2px;"></span>
+    </button>
+  </div>
+</header>
+
+<!-- Desktop nav override for larger screens -->
+<style>
+@media(min-width:768px){
+  #desktop-nav{display:flex!important;}
+  #hamburger{display:none!important;}
+}
+</style>
+
+<!-- Mobile Menu -->
+<div id="mobile-menu">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:32px;">
+    <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;">Web<span style="color:#22c55e;">Gecko</span></span>
+    <button id="close-menu" aria-label="Close menu" style="background:none;border:none;color:#8ba4cc;font-size:24px;cursor:pointer;">✕</button>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:4px;">
+    <button onclick="window.navigateTo('home')" style="padding:14px 16px;background:none;border:none;color:#f0f6ff;font-size:16px;font-weight:500;text-align:left;cursor:pointer;border-radius:8px;" onmouseover="this.style.background='#162338'" onmouseout="this.style.background='none'">Home</button>
+    <button onclick="window.navigateTo('services')" style="padding:14px 16px;background:none;border:none;color:#f0f6ff;font-size:16px;font-weight:500;text-align:left;cursor:pointer;border-radius:8px;" onmouseover="this.style.background='#162338'" onmouseout="this.style.background='none'">Services</button>
+    <button onclick="window.navigateTo('about')" style="padding:14px 16px;background:none;border:none;color:#f0f6ff;font-size:16px;font-weight:500;text-align:left;cursor:pointer;border-radius:8px;" onmouseover="this.style.background='#162338'" onmouseout="this.style.background='none'">About</button>
+    <button onclick="window.navigateTo('pricing')" style="padding:14px 16px;background:none;border:none;color:#f0f6ff;font-size:16px;font-weight:500;text-align:left;cursor:pointer;border-radius:8px;" onmouseover="this.style.background='#162338'" onmouseout="this.style.background='none'">Pricing</button>
+    <button onclick="window.navigateTo('contact')" style="padding:14px 16px;background:none;border:none;color:#f0f6ff;font-size:16px;font-weight:500;text-align:left;cursor:pointer;border-radius:8px;" onmouseover="this.style.background='#162338'" onmouseout="this.style.background='none'">Contact</button>
+    <button onclick="window.navigateTo('contact')" style="margin-top:16px;padding:14px;background:#22c55e;color:#000;border:none;border-radius:8px;font-weight:700;font-size:15px;cursor:pointer;">Get Started →</button>
+  </div>
+</div>
+<div id="wg-overlay"></div>
+
+<!-- ══ MAIN ════════════════════════════════════════════════════════════════════ -->
+<main style="padding-top:72px;flex:1;">
+
+<!-- ╔══════════════════════════════════════════════════════╗ -->
+<!-- ║  HOME PAGE                                           ║ -->
+<!-- ╚══════════════════════════════════════════════════════╝ -->
+<div class="page-section active" data-page="home" id="home">
+
+  <!-- HERO -->
+  <section class="hero-bg dots-bg" style="min-height:90vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 24px 60px;">
+    <div style="max-width:900px;margin:0 auto;">
+      <div class="pill hero-animate" style="margin-bottom:28px;">
+        <span style="width:6px;height:6px;background:#22c55e;border-radius:50%;"></span>
+        Forest Lake, Brisbane · Australian-Made Websites
+      </div>
+      <h1 class="hero-animate-delay" style="font-family:'Space Grotesk',sans-serif;font-size:clamp(42px,7vw,80px);font-weight:800;line-height:1.08;letter-spacing:-0.02em;margin:0 0 28px;color:#f0f6ff;">
+        Premium websites.<br/><span class="grad-text">Weeks, not months.</span>
+      </h1>
+      <p class="hero-animate-delay2" style="font-size:clamp(17px,2.5vw,21px);color:#8ba4cc;max-width:600px;margin:0 auto 44px;line-height:1.65;">
+        We build fast, SEO-optimised, conversion-focused websites for Australian small businesses — at a price that actually makes sense.
+      </p>
+      <div class="hero-animate-delay2" style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
+        <button onclick="window.navigateTo('contact')" style="padding:16px 36px;background:#22c55e;color:#000;border:none;border-radius:10px;font-weight:800;font-size:16px;cursor:pointer;transition:all 0.2s;box-shadow:0 8px 32px rgba(34,197,94,0.3);" onmouseover="this.style.background='#16a34a';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='#22c55e';this.style.transform='translateY(0)'">Get Your Website →</button>
+        <button onclick="window.navigateTo('pricing')" style="padding:16px 36px;background:transparent;color:#f0f6ff;border:1px solid #1e3050;border-radius:10px;font-weight:600;font-size:16px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='rgba(34,197,94,0.4)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#1e3050';this.style.transform='translateY(0)'">View Pricing</button>
+      </div>
+    </div>
+    <!-- Floating badge -->
+    <div style="margin-top:60px;display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+      <div style="background:#0b1627;border:1px solid #1e3050;border-radius:8px;padding:10px 18px;font-size:13px;color:#8ba4cc;display:flex;align-items:center;gap:8px;">
+        <span style="color:#22c55e;">✓</span> No lock-in contracts
+      </div>
+      <div style="background:#0b1627;border:1px solid #1e3050;border-radius:8px;padding:10px 18px;font-size:13px;color:#8ba4cc;display:flex;align-items:center;gap:8px;">
+        <span style="color:#22c55e;">✓</span> 2-week delivery guaranteed
+      </div>
+      <div style="background:#0b1627;border:1px solid #1e3050;border-radius:8px;padding:10px 18px;font-size:13px;color:#8ba4cc;display:flex;align-items:center;gap:8px;">
+        <span style="color:#22c55e;">✓</span> SEO-optimised from day one
+      </div>
+      <div style="background:#0b1627;border:1px solid #1e3050;border-radius:8px;padding:10px 18px;font-size:13px;color:#8ba4cc;display:flex;align-items:center;gap:8px;">
+        <span style="color:#22c55e;">✓</span> Mobile-first design
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section style="background:#0b1627;border-top:1px solid #1e3050;border-bottom:1px solid #1e3050;padding:48px 24px;">
+    <div style="max-width:1000px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:32px;text-align:center;">
+      <div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:44px;font-weight:800;color:#22c55e;line-height:1;">50+</div>
+        <div style="font-size:13px;color:#4a6080;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-top:8px;">Sites Delivered</div>
+      </div>
+      <div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:44px;font-weight:800;color:#22c55e;line-height:1;">2 Wks</div>
+        <div style="font-size:13px;color:#4a6080;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-top:8px;">Avg. Turnaround</div>
+      </div>
+      <div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:44px;font-weight:800;color:#22c55e;line-height:1;">100%</div>
+        <div style="font-size:13px;color:#4a6080;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-top:8px;">Client Satisfaction</div>
+      </div>
+      <div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:44px;font-weight:800;color:#22c55e;line-height:1;">$0</div>
+        <div style="font-size:13px;color:#4a6080;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-top:8px;">Lock-in Contracts</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section style="padding:100px 24px;background:#050d1a;">
+    <div style="max-width:1100px;margin:0 auto;">
+      <div style="text-align:center;margin-bottom:64px;">
+        <span class="section-label">The Process</span>
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(32px,5vw,48px);font-weight:700;margin:0;color:#f0f6ff;">Your site live in <span class="grad-text">4 simple steps</span></h2>
+        <p style="color:#8ba4cc;font-size:17px;max-width:520px;margin:16px auto 0;">No back-and-forth for months. No agency bloat. Just a great website, fast.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px;">
+        <!-- Step 1 -->
+        <div style="background:#0b1627;border:1px solid #1e3050;border-radius:16px;padding:32px;position:relative;overflow:hidden;">
+          <div style="width:48px;height:48px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:20px;color:#22c55e;margin-bottom:20px;">1</div>
+          <h3 style="font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700;color:#f0f6ff;margin:0 0 10px;">Fill the Form</h3>
+          <p style="color:#8ba4cc;font-size:14px;line-height:1.65;margin:0;">Tell us about your business — industry, goals, style preferences. Takes 5 minutes.</p>
+          <div style="position:absolute;bottom:-20px;right:-20px;width:80px;height:80px;background:rgba(34,197,94,0.05);border-radius:50%;"></div>
+        </div>
+        <!-- Step 2 -->
+        <div style="background:#0b1627;border:1px solid #1e3050;border-radius:16px;padding:32px;position:relative;overflow:hidden;">
+          <div style="width:48px;height:48px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:20px;color:#22c55e;margin-bottom:20px;">2</div>
+          <h3 style="font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700;color:#f0f6ff;margin:0 0 10px;">Pay Deposit</h3>
+          <p style="color:#8ba4cc;font-size:14px;line-height:1.65;margin:0;">Secure your spot with a small deposit. We begin building your site immediately.</p>
+          <div style="position:absolute;bottom:-20px;right:-20px;width:80px;height:80px;background:rgba(34,197,94,0.05);border-radius:50%;"></div>
+        </div>
+        <!-- Step 3 -->
+        <div style="background:#0b1627;border:1px solid #1e3050;border-radius:16px;padding:32px;position:relative;overflow:hidden;">
+          <div style="width:48px;height:48px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:20px;color:#22c55e;margin-bottom:20px;">3</div>
+          <h3 style="font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700;color:#f0f6ff;margin:0 0 10px;">We Build</h3>
+          <p style="color:#8ba4cc;font-size:14px;line-height:1.65;margin:0;">Our pipeline builds your site in 2 weeks — SEO-optimised, mobile-ready, conversion-focused.</p>
+          <div style="position:absolute;bottom:-20px;right:-20px;width:80px;height:80px;background:rgba(34,197,94,0.05);border-radius:50%;"></div>
+        </div>
+        <!-- Step 4 -->
+        <div style="background:#0b1627;border:1px solid rgba(34,197,94,0.25);border-radius:16px;padding:32px;position:relative;overflow:hidden;">
+          <div style="width:48px;height:48px;background:rgba(34,197,94,0.2);border:1px solid rgba(34,197,94,0.4);border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:20px;color:#22c55e;margin-bottom:20px;">4</div>
+          <h3 style="font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700;color:#f0f6ff;margin:0 0 10px;">You Go Live</h3>
+          <p style="color:#8ba4cc;font-size:14px;line-height:1.65;margin:0;">Review your preview, give feedback, then we launch. Your business starts generating leads.</p>
+          <div style="position:absolute;bottom:-20px;right:-20px;width:80px;height:80px;background:rgba(34,197,94,0.08);border-radius:50%;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHAT'S INCLUDED -->
+  <section style="padding:100px 24px;background:#0b1627;border-top:1px solid #1e3050;">
+    <div style="max-width:1100px;margin:0 auto;">
+      <div style="text-align:center;margin-bottom:64px;">
+        <span class="section-label">What You Get</span>
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(32px,5vw,48px);font-weight:700;margin:0;color:#f0f6ff;">Everything included.<br/><span class="grad-text">No hidden fees.</span></h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;">
+        <div class="card-hover" style="background:#111e35;border:1px solid #1e3050;border-radius:14px;padding:28px;display:flex;gap:18px;">
+          <div style="width:44px;height:44px;background:rgba(34,197,94,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">⚡</div>
+          <div><h3 style="font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;color:#f0f6ff;margin:0 0 6px;">Lightning Fast</h3><p style="color:#8ba4cc;font-size:14px;line-height:1.6;margin:0;">Built with performance-first code. Sub-2 second load times on mobile and desktop.</p></div>
+        </div>
+        <div class="card-hover" style="background:#111e35;border:1px solid #1e3050;border-radius:14px;padding:28px;display:flex;gap:18px;">
+          <div style="width:44px;height:44px;background:rgba(34,197,94,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">🔍</div>
+          <div><h3 style="font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;color:#f0f6ff;margin:0 0 6px;">SEO Optimised</h3><p style="color:#8ba4cc;font-size:14px;line-height:1.6;margin:0;">On-page SEO baked in from day one. Meta tags, schema, keywords — all done.</p></div>
+        </div>
+        <div class="card-hover" style="background:#111e35;border:1px solid #1e3050;border-radius:14px;padding:28px;display:flex;gap:18px;">
+          <div style="width:44px;height:44px;background:rgba(34,197,94,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">📱</div>
+          <div><h3 style="font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;color:#f0f6ff;margin:0 0 6px;">Mobile First</h3><p style="color:#8ba4cc;font-size:14px;line-height:1.6;margin:0;">60%+ of your customers browse on mobile. Every site is flawless on all screen sizes.</p></div>
+        </div>
+        <div class="card-hover" style="background:#111e35;border:1px solid #1e3050;border-radius:14px;padding:28px;display:flex;gap:18px;">
+          <div style="width:44px;height:44px;background:rgba(34,197,94,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">🗺️</div>
+          <div><h3 style="font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;color:#f0f6ff;margin:0 0 6px;">Google Maps</h3><p style="color:#8ba4cc;font-size:14px;line-height:1.6;margin:0;">Embedded map with your exact address so customers can find you instantly.</p></div>
+        </div>
+        <div class="card-hover" style="background:#111e35;border:1px solid #1e3050;border-radius:14px;padding:28px;display:flex;gap:18px;">
+          <div style="width:44px;height:44px;background:rgba(34,197,94,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">📅</div>
+          <div><h3 style="font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;color:#f0f6ff;margin:0 0 6px;">Online Bookings</h3><p style="color:#8ba4cc;font-size:14px;line-height:1.6;margin:0;">Full online booking system with 24/7 availability, reminders, and your schedule.</p></div>
+        </div>
+        <div class="card-hover" style="background:#111e35;border:1px solid #1e3050;border-radius:14px;padding:28px;display:flex;gap:18px;">
+          <div style="width:44px;height:44px;background:rgba(34,197,94,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">🛒</div>
+          <div><h3 style="font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;color:#f0f6ff;margin:0 0 6px;">Online Shop</h3><p style="color:#8ba4cc;font-size:14px;line-height:1.6;margin:0;">Sell products and take payments directly on your site via Square — no middleman.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section id="testimonials" style="padding:100px 24px;background:#050d1a;">
+    <div style="max-width:1100px;margin:0 auto;">
+      <div style="text-align:center;margin-bottom:64px;">
+        <span class="section-label">Reviews</span>
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(32px,5vw,48px);font-weight:700;margin:0;color:#f0f6ff;">What our clients say</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;">
+        <div class="card-hover" style="background:#0b1627;border:1px solid #1e3050;border-radius:16px;padding:32px;">
+          <div style="display:flex;gap:3px;margin-bottom:16px;">
+            <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+          </div>
+          <p style="color:#c8d8f0;font-size:15px;line-height:1.7;margin:0 0 24px;">"WebGecko delivered our new site in under 2 weeks and it looks absolutely incredible. Our enquiries have tripled since launch. Worth every cent."</p>
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="width:44px;height:44px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#000;">SM</div>
+            <div><div style="font-weight:700;color:#f0f6ff;font-size:14px;">Sarah Mitchell</div><div style="color:#4a6080;font-size:13px;">Owner, Bloom Beauty Studio</div></div>
+          </div>
+        </div>
+        <div class="card-hover" style="background:#0b1627;border:1px solid #1e3050;border-radius:16px;padding:32px;">
+          <div style="display:flex;gap:3px;margin-bottom:16px;">
+            <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+          </div>
+          <p style="color:#c8d8f0;font-size:15px;line-height:1.7;margin:0 0 24px;">"I was paying $300/month to an agency for a mediocre site. WebGecko built something way better for a fraction of the cost. The booking system alone pays for itself."</p>
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="width:44px;height:44px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#000;">JC</div>
+            <div><div style="font-weight:700;color:#f0f6ff;font-size:14px;">James Chen</div><div style="color:#4a6080;font-size:13px;">Director, Precision Physio</div></div>
+          </div>
+        </div>
+        <div class="card-hover" style="background:#0b1627;border:1px solid #1e3050;border-radius:16px;padding:32px;">
+          <div style="display:flex;gap:3px;margin-bottom:16px;">
+            <span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span>
+          </div>
+          <p style="color:#c8d8f0;font-size:15px;line-height:1.7;margin:0 0 24px;">"Fast, professional, and actually listened to what we wanted. The SEO work they did has us ranking on page 1 for our key terms in Brisbane. Highly recommend."</p>
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="width:44px;height:44px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#000;">RW</div>
+            <div><div style="font-weight:700;color:#f0f6ff;font-size:14px;">Rebecca Walsh</div><div style="color:#4a6080;font-size:13px;">Founder, Walsh Electrical</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" style="padding:100px 24px;background:#0b1627;border-top:1px solid #1e3050;">
+    <div style="max-width:740px;margin:0 auto;">
+      <div style="text-align:center;margin-bottom:60px;">
+        <span class="section-label">FAQ</span>
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(32px,5vw,44px);font-weight:700;margin:0;color:#f0f6ff;">Common questions</h2>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <details style="background:#111e35;border:1px solid #1e3050;border-radius:12px;overflow:hidden;">
+          <summary style="padding:22px 24px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:600;color:#f0f6ff;font-size:15px;">How long does it actually take?</span>
+            <span class="faq-icon" style="color:#22c55e;font-size:20px;line-height:1;flex-shrink:0;margin-left:16px;">+</span>
+          </summary>
+          <div style="padding:0 24px 22px;color:#8ba4cc;font-size:14px;line-height:1.7;">Most sites are delivered within 10–14 days of receiving your deposit and intake form. More complex sites with e-commerce or booking systems take up to 14 days. We'll give you a firm delivery estimate upfront.</div>
+        </details>
+        <details style="background:#111e35;border:1px solid #1e3050;border-radius:12px;overflow:hidden;">
+          <summary style="padding:22px 24px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:600;color:#f0f6ff;font-size:15px;">How much does a website cost?</span>
+            <span class="faq-icon" style="color:#22c55e;font-size:20px;line-height:1;flex-shrink:0;margin-left:16px;">+</span>
+          </summary>
+          <div style="padding:0 24px 22px;color:#8ba4cc;font-size:14px;line-height:1.7;">Our packages start from $499 for a simple 1-page site. Multi-page sites with booking, shop, and SEO features sit in the $799–$1,499 range. We have a monthly hosting + maintenance option too. View full pricing on the Pricing page.</div>
+        </details>
+        <details style="background:#111e35;border:1px solid #1e3050;border-radius:12px;overflow:hidden;">
+          <summary style="padding:22px 24px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:600;color:#f0f6ff;font-size:15px;">Do I need to supply images and content?</span>
+            <span class="faq-icon" style="color:#22c55e;font-size:20px;line-height:1;flex-shrink:0;margin-left:16px;">+</span>
+          </summary>
+          <div style="padding:0 24px 22px;color:#8ba4cc;font-size:14px;line-height:1.7;">No. We generate all copy and source professional stock photography for your industry. You can upload your own photos and send us your preferred wording — we'll incorporate it. But you don't have to supply anything to get started.</div>
+        </details>
+        <details style="background:#111e35;border:1px solid #1e3050;border-radius:12px;overflow:hidden;">
+          <summary style="padding:22px 24px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:600;color:#f0f6ff;font-size:15px;">Will my site rank on Google?</span>
+            <span class="faq-icon" style="color:#22c55e;font-size:20px;line-height:1;flex-shrink:0;margin-left:16px;">+</span>
+          </summary>
+          <div style="padding:0 24px 22px;color:#8ba4cc;font-size:14px;line-height:1.7;">Every site we build includes on-page SEO: meta tags, structured data, keyword placement, Google Maps integration, and fast load times — all ranking signals. New sites typically start appearing in local search within 4–8 weeks.</div>
+        </details>
+        <details style="background:#111e35;border:1px solid #1e3050;border-radius:12px;overflow:hidden;">
+          <summary style="padding:22px 24px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:600;color:#f0f6ff;font-size:15px;">What if I want changes after launch?</span>
+            <span class="faq-icon" style="color:#22c55e;font-size:20px;line-height:1;flex-shrink:0;margin-left:16px;">+</span>
+          </summary>
+          <div style="padding:0 24px 22px;color:#8ba4cc;font-size:14px;line-height:1.7;">Two rounds of revisions are included in every package. After that, updates are available via our maintenance plan or quoted individually. Most small changes (text, images, new section) are done within 24 hours.</div>
+        </details>
+        <details style="background:#111e35;border:1px solid #1e3050;border-radius:12px;overflow:hidden;">
+          <summary style="padding:22px 24px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:600;color:#f0f6ff;font-size:15px;">Do you handle hosting and domain?</span>
+            <span class="faq-icon" style="color:#22c55e;font-size:20px;line-height:1;flex-shrink:0;margin-left:16px;">+</span>
+          </summary>
+          <div style="padding:0 24px 22px;color:#8ba4cc;font-size:14px;line-height:1.7;">Yes. We deploy to a fast global CDN. You can connect your own domain at no extra cost. Hosting is included in the monthly maintenance plan, or you can self-host on Vercel (free tier handles most small businesses easily).</div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /home -->
+
+<!-- ╔══════════════════════════════════════════════════════╗ -->
+<!-- ║  SERVICES PAGE                                       ║ -->
+<!-- ╚══════════════════════════════════════════════════════╝ -->
+<div class="page-section" data-page="services" id="services">
+  <section style="padding:80px 24px 100px;background:#050d1a;min-height:100vh;">
+    <div style="max-width:1100px;margin:0 auto;">
+      <div style="text-align:center;margin-bottom:64px;">
+        <span class="section-label">What We Do</span>
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(36px,5vw,52px);font-weight:800;margin:0 0 16px;color:#f0f6ff;">Our Services</h2>
+        <p style="color:#8ba4cc;font-size:18px;max-width:540px;margin:0 auto;">Precision-built digital products for Australian small businesses.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px;">
+        <div class="card-hover" style="background:#0b1627;border:1px solid #1e3050;border-radius:16px;padding:36px;border-left:4px solid #22c55e;">
+          <div style="font-size:36px;margin-bottom:20px;">🌐</div>
+          <h3 style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;color:#f0f6ff;margin:0 0 12px;">Website Design & Build</h3>
+          <p style="color:#8ba4cc;font-size:15px;line-height:1.7;margin:0 0 20px;">Custom-designed, fast-loading websites that look premium and actually convert visitors into customers. Every site is mobile-first and built for speed.</p>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> Custom design — no templates</div>
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> Sub-2s load time guaranteed</div>
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> Contact form, map, socials</div>
+          </div>
+        </div>
+        <div class="card-hover" style="background:#0b1627;border:1px solid #1e3050;border-radius:16px;padding:36px;border-left:4px solid #22c55e;">
+          <div style="font-size:36px;margin-bottom:20px;">🔍</div>
+          <h3 style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;color:#f0f6ff;margin:0 0 12px;">SEO Optimisation</h3>
+          <p style="color:#8ba4cc;font-size:15px;line-height:1.7;margin:0 0 20px;">Technical SEO baked in from the ground up — not bolted on after the fact. We target the keywords your customers actually search for in your area.</p>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> On-page SEO + meta tags</div>
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> Local keyword strategy</div>
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> Google Search Console setup</div>
+          </div>
+        </div>
+        <div class="card-hover" style="background:#0b1627;border:1px solid #1e3050;border-radius:16px;padding:36px;border-left:4px solid #22c55e;">
+          <div style="font-size:36px;margin-bottom:20px;">📅</div>
+          <h3 style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;color:#f0f6ff;margin:0 0 12px;">Online Booking Systems</h3>
+          <p style="color:#8ba4cc;font-size:15px;line-height:1.7;margin:0 0 20px;">Let customers book appointments 24/7 without calling you. Automated reminders reduce no-shows. Works for any service-based business.</p>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> 24/7 self-booking</div>
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> Automated email reminders</div>
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> Manage via client portal</div>
+          </div>
+        </div>
+        <div class="card-hover" style="background:#0b1627;border:1px solid #1e3050;border-radius:16px;padding:36px;border-left:4px solid #22c55e;">
+          <div style="font-size:36px;margin-bottom:20px;">🛒</div>
+          <h3 style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;color:#f0f6ff;margin:0 0 12px;">E-Commerce & Shop</h3>
+          <p style="color:#8ba4cc;font-size:15px;line-height:1.7;margin:0 0 20px;">Sell products directly from your website with Square payments. Product listings, checkout, and receipts — all handled. No Shopify fees.</p>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> Square payment integration</div>
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> Product catalogue management</div>
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> Automatic email receipts</div>
+          </div>
+        </div>
+        <div class="card-hover" style="background:#0b1627;border:1px solid #1e3050;border-radius:16px;padding:36px;border-left:4px solid #22c55e;">
+          <div style="font-size:36px;margin-bottom:20px;">🔧</div>
+          <h3 style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;color:#f0f6ff;margin:0 0 12px;">Maintenance & Support</h3>
+          <p style="color:#8ba4cc;font-size:15px;line-height:1.7;margin:0 0 20px;">Ongoing care for your site — updates, fixes, hosting, and content changes. We handle the technical side so you can focus on your business.</p>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> Monthly content updates</div>
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> 24h response time</div>
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> Uptime monitoring</div>
+          </div>
+        </div>
+        <div class="card-hover" style="background:#0b1627;border:1px solid #1e3050;border-radius:16px;padding:36px;border-left:4px solid #22c55e;">
+          <div style="font-size:36px;margin-bottom:20px;">🎨</div>
+          <h3 style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;color:#f0f6ff;margin:0 0 12px;">Brand & Identity</h3>
+          <p style="color:#8ba4cc;font-size:15px;line-height:1.7;margin:0 0 20px;">Logo design, colour palette, and typography system that makes your business instantly recognisable and trustworthy across all touchpoints.</p>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> Logo design</div>
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> Brand colour system</div>
+            <div style="display:flex;align-items:center;gap:10px;color:#8ba4cc;font-size:13px;"><span style="color:#22c55e;font-size:16px;">✓</span> Style guide included</div>
+          </div>
+        </div>
+      </div>
+      <!-- CTA -->
+      <div style="text-align:center;margin-top:64px;padding:56px;background:#0b1627;border:1px solid #1e3050;border-radius:20px;">
+        <h3 style="font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:700;color:#f0f6ff;margin:0 0 12px;">Not sure what you need?</h3>
+        <p style="color:#8ba4cc;font-size:16px;margin:0 0 28px;">Fill out the form and we'll recommend the right package for your business.</p>
+        <button onclick="window.navigateTo('contact')" style="padding:16px 40px;background:#22c55e;color:#000;border:none;border-radius:10px;font-weight:800;font-size:16px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='#22c55e'">Get a Free Recommendation →</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════╗ -->
+<!-- ║  ABOUT PAGE                                          ║ -->
+<!-- ╚══════════════════════════════════════════════════════╝ -->
+<div class="page-section" data-page="about" id="about">
+  <section style="padding:80px 24px 100px;background:#050d1a;min-height:100vh;">
+    <div style="max-width:1100px;margin:0 auto;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start;margin-bottom:80px;">
+        <div>
+          <span class="section-label">Who We Are</span>
+          <h2 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(36px,4vw,52px);font-weight:800;margin:0 0 28px;color:#f0f6ff;">Built in Brisbane.<br/><span class="grad-text">Built for business.</span></h2>
+          <div style="display:flex;flex-direction:column;gap:20px;">
+            <p style="color:#8ba4cc;font-size:16px;line-height:1.75;margin:0;">WebGecko was built with one mission: give Australian small businesses access to the kind of professional websites that used to cost $10,000+ and take 6 months. We use cutting-edge AI tooling combined with expert human oversight to deliver premium results at a fraction of the traditional cost.</p>
+            <p style="color:#8ba4cc;font-size:16px;line-height:1.75;margin:0;">We're based in Forest Lake, Brisbane — a real local business, not an offshore outsourcing operation. When you work with WebGecko, you're dealing directly with the people building your site.</p>
+            <p style="color:#8ba4cc;font-size:16px;line-height:1.75;margin:0;">Our 2-week turnaround isn't a gimmick — it's the result of a refined process built and tested across dozens of industries. From tradies to medical clinics to cafés, we've built sites that generate real enquiries.</p>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:20px;">
+          <div style="background:#0b1627;border:1px solid #1e3050;border-radius:16px;padding:28px;display:flex;gap:20px;align-items:flex-start;">
+            <div style="width:48px;height:48px;background:rgba(34,197,94,0.1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">⚡</div>
+            <div><h3 style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;color:#f0f6ff;margin:0 0 8px;">Speed Without Compromise</h3><p style="color:#8ba4cc;font-size:14px;line-height:1.65;margin:0;">We eliminate agency overhead and use a proven pipeline — delivering premium quality in 2 weeks, not months.</p></div>
+          </div>
+          <div style="background:#0b1627;border:1px solid #1e3050;border-radius:16px;padding:28px;display:flex;gap:20px;align-items:flex-start;">
+            <div style="width:48px;height:48px;background:rgba(34,197,94,0.1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">🏆</div>
+            <div><h3 style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;color:#f0f6ff;margin:0 0 8px;">Results That Matter</h3><p style="color:#8ba4cc;font-size:14px;line-height:1.65;margin:0;">Every decision — design, copy, SEO — is made with one goal: more enquiries and sales for your business.</p></div>
+          </div>
+          <div style="background:#0b1627;border:1px solid #1e3050;border-radius:16px;padding:28px;display:flex;gap:20px;align-items:flex-start;">
+            <div style="width:48px;height:48px;background:rgba(34,197,94,0.1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">🤝</div>
+            <div><h3 style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;color:#f0f6ff;margin:0 0 8px;">Local & Transparent</h3><p style="color:#8ba4cc;font-size:14px;line-height:1.65;margin:0;">Based in Forest Lake, Brisbane. No outsourcing, no hidden fees, no lock-in contracts. Just honest work.</p></div>
+          </div>
+        </div>
+      </div>
+      <!-- Values strip -->
+      <div style="background:#0b1627;border:1px solid #1e3050;border-radius:20px;padding:40px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:32px;text-align:center;">
+        <div><div style="font-family:'Space Grotesk',sans-serif;font-size:36px;font-weight:800;color:#22c55e;">$499</div><div style="color:#4a6080;font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-top:6px;">Starting Price</div></div>
+        <div><div style="font-family:'Space Grotesk',sans-serif;font-size:36px;font-weight:800;color:#22c55e;">14</div><div style="color:#4a6080;font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-top:6px;">Day Max Turnaround</div></div>
+        <div><div style="font-family:'Space Grotesk',sans-serif;font-size:36px;font-weight:800;color:#22c55e;">Forest Lake</div><div style="color:#4a6080;font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-top:6px;">Brisbane HQ</div></div>
+        <div><div style="font-family:'Space Grotesk',sans-serif;font-size:36px;font-weight:800;color:#22c55e;">0</div><div style="color:#4a6080;font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-top:6px;">Lock-in Contracts</div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════╗ -->
+<!-- ║  PRICING PAGE                                        ║ -->
+<!-- ╚══════════════════════════════════════════════════════╝ -->
+<div class="page-section" data-page="pricing" id="pricing">
+  <section style="padding:80px 24px 100px;background:#050d1a;min-height:100vh;">
+    <div style="max-width:1100px;margin:0 auto;">
+      <div style="text-align:center;margin-bottom:64px;">
+        <span class="section-label">Pricing</span>
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(36px,5vw,52px);font-weight:800;margin:0 0 16px;color:#f0f6ff;">Transparent pricing.<br/><span class="grad-text">No surprises.</span></h2>
+        <p style="color:#8ba4cc;font-size:17px;max-width:500px;margin:0 auto;">All packages include SEO, mobile-first design, and a 2-week delivery guarantee.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;align-items:start;">
+        <!-- Starter -->
+        <div class="card-hover" style="background:#0b1627;border:1px solid #1e3050;border-radius:20px;padding:40px;">
+          <div style="font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#4a6080;margin-bottom:16px;">Starter</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:52px;font-weight:800;color:#f0f6ff;line-height:1;margin-bottom:4px;">$499</div>
+          <div style="color:#4a6080;font-size:14px;margin-bottom:32px;">one-off payment</div>
+          <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:36px;">
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> 1-page website</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> Contact form + map</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> Mobile responsive</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> On-page SEO</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> Social media links</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#4a6080;font-size:14px;text-decoration:line-through;"><span>✕</span> Booking system</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#4a6080;font-size:14px;text-decoration:line-through;"><span>✕</span> Online shop</div>
+          </div>
+          <button onclick="window.navigateTo('contact')" style="width:100%;padding:14px;background:transparent;color:#22c55e;border:1px solid rgba(34,197,94,0.4);border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(34,197,94,0.08)'" onmouseout="this.style.background='transparent'">Get Started</button>
+        </div>
+        <!-- Business (popular) -->
+        <div class="pricing-popular card-hover" style="border:1px solid rgba(34,197,94,0.4);border-radius:20px;padding:40px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div style="font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#4a6080;">Business</div>
+            <span style="background:#22c55e;color:#000;font-size:11px;font-weight:800;padding:4px 12px;border-radius:99px;letter-spacing:0.06em;">MOST POPULAR</span>
+          </div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:52px;font-weight:800;color:#f0f6ff;line-height:1;margin-bottom:4px;">$899</div>
+          <div style="color:#4a6080;font-size:14px;margin-bottom:32px;">one-off payment</div>
+          <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:36px;">
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> Up to 5 pages</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> Contact form + map</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> Mobile responsive</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> Full SEO optimisation</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> Online booking system</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> Blog section</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#4a6080;font-size:14px;text-decoration:line-through;"><span>✕</span> Online shop</div>
+          </div>
+          <button onclick="window.navigateTo('contact')" style="width:100%;padding:14px;background:#22c55e;color:#000;border:none;border-radius:10px;font-weight:800;font-size:15px;cursor:pointer;transition:background 0.2s;box-shadow:0 8px 24px rgba(34,197,94,0.25);" onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='#22c55e'">Get Started →</button>
+        </div>
+        <!-- Premium -->
+        <div class="card-hover" style="background:#0b1627;border:1px solid #1e3050;border-radius:20px;padding:40px;">
+          <div style="font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#4a6080;margin-bottom:16px;">Premium</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:52px;font-weight:800;color:#f0f6ff;line-height:1;margin-bottom:4px;">$1,499</div>
+          <div style="color:#4a6080;font-size:14px;margin-bottom:32px;">one-off payment</div>
+          <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:36px;">
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> Unlimited pages</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> Everything in Business</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> Online shop + payments</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> Live chat widget</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> Newsletter + popups</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> Priority support</div>
+            <div style="display:flex;align-items:center;gap:12px;color:#8ba4cc;font-size:14px;"><span style="color:#22c55e;">✓</span> Custom domain setup</div>
+          </div>
+          <button onclick="window.navigateTo('contact')" style="width:100%;padding:14px;background:transparent;color:#22c55e;border:1px solid rgba(34,197,94,0.4);border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(34,197,94,0.08)'" onmouseout="this.style.background='transparent'">Get Started</button>
+        </div>
+      </div>
+      <!-- Monthly plan -->
+      <div style="margin-top:24px;background:#0b1627;border:1px solid #1e3050;border-radius:20px;padding:40px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:24px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#4a6080;margin-bottom:8px;">Monthly Care Plan</div>
+          <h3 style="font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;color:#f0f6ff;margin:0 0 8px;">$99 / month</h3>
+          <p style="color:#8ba4cc;font-size:14px;margin:0;">Hosting, uptime monitoring, content updates, and priority support. Cancel anytime.</p>
+        </div>
+        <button onclick="window.navigateTo('contact')" style="padding:14px 32px;background:transparent;color:#22c55e;border:1px solid rgba(34,197,94,0.4);border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;transition:all 0.2s;white-space:nowrap;" onmouseover="this.style.background='rgba(34,197,94,0.08)'" onmouseout="this.style.background='transparent'">Learn More →</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════╗ -->
+<!-- ║  CONTACT PAGE                                        ║ -->
+<!-- ╚══════════════════════════════════════════════════════╝ -->
+<div class="page-section" data-page="contact" id="contact">
+  <section style="padding:80px 24px 100px;background:#050d1a;min-height:100vh;">
+    <div style="max-width:1100px;margin:0 auto;">
+      <div style="text-align:center;margin-bottom:64px;">
+        <span class="section-label">Contact</span>
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(36px,5vw,52px);font-weight:800;margin:0 0 16px;color:#f0f6ff;">Let's build something great.</h2>
+        <p style="color:#8ba4cc;font-size:17px;max-width:480px;margin:0 auto;">Tell us about your business and we'll come back with a plan and quote within 24 hours.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:48px;align-items:start;">
+        <!-- Left -->
+        <div style="display:flex;flex-direction:column;gap:24px;">
+          <div style="background:#0b1627;border:1px solid #1e3050;border-radius:14px;padding:24px;display:flex;gap:18px;align-items:center;">
+            <div style="width:48px;height:48px;background:rgba(34,197,94,0.1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">✉️</div>
+            <div>
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#4a6080;margin-bottom:4px;">Email</div>
+              <a href="mailto:crayzewastaken@gmail.com" style="color:#f0f6ff;font-size:15px;font-weight:600;text-decoration:none;">crayzewastaken@gmail.com</a>
+            </div>
+          </div>
+          <div style="background:#0b1627;border:1px solid #1e3050;border-radius:14px;padding:24px;display:flex;gap:18px;align-items:center;">
+            <div style="width:48px;height:48px;background:rgba(34,197,94,0.1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">📍</div>
+            <div>
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#4a6080;margin-bottom:4px;">Location</div>
+              <div style="color:#f0f6ff;font-size:15px;font-weight:600;">9 Kondalilla Parade, Forest Lake<br/>Brisbane QLD 4078</div>
+            </div>
+          </div>
+          <div style="background:#0b1627;border:1px solid #1e3050;border-radius:14px;padding:24px;display:flex;gap:18px;align-items:center;">
+            <div style="width:48px;height:48px;background:rgba(34,197,94,0.1);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">⏰</div>
+            <div>
+              <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#4a6080;margin-bottom:4px;">Response Time</div>
+              <div style="color:#f0f6ff;font-size:15px;font-weight:600;">Within 24 hours</div>
+            </div>
+          </div>
+          <div style="background:rgba(34,197,94,0.05);border:1px solid rgba(34,197,94,0.2);border-radius:14px;padding:24px;">
+            <p style="color:#8ba4cc;font-size:14px;line-height:1.7;margin:0;"><span style="color:#22c55e;font-weight:700;">Not ready to commit?</span> That's fine. Send us a message with your business name and what you're after — no obligation, no pressure. We'll tell you what we'd build and what it would cost.</p>
+          </div>
+        </div>
+        <!-- Right: form -->
+        <div style="background:#0b1627;border:1px solid #1e3050;border-radius:20px;padding:40px;">
+          <form id="contact-form" onsubmit="event.preventDefault();this.style.display='none';document.getElementById('contact-success').style.display='block'">
+            <div style="display:grid;gap:16px;">
+              <div>
+                <label style="display:block;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#4a6080;margin-bottom:8px;">Full Name</label>
+                <input class="wg-input" type="text" name="name" placeholder="John Smith" required/>
+              </div>
+              <div>
+                <label style="display:block;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#4a6080;margin-bottom:8px;">Email Address</label>
+                <input class="wg-input" type="email" name="email" placeholder="john@yourbusiness.com.au" required/>
+              </div>
+              <div>
+                <label style="display:block;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#4a6080;margin-bottom:8px;">Phone Number</label>
+                <input class="wg-input" type="tel" name="phone" placeholder="+61 400 000 000"/>
+              </div>
+              <div>
+                <label style="display:block;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#4a6080;margin-bottom:8px;">Tell Us About Your Business</label>
+                <textarea class="wg-input" name="message" rows="5" placeholder="What does your business do? What pages do you need? Any specific features like bookings or a shop?" required style="resize:vertical;"></textarea>
+              </div>
+              <button type="submit" style="width:100%;padding:16px;background:#22c55e;color:#000;border:none;border-radius:10px;font-weight:800;font-size:16px;cursor:pointer;transition:background 0.2s;box-shadow:0 8px 24px rgba(34,197,94,0.25);" onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='#22c55e'">Send Message →</button>
+            </div>
+          </form>
+          <div id="contact-success" style="display:none;text-align:center;padding:48px 20px;">
+            <div style="width:64px;height:64px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;color:#22c55e;">✓</div>
+            <h3 style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;color:#f0f6ff;margin:0 0 10px;">Message sent!</h3>
+            <p style="color:#8ba4cc;font-size:15px;margin:0;">We'll get back to you within 24 hours with a plan and quote.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Map -->
+    <div style="max-width:1100px;margin:48px auto 0;">
+      <div style="border-radius:16px;overflow:hidden;border:1px solid #1e3050;">
+        <iframe width="100%" height="320" style="border:0;display:block;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"
+          src="https://www.google.com/maps/embed/v1/place?key=AIzaSyD-_pLdY2Da3BE5O5AivqTl8CnEvvEJMcQ&q=9+Kondalilla+Parade+Forest+Lake+QLD+4078"></iframe>
+      </div>
+    </div>
+  </section>
+</div>
+
+</main>
+
+<!-- ══ FOOTER ══════════════════════════════════════════════════════════════════ -->
+<footer style="background:#050d1a;border-top:1px solid #1e3050;padding:48px 24px;margin-top:auto;">
+  <div style="max-width:1100px;margin:0 auto;">
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:48px;margin-bottom:48px;flex-wrap:wrap;">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <div style="width:32px;height:32px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:7px;display:flex;align-items:center;justify-content:center;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:17px;color:#f0f6ff;">Web<span style="color:#22c55e;">Gecko</span></span>
+        </div>
+        <p style="color:#4a6080;font-size:14px;line-height:1.7;max-width:280px;margin:0 0 20px;">Premium websites for Australian small businesses. Forest Lake, Brisbane. Delivered in 2 weeks.</p>
+        <a href="mailto:crayzewastaken@gmail.com" style="color:#22c55e;font-size:14px;text-decoration:none;">crayzewastaken@gmail.com</a>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#4a6080;margin-bottom:16px;">Pages</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button onclick="window.navigateTo('home')" style="background:none;border:none;color:#8ba4cc;font-size:14px;text-align:left;cursor:pointer;padding:0;" onmouseover="this.style.color='#22c55e'" onmouseout="this.style.color='#8ba4cc'">Home</button>
+          <button onclick="window.navigateTo('services')" style="background:none;border:none;color:#8ba4cc;font-size:14px;text-align:left;cursor:pointer;padding:0;" onmouseover="this.style.color='#22c55e'" onmouseout="this.style.color='#8ba4cc'">Services</button>
+          <button onclick="window.navigateTo('about')" style="background:none;border:none;color:#8ba4cc;font-size:14px;text-align:left;cursor:pointer;padding:0;" onmouseover="this.style.color='#22c55e'" onmouseout="this.style.color='#8ba4cc'">About</button>
+          <button onclick="window.navigateTo('pricing')" style="background:none;border:none;color:#8ba4cc;font-size:14px;text-align:left;cursor:pointer;padding:0;" onmouseover="this.style.color='#22c55e'" onmouseout="this.style.color='#8ba4cc'">Pricing</button>
+          <button onclick="window.navigateTo('contact')" style="background:none;border:none;color:#8ba4cc;font-size:14px;text-align:left;cursor:pointer;padding:0;" onmouseover="this.style.color='#22c55e'" onmouseout="this.style.color='#8ba4cc'">Contact</button>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#4a6080;margin-bottom:16px;">Location</div>
+        <p style="color:#8ba4cc;font-size:14px;line-height:1.7;margin:0;">9 Kondalilla Parade<br/>Forest Lake QLD 4078<br/>Brisbane, Australia</p>
+      </div>
+    </div>
+    <div style="border-top:1px solid #1e3050;padding-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
+      <div style="color:#4a6080;font-size:13px;">© 2026 WebGecko. All rights reserved.</div>
+      <div style="display:flex;gap:20px;">
+        <a href="#" style="color:#4a6080;font-size:13px;text-decoration:none;" onmouseover="this.style.color='#8ba4cc'" onmouseout="this.style.color='#4a6080'">Privacy Policy</a>
+        <a href="#" style="color:#4a6080;font-size:13px;text-decoration:none;" onmouseover="this.style.color='#8ba4cc'" onmouseout="this.style.color='#4a6080'">Terms of Service</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function() {
+window.navigateTo = function(pageId) {
+  // Close mobile menu
+  var menu = document.getElementById('mobile-menu');
+  var overlay = document.getElementById('wg-overlay');
+  if (menu) { menu.classList.remove('open'); }
+  if (overlay) { overlay.classList.remove('open'); }
+
+  var sections = document.querySelectorAll('[data-page]');
+  if (sections.length > 1) {
+    var current = document.querySelector('[data-page].active');
+    var target = document.querySelector('[data-page="' + pageId + '"]') || document.getElementById(pageId);
+    if (!target || target === current) return;
+    if (current) { current.classList.remove('active'); }
+    target.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Update active nav
+    document.querySelectorAll('[id^="nav-"]').forEach(function(b) { b.style.color = '#8ba4cc'; b.style.fontWeight = '500'; });
+    var activeBtn = document.getElementById('nav-' + pageId);
+    if (activeBtn) { activeBtn.style.color = '#22c55e'; activeBtn.style.fontWeight = '700'; }
+    return;
+  }
+  var el = document.getElementById(pageId);
+  if (el) el.scrollIntoView({ behavior: 'smooth' });
+};
+
+// Hamburger
+var hamburger = document.getElementById('hamburger');
+var closeMenu = document.getElementById('close-menu');
+var mobileMenu = document.getElementById('mobile-menu');
+var overlay = document.getElementById('wg-overlay');
+if (hamburger) hamburger.addEventListener('click', function() {
+  mobileMenu.classList.add('open'); overlay.classList.add('open');
+});
+if (closeMenu) closeMenu.addEventListener('click', function() {
+  mobileMenu.classList.remove('open'); overlay.classList.remove('open');
+});
+if (overlay) overlay.addEventListener('click', function() {
+  mobileMenu.classList.remove('open'); overlay.classList.remove('open');
+});
+
+// Close mobile menu nav links
+if (mobileMenu) {
+  mobileMenu.querySelectorAll('button').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      mobileMenu.classList.remove('open'); overlay.classList.remove('open');
+    });
+  });
+}
+
+// FAQ accordion
+document.querySelectorAll('details').forEach(function(d) {
+  d.addEventListener('toggle', function() {
+    // Close others
+    if (d.open) {
+      document.querySelectorAll('details').forEach(function(other) {
+        if (other !== d) other.removeAttribute('open');
+      });
+    }
+  });
+});
+
+// Multi-page init
+var pages = document.querySelectorAll('[data-page]');
+if (pages.length > 1) {
+  if (!document.querySelector('style[data-wg-mp]')) {
+    var s = document.createElement('style');
+    s.setAttribute('data-wg-mp', '1');
+    s.textContent = '[data-page]{display:none!important;}[data-page].active{display:block!important;}';
+    document.head.appendChild(s);
+  }
+  pages.forEach(function(p) { p.classList.remove('active'); });
+  var firstActive = document.querySelector('[data-page="home"]') || pages[0];
+  firstActive.classList.add('active');
+}
+})();
+</script>
+<script>
+(function(){
+  var WG_JOB="job_1778238745367";
+  var WG_API="https://webgecko-builder.vercel.app/api/analytics/track";
+  var WG_CONTACT="https://webgecko-builder.vercel.app/api/contact/submit";
+  function wgTrack(event,page){try{fetch(WG_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:WG_JOB,event:event,page:page||window.location.pathname})});}catch(e){}}
+  wgTrack("page_view",document.title);
+  document.addEventListener("click",function(e){
+    var el=e.target.closest("a,button");if(!el)return;
+    var txt=(el.textContent||"").toLowerCase();
+    if(txt.includes("contact")||txt.includes("get started")||txt.includes("get your")){wgTrack("contact_click");}
+  });
+  document.addEventListener("submit",function(e){
+    var form=e.target;if(!form||form.tagName!=="FORM")return;
+    if(form.id==="contact-form"){
+      wgTrack("form_submit");
+      var nm=(form.querySelector('input[name="name"]')||{value:""}).value;
+      var em=(form.querySelector('input[name="email"]')||{value:""}).value;
+      var ph=(form.querySelector('input[name="phone"]')||{value:""}).value;
+      var mg=(form.querySelector('textarea[name="message"]')||{value:""}).value;
+      if(em||nm){fetch(WG_CONTACT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:WG_JOB,name:nm,email:em,phone:ph,message:mg})}).catch(function(){});}
+    }
+  });
+})();
+</script>
+</body>
+</html>

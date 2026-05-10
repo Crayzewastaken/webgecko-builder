@@ -235,7 +235,7 @@ function ActionBtn({ label, color, confirm, onConfirm, fill=false, toast }: {
 }
 
 // ── Preview frame ──────────────────────────────────────────────────────────────
-function PreviewFrame({ previewUrl, builtAt }: { previewUrl:string; builtAt?:string }) {
+function PreviewFrame({ previewUrl, builtAt, jobId }: { previewUrl:string; builtAt?:string; jobId?:string }) {
   const [key, setKey] = useState(()=>Date.now());
   const prevRef = useRef(builtAt);
   useEffect(()=>{
@@ -245,7 +245,9 @@ function PreviewFrame({ previewUrl, builtAt }: { previewUrl:string; builtAt?:str
   // Scale 1280px iframe to fit ~710px panel content width
   const SCALE=0.55, IW=1280, IH=800;
   const containerH=Math.round(IH*SCALE);
-  const src=`${previewUrl}${previewUrl.includes("?")?"&":"?"}_wg=${key}`;
+  // Always serve from proxy (Supabase) to guarantee fresh HTML — Vercel CDN caches stable alias
+  const proxySrc = jobId ? `/api/preview/proxy?jobId=${encodeURIComponent(jobId)}&_wg=${key}` : `${previewUrl}${previewUrl.includes("?")?"&":"?"}_wg=${key}`;
+  const src = proxySrc;
   return (
     <div style={{borderRadius:12,overflow:"hidden",border:`1px solid ${T.border}`}}>
       <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:T.surface,borderBottom:`1px solid ${T.border}`}}>
@@ -750,7 +752,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                   {sectionTitle("Live preview")}
                   {c.buildStatus==="building"
                     ? <div style={{borderRadius:10,border:`1px solid ${T.border}`,background:T.raised,height:160,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:T.textMuted,fontSize:13}}>⏳ Building… preview appears when done</div></div>
-                    : <PreviewFrame previewUrl={c.previewUrl} builtAt={deployedAt||c.builtAt}/>}
+                    : <PreviewFrame previewUrl={c.previewUrl} builtAt={deployedAt||c.builtAt} jobId={jid}/>}
                 </div>
               )}
               {c.hasBooking&&(
@@ -889,21 +891,26 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
             <div style={{display:"flex",flexDirection:"column" as const,gap:20}}>
 
               {/* Square */}
-              <div style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px"}}>
+              <div style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:12,padding:"20px 22px"}}>
                 {sectionTitle("Square (Payments / Shop)")}
-                <div style={{fontSize:12,color:T.textMuted,marginBottom:14,lineHeight:1.6}}>
-                  Connect this client's Square account to enable the online shop and payment links. Get these from the Square Developer Dashboard.
+                <div style={{fontSize:13,color:T.textSec,marginBottom:16,lineHeight:1.7}}>
+                  Connect this client's Square account to enable the online shop and payment links. Get these from the <strong style={{color:T.text}}>Square Developer Dashboard</strong>.
                 </div>
-                <div style={{display:"flex",flexDirection:"column" as const,gap:10}}>
+                <div style={{fontSize:11,color:T.blue,background:T.blue+"12",border:`1px solid ${T.blue}30`,borderRadius:7,padding:"7px 12px",marginBottom:14,display:"flex",alignItems:"center",gap:6}}>
+                  <span>&#x1F4BE;</span> Stored in <code style={{fontFamily:"monospace",background:"transparent"}}>jobs.square_access_token</code> + <code style={{fontFamily:"monospace",background:"transparent"}}>jobs.square_location_id</code>
+                </div>
+                <div style={{display:"flex",flexDirection:"column" as const,gap:12}}>
                   <div>
-                    <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Access Token</label>
+                    <label style={{fontSize:12,color:T.textSec,fontWeight:700,display:"block",marginBottom:6}}>Access Token</label>
                     <input value={squareToken} onChange={e=>setSquareToken(e.target.value)} placeholder="EAAAl..." type="password"
-                      style={{width:"100%",boxSizing:"border-box" as const,background:T.surface,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:12,outline:"none",fontFamily:"monospace"}}/>
+                      style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:13,outline:"none",fontFamily:"monospace"}}/>
+                    <div style={{fontSize:11,color:T.textSec,marginTop:4}}>Square Developer Dashboard &rarr; OAuth &rarr; Production Access Token</div>
                   </div>
                   <div>
-                    <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Location ID</label>
+                    <label style={{fontSize:12,color:T.textSec,fontWeight:700,display:"block",marginBottom:6}}>Location ID</label>
                     <input value={squareLocation} onChange={e=>setSquareLocation(e.target.value)} placeholder="LXXXXXXXXXXXXXXXXX"
-                      style={{width:"100%",boxSizing:"border-box" as const,background:T.surface,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:12,outline:"none",fontFamily:"monospace"}}/>
+                      style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:13,outline:"none",fontFamily:"monospace"}}/>
+                    <div style={{fontSize:11,color:T.textSec,marginTop:4}}>Square Dashboard &rarr; Account &amp; Settings &rarr; Locations</div>
                   </div>
                   <button disabled={intSaving} onClick={async()=>{
                     setIntSaving(true); setIntMsg("");
@@ -924,14 +931,18 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               {/* Google Analytics */}
               <div style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px"}}>
                 {sectionTitle("Google Analytics 4")}
-                <div style={{fontSize:12,color:T.textMuted,marginBottom:14,lineHeight:1.6}}>
-                  Enter the GA4 Measurement ID (starts with G-). This will be injected into the site on next fix/rebuild.
+                <div style={{fontSize:13,color:T.textSec,marginBottom:16,lineHeight:1.7}}>
+                  Injected into the site's HTML on next fix/rebuild.
+                </div>
+                <div style={{fontSize:11,color:T.blue,background:T.blue+"12",border:`1px solid ${T.blue}30`,borderRadius:7,padding:"7px 12px",marginBottom:14,display:"flex",alignItems:"center",gap:6}}>
+                  <span>&#x1F4BE;</span> Stored in <code style={{fontFamily:"monospace",background:"transparent"}}>jobs.ga4_id</code>
                 </div>
                 <div style={{display:"flex",gap:10,alignItems:"flex-end"}}>
                   <div style={{flex:1}}>
-                    <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Measurement ID</label>
+                    <label style={{fontSize:12,color:T.textSec,fontWeight:700,display:"block",marginBottom:6}}>Measurement ID</label>
                     <input value={ga4Id} onChange={e=>setGa4Id(e.target.value)} placeholder="G-XXXXXXXXXX"
-                      style={{width:"100%",boxSizing:"border-box" as const,background:T.surface,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:12,outline:"none",fontFamily:"monospace"}}/>
+                      style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:13,outline:"none",fontFamily:"monospace"}}/>
+                    <div style={{fontSize:11,color:T.textSec,marginTop:4}}>GA4 &rarr; Admin &rarr; Data Streams &rarr; Web stream details</div>
                   </div>
                   <button disabled={intSaving} onClick={async()=>{
                     setIntSaving(true); setIntMsg("");
@@ -952,14 +963,18 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               {/* Custom domain */}
               <div style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px"}}>
                 {sectionTitle("Custom Domain")}
-                <div style={{fontSize:12,color:T.textMuted,marginBottom:14,lineHeight:1.6}}>
-                  Client's desired domain. Point A record to Vercel, then assign here.
+                <div style={{fontSize:13,color:T.textSec,marginBottom:16,lineHeight:1.7}}>
+                  Point the domain A record to Vercel's IP, then assign here to activate it.
+                </div>
+                <div style={{fontSize:11,color:T.blue,background:T.blue+"12",border:`1px solid ${T.blue}30`,borderRadius:7,padding:"7px 12px",marginBottom:14,display:"flex",alignItems:"center",gap:6}}>
+                  <span>&#x1F4BE;</span> Stored in <code style={{fontFamily:"monospace",background:"transparent"}}>metadata.domainUrl</code>
                 </div>
                 <div style={{display:"flex",gap:10,alignItems:"flex-end"}}>
                   <div style={{flex:1}}>
-                    <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Domain</label>
+                    <label style={{fontSize:12,color:T.textSec,fontWeight:700,display:"block",marginBottom:6}}>Domain</label>
                     <input value={customDomain} onChange={e=>setCustomDomain(e.target.value)} placeholder="example.com.au"
-                      style={{width:"100%",boxSizing:"border-box" as const,background:T.surface,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:12,outline:"none",fontFamily:"monospace"}}/>
+                      style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:13,outline:"none",fontFamily:"monospace"}}/>
+                    <div style={{fontSize:11,color:T.textSec,marginTop:4}}>Without https:// or trailing slash</div>
                   </div>
                   <button disabled={intSaving} onClick={async()=>{
                     setIntSaving(true); setIntMsg("");
@@ -975,10 +990,10 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                     {intSaving?"Assigning…":"Assign domain"}
                   </button>
                 </div>
-                {c.metadata?.domainStatus&&<div style={{fontSize:11,color:T.textMuted,marginTop:8}}>Status: {c.metadata.domainStatus}</div>}
+                {c.metadata?.domainStatus&&<div style={{fontSize:12,color:c.metadata.domainStatus==="Active"?T.green:T.amber,marginTop:10,display:"flex",alignItems:"center",gap:6}}><span>{c.metadata.domainStatus==="Active"?"✓":"⏳"}</span> Status: <strong>{c.metadata.domainStatus}</strong></div>}
               </div>
 
-              {intMsg&&<div style={{fontSize:12,color:intMsg.startsWith("✓")?T.green:T.red,padding:"8px 12px",background:intMsg.startsWith("✓")?T.green+"10":T.red+"10",borderRadius:7,border:`1px solid ${intMsg.startsWith("✓")?T.green:T.red}25`}}>{intMsg}</div>}
+              {intMsg&&<div style={{fontSize:13,color:intMsg.startsWith("✓")?T.green:T.red,padding:"10px 14px",background:intMsg.startsWith("✓")?T.green+"12":T.red+"12",borderRadius:8,border:`1px solid ${intMsg.startsWith("✓")?T.green:T.red}30`,fontWeight:500}}>{intMsg}</div>}
             </div>
           )}
 
@@ -1516,6 +1531,40 @@ function Skeleton() {
 }
 
 // ── Pipeline logs panel ────────────────────────────────────────────────────────
+const MD_STEPS = new Set(["validate", "validate-md", "content-check", "schema-check"]);
+
+function LogRow({ l }: { l: any }) {
+  const lvlColor = (lv:string) => lv==="error"?T.red:lv==="warn"?T.amber:T.blue;
+  const lvlBg    = (lv:string) => lv==="error"?T.red+"18":lv==="warn"?T.amber+"18":T.raised;
+  return (
+    <div style={{background:lvlBg(l.level),border:`1px solid ${lvlColor(l.level)}35`,borderRadius:8,padding:"11px 16px",display:"grid",gridTemplateColumns:"auto auto auto 1fr",gap:"0 12px",alignItems:"start"}}>
+      <span style={{fontSize:10,fontWeight:800,color:lvlColor(l.level),background:lvlColor(l.level)+"22",borderRadius:4,padding:"3px 8px",whiteSpace:"nowrap" as const,marginTop:1,letterSpacing:"0.04em"}}>{l.level.toUpperCase()}</span>
+      <span style={{fontSize:11,color:T.textSec,fontFamily:"monospace",whiteSpace:"nowrap" as const,marginTop:2}}>{l.ts ? new Date(l.ts).toLocaleString("en-AU",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",second:"2-digit"}) : ""}</span>
+      <span style={{fontSize:11,color:T.blue,background:T.blue+"18",borderRadius:4,padding:"2px 8px",fontFamily:"monospace",whiteSpace:"nowrap" as const,marginTop:1,fontWeight:600}}>{l.step||"—"}</span>
+      <div style={{marginTop:1}}>
+        {l.businessName&&<span style={{fontSize:12,fontWeight:700,color:T.text,marginRight:8}}>{l.businessName}</span>}
+        <span style={{fontSize:12,color:T.text,opacity:0.85,wordBreak:"break-word" as const,lineHeight:1.5}}>{l.msg}</span>
+      </div>
+    </div>
+  );
+}
+
+function LogSection({ title, icon, logs, accentColor, emptyMsg }: { title:string; icon:string; logs:any[]; accentColor:string; emptyMsg:string }) {
+  return (
+    <div style={{marginBottom:24}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,paddingBottom:8,borderBottom:`1px solid ${accentColor}30`}}>
+        <span style={{fontSize:14}}>{icon}</span>
+        <span style={{fontSize:12,fontWeight:700,color:accentColor,textTransform:"uppercase" as const,letterSpacing:"0.07em"}}>{title}</span>
+        <span style={{fontSize:11,color:T.textSec,background:accentColor+"18",borderRadius:10,padding:"1px 8px",fontWeight:600,marginLeft:2}}>{logs.length}</span>
+      </div>
+      {logs.length===0
+        ? <div style={{fontSize:12,color:T.textSec,padding:"10px 14px",background:T.raised,borderRadius:8,border:`1px solid ${T.border}`}}>{emptyMsg}</div>
+        : <div style={{display:"flex",flexDirection:"column" as const,gap:4}}>{logs.map((l,i)=><LogRow key={i} l={l}/>)}</div>
+      }
+    </div>
+  );
+}
+
 function PipelineLogsPanel() {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1528,43 +1577,48 @@ function PipelineLogsPanel() {
   }
   useEffect(()=>{load();const iv=setInterval(load,30000);return()=>clearInterval(iv);},[]);
 
-  const filtered = lvl==="all" ? logs : logs.filter(l=>l.level===lvl);
-  const lvlColor = (l:string) => l==="error"?T.red:l==="warn"?T.amber:T.textMuted;
-  const lvlBg   = (l:string) => l==="error"?T.red+"15":l==="warn"?T.amber+"15":T.raised;
+  // Split: md/validation errors vs live pipeline errors
+  const allFiltered = lvl==="all" ? logs : logs.filter(l=>l.level===lvl);
+  const mdErrors    = allFiltered.filter(l => l.source==="md_file" || MD_STEPS.has(l.step||""));
+  const liveErrors  = allFiltered.filter(l => !l.source && !MD_STEPS.has(l.step||""));
+
+  const lvlColor = (lv:string) => lv==="error"?T.red:lv==="warn"?T.amber:T.textSec;
 
   return (
     <div>
-      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,flexWrap:"wrap" as const}}>
-        <div style={{fontSize:12,color:T.textMuted,fontWeight:600,marginRight:4}}>Filter:</div>
+      {/* Filter bar */}
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:20,flexWrap:"wrap" as const}}>
+        <div style={{fontSize:12,color:T.textSec,fontWeight:700,marginRight:4}}>Filter:</div>
         {(["all","warn","error"] as const).map(f=>(
-          <button key={f} onClick={()=>setLvl(f)} style={{padding:"5px 14px",fontSize:12,fontWeight:lvl===f?600:400,color:lvl===f?T.text:T.textMuted,background:lvl===f?T.raised:"transparent",border:lvl===f?`1px solid ${T.border}`:"1px solid transparent",borderRadius:6,cursor:"pointer"}}>
+          <button key={f} onClick={()=>setLvl(f)} style={{padding:"5px 14px",fontSize:12,fontWeight:lvl===f?700:400,color:lvl===f?T.text:T.textSec,background:lvl===f?T.raised:"transparent",border:lvl===f?`1px solid ${T.border}`:"1px solid transparent",borderRadius:6,cursor:"pointer"}}>
             {f==="all"?"All":f.charAt(0).toUpperCase()+f.slice(1)}
             {f!=="all"&&<span style={{marginLeft:5,color:lvlColor(f),fontWeight:700}}>{logs.filter(l=>l.level===f).length}</span>}
           </button>
         ))}
-        <button onClick={load} style={{marginLeft:"auto",background:T.raised,border:`1px solid ${T.border}`,color:T.textMuted,borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer"}}>↻ Refresh</button>
+        <button onClick={load} style={{marginLeft:"auto",background:T.raised,border:`1px solid ${T.border}`,color:T.textSec,borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer",fontWeight:500}}>↻ Refresh</button>
       </div>
-      {loading&&<div style={{color:T.textMuted,fontSize:13,padding:"40px 0",textAlign:"center" as const}}>Loading logs…</div>}
-      {!loading&&filtered.length===0&&(
-        <div style={{textAlign:"center" as const,padding:"60px 0",color:T.textMuted}}>
-          <div style={{fontSize:32,marginBottom:10}}>✅</div>
-          <div style={{fontSize:14,fontWeight:600,color:T.textSec}}>No {lvl==="all"?"":lvl} log entries</div>
-        </div>
-      )}
-      {!loading&&filtered.length>0&&(
-        <div style={{display:"flex",flexDirection:"column" as const,gap:4}}>
-          {filtered.map((l,i)=>(
-            <div key={i} style={{background:lvlBg(l.level),border:`1px solid ${lvlColor(l.level)}25`,borderRadius:8,padding:"10px 14px",display:"grid",gridTemplateColumns:"auto auto auto 1fr",gap:"0 14px",alignItems:"start"}}>
-              <span style={{fontSize:10,fontWeight:700,color:lvlColor(l.level),background:lvlColor(l.level)+"20",borderRadius:4,padding:"2px 7px",whiteSpace:"nowrap" as const,marginTop:1}}>{l.level.toUpperCase()}</span>
-              <span style={{fontSize:11,color:T.textMuted,fontFamily:"monospace",whiteSpace:"nowrap" as const}}>{l.ts ? new Date(l.ts).toLocaleString("en-AU",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",second:"2-digit"}) : ""}</span>
-              <span style={{fontSize:11,color:T.blue,background:T.blue+"12",borderRadius:4,padding:"2px 7px",fontFamily:"monospace",whiteSpace:"nowrap" as const}}>{l.step||"—"}</span>
-              <div>
-                {l.businessName&&<span style={{fontSize:11,fontWeight:600,color:T.text,marginRight:8}}>{l.businessName}</span>}
-                <span style={{fontSize:11,color:T.textSec,wordBreak:"break-word" as const}}>{l.msg}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+
+      {loading&&<div style={{color:T.textSec,fontSize:13,padding:"40px 0",textAlign:"center" as const}}>Loading logs…</div>}
+
+      {!loading&&(
+        <>
+          {/* .md / validation errors section */}
+          <LogSection
+            title="Content Validation (.md)"
+            icon="📄"
+            logs={mdErrors}
+            accentColor={T.amber}
+            emptyMsg="No content validation errors — all page specs look good."
+          />
+          {/* Live pipeline errors section */}
+          <LogSection
+            title="Live Pipeline Errors"
+            icon="⚡"
+            logs={liveErrors}
+            accentColor={T.blue}
+            emptyMsg="No live pipeline errors."
+          />
+        </>
       )}
     </div>
   );
