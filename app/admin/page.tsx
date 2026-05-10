@@ -21,7 +21,7 @@ interface ClientAnalytics {
   tawktoPropertyId?: string; shopCatalogue?: any[] | null;
   logoUrl?: string; heroUrl?: string; photoUrls?: string[];
   squareAccessToken?: string; squareLocationId?: string; ga4Id?: string;
-  userInput?: { features?: string[]; pages?: string[]; siteType?: string; style?: string; colorPrefs?: string; usp?: string; goal?: string; additionalNotes?: string; abn?: string; businessAddress?: string; facebookPage?: string; instagramUrl?: string; linkedinUrl?: string; };
+  userInput?: { features?: string[]; pages?: string[]; siteType?: string; style?: string; colorPrefs?: string; usp?: string; goal?: string; additionalNotes?: string; abn?: string; businessAddress?: string; facebookPage?: string; instagramUrl?: string; linkedinUrl?: string; bookingServices?: string; };
   metadata?: { scheduledReleaseAt?: string; scheduledReleaseDays?: number; checklistCompletedAt?: string; alreadyReleased?: boolean; seo?: SeoData; domainStatus?: string; domainUrl?: string; lastGoodAt?: string; lastGoodUrl?: string; lastGoodHtml?: string; rolledBackAt?: string; };
 }
 
@@ -372,14 +372,25 @@ function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:
 function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:string; onClose:()=>void; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
   const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"content"|"payments"|"actions"|"requests"|"checklist">("perf");
   const [checklistDone, setChecklistDone] = useState<Record<string,boolean>>({});
+  const [checklistLinks, setChecklistLinks] = useState<Record<string,string>>({});
   useEffect(()=>{
-    try { const s=localStorage.getItem("wg_checklist_"+jid); if(s)setChecklistDone(JSON.parse(s)); } catch {}
+    try {
+      const s=localStorage.getItem("wg_checklist_"+jid); if(s)setChecklistDone(JSON.parse(s));
+      const l=localStorage.getItem("wg_checklist_links_"+jid); if(l)setChecklistLinks(JSON.parse(l));
+    } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
   function toggleCheck(key:string){
     setChecklistDone(prev=>{
       const next={...prev,[key]:!prev[key]};
       try{localStorage.setItem("wg_checklist_"+jid,JSON.stringify(next));}catch{}
+      return next;
+    });
+  }
+  function saveLink(key:string, val:string){
+    setChecklistLinks(prev=>{
+      const next={...prev,[key]:val};
+      try{localStorage.setItem("wg_checklist_links_"+jid,JSON.stringify(next));}catch{}
       return next;
     });
   }
@@ -1386,7 +1397,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
             const termlyPrivacyUrl = `https://app.termly.io/dashboard/website/add-website`;
             const termlyTosUrl = `https://app.termly.io/dashboard/website/add-website`;
 
-            type CheckItem = { key:string; label:string; detail:string; link?:string; linkLabel?:string; required?:boolean };
+            type CheckItem = { key:string; label:string; detail:string; link?:string; linkLabel?:string; linkInput?:{placeholder:string;label:string}; required?:boolean };
             type Section = { title:string; color:string; icon:string; items:CheckItem[] };
 
             const sections: Section[] = [
@@ -1399,8 +1410,8 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                   { key:"termly_account", label:"Create a free Termly account", detail:"Go to termly.io and sign up with your WebGecko email. You only need one account — add each client as a separate website.", link:"https://termly.io", linkLabel:"Open Termly →", required:true },
                   { key:"termly_add_site", label:'Click "Add Website" in Termly dashboard', detail:`Enter the following:\n• Website name: ${biz}\n• Website URL: ${siteUrl||"(client domain — add after launch)"}\n• Country: Australia\n• Industry: select closest match to "${c.industry}"`, link:termlyPrivacyUrl, linkLabel:"Add website in Termly →", required:true },
                   { key:"termly_privacy_wizard", label:"Complete the Privacy Policy wizard", detail:`Answer each question:\n• Do you collect names/emails? YES (contact form)\n• Do you use analytics? ${hasGA4?"YES — select Google Analytics":"NO"}\n• Do you process payments? ${hasShop?"YES — select Square":"NO"}\n• Do you use cookies? YES (standard)\n• Business country: Australia\n• Contact email: ${email}\n• Business address: ${addr||"(enter client address)"}`, required:true },
-                  { key:"termly_privacy_embed", label:"Copy the Privacy Policy embed URL", detail:'In Termly, after generating, click "Embed" then copy the "Hosted Policy URL" (looks like https://app.termly.io/document/privacy-policy/xxxx). Paste it into the Privacy Policy page on the client site using the "Deploy HTML" button, replacing the auto-generated policy page.', required:true },
-                  { key:"termly_privacy_footer", label:"Paste Termly URL into site footer links", detail:'In the generated site HTML, find the footer Privacy Policy link and replace the navigateTo(\'privacy\') with a direct href pointing to the Termly hosted URL. Or leave as-is if the site already has a privacy page injected — the Termly URL is the upgrade path.' },
+                  { key:"termly_privacy_embed", label:"Copy the Privacy Policy hosted URL and paste below", detail:'In Termly, after generating the policy, click "Embed" → copy the "Hosted Policy URL" (looks like https://app.termly.io/document/privacy-policy/xxxx). Paste it in the box below — it will be saved to this client record.', required:true, linkInput:{ label:"Termly Privacy Policy URL", placeholder:"https://app.termly.io/document/privacy-policy/xxxx" } },
+                  { key:"termly_privacy_footer", label:"Update footer link on live site", detail:"In the client site HTML, find the Privacy Policy footer link and change the href from navigateTo to the Termly URL you just pasted. Redeploy via the Actions tab." },
                 ],
               },
 
@@ -1411,7 +1422,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                 items:[
                   { key:"termly_tos_wizard", label:'In same website on Termly, generate Terms of Service', detail:`Click "Terms and Conditions" in the Termly sidebar for this website.\n\nFill in:\n• Website/company name: ${biz}\n• Website URL: ${siteUrl||"(client domain)"}\n• Governing law: Australia${abn?`\n• ABN: ${abn}`:""}\n• Contact email: ${email}\n• Business address: ${addr||"(enter client address)"}`, link:termlyTosUrl, linkLabel:"Open Termly →", required:true },
                   { key:"termly_tos_clauses", label:"Select applicable clauses in the ToS wizard", detail:`Check the boxes that apply:\n• Contact/enquiry forms: YES\n${hasShop?"• Online purchases / e-commerce: YES — select Square as payment processor\n":""}${hasBooking?"• Bookings or appointments: YES\n":""}• User-generated content: NO (unless client has reviews/blog)\n• Limitation of liability: YES\n• Governing jurisdiction: Australia`, required:true },
-                  { key:"termly_tos_embed", label:"Copy the Terms of Service hosted URL", detail:'Same as Privacy Policy — click "Embed" and copy the hosted URL. Paste it into the site or give to client for their records.' },
+                  { key:"termly_tos_embed", label:"Copy the Terms of Service hosted URL and paste below", detail:'In Termly, after generating, click "Embed" → copy the hosted URL. Paste it in the box below.', linkInput:{ label:"Termly Terms of Service URL", placeholder:"https://app.termly.io/document/terms-of-service/xxxx" } },
                 ],
               },
 
@@ -1530,6 +1541,26 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                                   <a href={item.link} target="_blank" rel="noopener noreferrer" style={{display:"inline-block",marginTop:10,fontSize:11,fontWeight:600,color:section.color,textDecoration:"none",background:`${section.color}15`,border:`1px solid ${section.color}40`,borderRadius:6,padding:"5px 12px"}}>
                                     {item.linkLabel||item.link} ↗
                                   </a>
+                                )}
+                                {item.linkInput&&(
+                                  <div style={{marginTop:12}}>
+                                    <div style={{fontSize:10,fontWeight:700,color:T.textMuted,textTransform:"uppercase" as const,letterSpacing:"0.08em",marginBottom:6}}>{item.linkInput.label}</div>
+                                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                                      <input
+                                        type="url"
+                                        placeholder={item.linkInput.placeholder}
+                                        value={checklistLinks[item.key]||""}
+                                        onChange={e=>saveLink(item.key,e.target.value)}
+                                        style={{flex:1,background:T.raised,border:`1px solid ${checklistLinks[item.key]?section.color:T.border}`,borderRadius:7,padding:"8px 12px",fontSize:12,color:T.text,outline:"none"}}
+                                      />
+                                      {checklistLinks[item.key]&&(
+                                        <a href={checklistLinks[item.key]} target="_blank" rel="noopener noreferrer" style={{flexShrink:0,fontSize:11,fontWeight:600,color:section.color,textDecoration:"none",background:`${section.color}15`,border:`1px solid ${section.color}40`,borderRadius:6,padding:"8px 12px",whiteSpace:"nowrap" as const}}>
+                                          Open ↗
+                                        </a>
+                                      )}
+                                    </div>
+                                    {checklistLinks[item.key]&&<div style={{fontSize:10,color:T.green,marginTop:4}}>✓ Saved</div>}
+                                  </div>
                                 )}
                               </div>
                             </div>
