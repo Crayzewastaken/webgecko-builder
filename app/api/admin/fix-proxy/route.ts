@@ -77,12 +77,15 @@ export async function GET(req: NextRequest) {
     // PRE-PASS: strip <canvas> elements entirely — static HTML sites never use canvas legitimately
     // They are always Stitch-generated fake map/animation placeholders
     html = html.replace(/<canvas[^>]*>[\s\S]*?<\/canvas>/gi, "");
-    // Strip Stitch visual map placeholder boxes (div with map icon + "Map View: City" text, no iframe)
-    html = html.replace(/<div[^>]*>(?:[^<]|<(?!iframe)[^>]*>)*?(?:Map View[\s\S]{0,60}?<\/div>)/gi, (m: string) => {
-      if (m.includes('iframe')) return m;
-      if (/Map View\s*:/i.test(m)) return '';
+    // Strip Stitch visual map placeholder boxes — broad catch
+    html = html.replace(/<div[^>]*class="[^"]*(?:map|location|directions)[^"]*"[^>]*>[\s\S]{0,1500}?<\/div>/gi, (m: string) => {
+      if (m.includes('<iframe')) return m;
+      const textOnly = m.replace(/<[^>]+>/g, '').trim();
+      if (/Map View|map-placeholder|map_icon/i.test(m)) return '';
+      if (textOnly.length < 80 && /map|location|directions/i.test(m)) return '';
       return m;
     });
+    html = html.replace(/<[a-z][^>]*>\s*Map View\s*:[^<]{0,100}<\/[a-z]+>/gi, '');
 
     // FIX 1: Contact details — only replace clearly fake emails
     const clientDomain = clientEmail.split("@")[1] || "";

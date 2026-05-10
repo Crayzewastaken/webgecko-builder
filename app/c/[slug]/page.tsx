@@ -160,7 +160,7 @@ interface PaymentStatus {
   quote: { total: number; monthly: number; deposit: number; final: number };
 }
 
-type Tab = "overview" | "preview" | "bookings" | "quote" | "plan" | "upgrade" | "contact";
+type Tab = "overview" | "preview" | "bookings" | "content" | "quote" | "plan" | "upgrade" | "contact";
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 function formatDate(dateStr: string) {
@@ -595,6 +595,22 @@ export default function ClientPortal() {
   const [upgradeSubmitting, setUpgradeSubmitting] = useState(false);
   const [upgradeSubmitted, setUpgradeSubmitted] = useState(false);
 
+  // Photo / Asset uploads
+  const [assetUploading, setAssetUploading] = useState(false);
+  const [assetMsg, setAssetMsg] = useState("");
+  const [assetType, setAssetType] = useState<"gallery"|"logo"|"hero">("gallery");
+  const [uploadedThisSession, setUploadedThisSession] = useState(0);
+
+  // Content requests
+  const [contentRequestType, setContentRequestType] = useState<"blog"|"newsletter"|"deal"|"product"|"review">("blog");
+  const [contentRequestTitle, setContentRequestTitle] = useState("");
+  const [contentRequestNote, setContentRequestNote] = useState("");
+  const [contentRequestExtras, setContentRequestExtras] = useState<Record<string,string>>({});
+  const [contentSubmitting, setContentSubmitting] = useState(false);
+  const [contentSubmitted, setContentSubmitted] = useState(false);
+  const [myContentItems, setMyContentItems] = useState<any[]>([]);
+  const [contentItemsLoading, setContentItemsLoading] = useState(false);
+
   // Contact / Support
   const [contactTopics, setContactTopics] = useState<string[]>([]);
   const [contactDetails, setContactDetails] = useState("");
@@ -619,7 +635,40 @@ export default function ClientPortal() {
     if ((tab === "bookings" || tab === "overview") && client.hasBooking) loadBookings();
     if (tab === "preview") loadFeedback();
     if (tab === "upgrade") loadMyFeatureRequests();
+    if (tab === "content") loadMyContent();
   }, [tab, client]);
+
+  async function loadMyContent() {
+    setContentItemsLoading(true);
+    try {
+      const res = await fetch(`/api/client/content?slug=${slug}`);
+      if (res.ok) { const d = await res.json(); setMyContentItems(d.items || []); }
+    } catch (e) { /* silent */ } finally { setContentItemsLoading(false); }
+  }
+
+  async function submitContentRequest() {
+    setContentSubmitting(true);
+    try {
+      const res = await fetch("/api/client/content", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug,
+          type: contentRequestType,
+          title: contentRequestTitle,
+          clientNote: contentRequestNote,
+          ...contentRequestExtras,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setContentSubmitted(true);
+      setContentRequestTitle("");
+      setContentRequestNote("");
+      setContentRequestExtras({});
+    } catch (e) {
+      alert("Failed to submit — please try again.");
+    } finally { setContentSubmitting(false); }
+  }
 
   async function loadMyFeatureRequests() {
     try {
@@ -900,10 +949,13 @@ export default function ClientPortal() {
 
   const buildPrice = paymentStatus?.quote?.total || client?.quote?.price || 0;
 
+  const hasContentFeature = hasBlog || hasGrowth || hasShop || features.includes("Deals & Promotions") || features.includes("Testimonials");
+
   const tabs: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" },
     { id: "preview", label: "Site Preview" },
     ...(hasBooking ? [{ id: "bookings" as Tab, label: "Bookings" }] : []),
+    ...(hasContentFeature ? [{ id: "content" as Tab, label: "Content" }] : []),
     { id: "quote", label: "Quote & Pay" },
     { id: "plan", label: "My Plan" },
     { id: "upgrade", label: "Add Features" },
@@ -1478,31 +1530,31 @@ export default function ClientPortal() {
                     </div>
                   )}
                   {hasBlog && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10 }}>
+                    <button onClick={() => setTab("content")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, cursor: "pointer", textAlign: "left" as const, width: "100%" }}>
                       <span style={{ fontSize: 20 }}>📰</span>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Blog & Content</div>
-                        <div style={{ fontSize: 12, color: C.textMuted }}>Contact us to publish new posts</div>
+                        <div style={{ fontSize: 12, color: C.textMuted }}>Request posts, newsletters & more</div>
                       </div>
-                    </div>
+                    </button>
                   )}
                   {hasGallery && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10 }}>
+                    <button onClick={() => setTab("upgrade")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, cursor: "pointer", textAlign: "left" as const, width: "100%" }}>
                       <span style={{ fontSize: 20 }}>🖼️</span>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Photo Gallery</div>
-                        <div style={{ fontSize: 12, color: C.textMuted }}>Email new photos to hello@webgecko.au</div>
+                        <div style={{ fontSize: 12, color: C.textMuted }}>Upload new photos</div>
                       </div>
-                    </div>
+                    </button>
                   )}
                   {hasGrowth && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10 }}>
+                    <button onClick={() => setTab("content")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, cursor: "pointer", textAlign: "left" as const, width: "100%" }}>
                       <span style={{ fontSize: 20 }}>📈</span>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Growth & Marketing</div>
-                        <div style={{ fontSize: 12, color: C.textMuted }}>Newsletter & live chat on your site</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Newsletter & Marketing</div>
+                        <div style={{ fontSize: 12, color: C.textMuted }}>Request a newsletter campaign</div>
                       </div>
-                    </div>
+                    </button>
                   )}
                 </div>
               </div>
@@ -1848,6 +1900,168 @@ export default function ClientPortal() {
         )}
 
         {/* ══════════════════════ ADD FEATURES ══════════════════════ */}
+        {tab === "content" && (
+          <>
+            <div style={S.card}>
+              <div style={S.label}>Your Content</div>
+              <div style={{ color: C.textMuted, fontSize: 13, lineHeight: 1.6 }}>Request new content for your site. We create and publish it within 1-2 business days.</div>
+            </div>
+
+            {myContentItems.length > 0 && (
+              <div style={S.card}>
+                <div style={S.label}>Published Content</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+                  {contentItemsLoading && <div style={{ color: C.textMuted, fontSize: 13 }}>Loading...</div>}
+                  {myContentItems.map((item: any) => (
+                    <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 10 }}>
+                      <span style={{ fontSize: 18 }}>{item.type === "blog" ? "📰" : item.type === "newsletter" ? "✉️" : item.type === "deal" ? "🏷️" : item.type === "product" ? "🛍️" : "⭐"}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{item.title}</div>
+                        <div style={{ fontSize: 11, color: C.textMuted, textTransform: "capitalize" as const }}>{item.type} · {new Date(item.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}</div>
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: C.accent, background: C.accent + "18", border: `1px solid ${C.accent}30`, borderRadius: 5, padding: "2px 8px" }}>Live</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={S.card}>
+              <div style={S.label}>Request New Content</div>
+              {contentSubmitted ? (
+                <div style={{ textAlign: "center" as const, padding: "24px 0" }}>
+                  <div style={{ fontSize: 28, marginBottom: 10 }}>✅</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>Request received!</div>
+                  <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 16, lineHeight: 1.6 }}>We will have your content live within 1-2 business days.</div>
+                  <button onClick={() => setContentSubmitted(false)} style={S.btn("secondary")}>Request another</button>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" as const }}>
+                    {([
+                      ...(hasBlog ? [{ id: "blog" as const, icon: "📰", label: "Blog Post" }] : []),
+                      ...(hasGrowth ? [{ id: "newsletter" as const, icon: "✉️", label: "Newsletter" }] : []),
+                      ...(features.includes("Deals & Promotions") || hasShop ? [{ id: "deal" as const, icon: "🏷️", label: "Deal / Promo" }] : []),
+                      ...(hasShop ? [{ id: "product" as const, icon: "🛍️", label: "Product" }] : []),
+                      ...(features.includes("Testimonials") ? [{ id: "review" as const, icon: "⭐", label: "Review" }] : []),
+                    ]).map(ct => (
+                      <button key={ct.id} onClick={() => { setContentRequestType(ct.id); setContentRequestTitle(""); setContentRequestNote(""); setContentRequestExtras({}); }}
+                        style={{ padding: "8px 14px", fontSize: 12, fontWeight: contentRequestType === ct.id ? 600 : 400, color: contentRequestType === ct.id ? C.text : C.textMuted, background: contentRequestType === ct.id ? C.raised : "transparent", border: contentRequestType === ct.id ? `1px solid ${C.border}` : "1px solid transparent", borderRadius: 8, cursor: "pointer" }}>
+                        {ct.icon} {ct.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column" as const, gap: 14 }}>
+                    {contentRequestType === "blog" && (<>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 6 }}>Blog Post Topic / Title</label>
+                        <input value={contentRequestTitle} onChange={e => setContentRequestTitle(e.target.value)} placeholder="e.g. 5 Tips for Choosing the Right Plumber"
+                          style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 6 }}>Extra guidance (optional)</label>
+                        <textarea value={contentRequestNote} onChange={e => setContentRequestNote(e.target.value)} rows={3} placeholder="Key points, audience, tone..."
+                          style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", resize: "vertical" as const, fontFamily: "inherit", boxSizing: "border-box" as const }} />
+                      </div>
+                    </>)}
+                    {contentRequestType === "newsletter" && (<>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 6 }}>Newsletter Topic</label>
+                        <input value={contentRequestTitle} onChange={e => setContentRequestTitle(e.target.value)} placeholder="e.g. Monthly update — new services + winter tips"
+                          style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 6 }}>What to include (optional)</label>
+                        <textarea value={contentRequestNote} onChange={e => setContentRequestNote(e.target.value)} rows={3} placeholder="Promotions, announcements, tips..."
+                          style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", resize: "vertical" as const, fontFamily: "inherit", boxSizing: "border-box" as const }} />
+                      </div>
+                    </>)}
+                    {contentRequestType === "deal" && (<>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 6 }}>Promotion Title</label>
+                        <input value={contentRequestTitle} onChange={e => setContentRequestTitle(e.target.value)} placeholder="e.g. End of Financial Year Sale"
+                          style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }} />
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 6 }}>Discount</label>
+                          <input value={contentRequestExtras.discount || ""} onChange={e => setContentRequestExtras(p => ({ ...p, discount: e.target.value }))} placeholder="20% off all services"
+                            style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 6 }}>Valid Until</label>
+                          <input type="date" value={contentRequestExtras.validUntil || ""} onChange={e => setContentRequestExtras(p => ({ ...p, validUntil: e.target.value }))}
+                            style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }} />
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 6 }}>Additional details (optional)</label>
+                        <textarea value={contentRequestNote} onChange={e => setContentRequestNote(e.target.value)} rows={2} placeholder="Terms, promo code ideas..."
+                          style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", resize: "vertical" as const, fontFamily: "inherit", boxSizing: "border-box" as const }} />
+                      </div>
+                    </>)}
+                    {contentRequestType === "product" && (<>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 6 }}>Product / Service Name</label>
+                        <input value={contentRequestTitle} onChange={e => setContentRequestTitle(e.target.value)} placeholder="e.g. Premium Lawn Mowing Package"
+                          style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }} />
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 6 }}>Price (AUD)</label>
+                          <input type="number" value={contentRequestExtras.price || ""} onChange={e => setContentRequestExtras(p => ({ ...p, price: e.target.value }))} placeholder="99.00"
+                            style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 6 }}>SKU (optional)</label>
+                          <input value={contentRequestExtras.sku || ""} onChange={e => setContentRequestExtras(p => ({ ...p, sku: e.target.value }))}
+                            style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const, fontFamily: "monospace" }} />
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 6 }}>Description</label>
+                        <textarea value={contentRequestNote} onChange={e => setContentRequestNote(e.target.value)} rows={3} placeholder="What is included, benefits, who it is for..."
+                          style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", resize: "vertical" as const, fontFamily: "inherit", boxSizing: "border-box" as const }} />
+                      </div>
+                    </>)}
+                    {contentRequestType === "review" && (<>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 6 }}>What the customer said</label>
+                        <input value={contentRequestTitle} onChange={e => setContentRequestTitle(e.target.value)} placeholder="e.g. Great service, very professional"
+                          style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }} />
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 6 }}>Customer Name</label>
+                          <input value={contentRequestExtras.authorName || ""} onChange={e => setContentRequestExtras(p => ({ ...p, authorName: e.target.value }))}
+                            style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 6 }}>Rating (1-5)</label>
+                          <select value={contentRequestExtras.rating || "5"} onChange={e => setContentRequestExtras(p => ({ ...p, rating: e.target.value }))}
+                            style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none" }}>
+                            {[5,4,3,2,1].map(n => <option key={n} value={n}>{n} star{n !== 1 ? "s" : ""}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 6 }}>Full review text (optional)</label>
+                        <textarea value={contentRequestNote} onChange={e => setContentRequestNote(e.target.value)} rows={3} placeholder="Paste the full review text..."
+                          style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", resize: "vertical" as const, fontFamily: "inherit", boxSizing: "border-box" as const }} />
+                      </div>
+                    </>)}
+                    <button onClick={submitContentRequest} disabled={contentSubmitting || !contentRequestTitle.trim()}
+                      style={{ ...S.btn("primary", contentSubmitting || !contentRequestTitle.trim()), width: "100%" }}>
+                      {contentSubmitting ? "Submitting..." : "Submit Request"}
+                    </button>
+                    <div style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.6 }}>Content is usually live within 1-2 business days.</div>
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
+
         {tab === "upgrade" && (
           <>
             <div style={S.card}>

@@ -616,13 +616,16 @@ const buildWebsite = inngest.createFunction(
           html = html.replace(/<iframe[^>]*(?:google\.com\/maps|maps\.googleapis|openstreetmap)[^>]*>[\s\S]*?<\/iframe>/gi, '');
           // Also strip bare <a href="...maps..."> links Stitch sometimes generates instead of iframes
           html = html.replace(/<a[^>]*href=["'][^"']*(?:google\.com\/maps|maps\.googleapis\.com)[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '');
-          // Strip Stitch visual map placeholder boxes — e.g. div with map icon + "Map View: City" text (no real iframe)
-          // These are typically a rounded card with a Material icon and label text, never an actual map
-          html = html.replace(/<div[^>]*>(?:[^<]|<(?!iframe)[^>]*>)*?(?:Map View[\s\S]{0,60}?<\/div>)/gi, (m: string) => {
-            if (m.includes('iframe')) return m; // real map — keep it
-            if (/Map View\s*:/i.test(m)) return ''; // Stitch placeholder — strip it
+          // Strip Stitch visual map placeholder boxes — broad catch for all variants:
+          // Matches map-classed divs with no real iframe, and bare "Map View: X" text nodes
+          html = html.replace(/<div[^>]*class="[^"]*(?:map|location|directions)[^"]*"[^>]*>[\s\S]{0,1500}?<\/div>/gi, (m: string) => {
+            if (m.includes('<iframe')) return m;
+            const textOnly = m.replace(/<[^>]+>/g, '').trim();
+            if (/Map View|map-placeholder|map_icon/i.test(m)) return '';
+            if (textOnly.length < 80 && /map|location|directions/i.test(m)) return '';
             return m;
           });
+          html = html.replace(/<[a-z][^>]*>\s*Map View\s*:[^<]{0,100}<\/[a-z]+>/gi, '');
           // Always inject map as a full-width block AFTER the contact section, never inside it.
           // This prevents the map overlapping the two-column contact layout.
           const mapBlock = `<div id="map-section" style="width:100%;padding:0 0 60px;background:inherit;">${mapsEmbed}</div>`;
@@ -675,9 +678,13 @@ const buildWebsite = inngest.createFunction(
             }
           }
 
-          // 4. Last resort: before </body>
+          // 4. Last resort: before <footer> if present, else </body>
           if (!mapInjected) {
-            html = html.replace("</body>", mapBlock + "\n</body>");
+            if (html.includes("<footer")) {
+              html = html.replace(/<footer/i, mapBlock + "\n<footer");
+            } else {
+              html = html.replace("</body>", mapBlock + "\n</body>");
+            }
           }
         }
 
@@ -754,7 +761,10 @@ const buildWebsite = inngest.createFunction(
 
         // ── Newsletter signup form injection ──────────────────────────────────────
         // Posts directly to Beehiiv's public embed API — no dependency on our builder app.
-        if (features.includes("Newsletter Signup") && !html.includes('id="newsletter-form"')) {
+        // Guard: skip if Stitch already generated ANY newsletter/subscribe section
+        const hasNewsletterAlready = html.includes('id="newsletter-form"') || html.includes('id="newsletter"')
+          || /subscribe.*to.*newsletter|stay.*updated|stay.*in.*the.*loop|sign.*up.*newsletter/i.test(html);
+        if (features.includes("Newsletter Signup") && !hasNewsletterAlready) {
           const beehiivPubId = (process.env.BEEHIIV_PUBLICATION_ID || "").startsWith("pub_")
             ? process.env.BEEHIIV_PUBLICATION_ID
             : `pub_${process.env.BEEHIIV_PUBLICATION_ID || ""}`;
@@ -771,7 +781,12 @@ const buildWebsite = inngest.createFunction(
       <p style="color:#475569;font-size:0.75rem;margin-top:16px;">No spam. Unsubscribe any time.</p>
     </div>
   </section>`;
-          html = html.replace("</body>", newsletterSection + "\n</body>");
+          // Inject before <footer> so footer stays at the very bottom
+          if (html.includes("<footer")) {
+            html = html.replace(/<footer/i, newsletterSection + "\n<footer");
+          } else {
+            html = html.replace("</body>", newsletterSection + "\n</body>");
+          }
           console.log("[Step5] Newsletter signup section injected (Beehiiv direct)");
         }
 

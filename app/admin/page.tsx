@@ -368,7 +368,17 @@ function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:
 
 // ── Client slide-over panel ────────────────────────────────────────────────────
 function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:string; onClose:()=>void; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
-  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"payments"|"actions"|"requests">("perf");
+  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"content"|"payments"|"actions"|"requests">("perf");
+  // ── Content management state ──────────────────────────────────────────────────
+  const [contentItems, setContentItems] = useState<any[]>([]);
+  const [contentLoading, setContentLoading] = useState(false);
+  const [contentSaving, setContentSaving] = useState(false);
+  const [contentMsg, setContentMsg] = useState("");
+  const [contentSubTab, setContentSubTab] = useState<"blog"|"newsletter"|"deal"|"product"|"review">("blog");
+  const [contentForm, setContentForm] = useState<any>(null);
+  const [genPrompt, setGenPrompt] = useState("");
+  const [genLoading, setGenLoading] = useState(false);
+  // ─────────────────────────────────────────────────────────────────────────────
   const [assetUploading, setAssetUploading] = useState(false);
   const [assetMsg, setAssetMsg] = useState("");
   const [intSaving, setIntSaving] = useState(false);
@@ -418,14 +428,64 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   }
 
   const pending = featureRequests.filter(r=>r.status==="pending"||r.status==="draft").length;
-  const tabs = ["perf","engagement","seo","site","assets","integrations","payments","actions","requests"] as const;
+  const tabs = ["perf","engagement","seo","site","assets","integrations","content","payments","actions","requests"] as const;
+
+  // ── Content helpers ────────────────────────────────────────────────────────
+  async function loadContent() {
+    setContentLoading(true); setContentMsg("");
+    try {
+      const r = await fetch(`/api/admin/content?jobId=${jid}`);
+      const d = await r.json();
+      setContentItems(d.items || []);
+    } catch { setContentMsg("Failed to load content"); }
+    finally { setContentLoading(false); }
+  }
+
+  async function saveContent(item: any) {
+    setContentSaving(true); setContentMsg("");
+    try {
+      const r = await fetch("/api/admin/content", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ jobId:jid, item }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error||"Save failed");
+      setContentMsg("✓ Saved");
+      setContentForm(null);
+      await loadContent();
+      toast("Content saved","ok");
+    } catch(e) { setContentMsg((e as Error).message); toast("Save failed","err"); }
+    finally { setContentSaving(false); }
+  }
+
+  async function deleteContent(itemId: string) {
+    if (!confirm("Delete this item?")) return;
+    try {
+      await fetch("/api/admin/content", { method:"DELETE", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ jobId:jid, itemId }) });
+      await loadContent();
+      toast("Deleted","ok");
+    } catch { toast("Delete failed","err"); }
+  }
+
+  async function generateContent(type: string, extraPrompt: string) {
+    setGenLoading(true); setContentMsg("");
+    try {
+      const r = await fetch("/api/admin/content/generate", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ type, businessName:c.businessName, industry:c.industry, prompt:extraPrompt, tone:"professional, friendly, and authentic" })
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error||"Generation failed");
+      setContentForm((prev: any) => ({ ...prev, ...(d.generated||{}), type }));
+      setContentMsg("✓ AI draft generated — review and save");
+      toast("Draft generated","ok");
+    } catch(e) { setContentMsg((e as Error).message); toast("Generation failed","err"); }
+    finally { setGenLoading(false); }
+  }
 
   const sectionTitle = (text:string) => (
     <div style={{ fontSize:10, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.09em", fontWeight:700, marginBottom:12, paddingBottom:8, borderBottom:`1px solid ${T.border}` }}>{text}</div>
   );
 
   const tabBtn = (id:typeof tabs[number], label:string) => (
-    <button key={id} onClick={()=>{setTab(id);if(id==="requests"&&featureRequests.length===0)loadFeatureRequests();}}
+    <button key={id} onClick={()=>{setTab(id);if(id==="requests"&&featureRequests.length===0)loadFeatureRequests();if(id==="content"&&contentItems.length===0)loadContent();}}
       style={{ padding:"8px 14px", fontSize:12, fontWeight:tab===id?600:400, color:tab===id?T.text:T.textMuted, background:tab===id?T.raised:"transparent", border:tab===id?`1px solid ${T.border}`:"1px solid transparent", borderRadius:7, cursor:"pointer", transition:"all 0.15s ease", whiteSpace:"nowrap" as const }}>
       {label}
     </button>
@@ -479,6 +539,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
           {tabBtn("site","Site")}
           {tabBtn("assets","Assets")}
           {tabBtn("integrations","Integrations")}
+          {tabBtn("content","Content")}
           {tabBtn("payments","Payments")}
           {tabBtn("actions","Actions")}
           {tabBtn("requests", `Requests${pending>0?` (${pending})`:""}`)}
@@ -918,6 +979,255 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               </div>
 
               {intMsg&&<div style={{fontSize:12,color:intMsg.startsWith("✓")?T.green:T.red,padding:"8px 12px",background:intMsg.startsWith("✓")?T.green+"10":T.red+"10",borderRadius:7,border:`1px solid ${intMsg.startsWith("✓")?T.green:T.red}25`}}>{intMsg}</div>}
+            </div>
+          )}
+
+          {/* CONTENT MANAGEMENT */}
+          {tab==="content"&&(
+            <div style={{display:"flex",flexDirection:"column" as const,gap:0,height:"100%"}}>
+              {/* Sub-tab bar */}
+              <div style={{display:"flex",gap:4,marginBottom:20,flexWrap:"wrap" as const}}>
+                {([
+                  {id:"blog",icon:"📰",label:"Blog Posts"},
+                  {id:"newsletter",icon:"✉️",label:"Newsletters"},
+                  {id:"deal",icon:"🏷️",label:"Deals & Promos"},
+                  {id:"product",icon:"🛍️",label:"Products"},
+                  {id:"review",icon:"⭐",label:"Reviews"},
+                ] as const).map(st=>(
+                  <button key={st.id} onClick={()=>{setContentSubTab(st.id);setContentForm(null);setContentMsg("");}}
+                    style={{padding:"7px 14px",fontSize:12,fontWeight:contentSubTab===st.id?600:400,color:contentSubTab===st.id?T.text:T.textMuted,background:contentSubTab===st.id?T.raised:"transparent",border:contentSubTab===st.id?`1px solid ${T.border}`:"1px solid transparent",borderRadius:7,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap" as const}}>
+                    {st.icon} {st.label}
+                    {contentItems.filter(i=>i.type===st.id&&i.requestedByClient&&i.status==="draft").length>0&&(
+                      <span style={{marginLeft:6,background:T.amber,color:"#000",borderRadius:10,padding:"1px 6px",fontSize:10,fontWeight:700}}>
+                        {contentItems.filter(i=>i.type===st.id&&i.requestedByClient&&i.status==="draft").length}
+                      </span>
+                    )}
+                  </button>
+                ))}
+                <button onClick={loadContent} style={{marginLeft:"auto",padding:"7px 12px",fontSize:11,color:T.textMuted,background:"transparent",border:`1px solid ${T.border}`,borderRadius:7,cursor:"pointer"}}>&#x21BB;</button>
+              </div>
+
+              {contentLoading&&<div style={{color:T.textMuted,fontSize:13}}>Loading&hellip;</div>}
+
+              {/* Content form / editor */}
+              {contentForm!==null&&(
+                <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:12,padding:"20px",marginBottom:20}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                    <div style={{fontSize:13,fontWeight:700,color:T.text}}>{contentForm.id?"Edit":"New"} {contentSubTab.charAt(0).toUpperCase()+contentSubTab.slice(1)}</div>
+                    <button onClick={()=>{setContentForm(null);setContentMsg("");}} style={{background:"transparent",border:"none",color:T.textMuted,fontSize:18,cursor:"pointer"}}>&#x2715;</button>
+                  </div>
+
+                  {/* AI generation strip */}
+                  <div style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:9,padding:"12px 14px",marginBottom:16}}>
+                    <div style={{fontSize:11,fontWeight:600,color:T.purple,marginBottom:8,letterSpacing:"0.06em",textTransform:"uppercase" as const}}>&#x2728; AI Generate</div>
+                    <div style={{display:"flex",gap:8}}>
+                      <input value={genPrompt} onChange={e=>setGenPrompt(e.target.value)}
+                        placeholder="Brief for AI generation (e.g. tips for choosing a tradie)..."
+                        style={{flex:1,background:T.surface,border:`1px solid ${T.border}`,borderRadius:7,padding:"8px 12px",color:T.text,fontSize:12,outline:"none"}}/>
+                      <button disabled={genLoading} onClick={()=>generateContent(contentSubTab,genPrompt)}
+                        style={{background:T.purple,color:"#fff",border:"none",borderRadius:7,padding:"8px 16px",fontSize:12,fontWeight:600,cursor:"pointer",opacity:genLoading?0.6:1,whiteSpace:"nowrap" as const}}>
+                        {genLoading?"Generating...":"Generate"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Common fields */}
+                  <div style={{display:"flex",flexDirection:"column" as const,gap:12}}>
+                    <div>
+                      <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Title *</label>
+                      <input value={contentForm.title||""} onChange={e=>setContentForm((p:any)=>({...p,title:e.target.value}))}
+                        style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:13,outline:"none"}}/>
+                    </div>
+
+                    {contentSubTab==="newsletter"&&(
+                      <div>
+                        <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Email Subject Line</label>
+                        <input value={contentForm.subject||""} onChange={e=>setContentForm((p:any)=>({...p,subject:e.target.value}))}
+                          style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:13,outline:"none"}}/>
+                      </div>
+                    )}
+
+                    {contentSubTab==="deal"&&(
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                        <div>
+                          <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Discount</label>
+                          <input value={contentForm.discount||""} onChange={e=>setContentForm((p:any)=>({...p,discount:e.target.value}))} placeholder="e.g. 20% off"
+                            style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:13,outline:"none"}}/>
+                        </div>
+                        <div>
+                          <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Promo Code</label>
+                          <input value={contentForm.promoCode||""} onChange={e=>setContentForm((p:any)=>({...p,promoCode:e.target.value}))} placeholder="SAVE20"
+                            style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"monospace"}}/>
+                        </div>
+                        <div>
+                          <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Valid Until</label>
+                          <input type="date" value={contentForm.validUntil||""} onChange={e=>setContentForm((p:any)=>({...p,validUntil:e.target.value}))}
+                            style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:13,outline:"none"}}/>
+                        </div>
+                      </div>
+                    )}
+
+                    {contentSubTab==="product"&&(
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+                        <div>
+                          <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Price (AUD)</label>
+                          <input type="number" value={contentForm.price||""} onChange={e=>setContentForm((p:any)=>({...p,price:parseFloat(e.target.value)}))} placeholder="0.00"
+                            style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:13,outline:"none"}}/>
+                        </div>
+                        <div>
+                          <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>SKU</label>
+                          <input value={contentForm.sku||""} onChange={e=>setContentForm((p:any)=>({...p,sku:e.target.value}))} placeholder="SKU-001"
+                            style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"monospace"}}/>
+                        </div>
+                        <div>
+                          <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Stock</label>
+                          <input type="number" value={contentForm.stockCount||""} onChange={e=>setContentForm((p:any)=>({...p,stockCount:parseInt(e.target.value)}))} placeholder="unlimited"
+                            style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:13,outline:"none"}}/>
+                        </div>
+                      </div>
+                    )}
+
+                    {contentSubTab==="review"&&(
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+                        <div>
+                          <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Customer Name</label>
+                          <input value={contentForm.authorName||""} onChange={e=>setContentForm((p:any)=>({...p,authorName:e.target.value}))}
+                            style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:13,outline:"none"}}/>
+                        </div>
+                        <div>
+                          <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Rating (1-5)</label>
+                          <input type="number" min={1} max={5} value={contentForm.rating||""} onChange={e=>setContentForm((p:any)=>({...p,rating:parseInt(e.target.value)}))}
+                            style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:13,outline:"none"}}/>
+                        </div>
+                        <div>
+                          <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Platform</label>
+                          <select value={contentForm.platform||"manual"} onChange={e=>setContentForm((p:any)=>({...p,platform:e.target.value}))}
+                            style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:13,outline:"none"}}>
+                            <option value="manual">Manual</option>
+                            <option value="google">Google</option>
+                            <option value="facebook">Facebook</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {contentSubTab==="blog"&&(
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                        <div>
+                          <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>URL Slug</label>
+                          <input value={contentForm.slug||""} onChange={e=>setContentForm((p:any)=>({...p,slug:e.target.value}))} placeholder="my-blog-post"
+                            style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:13,outline:"none",fontFamily:"monospace"}}/>
+                        </div>
+                        <div>
+                          <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Tags (comma-separated)</label>
+                          <input value={(contentForm.tags||[]).join(",")} onChange={e=>setContentForm((p:any)=>({...p,tags:e.target.value.split(",").map((t:string)=>t.trim()).filter(Boolean)}))}
+                            style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:13,outline:"none"}}/>
+                        </div>
+                        <div style={{gridColumn:"1/-1"}}>
+                          <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Meta Description (SEO)</label>
+                          <input value={contentForm.metaDescription||""} onChange={e=>setContentForm((p:any)=>({...p,metaDescription:e.target.value}))} maxLength={160} placeholder="150-160 char SEO description"
+                            style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:13,outline:"none"}}/>
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>
+                        {contentSubTab==="review"?"Response / Display Text":"Body / Content"}
+                      </label>
+                      <textarea value={contentForm.body||""} onChange={e=>setContentForm((p:any)=>({...p,body:e.target.value}))} rows={10}
+                        placeholder="Content..."
+                        style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:12,outline:"none",resize:"vertical" as const,fontFamily:"monospace",lineHeight:1.6}}/>
+                    </div>
+
+                    {contentForm.clientNote&&(
+                      <div style={{background:T.amber+"15",border:`1px solid ${T.amber}30`,borderRadius:8,padding:"10px 14px"}}>
+                        <div style={{fontSize:11,color:T.amber,fontWeight:600,marginBottom:4}}>Client Note</div>
+                        <div style={{fontSize:12,color:T.textSec,lineHeight:1.6}}>{contentForm.clientNote}</div>
+                      </div>
+                    )}
+
+                    <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                      <div style={{flex:1}}>
+                        <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Status</label>
+                        <select value={contentForm.status||"draft"} onChange={e=>setContentForm((p:any)=>({...p,status:e.target.value}))}
+                          style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"8px 12px",color:T.text,fontSize:12,outline:"none"}}>
+                          <option value="draft">Draft</option>
+                          <option value="scheduled">Scheduled</option>
+                          <option value="live">Live</option>
+                          <option value="archived">Archived</option>
+                        </select>
+                      </div>
+                      <button disabled={contentSaving||!contentForm.title} onClick={()=>saveContent({...contentForm,type:contentSubTab})}
+                        style={{background:T.green,color:"#000",border:"none",borderRadius:8,padding:"10px 24px",fontSize:13,fontWeight:700,cursor:"pointer",opacity:(contentSaving||!contentForm.title)?.5:1}}>
+                        {contentSaving?"Saving...":"Save Item"}
+                      </button>
+                    </div>
+                    {contentMsg&&<div style={{fontSize:12,color:contentMsg.startsWith("✓")?T.green:T.red,padding:"8px 12px",background:contentMsg.startsWith("✓")?T.green+"10":T.red+"10",borderRadius:7,border:`1px solid ${contentMsg.startsWith("✓")?T.green:T.red}25`}}>{contentMsg}</div>}
+                  </div>
+                </div>
+              )}
+
+              {/* List of content items */}
+              {contentForm===null&&(
+                <div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                    <div style={{fontSize:12,color:T.textMuted}}>
+                      {contentItems.filter(i=>i.type===contentSubTab).length} item{contentItems.filter(i=>i.type===contentSubTab).length!==1?"s":""}
+                    </div>
+                    <button onClick={()=>{setContentForm({type:contentSubTab,title:"",body:"",status:"draft"});setContentMsg("");setGenPrompt("");}}
+                      style={{background:T.blue,color:"#fff",border:"none",borderRadius:8,padding:"8px 18px",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+                      + New {contentSubTab.charAt(0).toUpperCase()+contentSubTab.slice(1)}
+                    </button>
+                  </div>
+
+                  {contentItems.filter(i=>i.type===contentSubTab).length===0&&!contentLoading&&(
+                    <div style={{textAlign:"center" as const,padding:"48px 0",color:T.textMuted}}>
+                      <div style={{fontSize:32,marginBottom:12}}>
+                        {contentSubTab==="blog"?"📰":contentSubTab==="newsletter"?"✉️":contentSubTab==="deal"?"🏷️":contentSubTab==="product"?"🛍️":"⭐"}
+                      </div>
+                      <div style={{fontSize:14,fontWeight:600,color:T.textSec,marginBottom:6}}>No {contentSubTab} content yet</div>
+                      <div style={{fontSize:12,marginBottom:16}}>Create your first item or use AI to generate one.</div>
+                      <button onClick={()=>{setContentForm({type:contentSubTab,title:"",body:"",status:"draft"});setGenPrompt("");}}
+                        style={{background:T.blue,color:"#fff",border:"none",borderRadius:8,padding:"10px 20px",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+                        + Create {contentSubTab}
+                      </button>
+                    </div>
+                  )}
+
+                  <div style={{display:"flex",flexDirection:"column" as const,gap:10}}>
+                    {contentItems.filter(i=>i.type===contentSubTab).map((item:any)=>{
+                      const statusCol:Record<string,string>={draft:T.amber,scheduled:T.blue,live:T.green,archived:T.textMuted};
+                      const sc = statusCol[item.status]||T.textMuted;
+                      return (
+                        <div key={item.id} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:12,padding:"14px 16px",borderLeft:`3px solid ${sc}`,boxShadow:T.shadow}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap" as const}}>
+                                <span style={{fontSize:13,fontWeight:600,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" as const}}>{item.title}</span>
+                                <span style={{fontSize:10,color:sc,background:sc+"15",border:`1px solid ${sc}30`,borderRadius:5,padding:"2px 8px",fontWeight:600,whiteSpace:"nowrap" as const,flexShrink:0}}>{item.status}</span>
+                                {item.requestedByClient&&<span style={{fontSize:10,color:T.amber,background:T.amber+"15",border:`1px solid ${T.amber}30`,borderRadius:5,padding:"2px 8px",fontWeight:600,flexShrink:0}}>Client Request</span>}
+                              </div>
+                              {item.discount&&<div style={{fontSize:12,color:T.green,marginBottom:2}}>🏷️ {item.discount}{item.promoCode&&` · Code: ${item.promoCode}`}</div>}
+                              {item.subject&&<div style={{fontSize:12,color:T.textSec,marginBottom:2}}>Subject: {item.subject}</div>}
+                              {item.rating&&<div style={{fontSize:12,color:T.amber}}>{"★".repeat(item.rating)}{"☆".repeat(5-item.rating)} {item.authorName&&`— ${item.authorName}`}</div>}
+                              {item.price&&<div style={{fontSize:12,color:T.green,marginBottom:2}}>AUD ${item.price}{item.sku&&` · SKU: ${item.sku}`}</div>}
+                              {item.clientNote&&<div style={{fontSize:11,color:T.amber,marginTop:4,fontStyle:"italic"}}>"{item.clientNote}"</div>}
+                              <div style={{fontSize:11,color:T.textMuted,marginTop:4}}>{new Date(item.createdAt).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})}</div>
+                            </div>
+                            <div style={{display:"flex",gap:6,flexShrink:0}}>
+                              <button onClick={()=>{setContentForm(item);setGenPrompt("");setContentMsg("");}}
+                                style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:7,padding:"6px 14px",fontSize:11,color:T.text,cursor:"pointer",fontWeight:500}}>Edit</button>
+                              <button onClick={()=>deleteContent(item.id)}
+                                style={{background:"transparent",border:`1px solid ${T.red}40`,borderRadius:7,padding:"6px 10px",fontSize:11,color:T.red,cursor:"pointer"}}>✕</button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
