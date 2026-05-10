@@ -113,10 +113,12 @@ export async function GET(req: NextRequest) {
       'explore': 'about', 'find out more': 'about',
     };
     const navSnippet = (target: string) => `var el=document.getElementById('${target}');if(el){el.scrollIntoView({behavior:'smooth'});}else if(window.navigateTo){window.navigateTo('${target}');}`;
-    // <a href="#"> CTAs — wire ALL of them, not just booking ones
+    // <a href="#"> CTAs — only wire ones that have NO onclick at all
+    // IMPORTANT: if Stitch already set onclick="navigateTo(...)" leave it completely alone
     html = html.replace(/<a([^>]*href=["']#["'][^>]*)>([\s\S]*?)<\/a>/g, (match: string, attrs: string, inner: string) => {
-      const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
+      // Skip anything that already has an onclick — Stitch wired it correctly
       if (attrs.includes('onclick')) return match;
+      const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
       const isBooking = ctaKeywords.some(k => txt.includes(k.toLowerCase()));
       if (isBooking) return `<a${attrs} onclick="event.preventDefault();${navSnippet(bookingNavTarget)}">${inner}</a>`;
       const isPlan = planKeywords.some(k => txt.includes(k));
@@ -135,6 +137,7 @@ export async function GET(req: NextRequest) {
     });
     // <button> CTAs that have no onclick
     html = html.replace(/<button([^>]*)>([\s\S]*?)<\/button>/g, (match: string, attrs: string, inner: string) => {
+      // Skip anything already wired — including Stitch's navigateTo buttons
       if (attrs.includes('onclick') || attrs.includes('type="submit"') || attrs.includes("type='submit'")) return match;
       const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
       const isBooking = ctaKeywords.some(k => txt.includes(k.toLowerCase()));
@@ -150,20 +153,24 @@ export async function GET(req: NextRequest) {
       return match;
     });
 
-    // FIX 2b: ctaExternalUrl — if client specified a URL in notes, inject it into ALL hero/primary CTAs
+    // FIX 2b: ctaExternalUrl — if client specified a URL in notes, inject it into CTAs that don't already have a real href/onclick
     if (ctaExternalUrl) {
       const allCtaKeywords = [...ctaKeywords, ...planKeywords, 'get started', 'learn more', 'explore', 'view', 'discover'];
       html = html.replace(/<a([^>]*)>([\s\S]*?)<\/a>/g, (match: string, attrs: string, inner: string) => {
         const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
         if (!allCtaKeywords.some(k => txt.includes(k.toLowerCase()))) return match;
         if (/href=["'](?:mailto:|tel:|#\w)/i.test(attrs)) return match; // preserve real anchors
-        return `<a${attrs.replace(/\s*href=["'][^"']*["']/gi, '').replace(/\s*onclick=["'][^"']*["']/gi, '')} href="${ctaExternalUrl}" target="_blank" rel="noopener">${inner}</a>`;
+        // Skip if already has a working onclick (navigateTo, etc.)
+        if (attrs.includes('onclick')) return match;
+        return `<a${attrs.replace(/\s*href=["'][^"']*["']/gi, '')} href="${ctaExternalUrl}" target="_blank" rel="noopener">${inner}</a>`;
       });
       html = html.replace(/<button([^>]*)>([\s\S]*?)<\/button>/g, (match: string, attrs: string, inner: string) => {
         const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
         if (attrs.includes('type="submit"') || attrs.includes("type='submit'")) return match;
+        // Skip if already wired
+        if (attrs.includes('onclick')) return match;
         if (!allCtaKeywords.some(k => txt.includes(k.toLowerCase()))) return match;
-        return `<button${attrs.replace(/\s*onclick=["'][^"']*["']/gi, '')} onclick="window.open('${ctaExternalUrl}','_blank')">${inner}</button>`;
+        return `<button${attrs} onclick="window.open('${ctaExternalUrl}','_blank')">${inner}</button>`;
       });
     }
 

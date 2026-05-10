@@ -948,17 +948,42 @@ document.querySelectorAll("#close-drawer,#close-menu,#menu-close,#nav-close,[ari
   var existingDrawer = document.getElementById("side-drawer") || document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.querySelector("[class*='side-drawer'],[class*='mobile-menu'],[class*='mobile-nav']");
   if (!existingDrawer) {
     var nav = document.querySelector("header nav, nav");
-    var links = nav ? Array.from(nav.querySelectorAll("a")).map(function(a) {
-      return '<a href="' + (a.getAttribute("href") || "#") + '" onclick="' + (a.getAttribute("onclick") || "") + ';document.getElementById(\'wg-drawer\').style.display=\'none\';document.getElementById(\'wg-overlay\').style.display=\'none\';" style="display:block;padding:13px 16px;border-bottom:1px solid #f1f5f9;color:#111;font-weight:600;font-size:15px;text-decoration:none;">' + a.textContent.trim() + '</a>';
-    }).join("") : "";
+    // Build drawer using DOM API — NOT innerHTML with onclick attrs, which breaks when onclick contains single quotes
     var drawer = document.createElement("div");
     drawer.id = "wg-drawer";
     drawer.setAttribute("style", "display:none;position:fixed;top:0;right:0;width:80%;max-width:300px;height:100vh;background:#fff;z-index:9999;box-shadow:-4px 0 24px rgba(0,0,0,0.18);flex-direction:column;padding:20px;overflow-y:auto;");
-    drawer.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;"><span style="font-weight:800;font-size:16px;">Menu</span><button onclick="document.getElementById(\'wg-drawer\').style.display=\'none\';document.getElementById(\'wg-overlay\').style.display=\'none\';" style="background:none;border:none;font-size:26px;cursor:pointer;line-height:1;color:#666;">×</button></div>' + links;
+    var drawerHeader = document.createElement("div");
+    drawerHeader.setAttribute("style", "display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;");
+    var drawerTitle = document.createElement("span");
+    drawerTitle.setAttribute("style", "font-weight:800;font-size:16px;");
+    drawerTitle.textContent = "Menu";
+    var closeBtn = document.createElement("button");
+    closeBtn.setAttribute("style", "background:none;border:none;font-size:26px;cursor:pointer;line-height:1;color:#666;");
+    closeBtn.textContent = "\u00d7";
+    closeBtn.addEventListener("click", function() { drawer.style.display = "none"; overlay.style.display = "none"; });
+    drawerHeader.appendChild(drawerTitle);
+    drawerHeader.appendChild(closeBtn);
+    drawer.appendChild(drawerHeader);
+    if (nav) {
+      Array.from(nav.querySelectorAll("a")).forEach(function(a) {
+        var link = document.createElement("a");
+        link.setAttribute("style", "display:block;padding:13px 16px;border-bottom:1px solid #f1f5f9;color:#111;font-weight:600;font-size:15px;text-decoration:none;cursor:pointer;");
+        link.textContent = a.textContent ? a.textContent.trim() : "";
+        var oc = a.getAttribute("onclick");
+        var hr = a.getAttribute("href") || "#";
+        link.addEventListener("click", function(e) {
+          drawer.style.display = "none";
+          overlay.style.display = "none";
+          if (oc) { try { (new Function(oc))(); } catch(err) {} e.preventDefault(); }
+          else if (hr && hr !== "#") { window.location.href = hr; }
+        });
+        drawer.appendChild(link);
+      });
+    }
     var overlay = document.createElement("div");
     overlay.id = "wg-overlay";
     overlay.setAttribute("style", "display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9998;");
-    overlay.onclick = function() { drawer.style.display = "none"; overlay.style.display = "none"; };
+    overlay.addEventListener("click", function() { drawer.style.display = "none"; overlay.style.display = "none"; });
     document.body.appendChild(drawer);
     document.body.appendChild(overlay);
     // Re-wire hamburger to this new drawer

@@ -49,19 +49,36 @@ export async function appendPipelineLog(
 }
 
 export async function getPipelineLogs(limit = 300) {
+  // Fetch all recent jobs (with and without metadata)
   const { data } = await supabase
     .from("jobs")
-    .select("id, metadata, user_input")
-    .not("metadata", "is", null)
+    .select("id, status, created_at, metadata, user_input")
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(150);
   const entries: any[] = [];
   for (const row of data || []) {
     const logs: any[] = row.metadata?.logs || [];
     const name = row.user_input?.businessName || row.id;
-    for (const l of logs) entries.push({ ...l, businessName: l.businessName || name, jobId: l.jobId || row.id });
+    // Add all existing log entries from metadata.logs
+    for (const l of logs) {
+      entries.push({ ...l, businessName: l.businessName || name, jobId: l.jobId || row.id });
+    }
+    // Synthesize an error entry for failed jobs that have no error-level log entry
+    if (row.status === "failed") {
+      const hasErrorLog = logs.some((l: any) => l.level === "error");
+      if (!hasErrorLog) {
+        entries.push({
+          level: "error",
+          step: "pipeline",
+          msg: "Build failed (no error detail recorded — check Inngest dashboard)",
+          businessName: name,
+          jobId: row.id,
+          ts: row.created_at || new Date().toISOString(),
+        });
+      }
+    }
   }
-  return entries.sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, limit);
+  return entries.sort((a, b) => (b.ts || "").localeCompare(a.ts || "")).slice(0, limit);
 }
 
 // ============================================================
