@@ -235,7 +235,7 @@ function ActionBtn({ label, color, confirm, onConfirm, fill=false, toast }: {
 }
 
 // ── Preview frame ──────────────────────────────────────────────────────────────
-function PreviewFrame({ previewUrl, builtAt }: { previewUrl:string; builtAt?:string }) {
+function PreviewFrame({ previewUrl, builtAt, jobId }: { previewUrl:string; builtAt?:string; jobId?:string }) {
   const [key, setKey] = useState(()=>Date.now());
   const prevRef = useRef(builtAt);
   useEffect(()=>{
@@ -245,7 +245,9 @@ function PreviewFrame({ previewUrl, builtAt }: { previewUrl:string; builtAt?:str
   // Scale 1280px iframe to fit ~710px panel content width
   const SCALE=0.55, IW=1280, IH=800;
   const containerH=Math.round(IH*SCALE);
-  const src=`${previewUrl}${previewUrl.includes("?")?"&":"?"}_wg=${key}`;
+  // Always serve from proxy (Supabase) to guarantee fresh HTML — Vercel CDN caches stable alias
+  const proxySrc = jobId ? `/api/preview/proxy?jobId=${encodeURIComponent(jobId)}&_wg=${key}` : `${previewUrl}${previewUrl.includes("?")?"&":"?"}_wg=${key}`;
+  const src = proxySrc;
   return (
     <div style={{borderRadius:12,overflow:"hidden",border:`1px solid ${T.border}`}}>
       <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:T.surface,borderBottom:`1px solid ${T.border}`}}>
@@ -750,7 +752,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                   {sectionTitle("Live preview")}
                   {c.buildStatus==="building"
                     ? <div style={{borderRadius:10,border:`1px solid ${T.border}`,background:T.raised,height:160,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:T.textMuted,fontSize:13}}>⏳ Building… preview appears when done</div></div>
-                    : <PreviewFrame previewUrl={c.previewUrl} builtAt={deployedAt||c.builtAt}/>}
+                    : <PreviewFrame previewUrl={c.previewUrl} builtAt={deployedAt||c.builtAt} jobId={jid}/>}
                 </div>
               )}
               {c.hasBooking&&(
@@ -889,21 +891,26 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
             <div style={{display:"flex",flexDirection:"column" as const,gap:20}}>
 
               {/* Square */}
-              <div style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px"}}>
+              <div style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:12,padding:"20px 22px"}}>
                 {sectionTitle("Square (Payments / Shop)")}
-                <div style={{fontSize:12,color:T.textMuted,marginBottom:14,lineHeight:1.6}}>
-                  Connect this client's Square account to enable the online shop and payment links. Get these from the Square Developer Dashboard.
+                <div style={{fontSize:13,color:T.textSec,marginBottom:16,lineHeight:1.7}}>
+                  Connect this client's Square account to enable the online shop and payment links. Get these from the <strong style={{color:T.text}}>Square Developer Dashboard</strong>.
                 </div>
-                <div style={{display:"flex",flexDirection:"column" as const,gap:10}}>
+                <div style={{fontSize:11,color:T.blue,background:T.blue+"12",border:`1px solid ${T.blue}30`,borderRadius:7,padding:"7px 12px",marginBottom:14,display:"flex",alignItems:"center",gap:6}}>
+                  <span>&#x1F4BE;</span> Stored in <code style={{fontFamily:"monospace",background:"transparent"}}>jobs.square_access_token</code> + <code style={{fontFamily:"monospace",background:"transparent"}}>jobs.square_location_id</code>
+                </div>
+                <div style={{display:"flex",flexDirection:"column" as const,gap:12}}>
                   <div>
-                    <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Access Token</label>
+                    <label style={{fontSize:12,color:T.textSec,fontWeight:700,display:"block",marginBottom:6}}>Access Token</label>
                     <input value={squareToken} onChange={e=>setSquareToken(e.target.value)} placeholder="EAAAl..." type="password"
-                      style={{width:"100%",boxSizing:"border-box" as const,background:T.surface,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:12,outline:"none",fontFamily:"monospace"}}/>
+                      style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:13,outline:"none",fontFamily:"monospace"}}/>
+                    <div style={{fontSize:11,color:T.textSec,marginTop:4}}>Square Developer Dashboard &rarr; OAuth &rarr; Production Access Token</div>
                   </div>
                   <div>
-                    <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Location ID</label>
+                    <label style={{fontSize:12,color:T.textSec,fontWeight:700,display:"block",marginBottom:6}}>Location ID</label>
                     <input value={squareLocation} onChange={e=>setSquareLocation(e.target.value)} placeholder="LXXXXXXXXXXXXXXXXX"
-                      style={{width:"100%",boxSizing:"border-box" as const,background:T.surface,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:12,outline:"none",fontFamily:"monospace"}}/>
+                      style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:13,outline:"none",fontFamily:"monospace"}}/>
+                    <div style={{fontSize:11,color:T.textSec,marginTop:4}}>Square Dashboard &rarr; Account &amp; Settings &rarr; Locations</div>
                   </div>
                   <button disabled={intSaving} onClick={async()=>{
                     setIntSaving(true); setIntMsg("");
@@ -924,14 +931,18 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               {/* Google Analytics */}
               <div style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px"}}>
                 {sectionTitle("Google Analytics 4")}
-                <div style={{fontSize:12,color:T.textMuted,marginBottom:14,lineHeight:1.6}}>
-                  Enter the GA4 Measurement ID (starts with G-). This will be injected into the site on next fix/rebuild.
+                <div style={{fontSize:13,color:T.textSec,marginBottom:16,lineHeight:1.7}}>
+                  Injected into the site's HTML on next fix/rebuild.
+                </div>
+                <div style={{fontSize:11,color:T.blue,background:T.blue+"12",border:`1px solid ${T.blue}30`,borderRadius:7,padding:"7px 12px",marginBottom:14,display:"flex",alignItems:"center",gap:6}}>
+                  <span>&#x1F4BE;</span> Stored in <code style={{fontFamily:"monospace",background:"transparent"}}>jobs.ga4_id</code>
                 </div>
                 <div style={{display:"flex",gap:10,alignItems:"flex-end"}}>
                   <div style={{flex:1}}>
-                    <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Measurement ID</label>
+                    <label style={{fontSize:12,color:T.textSec,fontWeight:700,display:"block",marginBottom:6}}>Measurement ID</label>
                     <input value={ga4Id} onChange={e=>setGa4Id(e.target.value)} placeholder="G-XXXXXXXXXX"
-                      style={{width:"100%",boxSizing:"border-box" as const,background:T.surface,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:12,outline:"none",fontFamily:"monospace"}}/>
+                      style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:13,outline:"none",fontFamily:"monospace"}}/>
+                    <div style={{fontSize:11,color:T.textSec,marginTop:4}}>GA4 &rarr; Admin &rarr; Data Streams &rarr; Web stream details</div>
                   </div>
                   <button disabled={intSaving} onClick={async()=>{
                     setIntSaving(true); setIntMsg("");
@@ -952,14 +963,18 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               {/* Custom domain */}
               <div style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px"}}>
                 {sectionTitle("Custom Domain")}
-                <div style={{fontSize:12,color:T.textMuted,marginBottom:14,lineHeight:1.6}}>
-                  Client's desired domain. Point A record to Vercel, then assign here.
+                <div style={{fontSize:13,color:T.textSec,marginBottom:16,lineHeight:1.7}}>
+                  Point the domain A record to Vercel's IP, then assign here to activate it.
+                </div>
+                <div style={{fontSize:11,color:T.blue,background:T.blue+"12",border:`1px solid ${T.blue}30`,borderRadius:7,padding:"7px 12px",marginBottom:14,display:"flex",alignItems:"center",gap:6}}>
+                  <span>&#x1F4BE;</span> Stored in <code style={{fontFamily:"monospace",background:"transparent"}}>metadata.domainUrl</code>
                 </div>
                 <div style={{display:"flex",gap:10,alignItems:"flex-end"}}>
                   <div style={{flex:1}}>
-                    <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Domain</label>
+                    <label style={{fontSize:12,color:T.textSec,fontWeight:700,display:"block",marginBottom:6}}>Domain</label>
                     <input value={customDomain} onChange={e=>setCustomDomain(e.target.value)} placeholder="example.com.au"
-                      style={{width:"100%",boxSizing:"border-box" as const,background:T.surface,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:12,outline:"none",fontFamily:"monospace"}}/>
+                      style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:13,outline:"none",fontFamily:"monospace"}}/>
+                    <div style={{fontSize:11,color:T.textSec,marginTop:4}}>Without https:// or trailing slash</div>
                   </div>
                   <button disabled={intSaving} onClick={async()=>{
                     setIntSaving(true); setIntMsg("");
@@ -975,10 +990,10 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                     {intSaving?"Assigning…":"Assign domain"}
                   </button>
                 </div>
-                {c.metadata?.domainStatus&&<div style={{fontSize:11,color:T.textMuted,marginTop:8}}>Status: {c.metadata.domainStatus}</div>}
+                {c.metadata?.domainStatus&&<div style={{fontSize:12,color:c.metadata.domainStatus==="Active"?T.green:T.amber,marginTop:10,display:"flex",alignItems:"center",gap:6}}><span>{c.metadata.domainStatus==="Active"?"✓":"⏳"}</span> Status: <strong>{c.metadata.domainStatus}</strong></div>}
               </div>
 
-              {intMsg&&<div style={{fontSize:12,color:intMsg.startsWith("✓")?T.green:T.red,padding:"8px 12px",background:intMsg.startsWith("✓")?T.green+"10":T.red+"10",borderRadius:7,border:`1px solid ${intMsg.startsWith("✓")?T.green:T.red}25`}}>{intMsg}</div>}
+              {intMsg&&<div style={{fontSize:13,color:intMsg.startsWith("✓")?T.green:T.red,padding:"10px 14px",background:intMsg.startsWith("✓")?T.green+"12":T.red+"12",borderRadius:8,border:`1px solid ${intMsg.startsWith("✓")?T.green:T.red}30`,fontWeight:500}}>{intMsg}</div>}
             </div>
           )}
 
@@ -1516,6 +1531,234 @@ function Skeleton() {
 }
 
 // ── Pipeline logs panel ────────────────────────────────────────────────────────
+// ── All known errors from ERRORS.md + PIPELINE-ERRORS.md ─────────────────────
+const KNOWN_ERRORS: {id:string;cat:string;title:string;error:string;fix:string}[] = [
+  {id:"1.1",cat:"Stitch SDK",title:"Stitch MCP OAuth / Tool not found",error:"Tool stitch_generate not found / MCP server not reachable",fix:"Replaced raw MCP calls with @google/stitch-sdk"},
+  {id:"1.2",cat:"Stitch SDK",title:"get_screen not found error",error:"get_screen: resource not found when polling for screen",fix:"Changed to use list_screens to find actual screenId"},
+  {id:"1.3",cat:"Stitch SDK",title:"list_screens returning 0 screens",error:"STEP 3b: screens list returned 0 items (poll 1/8)",fix:"Added projectId param; extended sleep to 90s; increased polls"},
+  {id:"1.4",cat:"Stitch SDK",title:"Stitch: no signed URL after polling — fundamental architecture error",error:"Error: Stitch: no signed URL after polling — pipeline failing completely",fix:"generate() is blocking — collapsed to single step, call getHtml() immediately"},
+  {id:"1.5",cat:"Stitch SDK",title:"getHtml() returning empty URL",error:"STEP 3: getHtml() returned url length=0",fix:"Poll project.getScreen(screenId) up to 5x with exponential backoff"},
+  {id:"1.6",cat:"Stitch SDK",title:"Stitch SDK version mismatch",error:"@google/stitch-sdk at ^0.1.0 outdated; getScreen() signature changed",fix:"Upgraded to ^0.3.4"},
+  {id:"1.7",cat:"Stitch SDK",title:"DO NOT RETRY rule violated",error:"Retry causes duplicate generations and billing",fix:"Removed all retry loops around generate(); one attempt only"},
+  {id:"1.8",cat:"Stitch SDK",title:"Stitch nav scripts conflicting with injected navigation",error:"Stitch scripts overriding window.navigateTo or duplicate event listeners",fix:"Added stripping pass to remove Stitch-generated nav/scroll scripts"},
+  {id:"1.9",cat:"Stitch SDK",title:"Stitch generating signup-style contact form",error:"Contact section had Business Name dropdown, Initialize Transmission button",fix:"Blueprint mandates exactly 4 fields: Name, Email, Phone, Message"},
+  {id:"1.10",cat:"Stitch SDK",title:"Stitch generating address in hero subheadline",error:"Physical address appearing in hero copy",fix:"Blueprint: address ONLY inside id=contact, nowhere else"},
+  {id:"1.11",cat:"Stitch SDK",title:"Stitch generating map as text link",error:"Map rendered as plain [a href=maps...] link instead of iframe",fix:"Strip pass for map links; inject proper iframe embed"},
+  {id:"1.12",cat:"Stitch SDK",title:"Duplicate map in output",error:"Both pipeline-injected map AND Stitch map appearing",fix:"Strip pre-existing maps before injecting authoritative iframe"},
+  {id:"1.13",cat:"Stitch SDK",title:"Map overlapping two-column contact layout",error:"Map iframe injected inside contact section, breaking layout",fix:"Map now injects as full-width block AFTER contact section close tag"},
+  {id:"1.14",cat:"Stitch SDK",title:"Stitch progressive prompt fallback",error:"Stitch failing completely for certain industry/business types",fix:"Progressive prompt fallback; Claude HTML generation as final fallback"},
+  {id:"2.1",cat:"Buttons & Nav",title:"CTA buttons linking to webgecko-builder.vercel.app",error:"Book Now, Get Started linked to builder domain instead of client site",fix:"Hard URL sweep regex replaces all *.vercel.app hrefs with navigateTo"},
+  {id:"2.2",cat:"Buttons & Nav",title:"CTA keywords not matching plan buttons",error:"Start Starter Plan / Start Business Plan not wired",fix:"Added start-prefixed plan names to CTA keyword list"},
+  {id:"2.3",cat:"Buttons & Nav",title:"Multi-page nav buttons silently failing",error:"Buttons did nothing — scrollIntoView on hidden elements",fix:"ctaOnclick simplified to window.navigateTo&&navigateTo(target)"},
+  {id:"2.4",cat:"Buttons & Nav",title:"href=#section links not working on multi-page",error:"[a href=#contact] scrolled nowhere — element hidden",fix:"Changed to window.navigateTo(hr.substring(1))"},
+  {id:"2.5",cat:"Buttons & Nav",title:"Frankenstein onclick handlers",error:"navigateTo call present but old scrollIntoView code also running",fix:"Deleted client-side IIFE; server-side fixNavigateToTargets handles it"},
+  {id:"2.6",cat:"Buttons & Nav",title:"Single-page navigateTo hiding all content",error:"Clicking nav link hid all sections on single-page sites",fix:"navigateTo detects single vs multi-page; smooth scroll on single"},
+  {id:"2.7",cat:"Buttons & Nav",title:"Hamburger menu not wiring correctly",error:"Mobile hamburger had no click handler",fix:"Added SVG detection to hamburger wiring logic"},
+  {id:"2.8",cat:"Buttons & Nav",title:"clientCtaUrl sending users to existing website",error:"CTA buttons linking to client existing website",fix:"Removed clientCtaUrl; all CTAs scroll to booking or contact"},
+  {id:"3.1",cat:"Blueprint",title:"Prompt capped at 5,000 chars",error:"stitchPrompt consistently 5,000 chars despite 12,000 limit",fix:"Changed .slice(0,5000) to .slice(0,12000) in blueprint.ts"},
+  {id:"3.2",cat:"Blueprint",title:"Gemini API unusable (rate limits)",error:"Gemini 503/429 errors — Resource Exhausted immediately",fix:"Replaced Gemini with Claude Haiku for blueprint generation"},
+  {id:"3.3",cat:"Blueprint",title:"Gemini JSON with unescaped quotes",error:"JSON.parse failed on unescaped double quotes in string values",fix:"6-strategy fallback JSON parser chain; surgical stitchPrompt extraction"},
+  {id:"3.4",cat:"Blueprint",title:"Gemini JSON with control characters",error:"JSON.parse failed — control characters inside strings",fix:"Sanitize Gemini JSON response before parsing"},
+  {id:"3.5",cat:"Blueprint",title:"Gemini wrong model name",error:"Model not found: gemini-2.5-flash",fix:"Corrected to gemini-1.5-pro-latest, then gemini-2.0-flash"},
+  {id:"3.6",cat:"Blueprint",title:"Blueprint JSON truncation",error:"extractJson: unterminated string — Claude response cut off mid-JSON",fix:"Raised token limit; robust JSON extractor with multi-strategy fallback"},
+  {id:"3.7",cat:"Blueprint",title:"stitchPrompt word count too vague",error:"Prompts under 500 words or over 3,000 words",fix:"Explicit 1000-2000 words instruction in blueprint prompt"},
+  {id:"3.8",cat:"Blueprint",title:"CRITICAL RULES block not found by Python",error:"Python replacement failed to find target string",fix:"Line-number based replacement instead of string search"},
+  {id:"4.1",cat:"File Corruption",title:"blueprint.ts truncated — Expected colon got eof",error:"Vercel build: Expected ':' got 'eof' at blueprint.ts line 510",fix:"Python atomic write to restore last 3 lines correctly"},
+  {id:"4.2",cat:"File Corruption",title:"blueprint.ts junk appended",error:"Expression expected at line 512 — '} : String(e))' on own line",fix:"Python to detect 512-line file, strip 3 appended junk lines"},
+  {id:"4.3",cat:"File Corruption",title:"blueprint.ts truncated at Authorizati",error:"File ended abruptly mid-word at line 497",fix:"git show HEAD:lib/blueprint.ts restore, Python re-apply changes"},
+  {id:"4.4",cat:"File Corruption",title:"blueprint.ts duplicate tail",error:"Build error: duplicate code at end of blueprint.ts",fix:"Remove duplicate tail"},
+  {id:"4.5",cat:"File Corruption",title:"blueprint.ts corrupt tail — second instance",error:"Build error from corrupt/duplicate tail",fix:"Remove corrupt tail"},
+  {id:"4.6",cat:"File Corruption",title:"pipeline-helpers.ts truncated at line 1292",error:"File missing closing brace — 1292 lines instead of 1293",fix:"git show HEAD restore"},
+  {id:"4.7",cat:"File Corruption",title:"route.ts duplicate tail",error:"Build error from duplicate closing code at end of route.ts",fix:"Remove duplicate tail"},
+  {id:"4.8",cat:"File Corruption",title:"Null byte corruption — 2,774 null bytes in route.ts",error:"Vercel Turbopack: error TS1127: Invalid character at line 1779",fix:"Python data.replace(b'\\x00', b'') stripped all null bytes"},
+  {id:"4.9",cat:"File Corruption",title:"gemini.ts duplicate tail",error:"Build error from duplicate tail",fix:"Remove duplicate tail"},
+  {id:"4.10",cat:"File Corruption",title:"page.tsx trailing junk",error:"Build error from trailing characters after last JSX element",fix:"Remove trailing junk"},
+  {id:"4.11",cat:"File Corruption",title:"echo append causing corruption",error:"Multiple echo appends writing new lines instead of replacing",fix:"All file writes now use Python atomic writes exclusively"},
+  {id:"4.12",cat:"File Corruption",title:"Git HEAD.lock / index.lock blocking every commit",error:"fatal: Unable to create .git/index.lock: File exists",fix:"User must run Remove-Item .git/*.lock -Force before each push"},
+  {id:"5.1",cat:"Inngest",title:"Vercel killing background jobs",error:"Generation silently failing after 30s Vercel timeout",fix:"Migrated to Inngest for background job processing"},
+  {id:"5.2",cat:"Inngest",title:"Inngest createFunction syntax error",error:"Inngest function not registering — wrong trigger config syntax",fix:"Move trigger to config object"},
+  {id:"5.3",cat:"Inngest",title:"Inngest steps non-serializable values",error:"Step replay failing — Screen objects not serializable across step boundary",fix:"Steps return only primitive values; Screen used within single step"},
+  {id:"5.4",cat:"Inngest",title:"Inngest step cache not busting on rebuild",error:"Rebuild still using old cached HTML from previous Inngest run",fix:"Appended -v2 suffix to force fresh; rebuild wipes cached HTML first"},
+  {id:"5.5",cat:"Inngest",title:"Inngest streaming timeout",error:"Steps timing out at Vercel function limit",fix:"Enable Inngest streaming; bump maxDuration to 800s"},
+  {id:"5.6",cat:"Inngest",title:"Inngest serve route not found",error:"Inngest webhook 404 on serve route",fix:"Multiple iterations configuring inngest/route.ts correctly"},
+  {id:"5.7",cat:"Inngest",title:"Payment webhook auto-triggering build",error:"Build triggering automatically on payment, bypassing admin review",fix:"Webhook now only notifies owner; admin triggers build manually"},
+  {id:"5.8",cat:"Inngest",title:"Rebuild not wiping cached HTML",error:"Full rebuild still serving old HTML — Supabase html field not cleared",fix:"Rebuild endpoint clears html field before triggering Inngest"},
+  {id:"6.1",cat:"Admin / Preview",title:"Preview never auto-refreshing after rebuild",error:"Admin iframe showed old site after rebuild — required manual refresh",fix:"Changed useState to useRef+useEffect([builtAt]) — tracks value correctly"},
+  {id:"6.2",cat:"Admin / Preview",title:"Preview iframe serving Vercel CDN cache",error:"Stale cached version showing even after new HTML uploaded",fix:"Preview proxy sets Cache-Control: no-store; bust via builtAt timestamp"},
+  {id:"6.3",cat:"Admin / Preview",title:"Screenshot thumbnail not updating",error:"Admin thumbnail showing old screenshot after rebuild",fix:"Cache bust via builtAt timestamp appended to screenshot URL"},
+  {id:"6.4",cat:"Admin / Preview",title:"Admin login 404 / redirect broken",error:"After login, window.location.href redirect not working",fix:"Use window.location.replace(); add credential headers"},
+  {id:"6.5",cat:"Admin / Preview",title:"Admin middleware blocking /api routes",error:"Login POST returning 403 — middleware matching all API routes",fix:"Exclude /api routes from middleware matcher pattern"},
+  {id:"6.6",cat:"Admin / Preview",title:"Admin login showing no error message",error:"Wrong password showed blank screen instead of error",fix:"Show exact error; remove button disabled state"},
+  {id:"6.7",cat:"Admin / Preview",title:"Admin middleware Node crypto Edge incompatible",error:"Build error: crypto module not available in Edge runtime",fix:"Rewrite middleware using Web Crypto API"},
+  {id:"7.1",cat:"SuperSaas",title:"SuperSaas 400 errors — sub-user creation",error:"400 Bad Request: role field expected integer; name field wrong; owner email sent",fix:"Fixed role to integer; set name=email; added owner email guard"},
+  {id:"7.2",cat:"SuperSaas",title:"Sub-user creation on free plan",error:"400/403 — sub-user API not available on free plan",fix:"Skip sub-user creation if client on free plan"},
+  {id:"7.3",cat:"SuperSaas",title:"SuperSaas Basic auth failing",error:"API calls returning 401 — authentication header malformed",fix:"Correct Basic auth header format"},
+  {id:"7.4",cat:"SuperSaas",title:"SuperSaas parse array response",error:"JSON parse error — sometimes returns array, sometimes object",fix:"Handle both array and object response shapes"},
+  {id:"7.5",cat:"SuperSaas",title:"SuperSaas confirm email not sending",error:"Clients not receiving booking confirmation emails",fix:"Set confirm_email flag on booking creation"},
+  {id:"7.6",cat:"SuperSaas",title:"SuperSaas availability config missing",error:"Booking widget showing no available slots",fix:"Auto-create availability config on SuperSaas account setup"},
+  {id:"8.1",cat:"Square",title:"Square payment JSON parse error",error:"JSON.parse failure on Square webhook payload",fix:"Defensive JSON parsing with try/catch"},
+  {id:"8.2",cat:"Square",title:"Square webhook duplicate events",error:"Build triggering multiple times per payment",fix:"Added dedup guard on webhook handler"},
+  {id:"8.3",cat:"Square",title:"Square webhook wrong event type",error:"Payment confirmation not processed — wrong event name",fix:"Handle both payment.created and payment.completed"},
+  {id:"8.4",cat:"Square",title:"Square shop catalogue API errors",error:"Product listing failing for shop feature",fix:"Correct Square Catalogue API endpoint and auth headers"},
+  {id:"8.5",cat:"Square",title:"Em dash in pricing causing build error",error:"TypeScript error: em dash in string literal",fix:"Replace em dash with regular hyphen"},
+  {id:"9.1",cat:"Database",title:"Redis to Supabase migration",error:"Redis unreliable; data lost between sessions; no queryability",fix:"Full migration from Upstash Redis to Supabase"},
+  {id:"9.2",cat:"Database",title:"Supabase metadata jsonb field type mismatches",error:"Client fields not persisting — jsonb field receiving wrong type",fix:"Correct field type handling for jsonb"},
+  {id:"9.3",cat:"Database",title:"pricing_details field not excluded for quote pricing",error:"Pricing section broken for quote-based clients",fix:"Skip pricing_details when pricingMethod is quote type"},
+  {id:"10.1",cat:"TypeScript",title:"Stitch SDK TypeScript typing errors",error:"Property stitch does not exist on type / type errors on SDK usage",fix:"Hard-fix typing; correct import/usage pattern"},
+  {id:"10.2",cat:"TypeScript",title:"Replacer callback params missing types",error:"TypeScript strict mode errors on String.replace() callbacks",fix:"Add explicit types to all replacer callback params"},
+  {id:"10.3",cat:"TypeScript",title:"formatDate not in scope — BookingManager",error:"Build error: formatDate is not defined",fix:"Hoist formatDate to module scope"},
+  {id:"10.4",cat:"TypeScript",title:"Duplicate return in feature-requests PATCH",error:"Unreachable code after return",fix:"Remove duplicate return"},
+  {id:"10.5",cat:"TypeScript",title:"Admin page missing default export",error:"Next.js page not found — missing export default",fix:"Add default export to admin page"},
+  {id:"10.6",cat:"TypeScript",title:"JSX structure errors in client portal",error:"Build error: unclosed JSX elements",fix:"Fix JSX nesting and closing tags"},
+  {id:"10.7",cat:"TypeScript",title:"@types/jsdom missing",error:"TypeScript error: cannot find type definitions for jsdom",fix:"Add @types/jsdom to devDependencies"},
+  {id:"11.1",cat:"Email",title:"Emails not sending from correct domain",error:"Client emails going to spam / sent from wrong domain",fix:"Send all emails from hello@webgecko.au"},
+  {id:"11.2",cat:"Email",title:"Lead notification email missing client fields",error:"Owner notification not including all intake form fields",fix:"Restore full field set in lead notification email"},
+  {id:"11.3",cat:"Email",title:"HTML email attachment not working",error:"HTML attachment not appearing in client email",fix:"Fix Resend attachment format"},
+  {id:"12.1",cat:"Client Portal",title:"Fix-it route job lookup failing",error:"Fix My Site route returning 404 / can't find client job",fix:"Correct job lookup logic"},
+  {id:"12.2",cat:"Client Portal",title:"Portal showing AI mentions",error:"Portal UI mentioning AI, Claude, Anthropic — should be invisible",fix:"Remove all AI/Claude branding from client-facing portal"},
+  {id:"12.3",cat:"Client Portal",title:"Booking availability not showing after unlock",error:"Booking tab showing no availability after plan upgrade",fix:"Create availability config on plan unlock"},
+  {id:"12.4",cat:"Client Portal",title:"14-day login persistence not working",error:"Clients being logged out after session ended",fix:"Fix cookie maxAge/expires for 14-day persistence"},
+  {id:"13.1",cat:"Maps",title:"OpenStreetMap fallback — Google Maps blocked by CSP",error:"Google Maps embed blocked in some browser/CSP configs",fix:"Added OpenStreetMap as iframe fallback"},
+  {id:"13.2",cat:"Maps",title:"Maps injection placement breaking layout",error:"Map appearing in middle of contact section",fix:"Inject map after entire contact section, not inside it"},
+  {id:"13.3",cat:"Maps",title:"google.com/maps not in maps guard",error:"Maps guard not triggering for google.com/maps URL variant",fix:"Added google.com/maps to maps URL guard pattern"},
+  {id:"14.1",cat:"Images",title:"Image upload payload too large",error:"413 Payload Too Large on image upload",fix:"Client-side image compression before upload"},
+  {id:"15.1",cat:"Turnstile",title:"Turnstile token timing out",error:"Turnstile token expired before form submission",fix:"Generate token closer to submission"},
+  {id:"15.2",cat:"Turnstile",title:"Turnstile blocking form during domain config",error:"Intake form unusable while Cloudflare domain being configured",fix:"Make Turnstile non-blocking — form submits even if Turnstile unavailable"},
+  {id:"16.1",cat:"Multi-page",title:"Multi-page JS hiding single-page sections",error:"Multi-page show/hide logic applied on single-page sites",fix:"Detect site type; only apply multi-page toggling on multi-page sites"},
+  {id:"16.2",cat:"Multi-page",title:"navigateTo target mismatch (label vs ID)",error:"Clicking nav links navigated to wrong page",fix:"fixNavigateToTargets rewrites onclick targets from labels to page IDs"},
+  {id:"16.3",cat:"Multi-page",title:"Multi-page rebuild/fix route breakage (4 bugs)",error:"Multiple simultaneous breakages in multi-page nav after rebuild",fix:"4-bug fix commit c2ee433"},
+  {id:"17.1",cat:"Preview",title:"Preview iframe URL encoding issue",error:"Encoded characters broke iframe src",fix:"Fix Vercel encoding of preview URL value"},
+  {id:"17.2",cat:"Preview",title:"Preview iframe src using relative URL",error:"Iframe src was relative path — didn't work in different context",fix:"Ensure iframe src uses absolute URL"},
+  {id:"17.3",cat:"Preview",title:"WordPress iframe embedding blocked",error:"Preview not loading when embedded in WordPress",fix:"Add correct X-Frame-Options / CSP headers"},
+  {id:"18.1",cat:"Misc",title:"Phone number double-replacement",error:"Phone number appearing twice in generated HTML",fix:"Add guard to prevent double replacement"},
+  {id:"18.2",cat:"Misc",title:"Business name not enforced in title tag",error:"Site [title] tag not using client business name",fix:"Enforce business name in title tag replacement"},
+  {id:"18.3",cat:"Misc",title:"FAQ accordion not functioning",error:"FAQ accordion open/close not working",fix:"Fix accordion JS"},
+  {id:"18.4",cat:"Misc",title:"Location keyword appearing in hero copy",error:"City/suburb in hero headline or subheadline",fix:"Only inject location into services section; not hero"},
+  {id:"18.5",cat:"Misc",title:"CSS threshold too strict — Stitch uses inline styles",error:"Pipeline rejecting valid Stitch HTML — CSS under 500 chars",fix:"Lower CSS threshold to 500 chars"},
+  {id:"18.6",cat:"Misc",title:"Tawk.to shared property across clients",error:"All client sites sharing single Tawk.to property — chats mixed",fix:"Per-client Tawk.to property ID stored and injected individually"},
+  {id:"18.7",cat:"Misc",title:"Beehiiv newsletter form posting to central app",error:"Newsletter forms calling internal WebGecko API",fix:"Newsletter forms post directly to Beehiiv API"},
+  {id:"18.8",cat:"Misc",title:"clientSlug issues — wrong URL routing",error:"Client portal not resolving correct client from slug",fix:"Fix slug generation and lookup"},
+  {id:"18.9",cat:"Misc",title:"ABN field issues",error:"ABN field not saving/displaying correctly",fix:"Fix ABN field handling"},
+  {id:"18.10",cat:"Misc",title:"Plan pricing display broken (/ character)",error:"Pricing display showing / in wrong place",fix:"Fix pricing display format"},
+  {id:"18.11",cat:"Misc",title:"stitch.ts singleton export",error:"Stitch SDK singleton not exporting correctly — cannot find module",fix:"Correct export syntax for Stitch SDK singleton"},
+  {id:"P-001",cat:"Known Issue",title:"Booking iframe shows SuperSaas template",error:"Booking section shows SuperSaas loading spinner — real schedule never loads",fix:"Broadened strip regex; smoke test rejects /template URLs"},
+  {id:"P-002",cat:"Known Issue",title:"Hamburger button not wired",error:"Tapping mobile menu icon does nothing",fix:"3-strategy fix in auditor.ts; injectEssentials detects missing drawer"},
+  {id:"P-003",cat:"Known Issue",title:"Missing FAQ/Testimonials/Booking sections",error:"No id=faq, id=testimonials, or id=booking in output",fix:"Step 6c fallback; Auditor injects FAQ + testimonials"},
+  {id:"P-004",cat:"Known Issue",title:"Smoke test passes /template iframe as valid",error:"Smoke test not catching SuperSaas template URL",fix:"Smoke test explicitly rejects /template URLs"},
+  {id:"P-005",cat:"Known Issue",title:"SuperSaas sub-account creation crash",error:"Missing DB columns causing crash on sub-account creation",fix:"Added missing columns to Supabase schema"},
+  {id:"P-019",cat:"Known Issue",title:"Stitch incomplete multi-page: 1 page, no nav",error:"Stitch outputs only 1 page div, ignores multi-page requirements",fix:"ensureMultiPageStructure() guarantees all requested pages exist"},
+  {id:"P-020",cat:"Known Issue",title:"Admin preview shows stale site after fix-proxy",error:"Preview iframe showed old site after redeploy",fix:"PreviewFrame now routes through /api/preview/proxy?jobId= with no-store"},
+  {id:"P-021",cat:"Known Issue",title:"Generated site too basic / thin content",error:"Sparse sections, weak copy, no pricing or process section",fix:"Industry-specific extra sections in blueprint scaffold; button wiring; pass all fields to generateSiteBlueprint"},
+];
+
+const ALL_CATS = ["All", ...Array.from(new Set(KNOWN_ERRORS.map(e => e.cat)))];
+
+function ErrorHistorySection() {
+  const [search, setSearch] = useState("");
+  const [cat, setCat] = useState("All");
+  const [expanded, setExpanded] = useState<string|null>(null);
+
+  const filtered = KNOWN_ERRORS.filter(e => {
+    const matchCat = cat === "All" || e.cat === cat;
+    const q = search.toLowerCase();
+    const matchSearch = !q || e.id.toLowerCase().includes(q) || e.title.toLowerCase().includes(q) || e.error.toLowerCase().includes(q) || e.fix.toLowerCase().includes(q) || e.cat.toLowerCase().includes(q);
+    return matchCat && matchSearch;
+  });
+
+  const catColor = (c:string) => c==="File Corruption"?T.red:c==="Stitch SDK"?T.blue:c==="Buttons & Nav"?T.amber:c==="Blueprint"?"#a78bfa":c==="Inngest"?"#34d399":c==="Admin / Preview"?"#60a5fa":c==="Multi-page"?"#f472b6":T.textSec;
+
+  return (
+    <div style={{marginTop:32}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,paddingBottom:10,borderBottom:`1px solid ${T.red}30`}}>
+        <span style={{fontSize:14}}>🗂️</span>
+        <span style={{fontSize:12,fontWeight:700,color:T.red,textTransform:"uppercase" as const,letterSpacing:"0.07em"}}>Error History</span>
+        <span style={{fontSize:11,color:T.textSec,background:T.red+"18",borderRadius:10,padding:"1px 8px",fontWeight:600,marginLeft:2}}>{KNOWN_ERRORS.length}</span>
+        <span style={{fontSize:11,color:T.textSec,marginLeft:4}}>all-time known errors across {KNOWN_ERRORS.length} issues</span>
+      </div>
+
+      {/* Search + category filter */}
+      <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap" as const}}>
+        <input
+          value={search} onChange={e=>setSearch(e.target.value)}
+          placeholder="Search errors, fixes, categories…"
+          style={{flex:"1 1 200px",minWidth:180,padding:"7px 12px",fontSize:12,background:T.raised,border:`1px solid ${T.border}`,borderRadius:6,color:T.text,outline:"none"}}
+        />
+        <select value={cat} onChange={e=>setCat(e.target.value)}
+          style={{padding:"7px 12px",fontSize:12,background:T.raised,border:`1px solid ${T.border}`,borderRadius:6,color:T.text,cursor:"pointer"}}>
+          {ALL_CATS.map(c=><option key={c} value={c}>{c} {c!=="All"?"("+KNOWN_ERRORS.filter(e=>e.cat===c).length+")":""}</option>)}
+        </select>
+        {(search||cat!=="All")&&<button onClick={()=>{setSearch("");setCat("All");}} style={{padding:"7px 12px",fontSize:12,background:T.raised,border:`1px solid ${T.border}`,borderRadius:6,color:T.textSec,cursor:"pointer"}}>✕ Clear</button>}
+      </div>
+
+      <div style={{fontSize:11,color:T.textSec,marginBottom:8}}>{filtered.length} of {KNOWN_ERRORS.length} errors shown</div>
+
+      <div style={{display:"flex",flexDirection:"column" as const,gap:3}}>
+        {filtered.map(e=>(
+          <div key={e.id} style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:8,overflow:"hidden"}}>
+            <div
+              onClick={()=>setExpanded(expanded===e.id?null:e.id)}
+              style={{display:"grid",gridTemplateColumns:"40px 90px 1fr auto",gap:"0 10px",alignItems:"center",padding:"9px 14px",cursor:"pointer"}}
+            >
+              <span style={{fontSize:10,fontWeight:800,color:T.textSec,fontFamily:"monospace"}}>{e.id}</span>
+              <span style={{fontSize:10,fontWeight:700,color:catColor(e.cat),background:catColor(e.cat)+"20",borderRadius:4,padding:"2px 7px",textAlign:"center" as const,whiteSpace:"nowrap" as const,overflow:"hidden",textOverflow:"ellipsis"}}>{e.cat}</span>
+              <span style={{fontSize:12,color:T.text,fontWeight:500}}>{e.title}</span>
+              <span style={{fontSize:12,color:T.textSec,userSelect:"none" as const}}>{expanded===e.id?"▲":"▼"}</span>
+            </div>
+            {expanded===e.id&&(
+              <div style={{padding:"0 14px 12px",borderTop:`1px solid ${T.border}`}}>
+                <div style={{marginTop:10,display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                  <div style={{background:T.red+"10",border:`1px solid ${T.red}25`,borderRadius:6,padding:"10px 12px"}}>
+                    <div style={{fontSize:10,fontWeight:700,color:T.red,marginBottom:5,letterSpacing:"0.05em"}}>ERROR</div>
+                    <div style={{fontSize:12,color:T.text,lineHeight:1.6}}>{e.error}</div>
+                  </div>
+                  <div style={{background:"#10b98110",border:"1px solid #10b98125",borderRadius:6,padding:"10px 12px"}}>
+                    <div style={{fontSize:10,fontWeight:700,color:"#10b981",marginBottom:5,letterSpacing:"0.05em"}}>FIX</div>
+                    <div style={{fontSize:12,color:T.text,lineHeight:1.6}}>{e.fix}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const MD_STEPS = new Set(["validate", "validate-md", "content-check", "schema-check"]);
+
+function LogRow({ l }: { l: any }) {
+  const lvlColor = (lv:string) => lv==="error"?T.red:lv==="warn"?T.amber:T.blue;
+  const lvlBg    = (lv:string) => lv==="error"?T.red+"18":lv==="warn"?T.amber+"18":T.raised;
+  return (
+    <div style={{background:lvlBg(l.level),border:`1px solid ${lvlColor(l.level)}35`,borderRadius:8,padding:"11px 16px",display:"grid",gridTemplateColumns:"auto auto auto 1fr",gap:"0 12px",alignItems:"start"}}>
+      <span style={{fontSize:10,fontWeight:800,color:lvlColor(l.level),background:lvlColor(l.level)+"22",borderRadius:4,padding:"3px 8px",whiteSpace:"nowrap" as const,marginTop:1,letterSpacing:"0.04em"}}>{l.level.toUpperCase()}</span>
+      <span style={{fontSize:11,color:T.textSec,fontFamily:"monospace",whiteSpace:"nowrap" as const,marginTop:2}}>{l.ts ? new Date(l.ts).toLocaleString("en-AU",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",second:"2-digit"}) : ""}</span>
+      <span style={{fontSize:11,color:T.blue,background:T.blue+"18",borderRadius:4,padding:"2px 8px",fontFamily:"monospace",whiteSpace:"nowrap" as const,marginTop:1,fontWeight:600}}>{l.step||"—"}</span>
+      <div style={{marginTop:1}}>
+        {l.businessName&&<span style={{fontSize:12,fontWeight:700,color:T.text,marginRight:8}}>{l.businessName}</span>}
+        <span style={{fontSize:12,color:T.text,opacity:0.85,wordBreak:"break-word" as const,lineHeight:1.5}}>{l.msg}</span>
+      </div>
+    </div>
+  );
+}
+
+function LogSection({ title, icon, logs, accentColor, emptyMsg }: { title:string; icon:string; logs:any[]; accentColor:string; emptyMsg:string }) {
+  return (
+    <div style={{marginBottom:24}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,paddingBottom:8,borderBottom:`1px solid ${accentColor}30`}}>
+        <span style={{fontSize:14}}>{icon}</span>
+        <span style={{fontSize:12,fontWeight:700,color:accentColor,textTransform:"uppercase" as const,letterSpacing:"0.07em"}}>{title}</span>
+        <span style={{fontSize:11,color:T.textSec,background:accentColor+"18",borderRadius:10,padding:"1px 8px",fontWeight:600,marginLeft:2}}>{logs.length}</span>
+      </div>
+      {logs.length===0
+        ? <div style={{fontSize:12,color:T.textSec,padding:"10px 14px",background:T.raised,borderRadius:8,border:`1px solid ${T.border}`}}>{emptyMsg}</div>
+        : <div style={{display:"flex",flexDirection:"column" as const,gap:4}}>{logs.map((l,i)=><LogRow key={i} l={l}/>)}</div>
+      }
+    </div>
+  );
+}
+
 function PipelineLogsPanel() {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1528,43 +1771,49 @@ function PipelineLogsPanel() {
   }
   useEffect(()=>{load();const iv=setInterval(load,30000);return()=>clearInterval(iv);},[]);
 
-  const filtered = lvl==="all" ? logs : logs.filter(l=>l.level===lvl);
-  const lvlColor = (l:string) => l==="error"?T.red:l==="warn"?T.amber:T.textMuted;
-  const lvlBg   = (l:string) => l==="error"?T.red+"15":l==="warn"?T.amber+"15":T.raised;
+  // Split: md/validation errors vs live pipeline errors
+  const allFiltered = lvl==="all" ? logs : logs.filter(l=>l.level===lvl);
+  const mdErrors    = allFiltered.filter(l => l.source==="md_file" || MD_STEPS.has(l.step||""));
+  const liveErrors  = allFiltered.filter(l => !l.source && !MD_STEPS.has(l.step||""));
+
+  const lvlColor = (lv:string) => lv==="error"?T.red:lv==="warn"?T.amber:T.textSec;
 
   return (
     <div>
-      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,flexWrap:"wrap" as const}}>
-        <div style={{fontSize:12,color:T.textMuted,fontWeight:600,marginRight:4}}>Filter:</div>
+      {/* Filter bar */}
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:20,flexWrap:"wrap" as const}}>
+        <div style={{fontSize:12,color:T.textSec,fontWeight:700,marginRight:4}}>Filter:</div>
         {(["all","warn","error"] as const).map(f=>(
-          <button key={f} onClick={()=>setLvl(f)} style={{padding:"5px 14px",fontSize:12,fontWeight:lvl===f?600:400,color:lvl===f?T.text:T.textMuted,background:lvl===f?T.raised:"transparent",border:lvl===f?`1px solid ${T.border}`:"1px solid transparent",borderRadius:6,cursor:"pointer"}}>
+          <button key={f} onClick={()=>setLvl(f)} style={{padding:"5px 14px",fontSize:12,fontWeight:lvl===f?700:400,color:lvl===f?T.text:T.textSec,background:lvl===f?T.raised:"transparent",border:lvl===f?`1px solid ${T.border}`:"1px solid transparent",borderRadius:6,cursor:"pointer"}}>
             {f==="all"?"All":f.charAt(0).toUpperCase()+f.slice(1)}
             {f!=="all"&&<span style={{marginLeft:5,color:lvlColor(f),fontWeight:700}}>{logs.filter(l=>l.level===f).length}</span>}
           </button>
         ))}
-        <button onClick={load} style={{marginLeft:"auto",background:T.raised,border:`1px solid ${T.border}`,color:T.textMuted,borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer"}}>↻ Refresh</button>
+        <button onClick={load} style={{marginLeft:"auto",background:T.raised,border:`1px solid ${T.border}`,color:T.textSec,borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer",fontWeight:500}}>↻ Refresh</button>
       </div>
-      {loading&&<div style={{color:T.textMuted,fontSize:13,padding:"40px 0",textAlign:"center" as const}}>Loading logs…</div>}
-      {!loading&&filtered.length===0&&(
-        <div style={{textAlign:"center" as const,padding:"60px 0",color:T.textMuted}}>
-          <div style={{fontSize:32,marginBottom:10}}>✅</div>
-          <div style={{fontSize:14,fontWeight:600,color:T.textSec}}>No {lvl==="all"?"":lvl} log entries</div>
-        </div>
-      )}
-      {!loading&&filtered.length>0&&(
-        <div style={{display:"flex",flexDirection:"column" as const,gap:4}}>
-          {filtered.map((l,i)=>(
-            <div key={i} style={{background:lvlBg(l.level),border:`1px solid ${lvlColor(l.level)}25`,borderRadius:8,padding:"10px 14px",display:"grid",gridTemplateColumns:"auto auto auto 1fr",gap:"0 14px",alignItems:"start"}}>
-              <span style={{fontSize:10,fontWeight:700,color:lvlColor(l.level),background:lvlColor(l.level)+"20",borderRadius:4,padding:"2px 7px",whiteSpace:"nowrap" as const,marginTop:1}}>{l.level.toUpperCase()}</span>
-              <span style={{fontSize:11,color:T.textMuted,fontFamily:"monospace",whiteSpace:"nowrap" as const}}>{l.ts ? new Date(l.ts).toLocaleString("en-AU",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",second:"2-digit"}) : ""}</span>
-              <span style={{fontSize:11,color:T.blue,background:T.blue+"12",borderRadius:4,padding:"2px 7px",fontFamily:"monospace",whiteSpace:"nowrap" as const}}>{l.step||"—"}</span>
-              <div>
-                {l.businessName&&<span style={{fontSize:11,fontWeight:600,color:T.text,marginRight:8}}>{l.businessName}</span>}
-                <span style={{fontSize:11,color:T.textSec,wordBreak:"break-word" as const}}>{l.msg}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+
+      {loading&&<div style={{color:T.textSec,fontSize:13,padding:"40px 0",textAlign:"center" as const}}>Loading logs…</div>}
+
+      {!loading&&(
+        <>
+          {/* .md / validation errors section */}
+          <LogSection
+            title="Content Validation (.md)"
+            icon="📄"
+            logs={mdErrors}
+            accentColor={T.amber}
+            emptyMsg="No content validation errors — all page specs look good."
+          />
+          {/* Live pipeline errors section */}
+          <LogSection
+            title="Live Pipeline Errors"
+            icon="⚡"
+            logs={liveErrors}
+            accentColor={T.blue}
+            emptyMsg="No live pipeline errors."
+          />
+          <ErrorHistorySection />
+        </>
       )}
     </div>
   );
