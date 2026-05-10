@@ -200,6 +200,13 @@ const buildWebsite = inngest.createFunction(
           imageSection,
           productsWithPhotos,
           exampleHtmls,
+          instagramUrl: userInput.instagramUrl || "",
+          linkedinUrl: userInput.linkedinUrl || "",
+          tiktokUrl: userInput.tiktokUrl || "",
+          realTestimonials: userInput.realTestimonials || "",
+          blogTopics: userInput.blogTopics || "",
+          videoUrl: userInput.videoUrl || "",
+          shopProducts: userInput.shopProducts || "",
         });
         return blueprint;
         });
@@ -626,6 +633,12 @@ const buildWebsite = inngest.createFunction(
             return m;
           });
           html = html.replace(/<[a-z][^>]*>\s*Map View\s*:[^<]{0,100}<\/[a-z]+>/gi, '');
+          // Strip Stitch data-location map placeholders (e.g. <div data-location="Forest Lake">...Map Loading...</div>)
+          html = html.replace(/<div[^>]*data-location=[^>]*>[\s\S]{0,2000}?<\/div>/gi, (m: string) => {
+            if (m.includes('<iframe')) return m; // keep real maps
+            if (/Map Loading|map-placeholder|lh3\.googleusercontent/i.test(m)) return '';
+            return m;
+          });
           // Always inject map as a full-width block AFTER the contact section, never inside it.
           // This prevents the map overlapping the two-column contact layout.
           const mapBlock = `<div id="map-section" style="width:100%;padding:0 0 60px;background:inherit;">${mapsEmbed}</div>`;
@@ -847,6 +860,44 @@ const buildWebsite = inngest.createFunction(
               return open + realTestimonialsSection + close;
             });
             console.log(`[Step5] Real testimonials injected (${testimonialLines.length} reviews)`);
+          }
+        }
+
+        // ── Wire dead CTA buttons ────────────────────────────────────────────────
+        // Stitch sometimes renders "Learn More", "View Services", etc with no onclick.
+        // Wire them to the correct page so they're not dead ends.
+        {
+          const servicesTarget = requestedPageIds.includes("services") ? "services" : requestedPageIds.includes("about") ? "about" : "contact";
+          const contactTarget  = requestedPageIds.includes("contact")  ? "contact"  : requestedPageIds.includes("booking") ? "booking" : "home";
+          const bookingTarget  = requestedPageIds.includes("booking")  ? "booking"  : contactTarget;
+
+          // Wire "Learn More" / "View Services" -> services page
+          html = html.replace(/<(button|a)([^>]*)>(\s*(?:<[^>]+>\s*)*)(Learn More|learn more|View Services|view services|Explore Services|See Services|Our Services)(\s*(?:<\/[^>]+>\s*)*)<\/(button|a)>/gi,
+            (_m: string, tag: string, attrs: string, pre: string, label: string, post: string) => {
+              if (attrs.includes("onclick") || attrs.includes("navigateTo") || (attrs.includes("href") && !attrs.includes('href="#"') && !attrs.includes("href='#'"))) return _m;
+              const nav = "window.navigateTo&&window.navigateTo('" + servicesTarget + "')";
+              if (tag.toLowerCase() === "a") return "<a" + attrs + ' href="#" onclick="event.preventDefault();' + nav + '">' + pre + label + post + "</a>";
+              return "<button" + attrs + ' onclick="' + nav + '">' + pre + label + post + "</button>";
+            });
+
+          // Wire "Get Started" / "Contact Us" / "Get in Touch" / "Book Now" -> contact/booking
+          html = html.replace(/<(button|a)([^>]*)>(\s*)(Get Started|Get in Touch|Contact Us|Book Now|Book Appointment|Book an Appointment)(\s*)<\/(button|a)>/gi,
+            (_m: string, tag: string, attrs: string, pre: string, label: string, post: string) => {
+              if (attrs.includes("onclick") || attrs.includes("navigateTo") || (attrs.includes("href") && !attrs.includes('href="#"') && !attrs.includes("href='#'"))) return _m;
+              const tgt = /book/i.test(label) ? bookingTarget : contactTarget;
+              const nav = "window.navigateTo&&window.navigateTo('" + tgt + "')";
+              if (tag.toLowerCase() === "a") return "<a" + attrs + ' href="#" onclick="event.preventDefault();' + nav + '">' + pre + label + post + "</a>";
+              return "<button" + attrs + ' onclick="' + nav + '">' + pre + label + post + "</button>";
+            });
+
+          // Wire account_circle login icon -> client portal
+          const portalSlug = (userInput.slug || "").trim();
+          if (portalSlug) {
+            html = html.replace(/(<span[^>]*)>(\s*account_circle\s*)<\/span>/gi,
+              (_m: string, attrs: string, inner: string) => {
+                if (attrs.includes("data-wg-portal")) return _m;
+                return "<a href=\"/c/" + portalSlug + "\" title=\"Client Portal\" style=\"text-decoration:none\"><span" + attrs + " data-wg-portal=\"1\">" + inner + "</span></a>";
+              });
           }
         }
 
@@ -1370,6 +1421,7 @@ const buildWebsite = inngest.createFunction(
           // Re-audit with current HTML to pick up any remaining issues
           const reAudit = await auditAndFixSite(loopHtml, {
             businessName: userInput.businessName,
+            industry: userInput.industry || "",
             clientEmail,
             clientPhone,
             businessAddress: userInput.businessAddress || "",

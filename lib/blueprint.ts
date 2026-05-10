@@ -321,6 +321,50 @@ Primary keyword placement: weave "${industry} ${location.split(",")[0]?.trim()}"
   const ctaText = hasBooking ? "Book Now" : goal?.toLowerCase().includes("quote") ? "Get a Quote" : "Get Started";
   const heroUrl = videoUrl || "";
 
+  // ── Industry-specific extra sections ─────────────────────────────────────────
+  // These are injected into the scaffold after [4] SERVICES for industries that
+  // benefit from additional standard sections. Keeps the generic scaffold lean
+  // while ensuring high-value industries get full depth.
+  const industryLower = industry.toLowerCase();
+  const extraSections: string[] = [];
+
+  if (/web.*(design|agenc|develop|build|studio)|digital.*agenc|seo.*agenc|marketing.*agenc/i.test(industryLower) || /agenc|studio/i.test(industryLower)) {
+    extraSections.push(
+      `[4a] SECTION id=process — "How It Works" — numbered step cards (at least 4 steps) showing the agency's process from brief to launch. Each step: number badge, title, 2-sentence description. Use the actual process: Discovery → Design → Build → Launch (or similar).`,
+      `[4b] SECTION id=pricing — "Simple, Transparent Pricing" — 3 pricing tier cards side by side. Middle card is highlighted as "Most Popular". Each card: tier name, price (monthly or one-off), bullet list of 5-6 inclusions, CTA button. Use realistic pricing for ${industry} in Australia.`,
+      `[4c] SECTION id=features — "Everything You Need" — icon grid (6 features minimum, 3-per-row grid). Each: icon emoji, feature title, 1-sentence description. Highlight the platform's key capabilities.`,
+    );
+  } else if (/restaurant|cafe|bar|food|pizza|burger|sushi|bakery/i.test(industryLower)) {
+    extraSections.push(
+      `[4a] SECTION id=menu — "Our Menu" — 3 category tabs or sections (e.g. Starters, Mains, Desserts) each with 4-6 menu item cards showing name, description, price.`,
+      `[4b] SECTION id=gallery — "Food Gallery" — masonry or grid of 6 food photo placeholders with appetising descriptions.`,
+    );
+  } else if (/plumb|electr|hvac|build|construct|trade|roof|paint|carpet|flooring/i.test(industryLower)) {
+    extraSections.push(
+      `[4a] SECTION id=process — "Our Process" — 4-step numbered cards: Request Quote → Schedule Visit → Complete Work → Final Inspection. Each with icon and 2-sentence description.`,
+      `[4b] SECTION id=areas — "Areas We Service" — grid of suburb/area chips or cards listing 8-10 service areas around ${location}.`,
+    );
+  } else if (/dentist|doctor|medical|clinic|health|physio|chiro|optom/i.test(industryLower)) {
+    extraSections.push(
+      `[4a] SECTION id=process — "Your First Visit" — 3-step cards: Book Online → Consultation → Treatment Plan. Clean, reassuring copy.`,
+      `[4b] SECTION id=team — "Meet Our Team" — 2-4 staff cards with name, title, and brief bio. Use professional headshot placeholders.`,
+    );
+  } else if (/law|legal|solicitor|barrister|attorney/i.test(industryLower)) {
+    extraSections.push(
+      `[4a] SECTION id=process — "How We Work" — 4-step process: Initial Consultation → Case Assessment → Strategy → Resolution.`,
+      `[4b] SECTION id=results — "Our Track Record" — 3-4 stat blocks (cases won, years experience, clients served, success rate).`,
+    );
+  } else if (/real.?estate|property|agent|realt/i.test(industryLower)) {
+    extraSections.push(
+      `[4a] SECTION id=listings — "Featured Listings" — 3 property cards with placeholder image, address, bed/bath/car icons, price.`,
+      `[4b] SECTION id=process — "Selling or Buying?" — 2-column split with 4-step process for each.`,
+    );
+  }
+
+  const extraSectionsScaffold = extraSections.length > 0
+    ? "\n" + extraSections.join("\n\n") + "\n"
+    : "";
+
   const prompt = `You are a world-class web designer. Produce a Site Blueprint JSON for this business.
 
 BUSINESS:
@@ -367,7 +411,7 @@ EXACT STRUCTURE SCAFFOLD — the stitchPrompt MUST describe rendering EXACTLY th
   - Heading: "Our Services"
   - Grid of 3-6 service cards with icon, title, description
   - Each relevant to ${industry}
-
+${extraSectionsScaffold}
 [5] SECTION id=testimonials
   - Heading: "What Our Clients Say"
   - 3 testimonial cards with Australian names, 5-star ★★★★★, quote text
@@ -488,7 +532,11 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
   // so Stitch sees it before anything else and can't ignore it.
   if (isMultiPage && pages.length > 1) {
     const pageIds = pages.map((p: string) => p.toLowerCase().replace(/\s+/g, "-")).join(", ");
-    const multiPagePrefix = `⚠️ MULTI-PAGE SITE — MANDATORY STRUCTURE ⚠️\nThis is a ${pages.length}-page site. You MUST output ${pages.length} separate top-level divs:\n${pages.map((p: string) => `  <div data-page="${p.toLowerCase().replace(/\s+/g,"-")}" id="${p.toLowerCase().replace(/\s+/g,"-")}" class="page-section">...</div>`).join("\n")}\nNav links use onclick='navigateTo("${pageIds.split(", ")[0]}")' etc. NO anchor scroll links. Do NOT define navigateTo() or .page-section CSS.\n\n`;
+    const multiPageDivs = pages.map((p: string) => {
+      const pid = p.toLowerCase().replace(/\s+/g, "-");
+      return '  <div data-page="' + pid + '" id="' + pid + '" class="page-section">...</div>';
+    }).join("\n");
+    const multiPagePrefix = "⚠️ MULTI-PAGE SITE — MANDATORY STRUCTURE ⚠️\nThis is a " + pages.length + "-page site. You MUST output " + pages.length + " separate top-level divs:\n" + multiPageDivs + "\nNav links use onclick='navigateTo(\"" + pageIds.split(", ")[0] + "\")' etc. NO anchor scroll links. Do NOT define navigateTo() or .page-section CSS.\n\n";
     blueprint.stitchPrompt = multiPagePrefix + blueprint.stitchPrompt;
   }
 
@@ -561,14 +609,13 @@ export async function requestGoogleIndexing(url: string): Promise<void> {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${access_token}`,
       },
+ 
       body: JSON.stringify({ url, type: "URL_UPDATED" }),
     });
-
     if (indexRes.ok) {
-      console.log(`[Indexing] ✅ Submitted ${url} to Google Indexing API`);
+      console.log(`[Indexing] Pinged Google for: ${url}`);
     } else {
-      const errText = await indexRes.text();
-      console.warn(`[Indexing] API returned ${indexRes.status}: ${errText.slice(0, 200)}`);
+      console.warn(`[Indexing] Indexing API ${indexRes.status} for ${url}`);
     }
   } catch (e) {
     console.warn("[Indexing] Failed (non-fatal):", e instanceof Error ? e.message : String(e));
