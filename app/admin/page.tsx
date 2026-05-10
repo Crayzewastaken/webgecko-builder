@@ -1383,6 +1383,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
             const features = ui.features||[];
             const hasShop = features.includes("Payments / Shop");
             const hasBooking = features.includes("Booking System");
+            const hasNewsletter = features.includes("Newsletter Signup");
             const hasGA4 = !!(c.ga4Id);
             const hasFacebook = !!(ui.facebookPage);
             const hasInstagram = !!(ui.instagramUrl);
@@ -1395,39 +1396,58 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
 
             // Pre-fill Termly URLs
             const termlyPrivacyUrl = `https://app.termly.io/dashboard/website/add-website`;
-            const termlyTosUrl = `https://app.termly.io/dashboard/website/add-website`;
+            const _termlyTosUrl = `https://app.termly.io/dashboard/website/add-website`; // unused — Terms moved to freeprivacypolicy.com
 
             type CheckItem = { key:string; label:string; detail:string; link?:string; linkLabel?:string; linkInput?:{placeholder:string;label:string}; required?:boolean };
             type Section = { title:string; color:string; icon:string; items:CheckItem[] };
 
+            // Dynamic section numbering
+            let secNum = 0;
+            const n = () => ++secNum;
+
             const sections: Section[] = [
 
               {
-                title:"1. Privacy Policy — Termly",
+                title:`${n()}. Privacy Policy — Termly (Free)`,
                 color:T.blue,
                 icon:"🔒",
                 items:[
-                  { key:"termly_account", label:"Create a free Termly account", detail:"Go to termly.io and sign up with your WebGecko email. You only need one account — add each client as a separate website.", link:"https://termly.io", linkLabel:"Open Termly →", required:true },
-                  { key:"termly_add_site", label:'Click "Add Website" in Termly dashboard', detail:`QUESTIONS\nWebsite name?\nWebsite URL?\nCountry?\nIndustry?\nANSWERS\n${biz}\n${siteUrl||"(client domain — add after launch)"}\nAustralia\n${c.industry||"(select closest match)"}`, link:termlyPrivacyUrl, linkLabel:"Add website in Termly →", required:true },
-                  { key:"termly_privacy_wizard", label:"Complete the Privacy Policy wizard", detail:`QUESTIONS\nDo you collect names/emails?\nDo you use analytics?\nDo you process payments?\nDo you use cookies?\nBusiness country?\nContact email?\nBusiness address?\nANSWERS\nYES (contact form)\n${hasGA4?"YES — select Google Analytics":"NO"}\n${hasShop?"YES — select Square":"NO"}\nYES (standard)\nAustralia\n${email||"(enter client email)"}\n${addr||"(enter client address)"}`, required:true },
-                  { key:"termly_privacy_embed", label:"Copy the Privacy Policy hosted URL and paste below", detail:'In Termly, after generating the policy, click "Embed" → copy the "Hosted Policy URL" (looks like https://app.termly.io/document/privacy-policy/xxxx). Paste it in the box below — it will be saved to this client record.', required:true, linkInput:{ label:"Termly Privacy Policy URL", placeholder:"https://app.termly.io/document/privacy-policy/xxxx" } },
-                  { key:"termly_privacy_footer", label:"Update footer link on live site", detail:"In the client site HTML, find the Privacy Policy footer link and change the href from navigateTo to the Termly URL you just pasted. Redeploy via the Actions tab." },
+                  { key:"termly_account", label:"One-time: create your free Termly account", detail:"Go to termly.io and sign up with your WebGecko email. You only need ONE account total — you add each client as a separate website inside it. Free plan gives 1 policy per website.", link:"https://app.termly.io/authentication/sign-up", linkLabel:"Sign up to Termly →", required:true },
+                  { key:"termly_add_site", label:'Add this client as a new website in Termly', detail:`QUESTIONS\nWebsite name?\nWebsite URL?\nCountry?\nIndustry?\nANSWERS\n${biz}\n${siteUrl||"(client domain — add after launch)"}\nAustralia\n${c.industry||"(select closest match)"}`, link:"https://app.termly.io/dashboard/website/add-website", linkLabel:"Add website in Termly →", required:true },
+                  { key:"termly_privacy_wizard", label:"Generate the Privacy Policy", detail:`QUESTIONS\nDo you collect names/emails?\nDo you use analytics?\nDo you process payments?\nDo you use cookies?\nBusiness country?\nContact email?\nBusiness address?\nANSWERS\nYES (contact form)\n${hasGA4?"YES — select Google Analytics":"NO"}\n${hasShop?"YES — select Square":"NO"}\nYES (standard)\nAustralia\n${email||"(enter client email)"}\n${addr||"(enter client address)"}`, required:true },
+                  { key:"termly_privacy_embed", label:'Copy hosted URL → paste below', detail:'In Termly click "Embed" on the generated policy → copy the Hosted Policy URL (https://app.termly.io/document/privacy-policy/xxxx). Paste below.', required:true, linkInput:{ label:"Termly Privacy Policy URL", placeholder:"https://app.termly.io/document/privacy-policy/xxxx" } },
+                  { key:"termly_cookie_banner", label:"Enable the Cookie Banner in Termly", detail:'In Termly, go to Cookie Consent → Cookie Banner → toggle ON. This covers the Australian Privacy Act cookie disclosure requirement. The banner auto-loads via the Termly embed script — no extra code needed on the site.', required:true },
+                  { key:"termly_privacy_footer", label:"Update Privacy Policy footer link on site", detail:"In the client site footer, replace the auto-generated privacy page link with the Termly hosted URL. Redeploy via the Actions tab." },
                 ],
               },
 
               {
-                title:"2. Terms of Service — Termly",
+                title:`${n()}. Terms of Service — Free Privacy Policy (Free)`,
                 color:T.purple,
                 icon:"📄",
                 items:[
-                  { key:"termly_tos_wizard", label:'In same website on Termly, generate Terms of Service', detail:`QUESTIONS\nWebsite / company name?\nWebsite URL?\nGoverning law?${abn?"\nABN?":""}\nContact email?\nBusiness address?\nANSWERS\n${biz}\n${siteUrl||"(client domain)"}\nAustralia${abn?"\n"+abn:""}\n${email||"(enter client email)"}\n${addr||"(enter client address)"}`, link:termlyTosUrl, linkLabel:"Open Termly →", required:true },
-                  { key:"termly_tos_clauses", label:"Select applicable clauses in the ToS wizard", detail:`QUESTIONS\nContact / enquiry forms?\n${hasShop?"Online purchases / e-commerce?\n":""}${hasBooking?"Bookings or appointments?\n":""}User-generated content?\nLimitation of liability?\nGoverning jurisdiction?\nANSWERS\nYES\n${hasShop?"YES — select Square as payment processor\n":""}${hasBooking?"YES\n":""}NO\nYES\nAustralia`, required:true },
-                  { key:"termly_tos_embed", label:"Copy the Terms of Service hosted URL and paste below", detail:'In Termly, after generating, click "Embed" → copy the hosted URL. Paste it in the box below.', linkInput:{ label:"Termly Terms of Service URL", placeholder:"https://app.termly.io/document/terms-of-service/xxxx" } },
+                  { key:"tos_generate", label:"Generate Terms of Service (no account needed)", detail:`QUESTIONS\nWebsite / company name?\nWebsite URL?\nGoverning country?\n${abn?"ABN?\n":""}Contact email?\nBusiness address?\nANSWERS\n${biz}\n${siteUrl||"(client domain)"}\nAustralia\n${abn?abn+"\n":""}${email||"(enter client email)"}\n${addr||"(enter client address)"}`, link:"https://www.freeprivacypolicy.com/free-terms-and-conditions-generator/", linkLabel:"Generate Terms →", required:true },
+                  { key:"tos_clauses", label:"Select applicable clauses", detail:`QUESTIONS\nContact / enquiry forms?\n${hasShop?"Online shop / payments?\n":""}${hasBooking?"Bookings or appointments?\n":""}User accounts?\nLimitation of liability?\nGoverning law?\nANSWERS\nYES\n${hasShop?"YES — Square payments\n":""}${hasBooking?"YES\n":""}NO\nYES\nAustralia`, required:true },
+                  { key:"tos_embed", label:"Copy hosted URL → paste below", detail:"After generating, copy the hosted URL from freeprivacypolicy.com. Paste below.", required:true, linkInput:{ label:"Terms of Service URL", placeholder:"https://www.freeprivacypolicy.com/live/xxxx" } },
+                  { key:"tos_footer", label:"Update Terms of Service footer link on site", detail:"In the client site footer, replace the auto-generated terms page link with the freeprivacypolicy.com hosted URL. Redeploy via the Actions tab." },
                 ],
               },
 
               {
-                title:"3. Domain Registration",
+                title:`${n()}. Legal Compliance — AU Requirements`,
+                color:T.amber,
+                icon:"⚖️",
+                items:[
+                  { key:"legal_abn", label:"Confirm ABN is displayed on the site", detail:`Australian law requires ABN to be visible on any business website that sells goods or services.\n\nClient ABN: ${abn||"(not provided — ask client)"}\n\nCheck the site footer — the pipeline auto-injects the copyright line which should include the ABN. If missing, add it manually to the footer before launch.`, required:true },
+                  { key:"legal_acl", label:"Confirm Australian Consumer Law disclaimer is present", detail:"The site Terms of Service (generated above) must include an ACL clause — this states that nothing in the terms overrides consumer rights under Australian Consumer Law. The freeprivacypolicy.com generator includes this automatically when you select Australia as governing law. Verify it's in the generated document.", required:true },
+                  { key:"legal_copyright", label:"Confirm copyright notice is in the footer", detail:`The site footer must include a copyright line. The pipeline auto-injects:\n© ${new Date().getFullYear()} ${biz}. All rights reserved.\n\nVerify this appears on the live site footer.`, required:true },
+                  { key:"legal_spam", label:(hasNewsletter||hasChat)?"Spam Act compliance — unsubscribe link required":"Spam Act — not applicable (no newsletter)", detail:(hasNewsletter||hasChat)?`The Australian Spam Act 2003 requires ALL marketing emails to include:\n• Clear identification of the sender (${biz})\n• A working unsubscribe link\n• The sender's physical address\n\nIf using a newsletter tool (Mailchimp, etc.), these are included by default. If sending manually, ensure every marketing email includes these three elements.`:"This client has no newsletter or marketing email feature selected — Spam Act compliance is not required." },
+                  { key:"legal_ssl", label:"Confirm SSL certificate is active (https://)", detail:"Any site collecting personal data (contact forms, bookings, payments) must use HTTPS. Vercel auto-issues SSL via Let's Encrypt when the domain is connected. Verify the site loads on https:// and shows a padlock in the browser. If not, check Vercel domain settings." , required:true },
+                ],
+              },
+
+              {
+                title:`${n()}. Domain & Hosting`,
                 color:T.cyan,
                 icon:"🌐",
                 items:[
@@ -1439,7 +1459,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               },
 
               {
-                title:"4. Google Analytics (GA4)",
+                title:`${n()}. Google Analytics (GA4)`,
                 color:T.amber,
                 icon:"📊",
                 items: hasGA4 ? [
@@ -1453,7 +1473,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               },
 
               ...(hasShop ? [{
-                title:"5. Square Shop Setup",
+                title:`${n()}. Square Shop Setup`,
                 color:T.green,
                 icon:"🛒",
                 items:[
@@ -1466,7 +1486,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               }] : []),
 
               ...(hasBooking ? [{
-                title:`${hasShop?"6":"5"}. Booking System (SuperSaas)`,
+                title:`${n()}. Booking System (SuperSaas)`,
                 color:T.purple,
                 icon:"📅",
                 items:[
@@ -1478,7 +1498,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               }] : []),
 
               {
-                title:`${hasShop&&hasBooking?"7":hasShop||hasBooking?"6":"5"}. Go-Live Checklist`,
+                title:`${n()}. Go-Live Checklist`,
                 color:T.green,
                 icon:"🚀",
                 items:[
