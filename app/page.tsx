@@ -9,28 +9,24 @@ function calculateQuote(pages: string[], features: string[], siteType: string) {
   const hasBlog = features.includes('Blog');
   const isMultiPage = siteType === 'multi';
 
-  // Package determined by page count / complexity — NOT by features
   let packageName = 'Starter'; let basePrice = 1500; let competitorPrice = 3000;
   if (pageCount >= 7 || isMultiPage && pageCount >= 5) { packageName = 'Premium'; basePrice = 3800; competitorPrice = 12000; }
   else if (pageCount >= 4 || isMultiPage) { packageName = 'Business'; basePrice = 2400; competitorPrice = 6500; }
 
-  // Feature add-ons — flat rates regardless of package
   let addons = 0;
-  if (hasBooking) addons += 400;       // booking system integration
-  if (hasEcommerce) addons += 600;     // Square shop setup + catalogue
+  if (hasBooking) addons += 400;
+  if (hasEcommerce) addons += 600;
   if (hasBlog) addons += 200;
   if (features.includes('Photo Gallery')) addons += 150;
   if (features.includes('Reviews & Testimonials')) addons += 100;
   if (features.includes('Live Chat')) addons += 150;
   if (features.includes('Newsletter Signup')) addons += 100;
-  if (features.includes('Google Maps')) addons += 0; // included
   if (features.includes('Video Background')) addons += 200;
 
   const totalPrice = basePrice + addons;
-  // Monthly: introductory rate $109/month for first 3 months, then $119/month ongoing
   const monthlyIntro = 109;
   const monthlyOngoing = 119;
-  const monthlyPrice = monthlyIntro; // used for display
+  const monthlyPrice = monthlyIntro;
   const savings = competitorPrice - totalPrice;
   return { packageName, totalPrice, monthlyPrice, monthlyIntro, monthlyOngoing, savings, competitorPrice };
 }
@@ -71,52 +67,6 @@ const FEATURE_BUNDLES = [
   { id: 'video', icon: '🎥', label: 'Video Background', desc: 'Cinematic video hero section', features: ['Video Background'], exclusiveGroup: null, requiresPage: null },
 ];
 
-// Steps:
-// 1 - Business
-// 2 - Goals
-// 3 - Features  ← moved before pages so page auto-highlights work
-// 4 - Pages     ← auto-populated from features; locked pages require confirm to remove
-// 5 - Pricing (yes/no + type)
-// 6 - Pricing Details (ONLY if hasPricing=Yes)
-// 7 - Design (always)
-// 8 - Assets (always)
-// 9 - Final Details (always)
-
-const InputField = ({ icon, label, value, onChange, placeholder, required, type = 'text', hint, maxLength, inputMode, pattern }: any) => (
-  <div>
-    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">{icon} {label} {required && <span className="text-red-400">*</span>}</label>
-    <input type={type} value={value} onChange={onChange} placeholder={placeholder} maxLength={maxLength} inputMode={inputMode} pattern={pattern} className="w-full h-14 rounded-2xl bg-slate-900/80 border border-white/10 px-5 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-all text-base" />
-    {hint && <p className="text-slate-500 text-xs mt-1.5">{hint}</p>}
-  </div>
-);
-
-const TextAreaField = ({ icon, label, value, onChange, placeholder, required }: any) => (
-  <div>
-    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">{icon} {label} {required && <span className="text-red-400">*</span>}</label>
-    <textarea value={value} onChange={onChange} placeholder={placeholder} className="w-full min-h-[120px] rounded-2xl bg-slate-900/80 border border-white/10 px-5 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-all resize-none text-base" />
-  </div>
-);
-
-const SelectCard = ({ selected, onClick, label, desc, icon }: any) => (
-  <div onClick={onClick} className={`cursor-pointer rounded-2xl p-4 border-2 transition-all active:scale-98 ${selected ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}>
-    <div className="flex items-start gap-3">
-      <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center ${selected ? 'border-emerald-500 bg-emerald-500' : 'border-white/30'}`}>
-        {selected && <div className="w-2 h-2 rounded-full bg-white" />}
-      </div>
-      <div><p className="font-semibold text-white text-sm">{icon && <span className="mr-1">{icon}</span>}{label}</p>{desc && <p className="text-slate-400 text-xs mt-0.5">{desc}</p>}</div>
-    </div>
-  </div>
-);
-
-const CheckCard = ({ checked, onClick, label }: any) => (
-  <div onClick={onClick} className={`cursor-pointer rounded-xl p-3 border transition-all flex items-center gap-3 active:scale-98 ${checked ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}>
-    <div className={`w-5 h-5 rounded flex-shrink-0 flex items-center justify-center border-2 transition-all ${checked ? 'border-emerald-500 bg-emerald-500' : 'border-white/30'}`}>
-      {checked && <span className="text-white text-xs font-bold">✓</span>}
-    </div>
-    <span className="text-sm text-white">{label}</span>
-  </div>
-);
-
 export default function HomePage() {
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
@@ -125,34 +75,20 @@ export default function HomePage() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [turnstileReady, setTurnstileReady] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [showSidebar, setShowSidebar] = useState(false);
   const turnstileRef = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
 
   const [businessName, setBusinessName] = useState("");
   const [industry, setIndustry] = useState("");
   const [industryOther, setIndustryOther] = useState("");
   const INDUSTRY_OPTIONS = [
-    "Food & Hospitality",
-    "Health & Wellness",
-    "Hospitals & Doctors",
-    "Dental & Allied Health",
-    "Beauty & Hair Salons",
-    "Fitness & Gym",
-    "Real Estate",
-    "Legal & Law",
-    "Accounting & Finance",
-    "Construction & Trades",
-    "Automotive",
-    "Retail & E-commerce",
-    "Education & Tutoring",
-    "Childcare & Family",
-    "Pet Services",
-    "Photography & Creative",
-    "IT & Technology",
-    "Cleaning & Home Services",
-    "Landscaping & Garden",
-    "Events & Entertainment",
-    "Non-Profit & Community",
-    "Other",
+    "Food & Hospitality", "Health & Wellness", "Hospitals & Doctors", "Dental & Allied Health",
+    "Beauty & Hair Salons", "Fitness & Gym", "Real Estate", "Legal & Law",
+    "Accounting & Finance", "Construction & Trades", "Automotive", "Retail & E-commerce",
+    "Education & Tutoring", "Childcare & Family", "Pet Services", "Photography & Creative",
+    "IT & Technology", "Cleaning & Home Services", "Landscaping & Garden",
+    "Events & Entertainment", "Non-Profit & Community", "Other",
   ];
   const [usp, setUsp] = useState("");
   const [existingWebsite, setExistingWebsite] = useState("");
@@ -183,19 +119,14 @@ export default function HomePage() {
   const [businessAddress, setBusinessAddress] = useState("");
   const [facebookPage, setFacebookPage] = useState("");
   const [existingBookingUrl, setExistingBookingUrl] = useState("");
-  const [bookingServices, setBookingServices] = useState(""); // comma-sep list of services for SuperSaas dropdown
-  // Social media
+  const [bookingServices, setBookingServices] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [tiktokUrl, setTiktokUrl] = useState("");
-  // Trust & Reviews
-  const [realTestimonials, setRealTestimonials] = useState(""); // real customer quotes from client
-  // Blog
-  const [blogTopics, setBlogTopics] = useState(""); // comma-sep list of blog topics
-  // Video background
-  const [videoUrl, setVideoUrl] = useState(""); // YouTube embed URL or MP4 direct URL
-  // Shop (when not using pricing flow)
-  const [shopProducts, setShopProducts] = useState(""); // product names + prices if shop selected without manual pricing
+  const [realTestimonials, setRealTestimonials] = useState("");
+  const [blogTopics, setBlogTopics] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [shopProducts, setShopProducts] = useState("");
   const [confirmRemovePage, setConfirmRemovePage] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [heroFile, setHeroFile] = useState<File | null>(null);
@@ -207,26 +138,23 @@ export default function HomePage() {
   const pricingSheetRef = useRef<HTMLInputElement>(null);
   const productPhotoRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Dynamic steps based on whether pricing is needed
   const isMultiPage = siteType === 'multi';
-  const pagesLabel = isMultiPage ? 'Pages' : siteType === 'single' ? 'Sections' : 'Pages / Sections';
 
   const steps = useMemo(() => {
     const base = [
-      { id: 'business', label: 'Your Business' },
-      { id: 'goals', label: 'Website Goals' },
-      { id: 'features', label: 'Features' },
-      { id: 'pages', label: isMultiPage ? 'Pages' : siteType === 'single' ? 'Sections' : 'Pages / Sections' },
-      { id: 'pricing', label: 'Pricing' },
+      { id: 'business', label: 'Your Business', icon: '🏢' },
+      { id: 'goals', label: 'Website Goals', icon: '🎯' },
+      { id: 'features', label: 'Features', icon: '⚙️' },
+      { id: 'pages', label: isMultiPage ? 'Pages' : siteType === 'single' ? 'Sections' : 'Pages / Sections', icon: '📄' },
+      { id: 'pricing', label: 'Pricing', icon: '💰' },
     ];
-    if (hasPricing === 'Yes' && pricingType !== 'quote') base.push({ id: 'pricing_details', label: 'Pricing Details' });
-    base.push({ id: 'design', label: 'Design' });
-    base.push({ id: 'assets', label: 'Assets' });
-    base.push({ id: 'contact', label: 'Final Details' });
+    if (hasPricing === 'Yes' && pricingType !== 'quote') base.push({ id: 'pricing_details', label: 'Pricing Details', icon: '📋' });
+    base.push({ id: 'design', label: 'Design', icon: '🎨' });
+    base.push({ id: 'assets', label: 'Assets', icon: '🖼️' });
+    base.push({ id: 'contact', label: 'Final Details', icon: '📬' });
     return base;
   }, [hasPricing, pricingType, siteType]);
 
-  // Pages that are required by currently selected feature bundles
   const requiredPages = useMemo(() => {
     const req: string[] = [];
     selectedBundles.forEach(id => {
@@ -238,6 +166,7 @@ export default function HomePage() {
 
   const totalSteps = steps.length;
   const currentStepId = steps[step - 1]?.id;
+  const progressPct = Math.round((step / totalSteps) * 100);
 
   const features = useMemo(() => {
     const all: string[] = [];
@@ -253,7 +182,6 @@ export default function HomePage() {
     return calculateQuote(pages, features, siteType);
   }, [pages, features, siteType]);
 
-  // Auto-include Home page when siteType is set
   useEffect(() => {
     if (siteType && !pages.includes("Home")) {
       setPages(p => ["Home", ...p.filter(pg => pg !== "Home")]);
@@ -325,9 +253,7 @@ export default function HomePage() {
     setSelectedBundles(prev => {
       const isSelected = prev.includes(id);
       if (isSelected) {
-        // Deselecting — remove this bundle
         const next = prev.filter(b => b !== id);
-        // Remove the required page if no other bundle needs it
         if (bundle.requiresPage) {
           const stillNeeded = next.some(bid => {
             const b2 = FEATURE_BUNDLES.find(b => b.id === bid);
@@ -337,25 +263,24 @@ export default function HomePage() {
         }
         return next;
       } else {
-        // Selecting — enforce exclusivity within same group
         let next = [...prev];
         if (bundle.exclusiveGroup) {
-          // Remove any other bundle in the same exclusive group
           const conflicting = FEATURE_BUNDLES.filter(b => b.exclusiveGroup === bundle.exclusiveGroup && b.id !== id);
           conflicting.forEach(c => {
             next = next.filter(bid => bid !== c.id);
-            // Also remove the conflicting bundle's required page
             if (c.requiresPage) setPages(p => p.filter(pg => pg !== c.requiresPage));
           });
         }
         next.push(id);
-        // Auto-add the required page
         if (bundle.requiresPage) setPages(p => p.includes(bundle.requiresPage!) ? p : [...p, bundle.requiresPage!]);
         return next;
       }
     });
   }
-  function toggleItem(arr: string[], value: string, setFn: any) { setFn(arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value]); }
+
+  function toggleItem(arr: string[], value: string, setFn: any) {
+    setFn(arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value]);
+  }
   function addProduct() { if (products.length < 12) setProducts(p => [...p, { name: "", price: "", photo: null }]); }
   function removeProduct(i: number) { setProducts(p => p.filter((_, idx) => idx !== i)); }
   function updateProduct(i: number, field: keyof Product, val: any) { setProducts(p => p.map((x, idx) => idx === i ? { ...x, [field]: val } : x)); }
@@ -430,506 +355,780 @@ export default function HomePage() {
 
   function next() {
     const errs = validateStep();
-    if (errs.length > 0) { setErrors(errs); return; }
+    if (errs.length > 0) { setErrors(errs); topRef.current?.scrollIntoView({ behavior: 'smooth' }); return; }
     setErrors([]);
-    if (step < totalSteps) setStep(step + 1);
+    if (step < totalSteps) { setStep(step + 1); topRef.current?.scrollIntoView({ behavior: 'smooth' }); }
     else submit();
   }
 
-  function back() { setErrors([]); setStep(Math.max(1, step - 1)); }
+  function back() { setErrors([]); setStep(Math.max(1, step - 1)); topRef.current?.scrollIntoView({ behavior: 'smooth' }); }
 
-  const FileUploadBox = ({ label, file, onChange, inputRef, accept, hint }: any) => (
-    <div onClick={() => inputRef.current?.click()} className="border-2 border-dashed border-white/10 rounded-2xl p-5 cursor-pointer active:scale-98 transition-all text-center bg-slate-900/50">
-      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={onChange} />
-      {file ? <div><p className="text-emerald-400 font-semibold text-sm">✓ {file.name}</p><p className="text-slate-500 text-xs mt-1">{(file.size/1024).toFixed(0)}KB</p></div>
-             : <div><p className="text-slate-300 font-semibold text-sm">{label}</p><p className="text-slate-500 text-xs mt-1">{hint}</p></div>}
+  // ── Shared UI primitives ──────────────────────────────────────────────
+
+  const Label = ({ children }: { children: React.ReactNode }) => (
+    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">{children}</label>
+  );
+
+  const InputField = ({ icon, label, value, onChange, placeholder, required, type = 'text', hint, maxLength, inputMode, pattern }: any) => (
+    <div className="space-y-1.5">
+      <Label>{icon && <span className="mr-1.5">{icon}</span>}{label}{required && <span className="text-red-400 ml-1">*</span>}</Label>
+      <input
+        type={type} value={value} onChange={onChange} placeholder={placeholder}
+        maxLength={maxLength} inputMode={inputMode} pattern={pattern}
+        className="w-full h-[52px] rounded-xl bg-[#111827] border border-white/10 px-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-base"
+      />
+      {hint && <p className="text-slate-500 text-xs leading-relaxed">{hint}</p>}
     </div>
   );
 
+  const TextAreaField = ({ icon, label, value, onChange, placeholder, required, rows = 4 }: any) => (
+    <div className="space-y-1.5">
+      <Label>{icon && <span className="mr-1.5">{icon}</span>}{label}{required && <span className="text-red-400 ml-1">*</span>}</Label>
+      <textarea
+        value={value} onChange={onChange} placeholder={placeholder} rows={rows}
+        className="w-full rounded-xl bg-[#111827] border border-white/10 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none text-base leading-relaxed"
+      />
+    </div>
+  );
+
+  const SelectCard = ({ selected, onClick, label, desc, icon, badge }: any) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full text-left rounded-xl p-4 border-2 transition-all duration-200 active:scale-[0.98] ${selected ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.12)]' : 'border-white/8 bg-[#111827] hover:border-white/20'}`}
+    >
+      <div className="flex items-center gap-3">
+        <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${selected ? 'border-emerald-500 bg-emerald-500' : 'border-white/25'}`}>
+          {selected && <div className="w-2 h-2 rounded-full bg-white" />}
+        </div>
+        {icon && <span className="text-xl flex-shrink-0">{icon}</span>}
+        <div className="flex-1 min-w-0">
+          <p className={`font-semibold text-sm ${selected ? 'text-white' : 'text-slate-200'}`}>{label}</p>
+          {desc && <p className="text-slate-500 text-xs mt-0.5 leading-relaxed">{desc}</p>}
+        </div>
+        {badge && <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full flex-shrink-0">{badge}</span>}
+      </div>
+    </button>
+  );
+
+  const CheckCard = ({ checked, onClick, label, desc, icon }: any) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full text-left rounded-xl p-4 border-2 transition-all duration-200 active:scale-[0.98] ${checked ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.10)]' : 'border-white/8 bg-[#111827] hover:border-white/20'}`}
+    >
+      <div className="flex items-center gap-3">
+        <div className={`w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-all ${checked ? 'border-emerald-500 bg-emerald-500' : 'border-white/25'}`}>
+          {checked && (
+            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
+              <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </div>
+        {icon && <span className="text-xl flex-shrink-0">{icon}</span>}
+        <div className="flex-1 min-w-0">
+          <p className={`font-semibold text-sm ${checked ? 'text-white' : 'text-slate-200'}`}>{label}</p>
+          {desc && <p className="text-slate-500 text-xs mt-0.5 leading-relaxed">{desc}</p>}
+        </div>
+      </div>
+    </button>
+  );
+
+  const FileUploadBox = ({ label, file, onChange, inputRef, accept, hint, icon = '📎' }: any) => (
+    <button
+      type="button"
+      onClick={() => inputRef.current?.click()}
+      className={`w-full border-2 border-dashed rounded-xl p-5 text-center transition-all active:scale-[0.98] ${file ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-white/10 bg-[#111827] hover:border-white/20'}`}
+    >
+      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={onChange} />
+      {file ? (
+        <div>
+          <p className="text-emerald-400 font-semibold text-sm">✓ {file.name}</p>
+          <p className="text-slate-500 text-xs mt-1">{(file.size / 1024).toFixed(0)} KB · Tap to replace</p>
+        </div>
+      ) : (
+        <div>
+          <p className="text-2xl mb-2">{icon}</p>
+          <p className="text-slate-300 font-semibold text-sm">{label}</p>
+          <p className="text-slate-500 text-xs mt-1">{hint}</p>
+        </div>
+      )}
+    </button>
+  );
+
+  // ── Success screen ────────────────────────────────────────────────────
+
   if (submitted) {
     return (
-      <main className="min-h-screen bg-[#0a0f1a] text-white flex items-center justify-center p-6">
-        <div className="max-w-lg w-full text-center">
-          <div className="w-24 h-24 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center mx-auto mb-8">
-            <span className="text-5xl">✓</span>
-          </div>
-          <h1 className="text-3xl md:text-4xl font-bold mb-3">Request Submitted!</h1>
-          <p className="text-slate-400 text-base md:text-lg mb-8">Your website request has been received. Your confirmation email will arrive within <strong className="text-white">2 to 5 minutes</strong>.</p>
-          <div className="bg-[#0f1623] border border-white/10 rounded-3xl p-6 text-left space-y-4 mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl flex-shrink-0">📧</div>
-              <div><p className="text-white font-semibold text-sm">Check your email</p><p className="text-slate-400 text-sm">{email}</p></div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl flex-shrink-0">📞</div>
-              <div><p className="text-white font-semibold text-sm">We will call you within 24 hours</p><p className="text-slate-400 text-sm">{phone}</p></div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xl flex-shrink-0">🌐</div>
-              <div><p className="text-white font-semibold text-sm">{businessName}</p><p className="text-slate-400 text-sm">We will prepare your custom quote and send it through.</p></div>
+      <main className="min-h-screen bg-[#070d19] text-white flex items-center justify-center p-5">
+        <div className="max-w-md w-full text-center">
+          <div className="relative w-28 h-28 mx-auto mb-8">
+            <div className="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping" />
+            <div className="relative w-28 h-28 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-[0_0_60px_rgba(16,185,129,0.4)]">
+              <svg className="w-14 h-14 text-white" fill="none" viewBox="0 0 24 24">
+                <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </div>
           </div>
-          <p className="text-slate-600 text-sm">Didn't receive an email? Check spam or contact <span className="text-slate-400">hello@webgecko.au</span></p>
-          <button onClick={() => setSubmitted(false)} className="mt-6 text-sm text-slate-600 hover:text-slate-400 transition-colors">← Submit another request</button>
+          <h1 className="text-3xl font-bold mb-3 tracking-tight">You're all set!</h1>
+          <p className="text-slate-400 text-base mb-8 leading-relaxed">
+            Your website request is in. Check <strong className="text-white">{email}</strong> — a confirmation lands in <strong className="text-white">2–5 minutes</strong>.
+          </p>
+          <div className="bg-[#0f1623] border border-white/8 rounded-2xl p-5 text-left space-y-4 mb-8">
+            {[
+              { icon: '📧', title: 'Confirmation email', sub: 'Arrives within 5 minutes (check spam if needed)' },
+              { icon: '📞', title: 'We'll call you within 24 hours', sub: phone || 'To review your request' },
+              { icon: '🌐', title: businessName || 'Your new website', sub: 'We'll prepare your custom preview and quote' },
+            ].map(({ icon, title, sub }) => (
+              <div key={title} className="flex items-center gap-4">
+                <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center text-xl flex-shrink-0">{icon}</div>
+                <div>
+                  <p className="text-white font-semibold text-sm">{title}</p>
+                  <p className="text-slate-500 text-xs mt-0.5">{sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-slate-600 text-xs">Didn't receive anything? Email <span className="text-slate-400">hello@webgecko.au</span></p>
         </div>
       </main>
     );
   }
 
+  // ── Main form ─────────────────────────────────────────────────────────
+
   return (
-    <main className="min-h-screen bg-[#0a0f1a] text-white p-3 md:p-8">
-      <div className="max-w-6xl mx-auto grid lg:grid-cols-[1fr_300px] gap-4 md:gap-6">
-        <div className="rounded-2xl md:rounded-3xl bg-[#0f1623] border border-white/8 p-5 md:p-10 shadow-2xl">
+    <div className="min-h-screen bg-[#070d19] text-white" ref={topRef}>
 
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm flex-shrink-0">{step}</div>
-            <div className="min-w-0">
-              <p className="text-xs text-slate-500 uppercase tracking-widest">Step {step} of {totalSteps}</p>
-              <p className="text-white font-semibold truncate">{steps[step-1]?.label}</p>
-            </div>
-            <div className="ml-auto text-xs text-slate-600 flex-shrink-0">{Math.round((step / totalSteps) * 100)}%</div>
-          </div>
-          <div className="h-1 bg-white/5 rounded-full overflow-hidden mb-6 md:mb-8">
-            <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500 rounded-full" style={{ width: `${(step / totalSteps) * 100}%` }} />
-          </div>
+      {/* ── Sticky top progress bar ── */}
+      <div className="sticky top-0 z-40 bg-[#070d19]/95 backdrop-blur-md border-b border-white/6 px-4 py-3">
+        <div className="max-w-2xl mx-auto flex items-center gap-3">
+          {/* Mobile sidebar toggle */}
+          <button
+            type="button"
+            onClick={() => setShowSidebar(true)}
+            className="lg:hidden w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0"
+            aria-label="View steps"
+          >
+            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 16 16">
+              <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
 
-          {/* STEP: business */}
-          {currentStepId === 'business' && (
-            <div className="space-y-4 md:space-y-5">
-              <InputField icon="🏢" label="Business Name" value={businessName} onChange={(e: any) => setBusinessName(e.target.value)} placeholder="e.g. Sunrise Bakery" required />
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">🏭 Industry <span className="text-red-400">*</span></label>
-                <select
-                  value={industry}
-                  onChange={(e: any) => { setIndustry(e.target.value); if (e.target.value !== "Other") setIndustryOther(""); }}
-                  className="w-full bg-slate-900/80 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30 appearance-none"
-                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 14px center" }}
-                >
-                  <option value="" disabled>Select your industry…</option>
-                  {INDUSTRY_OPTIONS.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-                {industry === "Other" && (
-                  <input
-                    type="text"
-                    value={industryOther}
-                    onChange={(e: any) => setIndustryOther(e.target.value)}
-                    placeholder="Please describe your industry…"
-                    className="mt-2 w-full bg-slate-900/80 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30"
-                  />
-                )}
-              </div>
-              <InputField icon="🎯" label="Target Audience" value={targetAudience} onChange={(e: any) => setTargetAudience(e.target.value)} placeholder="e.g. Homeowners in Brisbane aged 30-55" required />
-              <TextAreaField icon="⭐" label="What makes you unique?" value={usp} onChange={(e: any) => setUsp(e.target.value)} placeholder="What do you offer that competitors don't?" required />
-              <InputField icon="🌐" label="Existing Website (optional)" value={existingWebsite} onChange={(e: any) => setExistingWebsite(e.target.value)} placeholder="https://yourwebsite.com.au" />
-            </div>
-          )}
-
-          {/* STEP: goals */}
-          {currentStepId === 'goals' && (
-            <div className="space-y-5 md:space-y-6">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">🎯 Main Goal <span className="text-red-400">*</span></label>
-                <div className="grid gap-2">
-                  {["Generate leads", "Sell products online", "Accept bookings", "Showcase portfolio", "Provide information", "Build brand awareness"].map(opt => (
-                    <SelectCard key={opt} selected={goal === opt} onClick={() => setGoal(opt)} label={opt} />
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">📄 Website Type <span className="text-red-400">*</span></label>
-                <div className="grid gap-3">
-                  <SelectCard selected={siteType === "single"} onClick={() => setSiteType("single")} label="Single Page" desc="Everything on one scrollable page. Clean, fast and modern." icon="📃" />
-                  <SelectCard selected={siteType === "multi"} onClick={() => setSiteType("multi")} label="Multi Page" desc="Separate pages like Home, About, Services, Contact." icon="📑" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP: pages / sections */}
-          {currentStepId === 'pages' && (
-            <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">
-                {siteType === 'single' ? '📃 Select Sections' : '📑 Select Pages'} <span className="text-red-400">*</span>
-              </label>
-              <p className="text-slate-500 text-xs mb-4">
-                {siteType === 'single'
-                  ? 'Choose which sections appear on your page. Home is always included.'
-                  : 'Choose which pages your website will have. Home is always included.'}
-                {requiredPages.length > 0 && ' 🔒 Locked items are required by your selected features.'}
+          {/* Progress */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-xs text-slate-400 font-medium truncate">
+                <span className="text-white font-semibold">{steps[step - 1]?.icon} {steps[step - 1]?.label}</span>
+                <span className="hidden sm:inline text-slate-600"> — Step {step} of {totalSteps}</span>
               </p>
+              <p className="text-xs font-bold text-emerald-400 ml-2 flex-shrink-0">{progressPct}%</p>
+            </div>
+            <div className="h-1.5 bg-white/6 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
 
-              {/* Confirm remove dialog */}
-              {confirmRemovePage && (
-                <div className="mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl">
-                  <p className="text-amber-400 font-semibold text-sm mb-1">Remove "{confirmRemovePage}" {siteType === 'single' ? 'section' : 'page'}?</p>
-                  <p className="text-slate-400 text-xs mb-3">This {siteType === 'single' ? 'section' : 'page'} is required by a feature you selected. Removing it may affect functionality.</p>
-                  <div className="flex gap-2">
-                    <button onClick={() => { setPages(p => p.filter(pg => pg !== confirmRemovePage)); setConfirmRemovePage(null); }}
-                      className="flex-1 h-9 rounded-xl bg-amber-500 text-black text-xs font-bold">Yes, remove it</button>
-                    <button onClick={() => setConfirmRemovePage(null)}
-                      className="flex-1 h-9 rounded-xl border border-white/10 text-slate-400 text-xs">Keep it</button>
+      {/* ── Mobile sidebar overlay ── */}
+      {showSidebar && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowSidebar(false)} />
+          <div className="relative ml-auto w-72 max-w-[85vw] h-full bg-[#0f1623] border-l border-white/8 p-6 overflow-y-auto flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+                  <span className="text-emerald-400 font-black text-xs">W</span>
+                </div>
+                <span className="font-bold text-white text-sm">WebGecko</span>
+              </div>
+              <button type="button" onClick={() => setShowSidebar(false)} className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-slate-400">✕</button>
+            </div>
+            <div className="space-y-1 flex-1">
+              {steps.map((s, i) => (
+                <div key={s.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${i + 1 === step ? 'bg-emerald-500/12 border border-emerald-500/20' : i + 1 < step ? 'opacity-70' : 'opacity-30'}`}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${i + 1 < step ? 'bg-emerald-500 text-black' : i + 1 === step ? 'border-2 border-emerald-500 text-emerald-400' : 'border border-white/20 text-slate-600'}`}>
+                    {i + 1 < step ? (
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 12 12">
+                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    ) : i + 1}
+                  </div>
+                  <span className={`text-xs font-medium ${i + 1 === step ? 'text-white' : 'text-slate-500'}`}>{s.icon} {s.label}</span>
+                </div>
+              ))}
+            </div>
+            {(businessName || industry || goal) && (
+              <div className="mt-6 pt-5 border-t border-white/8 space-y-1.5 text-xs text-slate-600">
+                {businessName && <p className="truncate">🏢 {businessName}</p>}
+                {industry && <p>🏭 {industry}</p>}
+                {goal && <p>🎯 {goal}</p>}
+                {siteType && <p>📄 {siteType === 'multi' ? 'Multi Page' : 'Single Page'}</p>}
+                {pages.length > 0 && <p className="truncate">📑 {pages.join(', ')}</p>}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Page layout ── */}
+      <div className="max-w-6xl mx-auto px-4 py-6 pb-28 lg:pb-10 lg:grid lg:grid-cols-[1fr_280px] lg:gap-8 lg:items-start">
+
+        {/* ── Main form card ── */}
+        <div className="bg-[#0f1623] border border-white/8 rounded-2xl shadow-2xl overflow-hidden">
+
+          {/* Step header */}
+          <div className="px-6 pt-6 pb-5 border-b border-white/6">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-2xl flex-shrink-0">
+                {steps[step - 1]?.icon}
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium">Step {step} of {totalSteps}</p>
+                <h2 className="text-lg font-bold text-white leading-tight">{steps[step - 1]?.label}</h2>
+              </div>
+            </div>
+          </div>
+
+          {/* Step content */}
+          <div className="px-6 py-6 space-y-5">
+
+            {/* ── STEP: business ── */}
+            {currentStepId === 'business' && (
+              <div className="space-y-5">
+                <InputField icon="🏢" label="Business Name" value={businessName} onChange={(e: any) => setBusinessName(e.target.value)} placeholder="e.g. Sunrise Bakery" required />
+                <div className="space-y-1.5">
+                  <Label>🏭 Industry <span className="text-red-400">*</span></Label>
+                  <select
+                    value={industry}
+                    onChange={(e: any) => { setIndustry(e.target.value); if (e.target.value !== "Other") setIndustryOther(""); }}
+                    className="w-full h-[52px] bg-[#111827] border border-white/10 rounded-xl px-4 text-white text-base focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 appearance-none transition-all"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 16px center" }}
+                  >
+                    <option value="" disabled>Select your industry…</option>
+                    {INDUSTRY_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                  {industry === "Other" && (
+                    <input
+                      type="text" value={industryOther}
+                      onChange={(e: any) => setIndustryOther(e.target.value)}
+                      placeholder="Please describe your industry…"
+                      className="mt-2 w-full h-[52px] bg-[#111827] border border-white/10 rounded-xl px-4 text-white placeholder:text-slate-600 text-base focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                    />
+                  )}
+                </div>
+                <InputField icon="🎯" label="Target Audience" value={targetAudience} onChange={(e: any) => setTargetAudience(e.target.value)} placeholder="e.g. Homeowners in Brisbane aged 30–55" required />
+                <TextAreaField icon="⭐" label="What makes you unique?" value={usp} onChange={(e: any) => setUsp(e.target.value)} placeholder="What do you offer that competitors don't? What's your edge?" required rows={3} />
+                <InputField icon="🌐" label="Existing Website (optional)" value={existingWebsite} onChange={(e: any) => setExistingWebsite(e.target.value)} placeholder="https://yourwebsite.com.au" />
+              </div>
+            )}
+
+            {/* ── STEP: goals ── */}
+            {currentStepId === 'goals' && (
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label>🎯 Main Goal <span className="text-red-400">*</span></Label>
+                  <div className="space-y-2">
+                    {[
+                      { val: "Generate leads", icon: "📥", desc: "Capture enquiries and contact requests" },
+                      { val: "Sell products online", icon: "🛍️", desc: "Run an online shop or storefront" },
+                      { val: "Accept bookings", icon: "📅", desc: "Let customers book appointments online" },
+                      { val: "Showcase portfolio", icon: "🖼️", desc: "Show off your work or projects" },
+                      { val: "Provide information", icon: "📋", desc: "Share info about your services" },
+                      { val: "Build brand awareness", icon: "🚀", desc: "Get found and grow your brand" },
+                    ].map(({ val, icon, desc }) => (
+                      <SelectCard key={val} selected={goal === val} onClick={() => setGoal(val)} label={val} desc={desc} icon={icon} />
+                    ))}
                   </div>
                 </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-2">
-                {["Home", "About", "Services", "Contact", "Shop", "Gallery", "Blog", "Booking", "FAQ", "Testimonials", "Pricing", "Portfolio", "Team", "Menu"].map(pg => {
-                  const isHome = pg === "Home";
-                  const isRequired = isHome || requiredPages.includes(pg);
-                  const isChecked = isHome ? true : pages.includes(pg);
-                  return (
-                    <div key={pg} onClick={() => {
-                      if (isHome) return; // Home is always locked
-                      if (isRequired && isChecked) { setConfirmRemovePage(pg); return; }
-                      toggleItem(pages, pg, setPages);
-                    }}
-                      className={isHome ? 'rounded-xl p-3 border transition-all flex items-center gap-3 cursor-not-allowed border-emerald-500/50 bg-emerald-500/5' : `rounded-xl p-3 border transition-all flex items-center gap-3 cursor-pointer active:scale-98 ${isChecked ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}>
-                      <div className={`w-5 h-5 rounded flex-shrink-0 flex items-center justify-center border-2 transition-all ${isChecked ? 'border-emerald-500 bg-emerald-500' : 'border-white/30'}`}>
-                        {isChecked && <span className="text-white text-xs font-bold">{isRequired ? '🔒' : '✓'}</span>}
-                      </div>
-                      <span className="text-sm text-white">{pg}</span>
-                    </div>
-                  );
-                })}
+                <div className="space-y-2">
+                  <Label>📄 Website Type <span className="text-red-400">*</span></Label>
+                  <div className="space-y-2">
+                    <SelectCard selected={siteType === "single"} onClick={() => setSiteType("single")} label="Single Page" desc="Everything on one scrollable page. Clean, fast and modern." icon="📃" badge="Popular" />
+                    <SelectCard selected={siteType === "multi"} onClick={() => setSiteType("multi")} label="Multi Page" desc="Separate pages like Home, About, Services, Contact." icon="📑" />
+                  </div>
+                </div>
               </div>
+            )}
 
-              {(requiredPages.length > 0 || pages.length > 1) && (
-                <div className="mt-3 p-3 bg-slate-900/80 rounded-xl border border-white/10">
-                  <p className="text-xs text-slate-500">
-                    Selected: {["Home", ...pages.filter(p => p !== "Home")].join(', ')}
-                    {requiredPages.length > 0 && ` · 🔒 Locked: ${["Home", ...requiredPages.filter(p => p !== "Home")].join(', ')}`}
+            {/* ── STEP: pages / sections ── */}
+            {currentStepId === 'pages' && (
+              <div className="space-y-4">
+                <div>
+                  <Label>
+                    {siteType === 'single' ? '📃 Select Sections' : '📑 Select Pages'} <span className="text-red-400">*</span>
+                  </Label>
+                  <p className="text-slate-500 text-sm mb-4 leading-relaxed">
+                    {siteType === 'single' ? 'Choose which sections appear on your page.' : 'Choose which pages your website will have.'}{' '}
+                    Home is always included.{requiredPages.length > 0 && ' Locked pages are required by your selected features.'}
                   </p>
                 </div>
-              )}
-            </div>
-          )}
 
-          {/* STEP: features */}
-          {currentStepId === 'features' && (
-            <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">⚙️ Website Features</label>
-              <p className="text-slate-500 text-sm mb-4">Select the bundles that suit your business.</p>
+                {confirmRemovePage && (
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                    <p className="text-amber-400 font-semibold text-sm mb-1">Remove "{confirmRemovePage}"?</p>
+                    <p className="text-slate-400 text-xs mb-3">This is required by a feature you selected. Removing it may affect functionality.</p>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => { setPages(p => p.filter(pg => pg !== confirmRemovePage)); setConfirmRemovePage(null); }} className="flex-1 h-9 rounded-lg bg-amber-500 text-black text-xs font-bold">Yes, remove</button>
+                      <button type="button" onClick={() => setConfirmRemovePage(null)} className="flex-1 h-9 rounded-lg border border-white/10 text-slate-400 text-xs">Keep it</button>
+                    </div>
+                  </div>
+                )}
 
-              {/* Commerce exclusive group — Booking OR Shop */}
-              <div className="mb-4">
-                <p className="text-xs font-semibold text-amber-400 uppercase tracking-widest mb-2">⚡ Choose one — Bookings or Shop</p>
-                <div className="grid gap-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {["Home", "About", "Services", "Contact", "Shop", "Gallery", "Blog", "Booking", "FAQ", "Testimonials", "Pricing", "Portfolio", "Team", "Menu"].map(pg => {
+                    const isHome = pg === "Home";
+                    const isRequired = isHome || requiredPages.includes(pg);
+                    const isChecked = isHome ? true : pages.includes(pg);
+                    return (
+                      <button
+                        type="button"
+                        key={pg}
+                        onClick={() => {
+                          if (isHome) return;
+                          if (isRequired && isChecked) { setConfirmRemovePage(pg); return; }
+                          toggleItem(pages, pg, setPages);
+                        }}
+                        className={`rounded-xl p-3 border-2 transition-all flex items-center gap-2.5 active:scale-[0.97] text-left ${isHome ? 'border-emerald-500/40 bg-emerald-500/5 cursor-default' : isChecked ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/8 bg-[#111827] hover:border-white/20'}`}
+                      >
+                        <div className={`w-4.5 h-4.5 rounded-md flex-shrink-0 flex items-center justify-center border-2 transition-all ${isChecked ? 'border-emerald-500 bg-emerald-500' : 'border-white/25'}`}>
+                          {isChecked && (
+                            isRequired
+                              ? <span className="text-[9px]">🔒</span>
+                              : <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10"><path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                          )}
+                        </div>
+                        <span className={`text-xs font-semibold ${isChecked ? 'text-white' : 'text-slate-400'}`}>{pg}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {pages.length > 1 && (
+                  <div className="p-3 bg-[#111827] rounded-xl border border-white/8">
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      <span className="text-white font-semibold">Selected: </span>{["Home", ...pages.filter(p => p !== "Home")].join(' · ')}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── STEP: features ── */}
+            {currentStepId === 'features' && (
+              <div className="space-y-5">
+                <p className="text-slate-400 text-sm leading-relaxed">Pick the feature bundles that suit your business. You can always add more later.</p>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="h-px flex-1 bg-amber-500/20" />
+                    <p className="text-xs font-bold text-amber-400 uppercase tracking-widest whitespace-nowrap">Pick one — Bookings or Shop</p>
+                    <div className="h-px flex-1 bg-amber-500/20" />
+                  </div>
                   {FEATURE_BUNDLES.filter(b => b.exclusiveGroup === 'commerce').map(bundle => {
                     const isSelected = selectedBundles.includes(bundle.id);
                     const conflictSelected = FEATURE_BUNDLES.filter(b2 => b2.exclusiveGroup === 'commerce' && b2.id !== bundle.id).some(b2 => selectedBundles.includes(b2.id));
                     return (
-                      <div key={bundle.id} onClick={() => toggleBundle(bundle.id)}
-                        className={`cursor-pointer rounded-2xl p-4 border-2 transition-all ${isSelected ? 'border-emerald-500 bg-emerald-500/10' : conflictSelected ? 'border-white/5 bg-slate-900/20 opacity-40' : 'border-white/10 bg-slate-900/50'}`}>
-                        <div className="flex items-center gap-3">
-                          <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${isSelected ? 'border-emerald-500 bg-emerald-500' : 'border-white/30'}`}>
+                      <button
+                        type="button"
+                        key={bundle.id}
+                        onClick={() => toggleBundle(bundle.id)}
+                        className={`w-full text-left rounded-xl p-4 border-2 transition-all duration-200 active:scale-[0.98] ${isSelected ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.12)]' : conflictSelected ? 'border-white/5 bg-[#111827]/40 opacity-40' : 'border-white/8 bg-[#111827] hover:border-white/20'}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center ${isSelected ? 'border-emerald-500 bg-emerald-500' : 'border-white/25'}`}>
                             {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
                           </div>
-                          <span className="text-lg">{bundle.icon}</span>
+                          <span className="text-xl flex-shrink-0">{bundle.icon}</span>
                           <div>
                             <p className="font-semibold text-white text-sm">{bundle.label}</p>
-                            <p className="text-slate-400 text-xs">{bundle.desc}</p>
-                            {isSelected && bundle.requiresPage && <p className="text-emerald-400 text-xs mt-0.5">✓ "{bundle.requiresPage}" page added automatically</p>}
+                            <p className="text-slate-500 text-xs mt-0.5">{bundle.desc}</p>
+                            {isSelected && bundle.requiresPage && <p className="text-emerald-400 text-xs mt-1.5">✓ "{bundle.requiresPage}" page added automatically</p>}
                           </div>
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
-              </div>
 
-              {/* Independent features */}
-              <div className="grid gap-3">
-                {FEATURE_BUNDLES.filter(b => !b.exclusiveGroup).map(bundle => {
-                  const isSelected = selectedBundles.includes(bundle.id);
-                  return (
-                    <div key={bundle.id} onClick={() => toggleBundle(bundle.id)}
-                      className={`cursor-pointer rounded-2xl p-4 border-2 transition-all ${isSelected ? 'border-emerald-500 bg-emerald-500/10' : 'border-white/10 bg-slate-900/50'}`}>
-                      <div className="flex items-center gap-3">
-                        <div className={`w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center ${isSelected ? 'border-emerald-500 bg-emerald-500' : 'border-white/30'}`}>
-                          {isSelected && <span className="text-white text-xs font-bold">✓</span>}
+                <div className="space-y-2">
+                  {FEATURE_BUNDLES.filter(b => !b.exclusiveGroup).map(bundle => {
+                    const isSelected = selectedBundles.includes(bundle.id);
+                    return (
+                      <button
+                        type="button"
+                        key={bundle.id}
+                        onClick={() => toggleBundle(bundle.id)}
+                        className={`w-full text-left rounded-xl p-4 border-2 transition-all duration-200 active:scale-[0.98] ${isSelected ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.10)]' : 'border-white/8 bg-[#111827] hover:border-white/20'}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-5 h-5 rounded-md border-2 flex-shrink-0 mt-0.5 flex items-center justify-center ${isSelected ? 'border-emerald-500 bg-emerald-500' : 'border-white/25'}`}>
+                            {isSelected && (
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
+                                <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className="text-xl flex-shrink-0">{bundle.icon}</span>
+                          <div>
+                            <p className="font-semibold text-white text-sm">{bundle.label}</p>
+                            <p className="text-slate-500 text-xs mt-0.5">{bundle.desc}</p>
+                            {isSelected && bundle.requiresPage && <p className="text-emerald-400 text-xs mt-1.5">✓ "{bundle.requiresPage}" page added automatically</p>}
+                          </div>
                         </div>
-                        <span className="text-lg">{bundle.icon}</span>
-                        <div>
-                          <p className="font-semibold text-white text-sm">{bundle.label}</p>
-                          <p className="text-slate-400 text-xs">{bundle.desc}</p>
-                          {isSelected && bundle.requiresPage && <p className="text-emerald-400 text-xs mt-0.5">✓ "{bundle.requiresPage}" page added automatically</p>}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {selectedBundles.length > 0 && (
-                <div className="mt-4 p-3 bg-slate-900/80 rounded-xl border border-white/10">
-                  <p className="text-xs text-emerald-400">{features.join(', ')}</p>
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
-            </div>
-          )}
 
-          {/* STEP: pricing */}
-          {currentStepId === 'pricing' && (
-            <div className="space-y-5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">💰 Pricing Section <span className="text-red-400">*</span></label>
-                <div className="grid gap-3">
-                  <SelectCard selected={hasPricing === "Yes"} onClick={() => setHasPricing("Yes")} label="Yes — include pricing" desc="Show your prices, packages or menu on the site" icon="✅" />
-                  <SelectCard selected={hasPricing === "No"} onClick={() => setHasPricing("No")} label="No — no pricing needed" desc="Clients contact you for a quote" icon="❌" />
-                </div>
+                {selectedBundles.length > 0 && (
+                  <div className="p-3 bg-emerald-500/8 border border-emerald-500/20 rounded-xl">
+                    <p className="text-xs text-emerald-400 font-medium leading-relaxed">✓ {features.join(' · ')}</p>
+                  </div>
+                )}
               </div>
-              {hasPricing === "Yes" && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">📊 Pricing Type</label>
-                  <div className="grid gap-2">
-                    <SelectCard selected={pricingType === "products"} onClick={() => setPricingType("products")} label="Individual Products / Services" desc="Each item has its own name, price and photo" icon="🛍️" />
-                    <SelectCard selected={pricingType === "tiers"} onClick={() => setPricingType("tiers")} label="Pricing Tiers" desc="Starter / Business / Premium packages" icon="📦" />
-                    <SelectCard selected={pricingType === "quote"} onClick={() => setPricingType("quote")} label="Quote Based" desc="Customers request a custom quote" icon="📋" />
-                    <SelectCard selected={pricingType === "hourly"} onClick={() => setPricingType("hourly")} label="Hourly / Day Rate" desc="You charge by the hour or day" icon="⏱️" />
+            )}
+
+            {/* ── STEP: pricing ── */}
+            {currentStepId === 'pricing' && (
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label>💰 Pricing Section <span className="text-red-400">*</span></Label>
+                  <div className="space-y-2">
+                    <SelectCard selected={hasPricing === "Yes"} onClick={() => setHasPricing("Yes")} label="Yes — include pricing" desc="Show your prices, packages or menu on the site" icon="✅" />
+                    <SelectCard selected={hasPricing === "No"} onClick={() => setHasPricing("No")} label="No — clients contact me for a quote" desc="No prices shown — leads submit enquiries instead" icon="💬" />
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* STEP: pricing_details */}
-          {currentStepId === 'pricing_details' && (
-            <div className="space-y-5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">📤 How to provide pricing</label>
-                <div className="grid gap-2">
-                  <SelectCard selected={pricingMethod === "upload"} onClick={() => setPricingMethod("upload")} label="Upload a menu or price list" desc="PDF, image or Word document" icon="📄" />
-                  <SelectCard selected={pricingMethod === "url"} onClick={() => setPricingMethod("url")} label="Use my existing website" desc="We'll pull pricing from your current site" icon="🌐" />
-                  <SelectCard selected={pricingMethod === "manual"} onClick={() => setPricingMethod("manual")} label="Enter manually" desc="Type each item, price and upload photos" icon="✏️" />
-                  <SelectCard selected={pricingMethod === "weknow"} onClick={() => setPricingMethod("weknow")} label="You decide for us" desc="We'll create a professional pricing section" icon="🤝" />
-                </div>
-              </div>
-              {pricingMethod === "upload" && (
-                <div onClick={() => pricingSheetRef.current?.click()} className="border-2 border-dashed border-white/10 rounded-2xl p-5 cursor-pointer text-center bg-slate-900/50">
-                  <input ref={pricingSheetRef} type="file" accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setPricingFile(f); }} />
-                  {pricingFile ? <p className="text-emerald-400 font-semibold text-sm">✓ {pricingFile.name}</p> : <div><p className="text-slate-300 font-semibold text-sm">📎 Upload menu or price list</p><p className="text-slate-500 text-xs mt-1">PDF, image, Word doc</p></div>}
-                </div>
-              )}
-              {pricingMethod === "url" && <InputField icon="🌐" label="Existing Website URL" value={pricingUrl} onChange={(e: any) => setPricingUrl(e.target.value)} placeholder="https://yourwebsite.com.au" />}
-              {pricingMethod === "manual" && pricingType === "products" && (
-                <div className="space-y-4">
-                  {products.map((product, index) => (
-                    <div key={index} className="bg-slate-900/80 border border-white/10 rounded-2xl p-4 space-y-3">
-                      <div className="flex justify-between items-center">
-                        <p className="text-emerald-400 font-semibold text-sm">Item {index + 1}</p>
-                        {products.length > 1 && <button onClick={() => removeProduct(index)} className="text-red-400 text-xs">Remove</button>}
-                      </div>
-                      <InputField icon="🏷️" label="Product / Service Name" value={product.name} onChange={(e: any) => updateProduct(index, 'name', e.target.value)} placeholder="e.g. Sourdough Loaf" />
-                      <InputField icon="💵" label="Price" value={product.price} onChange={(e: any) => updateProduct(index, 'price', e.target.value)} placeholder="e.g. $12 or from $85" />
-                      <div onClick={() => productPhotoRefs.current[index]?.click()} className="border-2 border-dashed border-white/10 rounded-xl p-3 cursor-pointer text-center">
-                        <input ref={(el) => { productPhotoRefs.current[index] = el; }} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleProductPhoto(index, f); }} />
-                        {product.photo ? <p className="text-emerald-400 text-sm">✓ {product.photo.name}</p> : <p className="text-slate-500 text-sm">📷 Upload photo (optional)</p>}
-                      </div>
+                {hasPricing === "Yes" && (
+                  <div className="space-y-2">
+                    <Label>📊 Pricing Type</Label>
+                    <div className="space-y-2">
+                      <SelectCard selected={pricingType === "products"} onClick={() => setPricingType("products")} label="Individual Products / Services" desc="Each item has its own name, price and photo" icon="🛍️" />
+                      <SelectCard selected={pricingType === "tiers"} onClick={() => setPricingType("tiers")} label="Pricing Tiers / Packages" desc="Starter / Business / Premium packages" icon="📦" />
+                      <SelectCard selected={pricingType === "quote"} onClick={() => setPricingType("quote")} label="Quote Based" desc="Customers request a custom quote" icon="📋" />
+                      <SelectCard selected={pricingType === "hourly"} onClick={() => setPricingType("hourly")} label="Hourly / Day Rate" desc="You charge by the hour or day" icon="⏱️" />
                     </div>
-                  ))}
-                  {products.length < 12 && <button onClick={addProduct} className="w-full h-12 rounded-2xl border border-white/10 text-slate-400 text-sm">+ Add another item</button>}
-                </div>
-              )}
-              {pricingMethod === "manual" && pricingType !== "products" && (
-                <TextAreaField icon="💰" label="Pricing Details" value={pricingDetails} onChange={(e: any) => setPricingDetails(e.target.value)} placeholder={pricingType === "tiers" ? "e.g. Starter $99/month - X, Y, Z. Business $199/month - A, B, C" : pricingType === "hourly" ? "e.g. $85/hour, minimum 2 hours" : "Describe how your quoting works"} />
-              )}
-              {pricingMethod === "weknow" && (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4">
-                  <p className="text-emerald-400 text-sm">✓ We'll create a professional pricing section that suits your industry and style.</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* STEP: design */}
-          {currentStepId === 'design' && (
-            <div className="space-y-4 md:space-y-5">
-              <InputField icon="🎨" label="Style" value={style} onChange={(e: any) => setStyle(e.target.value)} placeholder="e.g. Luxury dark, Clean minimal, Warm rustic, Bold modern" />
-              <InputField icon="🎨" label="Colour Preferences" value={colorPrefs} onChange={(e: any) => setColorPrefs(e.target.value)} placeholder="e.g. Navy and gold, Black and white, Cream and terracotta" />
-              <TextAreaField icon="🔗" label="Reference Websites (optional)" value={references} onChange={(e: any) => setReferences(e.target.value)} placeholder="Links to websites you like, or describe what appeals to you" />
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">🖼️ Do you have a logo?</label>
-                <div className="grid gap-2">
-                  {["Yes — I will provide it", "No — I need one designed", "No — please use text only"].map(opt => (
-                    <SelectCard key={opt} selected={hasLogo === opt} onClick={() => setHasLogo(opt)} label={opt} />
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* STEP: assets */}
-          {currentStepId === 'assets' && (
-            <div className="space-y-4">
-              <p className="text-slate-400 text-sm">All images compressed automatically. Skip anything you don't have yet.</p>
-              <FileUploadBox label="📎 Upload Your Logo" hint="Any size — we compress it" file={logoFile} onChange={handleLogoChange} inputRef={logoRef} accept="image/*" />
-              <FileUploadBox label="🖼️ Upload Hero / Banner Image" hint="Main background image — any size" file={heroFile} onChange={handleHeroChange} inputRef={heroRef} accept="image/*" />
-              <div onClick={() => photosRef.current?.click()} className="border-2 border-dashed border-white/10 rounded-2xl p-5 cursor-pointer text-center bg-slate-900/50">
-                <input ref={photosRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoChange} />
-                <p className="text-slate-300 font-semibold text-sm">📷 Additional Photos</p>
-                <p className="text-slate-500 text-xs mt-1">Up to 5 general photos</p>
-                {photoFiles.length > 0 && photoFiles.map((f, i) => <p key={i} className="text-emerald-400 text-xs mt-1">✓ {f.name}</p>)}
-              </div>
-              <p className="text-slate-600 text-xs text-center">No assets? Skip this — we'll use professional stock images.</p>
-            </div>
-          )}
-
-          {/* STEP: contact */}
-          {currentStepId === 'contact' && (
-            <div className="space-y-4 md:space-y-5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">📝 Do you have website copy ready?</label>
-                <div className="grid gap-2">
-                  {["Yes — I will provide all text", "Partially — I have some text", "No — please write it for me"].map(opt => (
-                    <SelectCard key={opt} selected={hasContent === opt} onClick={() => setHasContent(opt)} label={opt} />
-                  ))}
-                </div>
-              </div>
-              <TextAreaField icon="📌" label="Anything else we should know? (optional)" value={additionalNotes} onChange={(e: any) => setAdditionalNotes(e.target.value)} placeholder="Deadline, special requirements, competitors, links to pull content from..." />
-              {/* ── Social Media (Contact & Enquiries bundle) ── */}
-              {features.includes("Social Media Links") && (
-                <div className="space-y-3 p-4 rounded-2xl border border-white/8 bg-white/3">
-                  <p className="text-white font-semibold">📲 Social Media Links</p>
-                  <p className="text-slate-400 text-sm">We'll add these to your website footer and header. Leave blank for any you don't use.</p>
-                  <InputField icon="📘" label="Facebook (already entered above)" value={facebookPage} onChange={(e: any) => setFacebookPage(e.target.value)} placeholder="facebook.com/yourbusiness" />
-                  <InputField icon="📸" label="Instagram URL (optional)" value={instagramUrl} onChange={(e: any) => setInstagramUrl(e.target.value)} placeholder="instagram.com/yourbusiness" hint="e.g. instagram.com/yourbusiness or @yourbusiness" />
-                  <InputField icon="💼" label="LinkedIn URL (optional)" value={linkedinUrl} onChange={(e: any) => setLinkedinUrl(e.target.value)} placeholder="linkedin.com/company/yourbusiness" />
-                  <InputField icon="🎵" label="TikTok URL (optional)" value={tiktokUrl} onChange={(e: any) => setTiktokUrl(e.target.value)} placeholder="tiktok.com/@yourbusiness" />
-                </div>
-              )}
-
-              {/* ── Real Testimonials (Trust & Reviews bundle) ── */}
-              {features.includes("Reviews & Testimonials") && (
-                <div className="space-y-3 p-4 rounded-2xl border border-white/8 bg-white/3">
-                  <p className="text-white font-semibold">⭐ Customer Testimonials</p>
-                  <p className="text-slate-400 text-sm">Paste real reviews from your customers — we'll use these on your site instead of AI-generated ones. Leave blank and we'll create realistic placeholder reviews.</p>
-                  <TextAreaField icon="💬" label="Customer reviews (optional)" value={realTestimonials} onChange={(e: any) => setRealTestimonials(e.target.value)} placeholder={'e.g.\n"Amazing service, would highly recommend!" — Sarah M., Brisbane\n"Best in the business, 5 stars!" — John T., Gold Coast'} />
-                </div>
-              )}
-
-              {/* ── Blog Topics (Blog & Content bundle) ── */}
-              {features.includes("Blog") && (
-                <div className="space-y-3 p-4 rounded-2xl border border-white/8 bg-white/3">
-                  <p className="text-white font-semibold">📰 Blog Topics</p>
-                  <p className="text-slate-400 text-sm">We'll create placeholder blog posts on your site. Give us a few topics and we'll write relevant preview cards. Leave blank for AI-generated industry topics.</p>
-                  <InputField icon="✍️" label="Blog topics (optional)" value={blogTopics} onChange={(e: any) => setBlogTopics(e.target.value)} placeholder="e.g. Tips for saving water, 5 signs your pipes need fixing, DIY vs calling a plumber" hint="Comma-separated list of topics or post ideas." />
-                </div>
-              )}
-
-              {/* ── Video URL (Video Background bundle) ── */}
-              {features.includes("Video Background") && (
-                <div className="space-y-3 p-4 rounded-2xl border border-white/8 bg-white/3">
-                  <p className="text-white font-semibold">🎥 Hero Video</p>
-                  <p className="text-slate-400 text-sm">Provide a YouTube video URL or a direct .mp4 link for your hero background. Leave blank and we'll use a looping stock video matching your industry.</p>
-                  <InputField icon="🔗" label="Video URL (optional)" value={videoUrl} onChange={(e: any) => setVideoUrl(e.target.value)} placeholder="e.g. https://youtube.com/watch?v=xxxxx or https://cdn.example.com/video.mp4" hint="YouTube URLs are automatically converted to embed format." />
-                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
-                    <p className="text-amber-400 text-xs">💡 For best performance: YouTube embeds load faster than direct MP4 files. Keep videos under 30 seconds for hero backgrounds.</p>
+            {/* ── STEP: pricing_details ── */}
+            {currentStepId === 'pricing_details' && (
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <Label>📤 How to provide pricing</Label>
+                  <div className="space-y-2">
+                    <SelectCard selected={pricingMethod === "upload"} onClick={() => setPricingMethod("upload")} label="Upload a menu or price list" desc="PDF, image or Word document" icon="📄" />
+                    <SelectCard selected={pricingMethod === "url"} onClick={() => setPricingMethod("url")} label="Use my existing website" desc="We'll pull pricing from your current site" icon="🌐" />
+                    <SelectCard selected={pricingMethod === "manual"} onClick={() => setPricingMethod("manual")} label="Enter manually" desc="Type each item, price and upload photos" icon="✏️" />
+                    <SelectCard selected={pricingMethod === "weknow"} onClick={() => setPricingMethod("weknow")} label="You decide for us" desc="We'll create a professional pricing section" icon="🤝" />
                   </div>
                 </div>
-              )}
 
-              {/* ── Shop Products (Shop bundle without manual pricing flow) ── */}
-              {features.includes("Payments / Shop") && (
-                <div className="space-y-3 p-4 rounded-2xl border border-white/8 bg-white/3">
-                  <p className="text-white font-semibold">🛒 Online Shop Setup</p>
-                  <p className="text-slate-400 text-sm">Your shop will be built using Square. After your site goes live, you'll connect your Square account in your client portal so payments go directly to you.</p>
-                  {products.some(p => p.name) ? (
-                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
-                      <p className="text-emerald-400 text-xs">✓ Using the {products.filter(p => p.name).length} product(s) you entered in the pricing step.</p>
+                {pricingMethod === "upload" && (
+                  <div onClick={() => pricingSheetRef.current?.click()} className={`border-2 border-dashed rounded-xl p-5 cursor-pointer text-center transition-all ${pricingFile ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-white/10 bg-[#111827] hover:border-white/20'}`}>
+                    <input ref={pricingSheetRef} type="file" accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setPricingFile(f); }} />
+                    {pricingFile ? <p className="text-emerald-400 font-semibold text-sm">✓ {pricingFile.name}</p> : <div><p className="text-2xl mb-2">📎</p><p className="text-slate-300 font-semibold text-sm">Upload menu or price list</p><p className="text-slate-500 text-xs mt-1">PDF, image, Word doc</p></div>}
+                  </div>
+                )}
+
+                {pricingMethod === "url" && (
+                  <InputField icon="🌐" label="Existing Website URL" value={pricingUrl} onChange={(e: any) => setPricingUrl(e.target.value)} placeholder="https://yourwebsite.com.au" />
+                )}
+
+                {pricingMethod === "manual" && pricingType === "products" && (
+                  <div className="space-y-3">
+                    {products.map((product, index) => (
+                      <div key={index} className="bg-[#111827] border border-white/8 rounded-xl p-4 space-y-3">
+                        <div className="flex justify-between items-center">
+                          <p className="text-emerald-400 font-bold text-sm">Item {index + 1}</p>
+                          {products.length > 1 && <button type="button" onClick={() => removeProduct(index)} className="text-red-400 text-xs font-medium">Remove</button>}
+                        </div>
+                        <InputField icon="🏷️" label="Product / Service Name" value={product.name} onChange={(e: any) => updateProduct(index, 'name', e.target.value)} placeholder="e.g. Sourdough Loaf" />
+                        <InputField icon="💵" label="Price" value={product.price} onChange={(e: any) => updateProduct(index, 'price', e.target.value)} placeholder="e.g. $12 or from $85" />
+                        <button type="button" onClick={() => productPhotoRefs.current[index]?.click()} className={`w-full border-2 border-dashed rounded-xl p-3 text-center transition-all ${product.photo ? 'border-emerald-500/50' : 'border-white/10 hover:border-white/20'}`}>
+                          <input ref={(el) => { productPhotoRefs.current[index] = el; }} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleProductPhoto(index, f); }} />
+                          {product.photo ? <p className="text-emerald-400 text-sm">✓ {product.photo.name}</p> : <p className="text-slate-500 text-sm">📷 Upload photo (optional)</p>}
+                        </button>
+                      </div>
+                    ))}
+                    {products.length < 12 && (
+                      <button type="button" onClick={addProduct} className="w-full h-12 rounded-xl border border-white/10 text-slate-400 text-sm font-medium hover:border-white/20 transition-all">
+                        + Add another item
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {pricingMethod === "manual" && pricingType !== "products" && (
+                  <TextAreaField icon="💰" label="Pricing Details" value={pricingDetails} onChange={(e: any) => setPricingDetails(e.target.value)} placeholder={pricingType === "tiers" ? "e.g. Starter $99/mo — X, Y, Z. Business $199/mo — A, B, C" : pricingType === "hourly" ? "e.g. $85/hour, minimum 2 hours" : "Describe how your quoting works"} />
+                )}
+
+                {pricingMethod === "weknow" && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
+                    <p className="text-emerald-400 text-sm">✓ We'll create a professional pricing section that suits your industry and style.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── STEP: design ── */}
+            {currentStepId === 'design' && (
+              <div className="space-y-5">
+                <InputField icon="✨" label="Style / Vibe" value={style} onChange={(e: any) => setStyle(e.target.value)} placeholder="e.g. Luxury dark, Clean minimal, Warm rustic, Bold modern" hint="Describe the look and feel you're going for." />
+                <InputField icon="🎨" label="Colour Preferences" value={colorPrefs} onChange={(e: any) => setColorPrefs(e.target.value)} placeholder="e.g. Navy and gold, Black and white, Cream and terracotta" hint="Your brand colours, or colours you love." />
+                <TextAreaField icon="🔗" label="Reference Websites (optional)" value={references} onChange={(e: any) => setReferences(e.target.value)} placeholder="Links to websites you love, or describe what appeals to you" rows={3} />
+                <div className="space-y-2">
+                  <Label>🖼️ Do you have a logo?</Label>
+                  <div className="space-y-2">
+                    {["Yes — I will provide it", "No — I need one designed", "No — please use text only"].map(opt => (
+                      <SelectCard key={opt} selected={hasLogo === opt} onClick={() => setHasLogo(opt)} label={opt} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── STEP: assets ── */}
+            {currentStepId === 'assets' && (
+              <div className="space-y-4">
+                <p className="text-slate-400 text-sm leading-relaxed">All images are compressed automatically. Skip anything you don't have yet — we'll use professional stock imagery.</p>
+                <FileUploadBox label="Upload Your Logo" hint="Any size — PNG or SVG preferred" file={logoFile} onChange={handleLogoChange} inputRef={logoRef} accept="image/*" icon="🏷️" />
+                <FileUploadBox label="Upload Hero / Banner Image" hint="Main background image — any size" file={heroFile} onChange={handleHeroChange} inputRef={heroRef} accept="image/*" icon="🖼️" />
+                <button
+                  type="button"
+                  onClick={() => photosRef.current?.click()}
+                  className={`w-full border-2 border-dashed rounded-xl p-5 text-center transition-all ${photoFiles.length > 0 ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-white/10 bg-[#111827] hover:border-white/20'}`}
+                >
+                  <input ref={photosRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoChange} />
+                  <p className="text-2xl mb-2">📷</p>
+                  <p className="text-slate-300 font-semibold text-sm">Additional Photos</p>
+                  <p className="text-slate-500 text-xs mt-1">Up to 5 general photos of your business or work</p>
+                  {photoFiles.length > 0 && (
+                    <div className="mt-2 space-y-0.5">
+                      {photoFiles.map((f, i) => <p key={i} className="text-emerald-400 text-xs">✓ {f.name}</p>)}
                     </div>
-                  ) : (
-                    <>
-                      <TextAreaField icon="🏷️" label="Products to sell (optional)" value={shopProducts} onChange={(e: any) => setShopProducts(e.target.value)} placeholder={"e.g.\nSourdough Loaf — $12\nCroissant — $5\nCoffee Subscription — $45/month"} />
-                      <p className="text-slate-500 text-xs">List products with prices — one per line. Leave blank and we'll build a demo shop you can customise later.</p>
-                    </>
                   )}
-                  <div className="bg-slate-900/80 border border-white/10 rounded-xl p-3 space-y-1">
-                    <p className="text-white text-xs font-semibold">📋 What happens next:</p>
-                    <p className="text-slate-400 text-xs">1. We build your shop page with your products</p>
-                    <p className="text-slate-400 text-xs">2. After launch, connect your Square account in your client portal</p>
-                    <p className="text-slate-400 text-xs">3. All payments go directly to your Square account — we never touch your money</p>
-                  </div>
-                </div>
-              )}
-
-              {features.includes("Booking System") && (
-                <div className="space-y-3 p-4 rounded-2xl border border-white/8 bg-white/3">
-                  <p className="text-white font-semibold">📅 Booking System</p>
-                  <p className="text-slate-400 text-sm">Do you already have a booking system set up (e.g. existing SuperSaas, Calendly, etc.)?</p>
-                  <div className="flex gap-3">
-                    <div onClick={() => setExistingBookingUrl("")} className={`cursor-pointer flex-1 rounded-2xl p-3 border-2 text-sm font-semibold text-center transition-all ${!existingBookingUrl ? "border-emerald-500 bg-emerald-500/10 text-white" : "border-white/10 bg-slate-900/50 text-slate-400"}`}>No — set it up for me</div>
-                    <div onClick={() => { if (!existingBookingUrl) setExistingBookingUrl("https://"); }} className={`cursor-pointer flex-1 rounded-2xl p-3 border-2 text-sm font-semibold text-center transition-all ${existingBookingUrl ? "border-emerald-500 bg-emerald-500/10 text-white" : "border-white/10 bg-slate-900/50 text-slate-400"}`}>Yes — I have one</div>
-                  </div>
-                  {existingBookingUrl ? (
-                    <InputField icon="🔗" label="Your booking link" value={existingBookingUrl} onChange={(e: any) => setExistingBookingUrl(e.target.value)} placeholder="e.g. https://supersaas.com/schedule/yourbusiness/appointments" hint="We'll embed this directly into your site." />
-                  ) : null}
-                  <InputField icon="🗂️" label="Services offered (for booking dropdown)" value={bookingServices} onChange={(e: any) => setBookingServices(e.target.value)} placeholder="e.g. Haircut, Colour, Blowdry" hint="List the services clients can book — comma separated. These will be added as options in the booking form." />
-                </div>
-              )}
-              <div className="border-t border-white/8 pt-5 space-y-4">
-                <p className="text-white font-semibold">📬 Your Contact Details</p>
-                <InputField icon="👤" label="Full Name" value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Your full name" required />
-                <InputField icon="📧" label="Email Address" value={email} onChange={(e: any) => setEmail(e.target.value)} placeholder="your@email.com.au" required type="email" />
-                <InputField icon="📱" label="Phone Number" value={phone} onChange={(e: any) => { const digits = e.target.value.replace(/\D/g, "").slice(0, 10); setPhone(digits); }} placeholder="0412345678" type="tel" inputMode="numeric" maxLength={10} />
-                <InputField icon="🔢" label="ABN" value={abn} onChange={(e: any) => setAbn(e.target.value)} placeholder="12 345 678 901" required hint="Required to register your .com.au domain." />
-		<InputField icon="🌐" label="Preferred Domain Name" value={domain} onChange={(e: any) => setDomain(e.target.value)} placeholder="e.g.mysalonbrisbane.com.au" required hint="Already have one? Enter it here. Don't have one? We'll register it for you." />
-                <InputField icon="📍" label="Business Address" value={businessAddress} onChange={(e: any) => setBusinessAddress(e.target.value)} placeholder="e.g. 123 Main St, Brisbane QLD 4000" required hint="Used to embed a Google Map on your site so customers can find you." />
-                <InputField icon="📘" label="Facebook Page URL (optional)" value={facebookPage} onChange={(e: any) => setFacebookPage(e.target.value)} placeholder="e.g. facebook.com/yourbusiness" hint="We'll add a Facebook link to your site's social media section." />
-                <InputField icon="📊" label="Google Analytics ID (optional)" value={ga4Id} onChange={(e: any) => setGa4Id(e.target.value)} placeholder="G-XXXXXXXXXX" hint="If you have a GA4 property, we'll wire it into your site automatically." />
+                </button>
               </div>
-              <div><div ref={turnstileRef} />{!turnstileToken && turnstileReady && <p className="text-slate-500 text-xs mt-2">Complete the security check above to submit</p>}</div>
-              {/* Quote intentionally hidden from client — pricing is confirmed after review */}
-            </div>
-          )}
+            )}
 
-          {/* Errors */}
-          {errors.length > 0 && (
-            <div className="mt-5 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
-              {errors.map((err, i) => <p key={i} className="text-red-400 text-sm">⚠️ {err}</p>)}
-            </div>
-          )}
+            {/* ── STEP: contact ── */}
+            {currentStepId === 'contact' && (
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <Label>📝 Do you have website copy ready?</Label>
+                  <div className="space-y-2">
+                    {["Yes — I will provide all text", "Partially — I have some text", "No — please write it for me"].map(opt => (
+                      <SelectCard key={opt} selected={hasContent === opt} onClick={() => setHasContent(opt)} label={opt} />
+                    ))}
+                  </div>
+                </div>
 
-          {/* Nav */}
-          <div className="flex gap-3 mt-6 md:mt-8">
-            {step > 1 && <button onClick={back} className="h-14 px-6 md:px-8 rounded-2xl border border-white/10 text-slate-400 font-medium text-sm">← Back</button>}
-            <button onClick={next} disabled={compressing || submitting || (currentStepId === 'contact' && !turnstileToken)} className="flex-1 h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold transition-all text-sm">
-              {submitting ? "⏳ Submitting..." : compressing ? "⏳ Compressing..." : currentStepId === 'contact' ? "🚀 Submit Request" : "Continue →"}
-            </button>
+                <TextAreaField icon="📌" label="Anything else we should know? (optional)" value={additionalNotes} onChange={(e: any) => setAdditionalNotes(e.target.value)} placeholder="Deadline, special requirements, competitors to reference, links to pull content from…" rows={3} />
+
+                {features.includes("Social Media Links") && (
+                  <div className="space-y-4 p-4 rounded-xl border border-white/8 bg-[#111827]">
+                    <div>
+                      <p className="text-white font-semibold text-sm mb-1">📲 Social Media Links</p>
+                      <p className="text-slate-500 text-xs leading-relaxed">We'll add these to your website footer and header. Leave blank for any you don't use.</p>
+                    </div>
+                    <InputField icon="📘" label="Facebook Page URL" value={facebookPage} onChange={(e: any) => setFacebookPage(e.target.value)} placeholder="facebook.com/yourbusiness" />
+                    <InputField icon="📸" label="Instagram URL (optional)" value={instagramUrl} onChange={(e: any) => setInstagramUrl(e.target.value)} placeholder="instagram.com/yourbusiness" />
+                    <InputField icon="💼" label="LinkedIn URL (optional)" value={linkedinUrl} onChange={(e: any) => setLinkedinUrl(e.target.value)} placeholder="linkedin.com/company/yourbusiness" />
+                    <InputField icon="🎵" label="TikTok URL (optional)" value={tiktokUrl} onChange={(e: any) => setTiktokUrl(e.target.value)} placeholder="tiktok.com/@yourbusiness" />
+                  </div>
+                )}
+
+                {features.includes("Reviews & Testimonials") && (
+                  <div className="space-y-3 p-4 rounded-xl border border-white/8 bg-[#111827]">
+                    <div>
+                      <p className="text-white font-semibold text-sm mb-1">⭐ Customer Testimonials</p>
+                      <p className="text-slate-500 text-xs leading-relaxed">Paste real reviews — we'll use these instead of AI-generated ones. Leave blank and we'll create realistic placeholders.</p>
+                    </div>
+                    <TextAreaField icon="💬" label="Customer reviews (optional)" value={realTestimonials} onChange={(e: any) => setRealTestimonials(e.target.value)} placeholder={`"Amazing service, would highly recommend!" — Sarah M., Brisbane\n"Best in the business, 5 stars!" — John T., Gold Coast`} rows={4} />
+                  </div>
+                )}
+
+                {features.includes("Blog") && (
+                  <div className="space-y-3 p-4 rounded-xl border border-white/8 bg-[#111827]">
+                    <div>
+                      <p className="text-white font-semibold text-sm mb-1">📰 Blog Topics</p>
+                      <p className="text-slate-500 text-xs leading-relaxed">Give us a few topics and we'll create preview blog cards. Leave blank for AI-generated industry topics.</p>
+                    </div>
+                    <InputField icon="✍️" label="Blog topics (optional)" value={blogTopics} onChange={(e: any) => setBlogTopics(e.target.value)} placeholder="e.g. Tips for saving water, 5 signs your pipes need fixing, DIY vs calling a plumber" hint="Comma-separated list of topics or post ideas." />
+                  </div>
+                )}
+
+                {features.includes("Video Background") && (
+                  <div className="space-y-3 p-4 rounded-xl border border-white/8 bg-[#111827]">
+                    <div>
+                      <p className="text-white font-semibold text-sm mb-1">🎥 Hero Video</p>
+                      <p className="text-slate-500 text-xs leading-relaxed">YouTube URL or direct .mp4 link. Leave blank and we'll use a looping stock video matching your industry.</p>
+                    </div>
+                    <InputField icon="🔗" label="Video URL (optional)" value={videoUrl} onChange={(e: any) => setVideoUrl(e.target.value)} placeholder="https://youtube.com/watch?v=xxxxx or https://cdn.example.com/video.mp4" hint="YouTube URLs are automatically converted to embed format." />
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+                      <p className="text-amber-400 text-xs">💡 Keep videos under 30 seconds for best hero performance.</p>
+                    </div>
+                  </div>
+                )}
+
+                {features.includes("Payments / Shop") && (
+                  <div className="space-y-3 p-4 rounded-xl border border-white/8 bg-[#111827]">
+                    <div>
+                      <p className="text-white font-semibold text-sm mb-1">🛒 Online Shop Setup</p>
+                      <p className="text-slate-500 text-xs leading-relaxed">Your shop will be built using Square. After launch, connect your Square account in your client portal.</p>
+                    </div>
+                    {products.some(p => p.name) ? (
+                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
+                        <p className="text-emerald-400 text-xs">✓ Using the {products.filter(p => p.name).length} product(s) you entered in the pricing step.</p>
+                      </div>
+                    ) : (
+                      <TextAreaField icon="🏷️" label="Products to sell (optional)" value={shopProducts} onChange={(e: any) => setShopProducts(e.target.value)} placeholder={"Sourdough Loaf — $12\nCroissant — $5\nCoffee Subscription — $45/month"} rows={4} />
+                    )}
+                  </div>
+                )}
+
+                {features.includes("Booking System") && (
+                  <div className="space-y-3 p-4 rounded-xl border border-white/8 bg-[#111827]">
+                    <div>
+                      <p className="text-white font-semibold text-sm mb-1">📅 Booking System</p>
+                      <p className="text-slate-500 text-xs">Do you already have a booking system (e.g. SuperSaas, Calendly)?</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setExistingBookingUrl("")} className={`rounded-xl p-3 border-2 text-sm font-semibold text-center transition-all ${!existingBookingUrl ? "border-emerald-500 bg-emerald-500/10 text-white" : "border-white/10 bg-[#111827] text-slate-400"}`}>No — set it up for me</button>
+                      <button type="button" onClick={() => { if (!existingBookingUrl) setExistingBookingUrl("https://"); }} className={`rounded-xl p-3 border-2 text-sm font-semibold text-center transition-all ${existingBookingUrl ? "border-emerald-500 bg-emerald-500/10 text-white" : "border-white/10 bg-[#111827] text-slate-400"}`}>Yes — I have one</button>
+                    </div>
+                    {existingBookingUrl && (
+                      <InputField icon="🔗" label="Your booking link" value={existingBookingUrl} onChange={(e: any) => setExistingBookingUrl(e.target.value)} placeholder="e.g. https://supersaas.com/schedule/yourbusiness/appointments" hint="We'll embed this directly into your site." />
+                    )}
+                    <InputField icon="🗂️" label="Services offered (for booking dropdown)" value={bookingServices} onChange={(e: any) => setBookingServices(e.target.value)} placeholder="e.g. Haircut, Colour, Blowdry" hint="Comma-separated. Added as options in the booking form." />
+                  </div>
+                )}
+
+                <div className="border-t border-white/8 pt-5 space-y-4">
+                  <p className="text-white font-semibold text-sm">📬 Your Contact Details</p>
+                  <InputField icon="👤" label="Full Name" value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Your full name" required />
+                  <InputField icon="📧" label="Email Address" value={email} onChange={(e: any) => setEmail(e.target.value)} placeholder="your@email.com.au" required type="email" />
+                  <InputField icon="📱" label="Phone Number" value={phone} onChange={(e: any) => { const digits = e.target.value.replace(/\D/g, "").slice(0, 10); setPhone(digits); }} placeholder="0412345678" type="tel" inputMode="numeric" maxLength={10} />
+                  <InputField icon="🔢" label="ABN" value={abn} onChange={(e: any) => setAbn(e.target.value)} placeholder="12 345 678 901" required hint="Required to register your .com.au domain." />
+                  <InputField icon="🌐" label="Preferred Domain Name" value={domain} onChange={(e: any) => setDomain(e.target.value)} placeholder="e.g. mysalonbrisbane.com.au" required hint="Already have one? Enter it here. Don't have one? We'll register it for you." />
+                  <InputField icon="📍" label="Business Address" value={businessAddress} onChange={(e: any) => setBusinessAddress(e.target.value)} placeholder="e.g. 123 Main St, Brisbane QLD 4000" required hint="Used to embed a Google Map so customers can find you." />
+                  <InputField icon="📊" label="Google Analytics ID (optional)" value={ga4Id} onChange={(e: any) => setGa4Id(e.target.value)} placeholder="G-XXXXXXXXXX" hint="If you have a GA4 property, we'll wire it into your site automatically." />
+                </div>
+
+                <div className="pt-1">
+                  <div ref={turnstileRef} />
+                  {!turnstileToken && turnstileReady && <p className="text-slate-500 text-xs mt-2">Complete the security check above to submit.</p>}
+                </div>
+              </div>
+            )}
+
+            {/* ── Errors ── */}
+            {errors.length > 0 && (
+              <div className="mt-4 p-4 bg-red-500/10 border border-red-500/25 rounded-xl space-y-1">
+                {errors.map((err, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="text-red-400 mt-0.5 flex-shrink-0">⚠</span>
+                    <p className="text-red-400 text-sm">{err}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── Desktop nav ── */}
+            <div className="hidden lg:flex gap-3 mt-6">
+              {step > 1 && (
+                <button type="button" onClick={back} className="h-13 px-7 rounded-xl border border-white/10 text-slate-300 font-semibold text-sm hover:border-white/25 hover:text-white transition-all">
+                  ← Back
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={next}
+                disabled={compressing || submitting || (currentStepId === 'contact' && !turnstileToken)}
+                className="flex-1 h-13 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold text-sm transition-all shadow-[0_4px_20px_rgba(16,185,129,0.3)]"
+              >
+                {submitting ? "⏳ Submitting…" : compressing ? "⏳ Compressing…" : currentStepId === 'contact' ? "🚀 Submit Request" : `Continue → `}
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Side Panel — hidden on mobile */}
-        <div className="hidden lg:block">
-          <div className="rounded-3xl bg-[#0f1623] border border-white/8 p-6 sticky top-8">
-            <div className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-sm">W</div>
-              <span className="font-semibold text-white">WebGecko</span>
+        {/* ── Desktop sidebar ── */}
+        <div className="hidden lg:block sticky top-24">
+          <div className="bg-[#0f1623] border border-white/8 rounded-2xl p-5">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+                <span className="text-emerald-400 font-black text-xs">W</span>
+              </div>
+              <span className="font-bold text-white">WebGecko</span>
             </div>
-            <div className="space-y-1 mb-5">
+            <div className="space-y-0.5 mb-5">
               {steps.map((s, i) => (
-                <div key={s.id} className={`flex items-center gap-3 p-2 rounded-xl transition-all ${i + 1 === step ? 'bg-emerald-500/10 border border-emerald-500/20' : i + 1 < step ? 'opacity-60' : 'opacity-25'}`}>
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${i + 1 < step ? 'bg-emerald-500 text-black font-bold' : i + 1 === step ? 'border-2 border-emerald-500 text-emerald-400' : 'border border-white/20 text-slate-600'}`}>
-                    {i + 1 < step ? '✓' : i + 1}
+                <div key={s.id} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all ${i + 1 === step ? 'bg-emerald-500/12 border border-emerald-500/20' : i + 1 < step ? 'opacity-65' : 'opacity-25'}`}>
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${i + 1 < step ? 'bg-emerald-500 text-black' : i + 1 === step ? 'border-2 border-emerald-500 text-emerald-400' : 'border border-white/20 text-slate-600'}`}>
+                    {i + 1 < step ? (
+                      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 10 10"><path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    ) : i + 1}
                   </div>
-                  <span className={`text-xs ${i + 1 === step ? 'text-white font-semibold' : 'text-slate-500'}`}>{s.label}</span>
+                  <span className={`text-xs font-medium truncate ${i + 1 === step ? 'text-white' : 'text-slate-500'}`}>{s.icon} {s.label}</span>
                 </div>
               ))}
             </div>
-            <div className="border-t border-white/8 pt-4 space-y-1 text-xs text-slate-600">
-              {businessName && <p>🏢 {businessName}</p>}
-              {industry && <p>🏭 {industry}</p>}
-              {goal && <p>🎯 {goal}</p>}
-              {siteType && <p>📄 {siteType === 'multi' ? 'Multi Page' : 'Single Page'}</p>}
-              {pages.length > 0 && <p className="truncate">📑 {pages.join(', ')}</p>}
-              {name && <p>👤 {name}</p>}
-            </div>
-            {/* Live quote intentionally hidden from client */}
+            {(businessName || industry || goal) && (
+              <div className="border-t border-white/8 pt-4 space-y-1.5 text-xs text-slate-600">
+                {businessName && <p className="truncate">🏢 {businessName}</p>}
+                {industry && <p>🏭 {industry}</p>}
+                {goal && <p>🎯 {goal}</p>}
+                {siteType && <p>📄 {siteType === 'multi' ? 'Multi Page' : 'Single Page'}</p>}
+                {pages.length > 0 && <p className="truncate">📑 {pages.join(', ')}</p>}
+                {name && <p>👤 {name}</p>}
+              </div>
+            )}
+          </div>
+
+          {/* Trust badges */}
+          <div className="mt-4 bg-[#0f1623] border border-white/8 rounded-2xl p-4 space-y-3">
+            {[
+              { icon: '🔒', text: 'Secure & private — your data is never sold' },
+              { icon: '⚡', text: 'Sites delivered in 3–5 business days' },
+              { icon: '💬', text: 'Free revisions included' },
+              { icon: '🇦🇺', text: 'Australian-owned & operated' },
+            ].map(({ icon, text }) => (
+              <div key={text} className="flex items-center gap-2.5">
+                <span className="text-base flex-shrink-0">{icon}</span>
+                <p className="text-slate-500 text-xs leading-relaxed">{text}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
-    </main>
+
+      {/* ── Mobile floating bottom nav ── */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#070d19]/95 backdrop-blur-md border-t border-white/8 px-4 py-3 safe-area-bottom">
+        <div className="flex gap-3 max-w-2xl mx-auto">
+          {step > 1 && (
+            <button type="button" onClick={back} className="w-14 h-14 rounded-xl border border-white/12 flex items-center justify-center text-slate-300 flex-shrink-0 active:bg-white/5 transition-all">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 20 20"><path d="M12 4l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={next}
+            disabled={compressing || submitting || (currentStepId === 'contact' && !turnstileToken)}
+            className="flex-1 h-14 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold text-sm transition-all shadow-[0_4px_24px_rgba(16,185,129,0.35)]"
+          >
+            {submitting ? "⏳ Submitting…" : compressing ? "⏳ Compressing…" : currentStepId === 'contact' ? "🚀 Submit Request" : "Continue →"}
+          </button>
+        </div>
+      </div>
+
+    </div>
   );
 }
