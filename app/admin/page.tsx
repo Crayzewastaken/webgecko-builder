@@ -370,7 +370,19 @@ function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:
 
 // ── Client slide-over panel ────────────────────────────────────────────────────
 function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:string; onClose:()=>void; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
-  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"content"|"payments"|"actions"|"requests">("perf");
+  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"content"|"payments"|"actions"|"requests"|"checklist">("perf");
+  const [checklistDone, setChecklistDone] = useState<Record<string,boolean>>({});
+  useEffect(()=>{
+    try { const s=localStorage.getItem("wg_checklist_"+jid); if(s)setChecklistDone(JSON.parse(s)); } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
+  function toggleCheck(key:string){
+    setChecklistDone(prev=>{
+      const next={...prev,[key]:!prev[key]};
+      try{localStorage.setItem("wg_checklist_"+jid,JSON.stringify(next));}catch{}
+      return next;
+    });
+  }
   // ── Content management state ──────────────────────────────────────────────────
   const [contentItems, setContentItems] = useState<any[]>([]);
   const [contentLoading, setContentLoading] = useState(false);
@@ -430,7 +442,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   }
 
   const pending = featureRequests.filter(r=>r.status==="pending"||r.status==="draft").length;
-  const tabs = ["perf","engagement","seo","site","assets","integrations","content","payments","actions","requests"] as const;
+  const tabs = ["perf","engagement","seo","site","assets","integrations","content","payments","actions","requests","checklist"] as const;
 
   // ── Content helpers ────────────────────────────────────────────────────────
   async function loadContent() {
@@ -545,6 +557,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
           {tabBtn("payments","Payments")}
           {tabBtn("actions","Actions")}
           {tabBtn("requests", `Requests${pending>0?` (${pending})`:""}`)}
+          {tabBtn("checklist","✅ Checklist")}
         </div>
 
         {/* Tab content */}
@@ -1353,6 +1366,182 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               <button onClick={loadFeatureRequests} style={{...btn(T.textMuted),marginTop:16,fontSize:11}}>↻ Refresh</button>
             </div>
           )}
+
+          {/* CHECKLIST */}
+          {tab==="checklist"&&(()=>{
+            const features = ui.features||[];
+            const hasShop = features.includes("Payments / Shop");
+            const hasBooking = features.includes("Booking System");
+            const hasGA4 = !!(c.ga4Id);
+            const hasFacebook = !!(ui.facebookPage);
+            const hasInstagram = !!(ui.instagramUrl);
+            const domain = c.domain||c.userInput?.abn||"";
+            const abn = c.userInput?.abn||"";
+            const email = c.clientEmail||"";
+            const biz = c.businessName;
+            const addr = c.userInput?.businessAddress||"";
+            const siteUrl = c.liveUrl||c.previewUrl||"";
+
+            // Pre-fill Termly URLs
+            const termlyPrivacyUrl = `https://app.termly.io/dashboard/website/add-website`;
+            const termlyTosUrl = `https://app.termly.io/dashboard/website/add-website`;
+
+            type CheckItem = { key:string; label:string; detail:string; link?:string; linkLabel?:string; required?:boolean };
+            type Section = { title:string; color:string; icon:string; items:CheckItem[] };
+
+            const sections: Section[] = [
+
+              {
+                title:"1. Privacy Policy — Termly",
+                color:T.blue,
+                icon:"🔒",
+                items:[
+                  { key:"termly_account", label:"Create a free Termly account", detail:"Go to termly.io and sign up with your WebGecko email. You only need one account — add each client as a separate website.", link:"https://termly.io", linkLabel:"Open Termly →", required:true },
+                  { key:"termly_add_site", label:'Click "Add Website" in Termly dashboard', detail:`Enter the following:\n• Website name: ${biz}\n• Website URL: ${siteUrl||"(client domain — add after launch)"}\n• Country: Australia\n• Industry: select closest match to "${c.industry}"`, link:termlyPrivacyUrl, linkLabel:"Add website in Termly →", required:true },
+                  { key:"termly_privacy_wizard", label:"Complete the Privacy Policy wizard", detail:`Answer each question:\n• Do you collect names/emails? YES (contact form)\n• Do you use analytics? ${hasGA4?"YES — select Google Analytics":"NO"}\n• Do you process payments? ${hasShop?"YES — select Square":"NO"}\n• Do you use cookies? YES (standard)\n• Business country: Australia\n• Contact email: ${email}\n• Business address: ${addr||"(enter client address)"}`, required:true },
+                  { key:"termly_privacy_embed", label:"Copy the Privacy Policy embed URL", detail:'In Termly, after generating, click "Embed" then copy the "Hosted Policy URL" (looks like https://app.termly.io/document/privacy-policy/xxxx). Paste it into the Privacy Policy page on the client site using the "Deploy HTML" button, replacing the auto-generated policy page.', required:true },
+                  { key:"termly_privacy_footer", label:"Paste Termly URL into site footer links", detail:'In the generated site HTML, find the footer Privacy Policy link and replace the navigateTo(\'privacy\') with a direct href pointing to the Termly hosted URL. Or leave as-is if the site already has a privacy page injected — the Termly URL is the upgrade path.' },
+                ],
+              },
+
+              {
+                title:"2. Terms of Service — Termly",
+                color:T.purple,
+                icon:"📄",
+                items:[
+                  { key:"termly_tos_wizard", label:'In same website on Termly, generate Terms of Service', detail:`Click "Terms and Conditions" in the Termly sidebar for this website.\n\nFill in:\n• Website/company name: ${biz}\n• Website URL: ${siteUrl||"(client domain)"}\n• Governing law: Australia${abn?`\n• ABN: ${abn}`:""}\n• Contact email: ${email}\n• Business address: ${addr||"(enter client address)"}`, link:termlyTosUrl, linkLabel:"Open Termly →", required:true },
+                  { key:"termly_tos_clauses", label:"Select applicable clauses in the ToS wizard", detail:`Check the boxes that apply:\n• Contact/enquiry forms: YES\n${hasShop?"• Online purchases / e-commerce: YES — select Square as payment processor\n":""}${hasBooking?"• Bookings or appointments: YES\n":""}• User-generated content: NO (unless client has reviews/blog)\n• Limitation of liability: YES\n• Governing jurisdiction: Australia`, required:true },
+                  { key:"termly_tos_embed", label:"Copy the Terms of Service hosted URL", detail:'Same as Privacy Policy — click "Embed" and copy the hosted URL. Paste it into the site or give to client for their records.' },
+                ],
+              },
+
+              {
+                title:"3. Domain Registration",
+                color:T.cyan,
+                icon:"🌐",
+                items:[
+                  { key:"domain_check", label:"Check if client already has a domain", detail:`Client submitted: "${domain||"(not provided — ask client)"}"\n\nIf they have one: get login details for their registrar (Crazy Domains, GoDaddy, VentraIP, etc.) and point DNS to the WebGecko servers.\n\nIf they don't have one: register it for them.`, required:true },
+                  { key:"domain_register", label:"Register the .com.au domain", detail:`Go to VentraIP (ventraip.com.au) — cheapest and most reliable for .com.au.\n\nRequired info:\n• Domain: ${domain||"(confirm with client)"}\n• ABN: ${abn||"(required for .com.au)"}\n• Registrant name: ${biz}\n• Registrant email: ${email}\n• Address: ${addr||"(enter client address)"}\n\nCost: ~$20/year. Bill to client or include in package.`, link:"https://ventraip.com.au", linkLabel:"Open VentraIP →" },
+                  { key:"domain_dns", label:"Point DNS to Vercel", detail:"In the domain registrar's DNS settings, add:\n• Type: A — Name: @ — Value: 76.76.21.21\n• Type: CNAME — Name: www — Value: cname.vercel-dns.com\n\nThen in the Vercel project, go to Settings → Domains → Add Domain → enter the domain. Vercel will verify and issue an SSL certificate automatically (takes 5–60 min).", required:true },
+                  { key:"domain_vercel", label:"Add domain in Vercel and verify SSL", detail:"In the WebGecko Vercel project for this client, go to:\nSettings → Domains → Add → enter the client domain.\n\nVercel will confirm DNS propagation and auto-issue an SSL certificate. Once live, update the site URL in this admin panel using the Integrations tab.", required:true },
+                ],
+              },
+
+              {
+                title:"4. Google Analytics (GA4)",
+                color:T.amber,
+                icon:"📊",
+                items: hasGA4 ? [
+                  { key:"ga4_verify", label:"GA4 ID already provided by client", detail:`Client submitted GA4 ID: ${c.ga4Id}\n\nVerify it's the correct format (starts with G-). It's already been injected into the site during build. Check the site source to confirm it's wired up.` },
+                  { key:"ga4_test", label:"Test GA4 is firing", detail:"Open the live site, then go to Google Analytics → Realtime. You should see your visit appear within 30 seconds. If not, check that the G- ID in the site HTML matches the one in the GA4 property.", link:"https://analytics.google.com", linkLabel:"Open GA4 →" },
+                ] : [
+                  { key:"ga4_create", label:"Create a GA4 property for this client", detail:`Go to analytics.google.com → Admin → Create Property.\n\nEnter:\n• Property name: ${biz}\n• Reporting timezone: Australia/${addr.includes("VIC")?"Melbourne":addr.includes("WA")?"Perth":addr.includes("SA")?"Adelaide":addr.includes("QLD")?"Brisbane":"Sydney"}\n• Currency: Australian Dollar (AUD)\n\nThen go to Data Streams → Add Stream → Web → enter the client domain.`, link:"https://analytics.google.com", linkLabel:"Open GA4 →" },
+                  { key:"ga4_id_add", label:"Copy the Measurement ID and add to site", detail:'After creating the web stream, copy the Measurement ID (format: G-XXXXXXXXXX). Go to the Integrations tab in this panel and paste it into the GA4 field, then click save. The pipeline will inject it into the site on next redeploy.', required:true },
+                  { key:"ga4_test", label:"Test GA4 is firing after deploy", detail:"Open the live site in a browser, then check GA4 Realtime. Should show 1 active user within 30 seconds.", link:"https://analytics.google.com", linkLabel:"Open GA4 →" },
+                ],
+              },
+
+              ...(hasShop ? [{
+                title:"5. Square Shop Setup",
+                color:T.green,
+                icon:"🛒",
+                items:[
+                  { key:"square_account", label:"Ensure client has a Square account", detail:"Client needs a Square account at squareup.com/au. If they don't have one, send them to squareup.com/au to sign up (free). They'll need to verify their identity and link a bank account to receive payments.", link:"https://squareup.com/au", linkLabel:"Square Australia →", required:true },
+                  { key:"square_token", label:"Get Square Access Token from client", detail:"Client logs into Square Developer Dashboard at developer.squareup.com → My Applications → New Application → name it the same as their business → Credentials tab → copy the Production Access Token.\n\nPaste it into the Integrations tab in this panel.", link:"https://developer.squareup.com", linkLabel:"Square Developer →", required:true },
+                  { key:"square_location", label:"Get Square Location ID", detail:'In the same Square Developer Credentials tab, copy the "Production Location ID". Paste it into the Integrations tab alongside the Access Token.', required:true },
+                  { key:"square_catalogue", label:"Set up product catalogue in Square", detail:"Either:\n• Client adds products directly in their Square Dashboard (Items → Item Library)\n• Or you enter the products from their intake form into Square on their behalf\n\nProducts sync automatically to the site once the Square integration is wired up.", required:true },
+                  { key:"square_test", label:"Test a $1 transaction end-to-end", detail:"Place a test order on the live site and confirm it appears in the client's Square Dashboard. Refund immediately after. This confirms the payment flow is live and money goes to the client's account." },
+                ] as CheckItem[],
+              }] : []),
+
+              ...(hasBooking ? [{
+                title:`${hasShop?"6":"5"}. Booking System (SuperSaas)`,
+                color:T.purple,
+                icon:"📅",
+                items:[
+                  { key:"supersaas_account", label:"Create SuperSaas account for client", detail:`Go to supersaas.com → Sign Up → Free plan (upgrade later if needed).\n\nUse the client's email: ${email}\nBusiness name: ${biz}\n\nCopy the account username — you'll need it for the booking URL.`, link:"https://supersaas.com", linkLabel:"Open SuperSaas →", required:true },
+                  { key:"supersaas_schedule", label:"Set up the booking schedule", detail:`In SuperSaas, create a new schedule:\n• Name: ${biz} Bookings\n• Type: Resource (for appointments) or Service (for classes)\n• Services: ${ui.bookingServices||"(from client intake — add each service)"}\n• Duration: set per service\n• Availability: set client's working hours\n• Buffer time: 15 min between appointments (recommended)`, required:true },
+                  { key:"supersaas_url", label:"Get the booking URL and add to site", detail:'In SuperSaas, go to the schedule → Share → copy the public booking URL (looks like supersaas.com/schedule/accountname/schedulename).\n\nPaste it into the Integrations tab in this panel. The site will embed it via iframe.', required:true },
+                  { key:"supersaas_notifications", label:"Set up email notifications", detail:`In SuperSaas → Configure → Notifications:\n• New booking: email to ${email}\n• Confirmation to customer: YES\n• Reminder: 24 hours before appointment\n• Cancellation: notify both parties` },
+                ] as CheckItem[],
+              }] : []),
+
+              {
+                title:`${hasShop&&hasBooking?"7":hasShop||hasBooking?"6":"5"}. Go-Live Checklist`,
+                color:T.green,
+                icon:"🚀",
+                items:[
+                  { key:"golive_preview", label:"Review the preview site end to end", detail:"Click every nav link, submit the contact form (check it sends to the client email), test on mobile by resizing browser. Check all images load, all text is correct, no placeholder content remains.", required:true },
+                  { key:"golive_policies", label:"Confirm Privacy Policy and Terms pages work", detail:"Click the Privacy Policy and Terms of Service links in the footer. Both pages should load. If using Termly hosted URLs, confirm those links open the correct Termly documents.", required:true },
+                  { key:"golive_speed", label:"Run a PageSpeed test", detail:"Go to pagespeed.web.dev, enter the preview URL. Aim for 80+ on mobile. Flag anything under 60 to fix before launch.", link:"https://pagespeed.web.dev", linkLabel:"Open PageSpeed →" },
+                  { key:"golive_search_console", label:"Add site to Google Search Console", detail:`Go to search.google.com/search-console → Add Property → URL prefix → enter ${siteUrl||"(client domain after launch)"}.\n\nVerify ownership via HTML tag method — add the meta tag to the site <head>, then redeploy.\n\nOnce verified, submit the sitemap: ${siteUrl||"https://clientdomain.com.au"}/sitemap.xml`, link:"https://search.google.com/search-console", linkLabel:"Open Search Console →" },
+                  { key:"golive_email_client", label:"Send go-live email to client", detail:`Email ${email} with:\n• Link to their live site\n• Login details for any platforms (Square, SuperSaas, GA4)\n• Link to their Termly policies\n• Instructions for updating content via the client portal\n• Your support contact details`, required:true },
+                  { key:"golive_handoff", label:"Mark job as complete in admin", detail:"Update payment status, confirm domain is live, tick off this checklist. Archive the job notes.", required:true },
+                ],
+              },
+            ];
+
+            const totalItems = sections.flatMap(s=>s.items).length;
+            const doneCount = sections.flatMap(s=>s.items).filter(i=>checklistDone[i.key]).length;
+            const pct = Math.round((doneCount/totalItems)*100);
+
+            return (
+              <div>
+                {/* Progress bar */}
+                <div style={{marginBottom:24}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                    <div style={{fontSize:13,fontWeight:700,color:T.text}}>Client Setup Progress</div>
+                    <div style={{fontSize:13,fontWeight:700,color:pct===100?T.green:T.amber}}>{doneCount}/{totalItems} done · {pct}%</div>
+                  </div>
+                  <div style={{height:6,background:T.raised,borderRadius:4,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:`${pct}%`,background:pct===100?T.green:T.blue,borderRadius:4,transition:"width 0.4s ease"}}/>
+                  </div>
+                  {pct===100&&<div style={{marginTop:8,fontSize:12,color:T.green,fontWeight:600}}>✓ All steps complete — ready to hand off!</div>}
+                </div>
+
+                {sections.map(section=>(
+                  <div key={section.title} style={{marginBottom:28}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,paddingBottom:8,borderBottom:`1px solid ${section.color}30`}}>
+                      <span style={{fontSize:16}}>{section.icon}</span>
+                      <div style={{fontSize:12,fontWeight:800,color:section.color,textTransform:"uppercase" as const,letterSpacing:"0.08em"}}>{section.title}</div>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column" as const,gap:10}}>
+                      {section.items.map(item=>{
+                        const done = !!checklistDone[item.key];
+                        return (
+                          <div key={item.key} style={{background:done?`${section.color}0a`:T.surface,border:`1px solid ${done?section.color+"40":T.border}`,borderRadius:10,padding:"14px 16px",transition:"all 0.2s ease"}}>
+                            <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
+                              <button onClick={()=>toggleCheck(item.key)} style={{
+                                width:22,height:22,borderRadius:6,flexShrink:0,marginTop:1,
+                                background:done?section.color:"transparent",
+                                border:`2px solid ${done?section.color:T.border}`,
+                                display:"flex",alignItems:"center",justifyContent:"center",
+                                cursor:"pointer",transition:"all 0.15s ease",
+                              }}>
+                                {done&&<span style={{color:"#000",fontSize:13,fontWeight:900,lineHeight:1}}>✓</span>}
+                              </button>
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                                  <div style={{fontSize:13,fontWeight:600,color:done?T.textMuted:T.text,textDecoration:done?"line-through":"none"}}>{item.label}</div>
+                                  {item.required&&!done&&<span style={{fontSize:10,fontWeight:700,color:section.color,background:`${section.color}18`,padding:"1px 7px",borderRadius:20,flexShrink:0}}>REQUIRED</span>}
+                                </div>
+                                <div style={{fontSize:12,color:T.textMuted,lineHeight:1.7,whiteSpace:"pre-line" as const}}>{item.detail}</div>
+                                {item.link&&(
+                                  <a href={item.link} target="_blank" rel="noopener noreferrer" style={{display:"inline-block",marginTop:10,fontSize:11,fontWeight:600,color:section.color,textDecoration:"none",background:`${section.color}15`,border:`1px solid ${section.color}40`,borderRadius:6,padding:"5px 12px"}}>
+                                    {item.linkLabel||item.link} ↗
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
 
         </div>
       </div>

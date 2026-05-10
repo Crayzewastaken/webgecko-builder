@@ -67,6 +67,99 @@ const FEATURE_BUNDLES = [
   { id: 'video', icon: '🎥', label: 'Video Background', desc: 'Cinematic video hero section', features: ['Video Background'], exclusiveGroup: null, requiresPage: null },
 ];
 
+// ── Shared UI primitives (defined OUTSIDE component to prevent remount on re-render) ──
+
+const Label = ({ children }: { children: React.ReactNode }) => (
+  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">{children}</label>
+);
+
+const InputField = ({ icon, label, value, onChange, placeholder, required, type = 'text', hint, maxLength, inputMode, pattern }: any) => (
+  <div className="space-y-1.5">
+    <Label>{icon && <span className="mr-1.5">{icon}</span>}{label}{required && <span className="text-red-400 ml-1">*</span>}</Label>
+    <input
+      type={type} value={value} onChange={onChange} placeholder={placeholder}
+      maxLength={maxLength} inputMode={inputMode} pattern={pattern}
+      className="w-full h-[52px] rounded-xl bg-[#111827] border border-white/10 px-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-base"
+    />
+    {hint && <p className="text-slate-500 text-xs leading-relaxed">{hint}</p>}
+  </div>
+);
+
+const TextAreaField = ({ icon, label, value, onChange, placeholder, required, rows = 4 }: any) => (
+  <div className="space-y-1.5">
+    <Label>{icon && <span className="mr-1.5">{icon}</span>}{label}{required && <span className="text-red-400 ml-1">*</span>}</Label>
+    <textarea
+      value={value} onChange={onChange} placeholder={placeholder} rows={rows}
+      className="w-full rounded-xl bg-[#111827] border border-white/10 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none text-base leading-relaxed"
+    />
+  </div>
+);
+
+const SelectCard = ({ selected, onClick, label, desc, icon, badge }: any) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`w-full text-left rounded-xl p-4 border-2 transition-all duration-200 active:scale-[0.98] ${selected ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.12)]' : 'border-white/8 bg-[#111827] hover:border-white/20'}`}
+  >
+    <div className="flex items-center gap-3">
+      <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${selected ? 'border-emerald-500 bg-emerald-500' : 'border-white/25'}`}>
+        {selected && <div className="w-2 h-2 rounded-full bg-white" />}
+      </div>
+      {icon && <span className="text-xl flex-shrink-0">{icon}</span>}
+      <div className="flex-1 min-w-0">
+        <p className={`font-semibold text-sm ${selected ? 'text-white' : 'text-slate-200'}`}>{label}</p>
+        {desc && <p className="text-slate-500 text-xs mt-0.5 leading-relaxed">{desc}</p>}
+      </div>
+      {badge && <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full flex-shrink-0">{badge}</span>}
+    </div>
+  </button>
+);
+
+const CheckCard = ({ checked, onClick, label, desc, icon }: any) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`w-full text-left rounded-xl p-4 border-2 transition-all duration-200 active:scale-[0.98] ${checked ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.10)]' : 'border-white/8 bg-[#111827] hover:border-white/20'}`}
+  >
+    <div className="flex items-center gap-3">
+      <div className={`w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-all ${checked ? 'border-emerald-500 bg-emerald-500' : 'border-white/25'}`}>
+        {checked && (
+          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
+            <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </div>
+      {icon && <span className="text-xl flex-shrink-0">{icon}</span>}
+      <div className="flex-1 min-w-0">
+        <p className={`font-semibold text-sm ${checked ? 'text-white' : 'text-slate-200'}`}>{label}</p>
+        {desc && <p className="text-slate-500 text-xs mt-0.5 leading-relaxed">{desc}</p>}
+      </div>
+    </div>
+  </button>
+);
+
+const FileUploadBox = ({ label, file, onChange, inputRef, accept, hint, icon = '📎' }: any) => (
+  <button
+    type="button"
+    onClick={() => inputRef.current?.click()}
+    className={`w-full border-2 border-dashed rounded-xl p-5 text-center transition-all active:scale-[0.98] ${file ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-white/10 bg-[#111827] hover:border-white/20'}`}
+  >
+    <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={onChange} />
+    {file ? (
+      <div>
+        <p className="text-emerald-400 font-semibold text-sm">✓ {file.name}</p>
+        <p className="text-slate-500 text-xs mt-1">{(file.size / 1024).toFixed(0)} KB · Tap to replace</p>
+      </div>
+    ) : (
+      <div>
+        <p className="text-2xl mb-2">{icon}</p>
+        <p className="text-slate-300 font-semibold text-sm">{label}</p>
+        <p className="text-slate-500 text-xs mt-1">{hint}</p>
+      </div>
+    )}
+  </button>
+);
+
 export default function HomePage() {
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
@@ -362,99 +455,6 @@ export default function HomePage() {
   }
 
   function back() { setErrors([]); setStep(Math.max(1, step - 1)); topRef.current?.scrollIntoView({ behavior: 'smooth' }); }
-
-  // ── Shared UI primitives ──────────────────────────────────────────────
-
-  const Label = ({ children }: { children: React.ReactNode }) => (
-    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">{children}</label>
-  );
-
-  const InputField = ({ icon, label, value, onChange, placeholder, required, type = 'text', hint, maxLength, inputMode, pattern }: any) => (
-    <div className="space-y-1.5">
-      <Label>{icon && <span className="mr-1.5">{icon}</span>}{label}{required && <span className="text-red-400 ml-1">*</span>}</Label>
-      <input
-        type={type} value={value} onChange={onChange} placeholder={placeholder}
-        maxLength={maxLength} inputMode={inputMode} pattern={pattern}
-        className="w-full h-[52px] rounded-xl bg-[#111827] border border-white/10 px-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-base"
-      />
-      {hint && <p className="text-slate-500 text-xs leading-relaxed">{hint}</p>}
-    </div>
-  );
-
-  const TextAreaField = ({ icon, label, value, onChange, placeholder, required, rows = 4 }: any) => (
-    <div className="space-y-1.5">
-      <Label>{icon && <span className="mr-1.5">{icon}</span>}{label}{required && <span className="text-red-400 ml-1">*</span>}</Label>
-      <textarea
-        value={value} onChange={onChange} placeholder={placeholder} rows={rows}
-        className="w-full rounded-xl bg-[#111827] border border-white/10 px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none text-base leading-relaxed"
-      />
-    </div>
-  );
-
-  const SelectCard = ({ selected, onClick, label, desc, icon, badge }: any) => (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full text-left rounded-xl p-4 border-2 transition-all duration-200 active:scale-[0.98] ${selected ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.12)]' : 'border-white/8 bg-[#111827] hover:border-white/20'}`}
-    >
-      <div className="flex items-center gap-3">
-        <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${selected ? 'border-emerald-500 bg-emerald-500' : 'border-white/25'}`}>
-          {selected && <div className="w-2 h-2 rounded-full bg-white" />}
-        </div>
-        {icon && <span className="text-xl flex-shrink-0">{icon}</span>}
-        <div className="flex-1 min-w-0">
-          <p className={`font-semibold text-sm ${selected ? 'text-white' : 'text-slate-200'}`}>{label}</p>
-          {desc && <p className="text-slate-500 text-xs mt-0.5 leading-relaxed">{desc}</p>}
-        </div>
-        {badge && <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full flex-shrink-0">{badge}</span>}
-      </div>
-    </button>
-  );
-
-  const CheckCard = ({ checked, onClick, label, desc, icon }: any) => (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full text-left rounded-xl p-4 border-2 transition-all duration-200 active:scale-[0.98] ${checked ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.10)]' : 'border-white/8 bg-[#111827] hover:border-white/20'}`}
-    >
-      <div className="flex items-center gap-3">
-        <div className={`w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-all ${checked ? 'border-emerald-500 bg-emerald-500' : 'border-white/25'}`}>
-          {checked && (
-            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
-              <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          )}
-        </div>
-        {icon && <span className="text-xl flex-shrink-0">{icon}</span>}
-        <div className="flex-1 min-w-0">
-          <p className={`font-semibold text-sm ${checked ? 'text-white' : 'text-slate-200'}`}>{label}</p>
-          {desc && <p className="text-slate-500 text-xs mt-0.5 leading-relaxed">{desc}</p>}
-        </div>
-      </div>
-    </button>
-  );
-
-  const FileUploadBox = ({ label, file, onChange, inputRef, accept, hint, icon = '📎' }: any) => (
-    <button
-      type="button"
-      onClick={() => inputRef.current?.click()}
-      className={`w-full border-2 border-dashed rounded-xl p-5 text-center transition-all active:scale-[0.98] ${file ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-white/10 bg-[#111827] hover:border-white/20'}`}
-    >
-      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={onChange} />
-      {file ? (
-        <div>
-          <p className="text-emerald-400 font-semibold text-sm">✓ {file.name}</p>
-          <p className="text-slate-500 text-xs mt-1">{(file.size / 1024).toFixed(0)} KB · Tap to replace</p>
-        </div>
-      ) : (
-        <div>
-          <p className="text-2xl mb-2">{icon}</p>
-          <p className="text-slate-300 font-semibold text-sm">{label}</p>
-          <p className="text-slate-500 text-xs mt-1">{hint}</p>
-        </div>
-      )}
-    </button>
-  );
 
   // ── Success screen ────────────────────────────────────────────────────
 

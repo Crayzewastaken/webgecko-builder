@@ -65,13 +65,15 @@ export async function auditAndFixSite(
     clientEmail: string;
     clientPhone: string;
     businessAddress?: string;
+    abn?: string;
+    domain?: string;
     hasBooking: boolean;
     isMultiPage: boolean;
     pages: string[];
     features: string[];
   }
 ): Promise<AuditResult> {
-  const { businessName, industry = "", clientEmail, clientPhone, businessAddress, hasBooking, isMultiPage } = context;
+  const { businessName, industry = "", clientEmail, clientPhone, businessAddress, abn = "", domain = "", hasBooking, isMultiPage } = context;
   const issues: AuditIssue[] = [];
   const add = (type: AuditErrorType, detail: string) => issues.push({ type, detail, fixed: false });
   const has = (t: AuditErrorType) => issues.some(i => i.type === t);
@@ -338,6 +340,20 @@ export async function auditAndFixSite(
     }
   }
 
+  // Fix: Inject legal pages (Terms + Privacy) if not already present
+  fixed = injectLegalPages(fixed, {
+    businessName,
+    clientEmail,
+    businessAddress: businessAddress || "",
+    abn,
+    domain,
+    features: context.features || [],
+    ga4: !!(context.features || []).includes("Google Analytics") || fixed.includes("G-"),
+    dark,
+    clrBg, clrBg2, clrCard, clrText, clrSub, clrBord, clrAcct,
+    yr,
+  });
+
   // Ensure </body></html> exists — append if missing (handles Claude truncation)
   if (!fixed.includes("</body>") || !fixed.includes("</html>")) {
     console.warn("[Auditor] Missing </body> or </html> — appending safe closing tags");
@@ -373,6 +389,176 @@ export async function auditAndFixSite(
   const issueStrings = issues.map(i => i.detail);
   console.log("[Auditor] Fixed " + issues.filter(i => i.fixed).length + "/" + issues.length + " issues");
   return { passed: false, issues, issueStrings, fixedHtml: fixed };
+}
+
+function injectLegalPages(html: string, ctx: {
+  businessName: string; clientEmail: string; businessAddress: string;
+  abn: string; domain: string; features: string[]; ga4: boolean;
+  dark: boolean; clrBg: string; clrBg2: string; clrCard: string;
+  clrText: string; clrSub: string; clrBord: string; clrAcct: string; yr: number;
+}): string {
+  const hasTerms   = /id="terms"|data-page="terms"/i.test(html);
+  const hasPrivacy = /id="privacy"|data-page="privacy"/i.test(html);
+  if (hasTerms && hasPrivacy) return html;
+
+  const { businessName, clientEmail, businessAddress, abn, domain, features, ga4,
+          clrBg, clrBg2, clrCard, clrText, clrSub, clrBord, clrAcct, yr } = ctx;
+
+  const siteName   = businessName || "This Website";
+  const siteUrl    = domain ? (domain.startsWith("http") ? domain : "https://" + domain) : "";
+  const contactLine = [businessAddress, clientEmail].filter(Boolean).join(" · ");
+  const abnLine    = abn ? ` ABN ${abn}.` : "";
+
+  const hasShop    = features.includes("Payments / Shop");
+  const hasBooking = features.includes("Booking System");
+  const hasContact = features.includes("Contact Form") || true; // always true — contact form is universal
+  const hasNewsletter = features.includes("Newsletter Signup");
+  const hasChat    = features.includes("Live Chat");
+
+  // ── shared styles ──
+  const prose = `color:${clrText};font-size:0.95rem;line-height:1.8;margin-bottom:16px;`;
+  const h2s   = `color:${clrText};font-size:1.4rem;font-weight:800;margin:32px 0 12px;`;
+  const h3s   = `color:${clrText};font-size:1.1rem;font-weight:700;margin:20px 0 8px;`;
+  const wrap  = `max-width:800px;margin:0 auto;padding:60px 24px 80px;`;
+
+  // ── PRIVACY POLICY ──
+  const privacyHtml = !hasPrivacy ? `
+<div id="privacy" data-page="privacy" style="background:${clrBg};display:none;">
+  <div style="${wrap}">
+    <h1 style="color:${clrText};font-size:2rem;font-weight:900;margin-bottom:8px;">Privacy Policy</h1>
+    <p style="${clrSub};font-size:0.85rem;margin-bottom:32px;color:${clrSub};">Last updated: ${new Date().toLocaleDateString("en-AU", { day:"numeric", month:"long", year:"numeric" })}</p>
+
+    <p style="${prose}">${siteName}${abnLine} ("we", "us", "our") is committed to protecting your personal information in accordance with the <em>Privacy Act 1988</em> (Cth) and the Australian Privacy Principles (APPs).</p>
+
+    <h2 style="${h2s}">1. Information We Collect</h2>
+    <p style="${prose}">We may collect the following types of personal information:</p>
+    <ul style="color:${clrText};line-height:2;padding-left:20px;margin-bottom:16px;">
+      ${hasContact ? `<li>Contact details you submit via our enquiry form (name, email, phone number, message)</li>` : ""}
+      ${hasBooking ? `<li>Booking information including your name, contact details, and appointment preferences</li>` : ""}
+      ${hasShop ? `<li>Order details including your name, delivery address, and transaction information processed securely via Square</li>` : ""}
+      ${hasNewsletter ? `<li>Email address if you subscribe to our newsletter or marketing communications</li>` : ""}
+      ${ga4 ? `<li>Browsing behaviour and usage data collected automatically via Google Analytics (anonymised IP addresses)</li>` : ""}
+      ${hasChat ? `<li>Chat messages and support enquiries submitted via our live chat feature</li>` : ""}
+      <li>Technical information such as browser type, device type, and referring URL (collected automatically by our hosting provider)</li>
+    </ul>
+
+    <h2 style="${h2s}">2. How We Use Your Information</h2>
+    <p style="${prose}">We use your personal information to:</p>
+    <ul style="color:${clrText};line-height:2;padding-left:20px;margin-bottom:16px;">
+      <li>Respond to your enquiries and provide the services you request</li>
+      ${hasBooking ? `<li>Manage bookings and send appointment confirmations or reminders</li>` : ""}
+      ${hasShop ? `<li>Process your orders and arrange fulfilment</li>` : ""}
+      ${hasNewsletter ? `<li>Send you marketing communications you have opted in to receive (you may unsubscribe at any time)</li>` : ""}
+      ${ga4 ? `<li>Analyse website usage to improve user experience (via Google Analytics — no personally identifiable information is transmitted)</li>` : ""}
+      <li>Comply with legal obligations</li>
+    </ul>
+
+    <h2 style="${h2s}">3. Disclosure of Your Information</h2>
+    <p style="${prose}">We do not sell, rent, or trade your personal information to third parties. We may disclose your information to:</p>
+    <ul style="color:${clrText};line-height:2;padding-left:20px;margin-bottom:16px;">
+      ${hasShop ? `<li><strong>Square Australia</strong> — for secure payment processing. Square's privacy policy applies to payment data.</li>` : ""}
+      ${ga4 ? `<li><strong>Google LLC</strong> — for website analytics via Google Analytics. Data is processed in accordance with Google's privacy policy.</li>` : ""}
+      ${hasChat ? `<li>Live chat service providers who assist in managing customer enquiries</li>` : ""}
+      <li>Our hosting provider and IT service suppliers who assist in operating this website, under strict confidentiality obligations</li>
+      <li>Law enforcement or regulatory bodies where required by law</li>
+    </ul>
+
+    <h2 style="${h2s}">4. Data Storage and Security</h2>
+    <p style="${prose}">Your personal information is stored securely and protected by reasonable technical and organisational measures. While we take all reasonable precautions, no data transmission over the internet can be guaranteed as completely secure.</p>
+
+    <h2 style="${h2s}">5. Your Rights</h2>
+    <p style="${prose}">You have the right to access, correct, or request deletion of personal information we hold about you. To make a request, contact us at <a href="mailto:${clientEmail}" style="color:${clrAcct};">${clientEmail}</a>. We will respond within 30 days.</p>
+
+    <h2 style="${h2s}">6. Cookies</h2>
+    <p style="${prose}">This website may use cookies and similar technologies to improve your browsing experience${ga4 ? " and collect anonymised analytics data via Google Analytics" : ""}. You can disable cookies in your browser settings, though some features may not function as intended.</p>
+
+    <h2 style="${h2s}">7. Links to Other Websites</h2>
+    <p style="${prose}">Our website may contain links to external sites. We are not responsible for the privacy practices or content of those sites.</p>
+
+    <h2 style="${h2s}">8. Changes to This Policy</h2>
+    <p style="${prose}">We may update this Privacy Policy from time to time. The current version will always be available on this page.</p>
+
+    <h2 style="${h2s}">9. Contact Us</h2>
+    <p style="${prose}">For any privacy-related enquiries or complaints, please contact us at:<br>
+    <strong>${siteName}</strong><br>
+    ${contactLine ? contactLine + "<br>" : ""}
+    <a href="mailto:${clientEmail}" style="color:${clrAcct};">${clientEmail}</a>
+    </p>
+
+    <p style="color:${clrSub};font-size:0.8rem;margin-top:40px;">If you are not satisfied with our response, you may contact the Office of the Australian Information Commissioner (OAIC) at <a href="https://www.oaic.gov.au" style="color:${clrAcct};">www.oaic.gov.au</a>.</p>
+  </div>
+</div>` : "";
+
+  // ── TERMS OF SERVICE ──
+  const termsHtml = !hasTerms ? `
+<div id="terms" data-page="terms" style="background:${clrBg2};display:none;">
+  <div style="${wrap}">
+    <h1 style="color:${clrText};font-size:2rem;font-weight:900;margin-bottom:8px;">Terms of Service</h1>
+    <p style="font-size:0.85rem;margin-bottom:32px;color:${clrSub};">Last updated: ${new Date().toLocaleDateString("en-AU", { day:"numeric", month:"long", year:"numeric" })}</p>
+
+    <p style="${prose}">Please read these Terms of Service carefully before using${siteUrl ? ` <a href="${siteUrl}" style="color:${clrAcct};">${siteUrl}</a>` : " this website"} (the "Site") operated by <strong>${siteName}</strong>${abnLine} ("we", "us", "our").</p>
+    <p style="${prose}">By accessing or using this Site, you agree to be bound by these Terms. If you do not agree, please do not use this Site.</p>
+
+    <h2 style="${h2s}">1. Use of This Website</h2>
+    <p style="${prose}">You may use this Site for lawful purposes only. You must not use this Site in any way that breaches applicable laws or regulations, or that is fraudulent or harmful.</p>
+
+    <h2 style="${h2s}">2. Intellectual Property</h2>
+    <p style="${prose}">All content on this Site — including text, images, logos, and graphics — is owned by or licensed to ${siteName} and is protected by Australian copyright law. You may not reproduce, distribute, or create derivative works without our express written permission.</p>
+
+    <h2 style="${h2s}">3. Services and Accuracy</h2>
+    <p style="${prose}">The information on this Site is provided in good faith and for general informational purposes only. We make no representations or warranties about the accuracy, completeness, or suitability of this information for any particular purpose.</p>
+    ${hasShop ? `<h3 style="${h3s}">Online Orders</h3><p style="${prose}">By placing an order through this Site, you agree that all information you provide is accurate. We reserve the right to cancel orders at our discretion. Payments are processed securely via Square. Refund and return policies are available on request.</p>` : ""}
+    ${hasBooking ? `<h3 style="${h3s}">Bookings and Appointments</h3><p style="${prose}">Bookings made through this Site are subject to availability. Cancellation policies apply — please contact us if you need to reschedule or cancel. We reserve the right to reschedule or cancel appointments with reasonable notice.</p>` : ""}
+
+    <h2 style="${h2s}">4. Limitation of Liability</h2>
+    <p style="${prose}">To the maximum extent permitted by law, ${siteName} excludes all liability for any loss or damage arising from your use of this Site or any information on it, including but not limited to indirect, incidental, or consequential loss.</p>
+    <p style="${prose}">Nothing in these Terms excludes any rights you may have under the Australian Consumer Law.</p>
+
+    <h2 style="${h2s}">5. Third-Party Links</h2>
+    <p style="${prose}">This Site may contain links to third-party websites. These links are provided for convenience only. We have no control over third-party sites and accept no responsibility for their content or privacy practices.</p>
+
+    <h2 style="${h2s}">6. Privacy</h2>
+    <p style="${prose}">Your use of this Site is also governed by our <a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('privacy')" style="color:${clrAcct};">Privacy Policy</a>, which is incorporated into these Terms by reference.</p>
+
+    <h2 style="${h2s}">7. Governing Law</h2>
+    <p style="${prose}">These Terms are governed by the laws of Australia. Any disputes will be subject to the exclusive jurisdiction of the courts of Australia.</p>
+
+    <h2 style="${h2s}">8. Changes to These Terms</h2>
+    <p style="${prose}">We may update these Terms at any time. The current version will always be available on this page. Continued use of the Site after changes are posted constitutes acceptance of the updated Terms.</p>
+
+    <h2 style="${h2s}">9. Contact</h2>
+    <p style="${prose}">If you have questions about these Terms, contact us at:<br>
+    <strong>${siteName}</strong><br>
+    ${contactLine ? contactLine + "<br>" : ""}
+    <a href="mailto:${clientEmail}" style="color:${clrAcct};">${clientEmail}</a>
+    </p>
+  </div>
+</div>` : "";
+
+  // Inject before </body> and add footer links
+  let result = html;
+
+  if (privacyHtml || termsHtml) {
+    result = result.replace("</body>", privacyHtml + termsHtml + "\n</body>");
+    console.log("[Auditor] Injected legal pages: " + [!hasPrivacy && "privacy", !hasTerms && "terms"].filter(Boolean).join(", "));
+  }
+
+  // Wire footer links — find the footer and add links if not already there
+  if (!result.includes('navigateTo(\'terms\'') && !result.includes('navigateTo("terms"')) {
+    const legalFooter = `<div style="text-align:center;padding:8px 0 4px;font-size:12px;">` +
+      `<a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('privacy')" style="color:${clrSub};text-decoration:none;margin:0 10px;">Privacy Policy</a>` +
+      `<span style="color:${clrBord};">|</span>` +
+      `<a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('terms')" style="color:${clrSub};text-decoration:none;margin:0 10px;">Terms of Service</a>` +
+      `</div>`;
+    if (result.includes("</footer>")) {
+      result = result.replace(/([\s\S]*?)<\/footer>/i, (m: string, body: string) => body + legalFooter + "</footer>");
+    } else {
+      // Inject before closing body
+      result = result.replace("</body>", legalFooter + "\n</body>");
+    }
+  }
+
+  return result;
 }
 
 function addSectionIdSmart(html: string, id: string, classPatterns: RegExp[], headingPatterns: RegExp[], fallbackSection: string): string {

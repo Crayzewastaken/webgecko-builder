@@ -1027,9 +1027,12 @@ const buildWebsite = inngest.createFunction(
       const auditedHtml = await step.run("step6b-audit", async () => {
         const result = await auditAndFixSite(injectedHtml, {
           businessName: userInput.businessName,
+          industry: userInput.industry || "",
           clientEmail,
           clientPhone,
           businessAddress: userInput.businessAddress || "",
+          abn: userInput.abn || "",
+          domain: userInput.domain || "",
           hasBooking: hasBookingFeature,
           isMultiPage,
           pages: Array.isArray(userInput.pages) ? userInput.pages : ["Home"],
@@ -1425,6 +1428,8 @@ const buildWebsite = inngest.createFunction(
             clientEmail,
             clientPhone,
             businessAddress: userInput.businessAddress || "",
+            abn: userInput.abn || "",
+            domain: userInput.domain || "",
             hasBooking: hasBookingFeature,
             isMultiPage,
             pages: Array.isArray(userInput.pages) ? userInput.pages : ["Home"],
