@@ -379,11 +379,36 @@ const buildWebsite = inngest.createFunction(
           html = html.replace(/<\/body>/i, contactSection + "\n</body>");
         }
 
-        // 4. Inject footer with copyright if missing
-        if (!html.includes("<footer")) {
+        // 4. Inject footer with copyright if missing; always pin to bottom via flex body
+        {
           const yr4b = new Date().getFullYear();
-          const footer = `<footer style="padding:32px 24px;background:#0a0f1a;text-align:center;color:#64748b;font-size:0.875rem;">&copy; ${yr4b} ${userInput.businessName}. All rights reserved.</footer>`;
-          html = html.replace(/<\/body>/i, footer + "\n</body>");
+          const footerHtml = `<footer id="wg-footer" style="margin-top:auto;padding:32px 24px;background:#0a0f1a;text-align:center;color:#64748b;font-size:0.875rem;">&copy; ${yr4b} ${userInput.businessName}. All rights reserved.</footer>`;
+          if (!html.includes("<footer")) {
+            html = html.replace(/<\/body>/i, footerHtml + "\n</body>");
+          } else {
+            // Ensure existing footer has margin-top:auto so it sticks to bottom
+            html = html.replace(/<footer(?![^>]*margin-top:auto)([^>]*)>/i, (m: string, attrs: string) => {
+              if (attrs.includes("style=")) {
+                return m.replace(/style=["']/, (s: string) => s + "margin-top:auto;");
+              }
+              return `<footer${attrs} style="margin-top:auto;">`;
+            });
+          }
+          // Make <body> a flex column so footer naturally sits at bottom
+          if (html.includes("<body")) {
+            html = html.replace(/<body([^>]*)>/i, (m: string, attrs: string) => {
+              if (attrs.includes("display:flex") || attrs.includes("flex-direction")) return m;
+              if (attrs.includes("style=")) {
+                return m.replace(/style=["']/, (s: string) => s + "display:flex;flex-direction:column;min-height:100vh;");
+              }
+              return `<body${attrs} style="display:flex;flex-direction:column;min-height:100vh;">`;
+            });
+          }
+          // Also inject a <style> to ensure [data-page].active sections flex-grow
+          if (!html.includes("wg-footer-fix")) {
+            const footerFixStyle = `<style data-wg="wg-footer-fix">body{display:flex;flex-direction:column;min-height:100vh;}[data-page]{flex:1 0 auto;}footer,#wg-footer{margin-top:auto;flex-shrink:0;}</style>`;
+            html = html.replace(/<\/head>/i, footerFixStyle + "\n</head>");
+          }
         }
 
         // 5. Multi-page: wrap Stitch content in page-section divs if needed
@@ -591,6 +616,13 @@ const buildWebsite = inngest.createFunction(
           html = html.replace(/<iframe[^>]*(?:google\.com\/maps|maps\.googleapis|openstreetmap)[^>]*>[\s\S]*?<\/iframe>/gi, '');
           // Also strip bare <a href="...maps..."> links Stitch sometimes generates instead of iframes
           html = html.replace(/<a[^>]*href=["'][^"']*(?:google\.com\/maps|maps\.googleapis\.com)[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '');
+          // Strip Stitch visual map placeholder boxes — e.g. div with map icon + "Map View: City" text (no real iframe)
+          // These are typically a rounded card with a Material icon and label text, never an actual map
+          html = html.replace(/<div[^>]*>(?:[^<]|<(?!iframe)[^>]*>)*?(?:Map View[\s\S]{0,60}?<\/div>)/gi, (m: string) => {
+            if (m.includes('iframe')) return m; // real map — keep it
+            if (/Map View\s*:/i.test(m)) return ''; // Stitch placeholder — strip it
+            return m;
+          });
           // Always inject map as a full-width block AFTER the contact section, never inside it.
           // This prevents the map overlapping the two-column contact layout.
           const mapBlock = `<div id="map-section" style="width:100%;padding:0 0 60px;background:inherit;">${mapsEmbed}</div>`;

@@ -77,6 +77,12 @@ export async function GET(req: NextRequest) {
     // PRE-PASS: strip <canvas> elements entirely — static HTML sites never use canvas legitimately
     // They are always Stitch-generated fake map/animation placeholders
     html = html.replace(/<canvas[^>]*>[\s\S]*?<\/canvas>/gi, "");
+    // Strip Stitch visual map placeholder boxes (div with map icon + "Map View: City" text, no iframe)
+    html = html.replace(/<div[^>]*>(?:[^<]|<(?!iframe)[^>]*>)*?(?:Map View[\s\S]{0,60}?<\/div>)/gi, (m: string) => {
+      if (m.includes('iframe')) return m;
+      if (/Map View\s*:/i.test(m)) return '';
+      return m;
+    });
 
     // FIX 1: Contact details — only replace clearly fake emails
     const clientDomain = clientEmail.split("@")[1] || "";
@@ -255,6 +261,21 @@ export async function GET(req: NextRequest) {
       } catch (e) {
         console.error("[Fix-Proxy] Booking widget injection failed:", e);
       }
+    }
+
+    // Footer always at bottom
+    if (!html.includes("wg-footer-fix")) {
+      const footerFixStyle = `<style data-wg="wg-footer-fix">body{display:flex;flex-direction:column;min-height:100vh;}[data-page]{flex:1 0 auto;}footer,#wg-footer{margin-top:auto;flex-shrink:0;}</style>`;
+      html = html.replace(/<\/head>/i, footerFixStyle + "\n</head>");
+      html = html.replace(/<body([^>]*)>/i, (m: string, attrs: string) => {
+        if (attrs.includes("display:flex")) return m;
+        if (attrs.includes("style=")) return m.replace(/style=["']/, (s: string) => s + "display:flex;flex-direction:column;min-height:100vh;");
+        return `<body${attrs} style="display:flex;flex-direction:column;min-height:100vh;">`;
+      });
+      html = html.replace(/<footer(?![^>]*margin-top)([^>]*)>/i, (m: string, attrs: string) => {
+        if (attrs.includes("style=")) return m.replace(/style=["']/, (s: string) => s + "margin-top:auto;");
+        return `<footer${attrs} style="margin-top:auto;">`;
+      });
     }
 
     // Deploy

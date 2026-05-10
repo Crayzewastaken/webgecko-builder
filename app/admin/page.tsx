@@ -19,6 +19,8 @@ interface ClientAnalytics {
   bookingCount: number; hasBooking: boolean; builtAt?: string; supersaasId?: string;
   supersaasUrl?: string; bookingServices?: string; clientEmail?: string; clientPhone?: string;
   tawktoPropertyId?: string; shopCatalogue?: any[] | null;
+  logoUrl?: string; heroUrl?: string; photoUrls?: string[];
+  squareAccessToken?: string; squareLocationId?: string; ga4Id?: string;
   userInput?: { features?: string[]; pages?: string[]; siteType?: string; style?: string; colorPrefs?: string; usp?: string; goal?: string; additionalNotes?: string; abn?: string; businessAddress?: string; facebookPage?: string; instagramUrl?: string; linkedinUrl?: string; };
   metadata?: { scheduledReleaseAt?: string; scheduledReleaseDays?: number; checklistCompletedAt?: string; alreadyReleased?: boolean; seo?: SeoData; domainStatus?: string; domainUrl?: string; lastGoodAt?: string; lastGoodUrl?: string; lastGoodHtml?: string; rolledBackAt?: string; };
 }
@@ -366,7 +368,15 @@ function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:
 
 // ── Client slide-over panel ────────────────────────────────────────────────────
 function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:string; onClose:()=>void; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
-  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"payments"|"actions"|"requests">("perf");
+  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"payments"|"actions"|"requests">("perf");
+  const [assetUploading, setAssetUploading] = useState(false);
+  const [assetMsg, setAssetMsg] = useState("");
+  const [intSaving, setIntSaving] = useState(false);
+  const [intMsg, setIntMsg] = useState("");
+  const [squareToken, setSquareToken] = useState(c.squareAccessToken||"");
+  const [squareLocation, setSquareLocation] = useState(c.squareLocationId||"");
+  const [ga4Id, setGa4Id] = useState(c.ga4Id||"");
+  const [customDomain, setCustomDomain] = useState(c.domain||"");
   const [featureRequests, setFeatureRequests] = useState<any[]>([]);
   const [frLoading, setFrLoading] = useState(false);
   const [frUpdating, setFrUpdating] = useState<string|null>(null);
@@ -408,7 +418,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   }
 
   const pending = featureRequests.filter(r=>r.status==="pending"||r.status==="draft").length;
-  const tabs = ["perf","engagement","seo","site","payments","actions","requests"] as const;
+  const tabs = ["perf","engagement","seo","site","assets","integrations","payments","actions","requests"] as const;
 
   const sectionTitle = (text:string) => (
     <div style={{ fontSize:10, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.09em", fontWeight:700, marginBottom:12, paddingBottom:8, borderBottom:`1px solid ${T.border}` }}>{text}</div>
@@ -467,6 +477,8 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
           {tabBtn("engagement","Engagement")}
           {tabBtn("seo","SEO")}
           {tabBtn("site","Site")}
+          {tabBtn("assets","Assets")}
+          {tabBtn("integrations","Integrations")}
           {tabBtn("payments","Payments")}
           {tabBtn("actions","Actions")}
           {tabBtn("requests", `Requests${pending>0?` (${pending})`:""}`)}
@@ -716,6 +728,197 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                 </div>
               )}
             </>
+          )}
+
+
+          {/* ASSETS */}
+          {tab==="assets"&&(
+            <div style={{display:"flex",flexDirection:"column" as const,gap:20}}>
+              {/* Gallery photos */}
+              <div>
+                {sectionTitle("Gallery photos")}
+                <div style={{fontSize:12,color:T.textMuted,marginBottom:12,lineHeight:1.6}}>
+                  Upload photos for the gallery section. These will be injected into the site's gallery grid on next fix/rebuild.
+                </div>
+                <div style={{display:"flex",flexWrap:"wrap" as const,gap:8,marginBottom:12}}>
+                  {(c.photoUrls||[]).map((url:string,i:number)=>(
+                    <div key={i} style={{position:"relative",width:80,height:80,borderRadius:8,overflow:"hidden",border:`1px solid ${T.border}`}}>
+                      <img src={url} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={`Photo ${i+1}`}/>
+                    </div>
+                  ))}
+                  {(c.photoUrls||[]).length===0&&<div style={{fontSize:12,color:T.textMuted}}>No photos uploaded yet.</div>}
+                </div>
+                <input type="file" id={`gallery-upload-${jid}`} multiple accept="image/*" style={{display:"none"}} onChange={async(e)=>{
+                  const files=Array.from(e.target.files||[]);
+                  if(!files.length)return;
+                  setAssetUploading(true); setAssetMsg("");
+                  try {
+                    const fd=new FormData();
+                    fd.append("jobId",jid);
+                    fd.append("type","gallery");
+                    files.forEach(f=>fd.append("photos",f));
+                    const r=await fetch("/api/admin/upload-assets",{method:"POST",body:fd});
+                    const d=await r.json();
+                    if(!r.ok)throw new Error(d.error||"Upload failed");
+                    setAssetMsg(`✓ ${files.length} photo${files.length>1?"s":""} uploaded`);
+                    toast("Photos uploaded","ok");
+                  } catch(e){setAssetMsg((e as Error).message);toast("Upload failed","err");}
+                  finally{setAssetUploading(false);}
+                }}/>
+                <label htmlFor={`gallery-upload-${jid}`} style={{display:"inline-flex",alignItems:"center",gap:8,background:T.raised,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 16px",fontSize:12,fontWeight:500,color:T.text,cursor:"pointer",opacity:assetUploading?0.6:1}}>
+                  {assetUploading?"Uploading…":"📷 Upload gallery photos"}
+                </label>
+                {assetMsg&&<div style={{fontSize:12,color:assetMsg.startsWith("✓")?T.green:T.red,marginTop:8}}>{assetMsg}</div>}
+              </div>
+
+              {/* Logo */}
+              <div>
+                {sectionTitle("Logo")}
+                {c.logoUrl&&<img src={c.logoUrl} style={{maxHeight:60,maxWidth:200,objectFit:"contain",marginBottom:12,border:`1px solid ${T.border}`,borderRadius:6,padding:4,background:"#fff"}} alt="Logo"/>}
+                <input type="file" id={`logo-upload-${jid}`} accept="image/*" style={{display:"none"}} onChange={async(e)=>{
+                  const file=e.target.files?.[0]; if(!file)return;
+                  setAssetUploading(true); setAssetMsg("");
+                  try {
+                    const fd=new FormData();
+                    fd.append("jobId",jid);
+                    fd.append("type","logo");
+                    fd.append("photos",file);
+                    const r=await fetch("/api/admin/upload-assets",{method:"POST",body:fd});
+                    const d=await r.json();
+                    if(!r.ok)throw new Error(d.error||"Upload failed");
+                    setAssetMsg("✓ Logo uploaded");
+                    toast("Logo uploaded","ok");
+                  } catch(e){setAssetMsg((e as Error).message);toast("Upload failed","err");}
+                  finally{setAssetUploading(false);}
+                }}/>
+                <label htmlFor={`logo-upload-${jid}`} style={{display:"inline-flex",alignItems:"center",gap:8,background:T.raised,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 16px",fontSize:12,fontWeight:500,color:T.text,cursor:"pointer",opacity:assetUploading?0.6:1}}>
+                  {assetUploading?"Uploading…":"🏷 Upload logo"}
+                </label>
+              </div>
+
+              {/* Hero image */}
+              <div>
+                {sectionTitle("Hero image")}
+                {c.heroUrl&&<img src={c.heroUrl} style={{maxHeight:80,maxWidth:280,objectFit:"cover",marginBottom:12,border:`1px solid ${T.border}`,borderRadius:6}} alt="Hero"/>}
+                <input type="file" id={`hero-upload-${jid}`} accept="image/*" style={{display:"none"}} onChange={async(e)=>{
+                  const file=e.target.files?.[0]; if(!file)return;
+                  setAssetUploading(true); setAssetMsg("");
+                  try {
+                    const fd=new FormData();
+                    fd.append("jobId",jid);
+                    fd.append("type","hero");
+                    fd.append("photos",file);
+                    const r=await fetch("/api/admin/upload-assets",{method:"POST",body:fd});
+                    const d=await r.json();
+                    if(!r.ok)throw new Error(d.error||"Upload failed");
+                    setAssetMsg("✓ Hero uploaded");
+                    toast("Hero uploaded","ok");
+                  } catch(e){setAssetMsg((e as Error).message);toast("Upload failed","err");}
+                  finally{setAssetUploading(false);}
+                }}/>
+                <label htmlFor={`hero-upload-${jid}`} style={{display:"inline-flex",alignItems:"center",gap:8,background:T.raised,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 16px",fontSize:12,fontWeight:500,color:T.text,cursor:"pointer",opacity:assetUploading?0.6:1}}>
+                  {assetUploading?"Uploading…":"🖼 Upload hero image"}
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* INTEGRATIONS */}
+          {tab==="integrations"&&(
+            <div style={{display:"flex",flexDirection:"column" as const,gap:20}}>
+
+              {/* Square */}
+              <div style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px"}}>
+                {sectionTitle("Square (Payments / Shop)")}
+                <div style={{fontSize:12,color:T.textMuted,marginBottom:14,lineHeight:1.6}}>
+                  Connect this client's Square account to enable the online shop and payment links. Get these from the Square Developer Dashboard.
+                </div>
+                <div style={{display:"flex",flexDirection:"column" as const,gap:10}}>
+                  <div>
+                    <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Access Token</label>
+                    <input value={squareToken} onChange={e=>setSquareToken(e.target.value)} placeholder="EAAAl..." type="password"
+                      style={{width:"100%",boxSizing:"border-box" as const,background:T.surface,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:12,outline:"none",fontFamily:"monospace"}}/>
+                  </div>
+                  <div>
+                    <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Location ID</label>
+                    <input value={squareLocation} onChange={e=>setSquareLocation(e.target.value)} placeholder="LXXXXXXXXXXXXXXXXX"
+                      style={{width:"100%",boxSizing:"border-box" as const,background:T.surface,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:12,outline:"none",fontFamily:"monospace"}}/>
+                  </div>
+                  <button disabled={intSaving} onClick={async()=>{
+                    setIntSaving(true); setIntMsg("");
+                    try {
+                      const r=await fetch("/api/admin/update-integration",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:jid,squareAccessToken:squareToken,squareLocationId:squareLocation})});
+                      const d=await r.json();
+                      if(!r.ok)throw new Error(d.error||"Failed");
+                      setIntMsg("✓ Square credentials saved");
+                      toast("Saved","ok");
+                    } catch(e){setIntMsg((e as Error).message);toast("Save failed","err");}
+                    finally{setIntSaving(false);}
+                  }} style={{background:T.blue,color:"#fff",border:"none",borderRadius:8,padding:"9px 18px",fontSize:12,fontWeight:600,cursor:"pointer",opacity:intSaving?0.6:1,width:"fit-content"}}>
+                    {intSaving?"Saving…":"Save Square credentials"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Google Analytics */}
+              <div style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px"}}>
+                {sectionTitle("Google Analytics 4")}
+                <div style={{fontSize:12,color:T.textMuted,marginBottom:14,lineHeight:1.6}}>
+                  Enter the GA4 Measurement ID (starts with G-). This will be injected into the site on next fix/rebuild.
+                </div>
+                <div style={{display:"flex",gap:10,alignItems:"flex-end"}}>
+                  <div style={{flex:1}}>
+                    <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Measurement ID</label>
+                    <input value={ga4Id} onChange={e=>setGa4Id(e.target.value)} placeholder="G-XXXXXXXXXX"
+                      style={{width:"100%",boxSizing:"border-box" as const,background:T.surface,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:12,outline:"none",fontFamily:"monospace"}}/>
+                  </div>
+                  <button disabled={intSaving} onClick={async()=>{
+                    setIntSaving(true); setIntMsg("");
+                    try {
+                      const r=await fetch("/api/admin/update-integration",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:jid,ga4Id})});
+                      const d=await r.json();
+                      if(!r.ok)throw new Error(d.error||"Failed");
+                      setIntMsg("✓ GA4 ID saved");
+                      toast("Saved","ok");
+                    } catch(e){setIntMsg((e as Error).message);toast("Save failed","err");}
+                    finally{setIntSaving(false);}
+                  }} style={{background:T.blue,color:"#fff",border:"none",borderRadius:8,padding:"9px 18px",fontSize:12,fontWeight:600,cursor:"pointer",opacity:intSaving?0.6:1}}>
+                    {intSaving?"Saving…":"Save"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Custom domain */}
+              <div style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px"}}>
+                {sectionTitle("Custom Domain")}
+                <div style={{fontSize:12,color:T.textMuted,marginBottom:14,lineHeight:1.6}}>
+                  Client's desired domain. Point A record to Vercel, then assign here.
+                </div>
+                <div style={{display:"flex",gap:10,alignItems:"flex-end"}}>
+                  <div style={{flex:1}}>
+                    <label style={{fontSize:11,color:T.textMuted,fontWeight:600,display:"block",marginBottom:5}}>Domain</label>
+                    <input value={customDomain} onChange={e=>setCustomDomain(e.target.value)} placeholder="example.com.au"
+                      style={{width:"100%",boxSizing:"border-box" as const,background:T.surface,border:`1px solid ${T.border}`,borderRadius:7,padding:"9px 12px",color:T.text,fontSize:12,outline:"none",fontFamily:"monospace"}}/>
+                  </div>
+                  <button disabled={intSaving} onClick={async()=>{
+                    setIntSaving(true); setIntMsg("");
+                    try {
+                      const r=await fetch("/api/admin/assign-domain",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:jid,domain:customDomain})});
+                      const d=await r.json();
+                      if(!r.ok)throw new Error(d.error||"Failed");
+                      setIntMsg("✓ Domain assigned");
+                      toast("Domain assigned","ok");
+                    } catch(e){setIntMsg((e as Error).message);toast("Save failed","err");}
+                    finally{setIntSaving(false);}
+                  }} style={{background:T.blue,color:"#fff",border:"none",borderRadius:8,padding:"9px 18px",fontSize:12,fontWeight:600,cursor:"pointer",opacity:intSaving?0.6:1}}>
+                    {intSaving?"Assigning…":"Assign domain"}
+                  </button>
+                </div>
+                {c.metadata?.domainStatus&&<div style={{fontSize:11,color:T.textMuted,marginTop:8}}>Status: {c.metadata.domainStatus}</div>}
+              </div>
+
+              {intMsg&&<div style={{fontSize:12,color:intMsg.startsWith("✓")?T.green:T.red,padding:"8px 12px",background:intMsg.startsWith("✓")?T.green+"10":T.red+"10",borderRadius:7,border:`1px solid ${intMsg.startsWith("✓")?T.green:T.red}25`}}>{intMsg}</div>}
+            </div>
           )}
 
           {/* PAYMENTS */}

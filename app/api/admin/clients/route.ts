@@ -152,7 +152,13 @@ export async function GET(req: NextRequest) {
         linkedinUrl: userInput.linkedinUrl || "",
       },
       shopCatalogue: userInput.shopCatalogue || null,
-      tawktoPropertyId: job.tawktoPropertyId || "",
+      tawktoPropertyId: job.tawkto_property_id || job.tawktoPropertyId || "",
+      logoUrl: job.logo_url || "",
+      heroUrl: job.hero_url || "",
+      photoUrls: job.photo_urls || [],
+      squareAccessToken: job.square_access_token || "",
+      squareLocationId: job.square_location_id || "",
+      ga4Id: job.ga4_id || job.ga4Id || "",
     };
   });
 
