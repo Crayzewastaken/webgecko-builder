@@ -388,7 +388,21 @@ ${bookingInstruction ? `[8] ${bookingInstruction}` : ""}
 ${features.includes("Photo Gallery") ? "[GALLERY] section id=gallery — image grid" : ""}
 ${features.includes("Payments / Shop") ? "[SHOP] section id=shop — product cards with class=wg-buy-btn on purchase buttons" : ""}
 ${features.includes("Newsletter Signup") ? "[NEWSLETTER] section id=newsletter — email input + Subscribe button, id=newsletter-form" : ""}
-${isMultiPage ? `[MULTI-PAGE] Each page: <div data-page="PAGE_ID" id="PAGE_ID" class="page-section">. Pages: ${pageList}. Nav uses onclick=navigateTo('id'). Do NOT define navigateTo() or .page-section CSS.` : ""}
+${isMultiPage ? `
+⚠️ MULTI-PAGE SITE — THIS IS MANDATORY, NOT OPTIONAL ⚠️
+This site has ${pages.length} SEPARATE PAGES: ${pageList}
+REQUIRED STRUCTURE — every page must be its own top-level div:
+  <div data-page="home" id="home" class="page-section">   ← HOME page content </div>
+  <div data-page="services" id="services" class="page-section">   ← SERVICES page content </div>
+  ... one <div data-page="PAGE_ID"> per page listed above ...
+RULES:
+- Each data-page value must be the lowercase-hyphenated page name (e.g. "about-us", "contact")
+- Nav links MUST use onclick='navigateTo("PAGE_ID")' — NO href="#section" anchors
+- Do NOT place all content in one scroll page — each page-section div is a full separate view
+- Do NOT define navigateTo() or .page-section CSS — these are injected by the pipeline
+- All sections (hero, services, testimonials, contact) go INSIDE the appropriate page div
+- The home page div must contain the hero section
+` : ""}
 
 [FOOTER]
   - Copyright © ${currentYear} ${businessName}
@@ -467,8 +481,16 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
   // when the prompt contains http(s):// links. Remove them, keeping surrounding context.
   blueprint.stitchPrompt = blueprint.stitchPrompt
     .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
-    .replace(/\s{3,}/g, "  ")
-    .slice(0, 12000);
+    .replace(/\s{3,}/g, "  ");
+  // Do NOT slice stitchPrompt — truncation silently drops multipage and section instructions.
+
+  // For multipage sites, prepend a hard constraint at the very top of the prompt
+  // so Stitch sees it before anything else and can't ignore it.
+  if (isMultiPage && pages.length > 1) {
+    const pageIds = pages.map((p: string) => p.toLowerCase().replace(/\s+/g, "-")).join(", ");
+    const multiPagePrefix = `⚠️ MULTI-PAGE SITE — MANDATORY STRUCTURE ⚠️\nThis is a ${pages.length}-page site. You MUST output ${pages.length} separate top-level divs:\n${pages.map((p: string) => `  <div data-page="${p.toLowerCase().replace(/\s+/g,"-")}" id="${p.toLowerCase().replace(/\s+/g,"-")}" class="page-section">...</div>`).join("\n")}\nNav links use onclick='navigateTo("${pageIds.split(", ")[0]}")' etc. NO anchor scroll links. Do NOT define navigateTo() or .page-section CSS.\n\n`;
+    blueprint.stitchPrompt = multiPagePrefix + blueprint.stitchPrompt;
+  }
 
   // Attach SEO metadata to the returned blueprint
   blueprint.lsiKeywords = lsiKeywords;

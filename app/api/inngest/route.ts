@@ -226,8 +226,8 @@ const buildWebsite = inngest.createFunction(
         const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
         const stitchPrompt = (spec.stitchPrompt || "")
           .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
-          .replace(/\s{3,}/g, "  ")
-          .slice(0, 12000);
+          .replace(/\s{3,}/g, "  ");
+        // Do NOT slice stitchPrompt — truncation breaks multipage and section instructions
         console.log(`[Inngest] STEP 3: Stitch generate (prompt: ${stitchPrompt.length} chars, projectId=${projectId})`);
 
         let html = "";
@@ -1232,10 +1232,15 @@ const buildWebsite = inngest.createFunction(
           }),
         });
         if (!deployRes.ok) { const deployErr = await deployRes.text(); console.error("[Inngest] Deploy failed:", deployErr); appendPipelineLog(jobId, { level: "error", step: "deploy", msg: `Deploy failed: ${deployErr.slice(0,300)}`, businessName: userInput.businessName }).catch(()=>{}); return ""; }
-        const siteUrl = `https://${vercelProjectName}.vercel.app`;
+        const deployData = await deployRes.json();
+        const stableUrl = `https://${vercelProjectName}.vercel.app`;
+        // Use the unique per-deployment URL so admin preview shows new content immediately
+        // (stable alias takes ~30-60s to propagate; unique deploy URL is ready in seconds)
+        const uniqueDeployUrl = deployData.url ? `https://${deployData.url}` : stableUrl;
+        console.log(`[Inngest] Deploy URL: unique=${uniqueDeployUrl} stable=${stableUrl}`);
         // Fire-and-forget Google Indexing API ping — never blocks deploy
-        requestGoogleIndexing(siteUrl).catch(() => {});
-        return siteUrl;
+        requestGoogleIndexing(stableUrl).catch(() => {});
+        return uniqueDeployUrl;
       });
 
       // ── STEP 8b: Smoke test — fetch live URL and verify critical elements ─────
@@ -1620,6 +1625,7 @@ const buildWebsite = inngest.createFunction(
             { filename: `${fileName}-FINAL.html`, content: Buffer.from(deployedHtml).toString("base64") },
             { filename: `${fileName}-STITCH-RAW.html`, content: Buffer.from(stitchHtml).toString("base64") },
             { filename: `${fileName}-styles.css`, content: Buffer.from(cssContent).toString("base64") },
+            { filename: `${fileName}-STITCH-PROMPT.txt`, content: Buffer.from(spec.stitchPrompt || "(no prompt)").toString("base64") },
           ],
         });
       });

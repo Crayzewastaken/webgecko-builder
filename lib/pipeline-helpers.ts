@@ -660,7 +660,25 @@ export function ensureMultiPageStructure(
         out = out.slice(0, cm.index) + newTag + out.slice(cm.index + cm[0].length);
         report.repairs.push(`Promoted class-matched element to data-page="${pageId}" wrapper`);
       } else {
-        stillMissing.push(pageId);
+        // Fuzzy match: try partial word match (e.g. "our-clinic" matches id="clinic", "our_clinic", "ourclinic")
+        // Strip hyphens/spaces and compare core words
+        const coreWords = pageId.replace(/-/g, " ").split(" ").filter((w: string) => w.length > 3);
+        let fuzzyMatched = false;
+        if (coreWords.length > 0) {
+          const fuzzyPattern = coreWords.map((w: string) => `(?=.*\\b${w}\\b)`).join("") + "[^\"']*";
+          const fuzzyIdRe = new RegExp(`<(section|div|article|main)([^>]*\\bid=["'](${fuzzyPattern})["'][^>]*)>`, "i");
+          const fm = fuzzyIdRe.exec(out);
+          if (fm && !fm[0].includes("data-page=")) {
+            const fullTag = fm[0];
+            const foundId = fm[3];
+            const newTag = fullTag.replace(/>$/, ` data-page="${pageId}">`);
+            out = out.slice(0, fm.index) + newTag + out.slice(fm.index + fullTag.length);
+            report.repairs.push(`Fuzzy-matched id="${foundId}" to data-page="${pageId}"`);
+            console.log(`[ensureMultiPage] Fuzzy matched "${foundId}" → data-page="${pageId}"`);
+            fuzzyMatched = true;
+          }
+        }
+        if (!fuzzyMatched) stillMissing.push(pageId);
       }
     }
   }

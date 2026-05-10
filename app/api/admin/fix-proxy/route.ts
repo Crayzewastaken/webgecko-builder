@@ -32,7 +32,9 @@ async function deployToVercel(html: string, projectName: string): Promise<string
     }),
   });
   if (!resp.ok) throw new Error(`Vercel deploy failed: ${await resp.text()}`);
-  return `https://${safeName}.vercel.app`;
+  const data = await resp.json();
+  // Use unique per-deployment URL for immediate preview (stable alias takes 30-60s to propagate)
+  return data.url ? `https://${data.url}` : `https://${safeName}.vercel.app`;
 }
 
 export async function GET(req: NextRequest) {
@@ -96,10 +98,22 @@ export async function GET(req: NextRequest) {
 
     // FIX 2: CTA buttons — <a href="#"> and standalone <button> elements
     const bookingNavTarget = hasBookingFeature ? "booking" : "contact";
-    const ctaKeywords = ['Book Now','Book a Session','Get Started','Join Now','Sign Up','Free Trial','Book Free','Reserve','Enquire Now','Get a Quote','Start Today','Book Today','Schedule Now','Try Free','Get Free Quote','Book Consultation'];
+    const ctaKeywords = ['Book Now','Book a Session','Book Appointment','Book an Appointment','Get Started','Join Now','Sign Up','Free Trial','Book Free','Reserve','Enquire Now','Get a Quote','Start Today','Book Today','Schedule Now','Try Free','Get Free Quote','Book Consultation','Book','Make a Booking'];
     const planKeywords = ['choose','select plan','buy now','purchase','subscribe','get plan','upgrade'];
+    // Nav section keywords — wire these to scroll to the right section by name
+    const navSectionMap: Record<string,string> = {
+      'services': 'services', 'our services': 'services',
+      'about': 'about', 'our clinic': 'about', 'clinic': 'about',
+      'contact': 'contact', 'contact us': 'contact', 'get in touch': 'contact',
+      'testimonials': 'testimonials', 'reviews': 'testimonials',
+      'faq': 'faq', 'faqs': 'faq',
+      'gallery': 'gallery', 'pricing': 'pricing', 'plans': 'pricing',
+      'assessments': 'booking', 'resources': 'resources', 'team': 'team',
+      'details': 'services', 'learn more': 'about', 'view services': 'services',
+      'explore': 'about', 'find out more': 'about',
+    };
     const navSnippet = (target: string) => `var el=document.getElementById('${target}');if(el){el.scrollIntoView({behavior:'smooth'});}else if(window.navigateTo){window.navigateTo('${target}');}`;
-    // <a href="#"> CTAs
+    // <a href="#"> CTAs — wire ALL of them, not just booking ones
     html = html.replace(/<a([^>]*href=["']#["'][^>]*)>([\s\S]*?)<\/a>/g, (match: string, attrs: string, inner: string) => {
       const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
       if (attrs.includes('onclick')) return match;
@@ -107,9 +121,19 @@ export async function GET(req: NextRequest) {
       if (isBooking) return `<a${attrs} onclick="event.preventDefault();${navSnippet(bookingNavTarget)}">${inner}</a>`;
       const isPlan = planKeywords.some(k => txt.includes(k));
       if (isPlan) return `<a${attrs} onclick="event.preventDefault();${navSnippet('contact')}">${inner}</a>`;
+      // Nav section links
+      for (const [keyword, sectionId] of Object.entries(navSectionMap)) {
+        if (txt === keyword || txt.startsWith(keyword)) {
+          return `<a${attrs} onclick="event.preventDefault();${navSnippet(sectionId)}">${inner}</a>`;
+        }
+      }
+      // Generic fallback: any remaining href="#" with meaningful text scrolls to contact
+      if (txt.length > 1 && txt !== '#') {
+        return `<a${attrs} onclick="event.preventDefault();${navSnippet('contact')}">${inner}</a>`;
+      }
       return match;
     });
-    // <button> CTAs that have no onclick — plan selection buttons (Choose Starter, etc.)
+    // <button> CTAs that have no onclick
     html = html.replace(/<button([^>]*)>([\s\S]*?)<\/button>/g, (match: string, attrs: string, inner: string) => {
       if (attrs.includes('onclick') || attrs.includes('type="submit"') || attrs.includes("type='submit'")) return match;
       const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
@@ -117,6 +141,12 @@ export async function GET(req: NextRequest) {
       if (isBooking) return `<button${attrs} onclick="${navSnippet(bookingNavTarget)}">${inner}</button>`;
       const isPlan = planKeywords.some(k => txt.includes(k)) || /^choose\b|^select\b/.test(txt);
       if (isPlan) return `<button${attrs} onclick="${navSnippet('contact')}">${inner}</button>`;
+      // Nav section buttons
+      for (const [keyword, sectionId] of Object.entries(navSectionMap)) {
+        if (txt === keyword || txt.startsWith(keyword)) {
+          return `<button${attrs} onclick="${navSnippet(sectionId)}">${inner}</button>`;
+        }
+      }
       return match;
     });
 
