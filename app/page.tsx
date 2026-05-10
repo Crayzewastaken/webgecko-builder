@@ -477,8 +477,8 @@ export default function HomePage() {
           <div className="bg-[#0f1623] border border-white/8 rounded-2xl p-5 text-left space-y-4 mb-8">
             {[
               { icon: '📧', title: 'Confirmation email', sub: 'Arrives within 5 minutes (check spam if needed)' },
-              { icon: '📞', title: 'We'll call you within 24 hours', sub: phone || 'To review your request' },
-              { icon: '🌐', title: businessName || 'Your new website', sub: 'We'll prepare your custom preview and quote' },
+              { icon: '📞', title: "We’ll call you within 24 hours", sub: phone || 'To review your request' },
+              { icon: '🌐', title: businessName || 'Your new website', sub: "We'll prepare your custom preview and quote" },
             ].map(({ icon, title, sub }) => (
               <div key={title} className="flex items-center gap-4">
                 <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center text-xl flex-shrink-0">{icon}</div>
