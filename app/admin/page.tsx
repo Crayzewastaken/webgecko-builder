@@ -1025,31 +1025,84 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
           {tab==="content"&&(
             <div style={{display:"flex",flexDirection:"column" as const,gap:0,height:"100%"}}>
               {/* Sub-tab bar */}
+              {(()=>{
+                const cFeatures = ui.features||[];
+                const contentGates: Record<string,{icon:string;label:string;feature:string|null;featureLabel:string|null}> = {
+                  blog:       {icon:"📰",label:"Blog Posts",      feature:"Blog",              featureLabel:"Blog & Content"},
+                  newsletter: {icon:"✉️",label:"Newsletters",     feature:"Newsletter Signup", featureLabel:"Growth & Marketing"},
+                  deal:       {icon:"🏷️",label:"Deals & Promos",  feature:null,                featureLabel:null},
+                  product:    {icon:"🛍️",label:"Products",        feature:"Payments / Shop",   featureLabel:"Online Shop"},
+                  review:     {icon:"⭐",label:"Reviews",         feature:null,                featureLabel:null},
+                };
+                return (
               <div style={{display:"flex",gap:4,marginBottom:20,flexWrap:"wrap" as const}}>
-                {([
-                  {id:"blog",icon:"📰",label:"Blog Posts"},
-                  {id:"newsletter",icon:"✉️",label:"Newsletters"},
-                  {id:"deal",icon:"🏷️",label:"Deals & Promos"},
-                  {id:"product",icon:"🛍️",label:"Products"},
-                  {id:"review",icon:"⭐",label:"Reviews"},
-                ] as const).map(st=>(
-                  <button key={st.id} onClick={()=>{setContentSubTab(st.id);setContentForm(null);setContentMsg("");}}
-                    style={{padding:"7px 14px",fontSize:12,fontWeight:contentSubTab===st.id?600:400,color:contentSubTab===st.id?T.text:T.textMuted,background:contentSubTab===st.id?T.raised:"transparent",border:contentSubTab===st.id?`1px solid ${T.border}`:"1px solid transparent",borderRadius:7,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap" as const}}>
-                    {st.icon} {st.label}
-                    {contentItems.filter(i=>i.type===st.id&&i.requestedByClient&&i.status==="draft").length>0&&(
+                {(["blog","newsletter","deal","product","review"] as const).map(st=>{
+                  const g = contentGates[st];
+                  const locked = g.feature ? !cFeatures.includes(g.feature) : false;
+                  const pendingCount = contentItems.filter(i=>i.type===st&&i.requestedByClient&&i.status==="draft").length;
+                  return (
+                  <button key={st} onClick={()=>{setContentSubTab(st);setContentForm(null);setContentMsg("");}}
+                    style={{padding:"7px 14px",fontSize:12,fontWeight:contentSubTab===st?600:400,
+                      color:locked?T.textMuted:contentSubTab===st?T.text:T.textMuted,
+                      background:contentSubTab===st?T.raised:"transparent",
+                      border:contentSubTab===st?`1px solid ${T.border}`:"1px solid transparent",
+                      borderRadius:7,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap" as const,
+                      opacity:locked?0.5:1,position:"relative" as const}}>
+                    {locked?"🔒":g.icon} {g.label}
+                    {pendingCount>0&&!locked&&(
                       <span style={{marginLeft:6,background:T.amber,color:"#000",borderRadius:10,padding:"1px 6px",fontSize:10,fontWeight:700}}>
-                        {contentItems.filter(i=>i.type===st.id&&i.requestedByClient&&i.status==="draft").length}
+                        {pendingCount}
                       </span>
                     )}
                   </button>
-                ))}
+                  );
+                })}
                 <button onClick={loadContent} style={{marginLeft:"auto",padding:"7px 12px",fontSize:11,color:T.textMuted,background:"transparent",border:`1px solid ${T.border}`,borderRadius:7,cursor:"pointer"}}>&#x21BB;</button>
               </div>
+                );
+              })()}
+
+              {/* Locked state */}
+              {(()=>{
+                const cFeatures = ui.features||[];
+                const lockedMap: Record<string,{feature:string;featureLabel:string}|null> = {
+                  blog:       {feature:"Blog",             featureLabel:"Blog & Content"},
+                  newsletter: {feature:"Newsletter Signup",featureLabel:"Growth & Marketing"},
+                  deal:       null,
+                  product:    {feature:"Payments / Shop",  featureLabel:"Online Shop"},
+                  review:     null,
+                };
+                const gate = lockedMap[contentSubTab];
+                const isLocked = gate ? !cFeatures.includes(gate.feature) : false;
+                if (!isLocked) return null;
+                return (
+                  <div style={{textAlign:"center" as const,padding:"52px 24px",background:T.surface,borderRadius:14,border:`1px dashed ${T.border}`}}>
+                    <div style={{fontSize:36,marginBottom:12}}>🔒</div>
+                    <div style={{fontSize:15,fontWeight:700,color:T.text,marginBottom:8}}>{contentSubTab.charAt(0).toUpperCase()+contentSubTab.slice(1)} not included</div>
+                    <div style={{fontSize:13,color:T.textMuted,marginBottom:4}}>This client did not select <strong style={{color:T.textSec}}>{gate!.featureLabel}</strong> in their intake form.</div>
+                    <div style={{fontSize:12,color:T.textMuted}}>To unlock, the client needs to upgrade their package. Use the Requests tab to manage feature add-ons.</div>
+                  </div>
+                );
+              })()}
+
+              {/* Newsletter unsubscribe compliance notice */}
+              {contentSubTab==="newsletter"&&(ui.features||[]).includes("Newsletter Signup")&&(
+                <div style={{background:T.amber+"12",border:`1px solid ${T.amber}30`,borderRadius:10,padding:"12px 16px",marginBottom:16,display:"flex",gap:12,alignItems:"flex-start"}}>
+                  <span style={{fontSize:18,flexShrink:0}}>⚖️</span>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:T.amber,marginBottom:4}}>Spam Act 2003 — Legal Requirement</div>
+                    <div style={{fontSize:12,color:T.textMuted,lineHeight:1.7}}>
+                      Every newsletter sent must include: <strong style={{color:T.textSec}}>sender name ({c.businessName})</strong>, <strong style={{color:T.textSec}}>business address ({(ui.businessAddress)||"(add in checklist)"})</strong>, and a working <strong style={{color:T.textSec}}>unsubscribe link</strong>. Failure to include these is a breach of Australian law and can result in fines up to $2.2M.
+                    </div>
+                    <div style={{fontSize:11,color:T.amber,marginTop:6,fontWeight:600}}>→ Always paste an unsubscribe link into the newsletter body before sending. e.g. "Unsubscribe: [link]"</div>
+                  </div>
+                </div>
+              )}
 
               {contentLoading&&<div style={{color:T.textMuted,fontSize:13}}>Loading&hellip;</div>}
 
-              {/* Content form / editor */}
-              {contentForm!==null&&(
+              {/* Content form / editor — only when not locked */}
+              {contentForm!==null&&!(()=>{const cF=ui.features||[];const lm:Record<string,string|null>={blog:"Blog",newsletter:"Newsletter Signup",deal:null,product:"Payments / Shop",review:null};const f=lm[contentSubTab];return f?!cF.includes(f):false;})()&&(
                 <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:12,padding:"20px",marginBottom:20}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
                     <div style={{fontSize:13,fontWeight:700,color:T.text}}>{contentForm.id?"Edit":"New"} {contentSubTab.charAt(0).toUpperCase()+contentSubTab.slice(1)}</div>
@@ -1207,8 +1260,8 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                 </div>
               )}
 
-              {/* List of content items */}
-              {contentForm===null&&(
+              {/* List of content items — only when not locked */}
+              {contentForm===null&&!(()=>{const cF=ui.features||[];const lm:Record<string,string|null>={blog:"Blog",newsletter:"Newsletter Signup",deal:null,product:"Payments / Shop",review:null};const f=lm[contentSubTab];return f?!cF.includes(f):false;})()&&(
                 <div>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
                     <div style={{fontSize:12,color:T.textMuted}}>
