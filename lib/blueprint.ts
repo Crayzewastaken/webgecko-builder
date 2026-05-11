@@ -158,7 +158,10 @@ Respond ONLY with a JSON array of strings: ["keyword1","keyword2",...]`,
 // ── JSON parser (unchanged from original) ────────────────────────────────────
 
 function parseJson(raw: string): SiteBlueprint {
-  let s = raw.replace(/^```json\s*/im, "").replace(/^```\s*/im, "").replace(/```\s*$/m, "").trim();
+  // Strip all code fences (multiline-safe)
+  let s = raw.replace(/```json[\s\S]*?```/g, m => m.replace(/```json\s*/g, "").replace(/```/g, ""))
+             .replace(/```[\s\S]*?```/g, m => m.replace(/```\s*/g, ""))
+             .replace(/^```json\s*/im, "").replace(/^```\s*/im, "").replace(/```\s*$/gm, "").trim();
   const first = s.indexOf("{");
   const last = s.lastIndexOf("}");
   if (first !== -1 && last !== -1 && last > first) s = s.slice(first, last + 1);
@@ -396,12 +399,22 @@ EXACT STRUCTURE SCAFFOLD — the stitchPrompt MUST describe rendering EXACTLY th
   - Button id=hamburger class=md:hidden (hamburger icon ☰) — toggles mobile menu
   - div id=mobile-menu hidden by default, contains same nav links, close button aria-label=Close menu
 
-[2] SECTION id=hero (full viewport height, visually striking)
-  - Large headline (benefit-driven, max 8 words, NO address)
-  - Subheadline 1-2 sentences (value prop only, NO address)
-  - ONE primary CTA button: text="${ctaText || "Get Started"}", href='#', onclick scrolls to #${hasBooking ? "booking" : "contact"}
-  - Stats bar below: 3-4 numbers relevant to ${industry} (e.g. years in business, clients served)
-  ${heroUrl ? `- Hero image: use exactly this URL — ${heroUrl}` : "- Hero: gradient or dark background, no fake image URLs"}
+[2] SECTION id=hero (full viewport height, visually striking — THIS IS THE MOST IMPORTANT SECTION)
+  MANDATORY HERO REQUIREMENTS — do NOT produce a plain centered headline + button:
+  - Layout: TWO-COLUMN split (left: text content, right: visual element) OR full-bleed cinematic layout with layered depth
+  - Left/main column MUST contain ALL of:
+    a) A small TRUST BADGE row above the headline: e.g. "★★★★★ Trusted by 5,000+ patients" or "✓ AHPRA Registered ✓ Medicare Bulk Billing ✓ Same-Day Appointments" — styled as pill badges with accent colour border
+    b) Large headline (benefit-driven, max 8 words, NO address) — use CSS animation: fade-in-up on load
+    c) Subheadline 1-2 sentences (value prop, NO address) — slightly muted colour
+    d) TWO CTA buttons side by side: PRIMARY button (accent background, "${ctaText || "Get Started"}") + SECONDARY ghost button ("Learn More" or "How It Works")
+    e) A horizontal SOCIAL PROOF bar: 3-4 micro-stats with large numbers and labels (e.g. "5,000+ Patients" / "24/7 Available" / "< 10min Wait" / "50+ Doctors") — use accent colour for numbers
+  - Right column (or background layer) MUST contain:
+    ${heroUrl ? `- Hero image: use exactly this URL as a full-bleed background or right-column image — ${heroUrl}` : "- Decorative visual: animated CSS gradient orbs/blobs, geometric pattern, or SVG illustration relevant to ${industry} — NO fake image URLs, NO placeholder images"}
+    - Floating stat cards or feature pills overlapping the visual (e.g. a card showing "Next available: Today 2:00pm" or a badge "100% Secure & Private") — positioned with absolute CSS
+  - Add a CSS keyframe animation for the headline: fade-in from bottom over 0.6s
+  - Add a subtle animated background: either a slow gradient shift, floating particles (pure CSS), or a mesh gradient
+  - The section must feel like a premium SaaS or medical tech landing page — NOT a basic brochure site
+  HERO SECTION HEIGHT: min-height: 100vh with display:flex align-items:center
 
 [3] SECTION id=about
   - 2-3 paragraphs about ${businessName}
@@ -435,6 +448,8 @@ ${(() => {
   - Right column: RENDER THIS EXACT FORM:
 ${contactFormScaffold.replace(/ACCENT/g, "the accent colour")}
   - NO extra fields. NO dropdown. NO checkbox. NO Business Name field. ONLY the 4 fields above.
+  ${businessAddress ? `- AFTER the form columns: render a Google Maps embed iframe INSIDE this contact section (NOT after the footer) — use src="https://maps.google.com/maps?q=${encodeURIComponent(businessAddress || "")}&output=embed" width="100%" height="300" style="border:0;border-radius:12px;margin-top:40px"` : ""}
+  CRITICAL: The contact section and Google Maps embed must appear ABOVE the footer. NEVER place the map after </footer>.
 
 ${bookingInstruction ? `[8] ${bookingInstruction}` : ""}
 ${features.includes("Photo Gallery") ? "[GALLERY] section id=gallery — image grid" : ""}
@@ -567,65 +582,5 @@ export async function requestGoogleIndexing(url: string): Promise<void> {
   if (!saKeyB64) {
     console.log("[Indexing] GOOGLE_INDEXING_SA_KEY not set — skipping");
     return;
-  }
-
-  try {
-    // Decode service account key
-    const saKey = JSON.parse(Buffer.from(saKeyB64, "base64").toString("utf-8")) as {
-      client_email: string;
-      private_key: string;
-    };
-
-    // Build a signed JWT for the Indexing API scope
-    const now = Math.floor(Date.now() / 1000);
-    const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url");
-    const payload = Buffer.from(JSON.stringify({
-      iss: saKey.client_email,
-      sub: saKey.client_email,
-      aud: "https://oauth2.googleapis.com/token",
-      iat: now,
-      exp: now + 3600,
-      scope: "https://www.googleapis.com/auth/indexing",
-    })).toString("base64url");
-
-    // Sign with RS256 using Node crypto
-    const { createSign } = await import("crypto");
-    const sign = createSign("RSA-SHA256");
-    sign.update(`${header}.${payload}`);
-    const sig = sign.sign(saKey.private_key, "base64url");
-    const jwt = `${header}.${payload}.${sig}`;
-
-    // Exchange JWT for access token
-    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-        assertion: jwt,
-      }),
-    });
-    if (!tokenRes.ok) {
-      console.warn(`[Indexing] Token exchange failed: ${tokenRes.status}`);
-      return;
-    }
-    const { access_token } = await tokenRes.json() as { access_token: string };
-
-    // Submit URL to Indexing API
-    const indexRes = await fetch("https://indexing.googleapis.com/v3/urlNotifications:publish", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${access_token}`,
-      },
- 
-      body: JSON.stringify({ url, type: "URL_UPDATED" }),
-    });
-    if (indexRes.ok) {
-      console.log(`[Indexing] Pinged Google for: ${url}`);
-    } else {
-      console.warn(`[Indexing] Indexing API ${indexRes.status} for ${url}`);
-    }
-  } catch (e) {
-    console.warn("[Indexing] Failed (non-fatal):", e instanceof Error ? e.message : String(e));
   }
 }

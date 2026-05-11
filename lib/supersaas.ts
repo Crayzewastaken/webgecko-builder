@@ -111,12 +111,16 @@ export async function createSuperSaasSchedule(params: {
 
     // Skip sub-user creation if the client email is the master account owner —
     // SuperSaas won't let you register the account owner as a sub-user.
+    // Also skip if no clientEmail provided.
     const masterAccountEmail = process.env.SUPERSAAS_OWNER_EMAIL || "";
-    const isMasterEmail = masterAccountEmail && params.clientEmail.toLowerCase() === masterAccountEmail.toLowerCase();
+    // Detect master email: either explicitly set via env var, OR the email matches the SS_ACCOUNT username
+    const isMasterEmail = (masterAccountEmail && params.clientEmail.toLowerCase() === masterAccountEmail.toLowerCase())
+      || (SS_ACCOUNT && params.clientEmail.toLowerCase().includes(SS_ACCOUNT.toLowerCase()))
+      || false;
     if (isMasterEmail) {
       console.log("[SuperSaas] Client email is master account owner — skipping sub-user creation");
     }
-    const skipSubUser = !!isMasterEmail;
+    const skipSubUser = !!isMasterEmail || !params.clientEmail;
 
     if (!skipSubUser) try {
       // Try creating sub-user. SuperSaas 400 often means the email already exists as a user.
@@ -319,7 +323,7 @@ export async function cancelAppointment(appointmentId: number): Promise<boolean>
 }
 
 export async function rescheduleAppointment(appointmentId: number, params: {
-  start: string;   // ISO datetime e.g. "2025-06-15T10:00:00"
+  start: string;
   finish: string;
 }): Promise<boolean> {
   if (!SS_ACCOUNT || !SS_API_KEY) return false;

@@ -926,8 +926,8 @@ const buildWebsite = inngest.createFunction(
             html = html.replace(/([\s\S]*?)(<\/footer>)([\s\S]*?)(<\/body>)/i, (_m: string, pre: string, ftClose: string, after: string, bodyClose: string) => {
               const orphaned = after.replace(/^\s+|\s+$/g, "");
               if (!orphaned || orphaned.length < 20) return _m;
-              // Only move substantial sections, not just whitespace/scripts
-              const hasSections = /<(section|div)\s[^>]*id=/i.test(orphaned);
+              // Move sections, iframes (maps), divs — anything substantive
+              const hasSections = /<(section|div|iframe)\b/i.test(orphaned);
               if (!hasSections) return _m;
               console.log("[Step5] Moving orphaned sections from below footer to above it");
               return pre + orphaned + "\n" + ftClose + "\n" + bodyClose;
