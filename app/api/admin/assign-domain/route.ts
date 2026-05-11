@@ -65,3 +65,63 @@ export async function GET(req: NextRequest) {
     verification: aliasData.verification || [],
   });
 }
+
+export async function POST(req: NextRequest) {
+  if (!isAdminAuthedLegacy(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+  let body: any;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
+  const { jobId, domain } = body;
+  if (!jobId || !domain) {
+    return NextResponse.json({ error: "jobId and domain required" }, { status: 400 });
+  }
+
+  const job = await getJob(jobId);
+  if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+
+  const vercelProjectName = job.vercelProjectName;
+  if (!vercelProjectName) {
+    return NextResponse.json({ error: "No vercelProjectName on job -- rebuild required" }, { status: 400 });
+  }
+
+  const token = process.env.VERCEL_API_TOKEN!;
+  const teamId = process.env.VERCEL_TEAM_ID;
+
+  const aliasRes = await fetch(
+    `https://api.vercel.com/v10/projects/${vercelProjectName}/domains${teamId ? `?teamId=${teamId}` : ""}`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: domain }),
+    }
+  );
+
+  const aliasData = await aliasRes.json();
+  if (!aliasRes.ok) {
+    return NextResponse.json({ error: aliasData?.error?.message || "Failed to add domain", detail: aliasData }, { status: 500 });
+  }
+
+  await saveJob(jobId, { ...job, liveDomain: domain, liveUrl: `https://${domain}` });
+
+  if (job.clientSlug) {
+    const client = await getClient(job.clientSlug);
+    if (client) {
+      await saveClient(job.clientSlug, { ...client, domain, preview_url: `https://${domain}` });
+    }
+  }
+
+  // Trigger Google indexing for the new custom domain (non-fatal)
+  try {
+    const { requestGoogleIndexing } = await import("@/lib/blueprint");
+    requestGoogleIndexing(`https://${domain}`).catch(() => {});
+  } catch {}
+
+  return NextResponse.json({
+    ok: true,
+    vercelProjectName,
+    domain,
+    liveUrl: `https://${domain}`,
+    verification: aliasData.verification || [],
+  });
+}
