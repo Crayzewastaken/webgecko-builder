@@ -121,23 +121,33 @@ export async function createSuperSaasSchedule(params: {
       //   email    = separate email field (optional if name is already the email)
       //   role     = integer: 3=regular user, 4=superuser, -1=blocked (NOT a string)
       //   full_name = display name
+      // SuperSaas login name: try email first, fall back to slug if account doesn't use email logins
+      const userSlug = params.businessName.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20) + Math.floor(Math.random()*900+100);
       const basePayload: Record<string, unknown> = {
-        name: params.clientEmail,       // login name = email address
-        full_name: params.businessName, // display name
+        name: params.clientEmail,       // login name — email preferred
+        full_name: params.businessName,
         email: params.clientEmail,
         password: subPassword,
         password_confirmation: subPassword,
-        role: 3,                        // 3 = regular user (integer, not string)
+        role: 3,
+      };
+      const slugPayload: Record<string, unknown> = {
+        ...basePayload,
+        name: userSlug,                 // fallback: username slug (no @)
       };
 
       try {
-        // Strategy 1: with schedules array (numeric IDs)
+        // Strategy 1: email as login name + schedules
         userResult = await tryCreate({ ...basePayload, schedules: [id] });
       } catch (e1) {
         const m1 = (e1 as Error).message;
         console.warn("[SuperSaas] Strategy 1 failed:", m1);
         try {
-          // Strategy 2: without schedules field
+          // Strategy 2: slug username + schedules (account may not use email logins)
+          userResult = await tryCreate({ ...slugPayload, schedules: [id] });
+        } catch (_e2a) {
+        try {
+          // Strategy 3: email login name, no schedules
           userResult = await tryCreate(basePayload);
         } catch (e2) {
           const m2 = (e2 as Error).message;
@@ -168,6 +178,7 @@ export async function createSuperSaasSchedule(params: {
             throw e2;
           }
         }
+        } // close strategy 2a catch
       }
 
       const user = Array.isArray(userResult) ? userResult[0] : ((userResult as Record<string, unknown>)?.user || userResult) as Record<string, unknown>;

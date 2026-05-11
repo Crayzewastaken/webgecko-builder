@@ -371,7 +371,7 @@ function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:
 
 // ── Client slide-over panel ────────────────────────────────────────────────────
 function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:string; onClose:()=>void; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
-  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"content"|"payments"|"actions"|"requests"|"checklist"|"archive">("perf");
+  const [tab, setTab] = useState<"analytics"|"site"|"integrations"|"content"|"payments"|"actions"|"checklist">("analytics");
   const [checklistDone, setChecklistDone] = useState<Record<string,boolean>>({});
   const [checklistLinks, setChecklistLinks] = useState<Record<string,string>>({});
   useEffect(()=>{
@@ -478,7 +478,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   }
 
   const pending = featureRequests.filter(r=>r.status==="pending"||r.status==="draft").length;
-  const tabs = ["perf","engagement","seo","site","assets","integrations","content","payments","actions","requests","checklist","archive"] as const;
+  const tabs = ["analytics","site","integrations","content","payments","actions","checklist"] as const;
 
   // ── Content helpers ────────────────────────────────────────────────────────
   async function loadContent() {
@@ -597,7 +597,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   }
 
   const tabBtn = (id:typeof tabs[number], label:string) => (
-    <button key={id} onClick={()=>{setTab(id);if(id==="requests"&&featureRequests.length===0)loadFeatureRequests();if(id==="content"&&contentItems.length===0)loadContent();if(id==="archive"&&archiveVersions.length===0)loadArchiveVersions();}}
+    <button key={id} onClick={()=>{setTab(id);if(id==="actions"&&featureRequests.length===0)loadFeatureRequests();if(id==="content"&&contentItems.length===0)loadContent();}}
       style={{ padding:"8px 14px", fontSize:12, fontWeight:tab===id?600:400, color:tab===id?T.text:T.textMuted, background:tab===id?T.raised:"transparent", border:tab===id?`1px solid ${T.border}`:"1px solid transparent", borderRadius:7, cursor:"pointer", transition:"all 0.15s ease", whiteSpace:"nowrap" as const }}>
       {label}
     </button>
@@ -612,7 +612,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
     <>
       <div onClick={onClose} style={{ position:"fixed", inset:0, background:T.overlay, zIndex:200, backdropFilter:"blur(4px)", animation:"wg-fade 0.2s ease" }}/>
       <div className="wg-panel" style={{
-        position:"fixed", top:0, right:0, bottom:0, width:"min(760px,100vw)", zIndex:201,
+        position:"fixed", inset:0, zIndex:201, maxWidth:"100vw",
         background:T.bg, borderLeft:`1px solid ${T.border}`,
         display:"flex", flexDirection:"column",
         boxShadow:T.shadowXl,
@@ -644,26 +644,21 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
         </div>
 
         {/* Tabs */}
-        <div style={{ display:"flex", gap:4, padding:"10px 24px", borderBottom:`1px solid ${T.border}`, background:T.bg, flexWrap:"wrap" as const, flexShrink:0 }}>
-          {tabBtn("perf","Performance")}
-          {tabBtn("engagement","Engagement")}
-          {tabBtn("seo","SEO")}
+        <div style={{ display:"flex", gap:3, padding:"10px 28px", borderBottom:`1px solid ${T.border}`, background:T.bg, flexShrink:0 }}>
+          {tabBtn("analytics","Analytics")}
           {tabBtn("site","Site")}
-          {tabBtn("assets","Assets")}
           {tabBtn("integrations","Integrations")}
           {tabBtn("content","Content")}
           {tabBtn("payments","Payments")}
-          {tabBtn("actions","Actions")}
-          {tabBtn("requests", `Requests${pending>0?` (${pending})`:""}`)}
+          {tabBtn("actions",`Actions${pending>0?" ("+pending+")":""}`)}
           {tabBtn("checklist","✅ Checklist")}
-          {tabBtn("archive","🗂 Archive")}
         </div>
 
         {/* Tab content */}
         <div key={tab} className="wg-tab" style={{ flex:1, overflowY:"auto" as const, padding:"24px" }}>
 
           {/* PERFORMANCE */}
-          {tab==="perf"&&(
+          {tab==="analytics"&&(
             <>
               {/* 6 mini KPI cards */}
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))", gap:10, marginBottom:20 }}>
@@ -750,7 +745,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
           )}
 
           {/* ENGAGEMENT */}
-          {tab==="engagement"&&(
+          {true&&(
             <>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))", gap:10, marginBottom:20 }}>
                 {[
@@ -778,7 +773,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
           )}
 
           {/* SEO */}
-          {tab==="seo"&&(
+          {true&&(
             <>
               {!seo&&<div style={{color:T.textMuted,fontSize:13,padding:"20px 0"}}>No SEO data yet — populated on next build.</div>}
               {seo&&(
@@ -907,7 +902,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
 
 
           {/* ASSETS */}
-          {tab==="assets"&&(
+          {tab==="site"&&tab==="site"&&true&&(
             <div style={{display:"flex",flexDirection:"column" as const,gap:20}}>
               {/* Gallery photos */}
               <div>
@@ -1491,7 +1486,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
           )}
 
           {/* FEATURE REQUESTS */}
-          {tab==="requests"&&(
+          {tab==="actions"&&tab==="actions"&&true&&(
             <div>
               {frLoading&&<div style={{color:T.textMuted,fontSize:13,padding:"20px 0"}}>Loading…</div>}
               {!frLoading&&featureRequests.length===0&&(
@@ -1784,212 +1779,6 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
             );
           })()}
 
-          {/* ARCHIVE */}
-          {tab==="archive"&&(
-            <div style={{ display:"flex", gap:20, height:"100%", minHeight:500 }}>
-              {/* Left: version list */}
-              <div style={{ width:260, flexShrink:0, display:"flex", flexDirection:"column" as const, gap:10 }}>
-                {/* Header + snapshot button */}
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:T.text }}>Version History</div>
-                  <button
-                    onClick={takeSnapshot}
-                    disabled={archiveSnapshotting}
-                    style={{ fontSize:11, fontWeight:600, color:T.purple, background:`${T.purple}18`, border:`1px solid ${T.purple}40`, borderRadius:7, padding:"5px 10px", cursor:"pointer" }}>
-                    {archiveSnapshotting?"Saving…":"+ Snapshot"}
-                  </button>
-                </div>
-                {archiveMsg&&<div style={{ fontSize:11, color:archiveMsg.startsWith("✓")?T.green:T.red, marginBottom:4 }}>{archiveMsg}</div>}
-                <button onClick={loadArchiveVersions} disabled={archiveLoading} style={{ fontSize:11, color:T.textMuted, background:"transparent", border:`1px solid ${T.border}`, borderRadius:6, padding:"4px 10px", cursor:"pointer", marginBottom:4 }}>
-                  {archiveLoading?"Loading…":"↻ Refresh"}
-                </button>
-                {archiveVersions.length===0&&!archiveLoading&&(
-                  <div style={{ fontSize:12, color:T.textMuted, padding:"20px 0", textAlign:"center" as const }}>
-                    No snapshots yet.<br/>Click "+ Snapshot" to save the current state.
-                  </div>
-                )}
-                <div style={{ display:"flex", flexDirection:"column" as const, gap:6, overflowY:"auto" as const, flex:1 }}>
-                  {archiveVersions.map(v=>{
-                    const isSelected = archiveSelected?.id === v.id;
-                    const d = new Date(v.created_at);
-                    const dateStr = d.toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"});
-                    const timeStr = d.toLocaleTimeString("en-AU",{hour:"2-digit",minute:"2-digit"});
-                    const triggerColor = v.trigger==="build" ? T.green : T.purple;
-                    return (
-                      <div key={v.id}
-                        onClick={()=>loadVersionHtml(v)}
-                        style={{
-                          background: isSelected ? T.raised : T.surface,
-                          border: `1px solid ${isSelected ? T.blue+"80" : T.border}`,
-                          borderRadius:10, padding:"10px 12px", cursor:"pointer",
-                          transition:"all 0.15s ease",
-                          boxShadow: isSelected ? `0 0 0 2px ${T.blue}30` : "none",
-                        }}>
-                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
-                          <div style={{ fontSize:12, fontWeight:600, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const, flex:1 }}>{v.label}</div>
-                          <span style={{ fontSize:9, fontWeight:700, color:triggerColor, background:`${triggerColor}18`, border:`1px solid ${triggerColor}30`, borderRadius:20, padding:"1px 6px", marginLeft:6, flexShrink:0 }}>
-                            {v.trigger==="build"?"BUILD":"MANUAL"}
-                          </span>
-                        </div>
-                        <div style={{ fontSize:10, color:T.textMuted }}>{dateStr} · {timeStr}</div>
-                        <div style={{ display:"flex", gap:6, marginTop:6 }}>
-                          {v.html&&<span style={{ fontSize:9, color:T.textSec, background:T.raised, borderRadius:4, padding:"1px 5px" }}>HTML</span>}
-                          {v.job_config&&<span style={{ fontSize:9, color:T.textSec, background:T.raised, borderRadius:4, padding:"1px 5px" }}>Config</span>}
-                          {v.logs&&Array.isArray(v.logs)&&v.logs.length>0&&<span style={{ fontSize:9, color:T.textSec, background:T.raised, borderRadius:4, padding:"1px 5px" }}>{v.logs.length} logs</span>}
-                        </div>
-                        <button
-                          onClick={e=>{e.stopPropagation();deleteVersion(v.id);}}
-                          style={{ marginTop:6, fontSize:9, color:T.red, background:"transparent", border:"none", cursor:"pointer", padding:0, opacity:0.6 }}>
-                          Delete
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Right: version detail */}
-              <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column" as const }}>
-                {!archiveSelected&&(
-                  <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", color:T.textMuted, fontSize:13 }}>
-                    Select a snapshot to inspect it
-                  </div>
-                )}
-                {archiveSelected&&(
-                  <>
-                    {/* Detail header */}
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
-                      <div>
-                        <div style={{ fontSize:14, fontWeight:700, color:T.text }}>{archiveSelected.label}</div>
-                        <div style={{ fontSize:11, color:T.textMuted }}>{new Date(archiveSelected.created_at).toLocaleString("en-AU")}</div>
-                      </div>
-                      {/* Sub-tab switcher */}
-                      <div style={{ display:"flex", gap:4 }}>
-                        {(["preview","config","logs"] as const).map(st=>(
-                          <button key={st} onClick={()=>setArchiveSubTab(st)}
-                            style={{ fontSize:11, fontWeight:600, padding:"5px 12px", borderRadius:6, cursor:"pointer",
-                              background: archiveSubTab===st ? T.raised : "transparent",
-                              color: archiveSubTab===st ? T.text : T.textMuted,
-                              border: archiveSubTab===st ? `1px solid ${T.border}` : "1px solid transparent" }}>
-                            {st==="preview"?"👁 Preview":st==="config"?"⚙️ Config":"📋 Logs"}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Preview sub-tab */}
-                    {archiveSubTab==="preview"&&(
-                      <div style={{ flex:1, borderRadius:10, overflow:"hidden", border:`1px solid ${T.border}`, background:T.surface, minHeight:400 }}>
-                        {archivePreviewLoading&&(
-                          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:400, color:T.textMuted, fontSize:13 }}>Loading HTML preview…</div>
-                        )}
-                        {!archivePreviewLoading&&!archivePreviewHtml&&(
-                          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:400, color:T.textMuted, fontSize:13 }}>No HTML saved for this snapshot</div>
-                        )}
-                        {!archivePreviewLoading&&archivePreviewHtml&&(
-                          <iframe
-                            srcDoc={archivePreviewHtml}
-                            style={{ width:"100%", height:"100%", minHeight:500, border:"none" }}
-                            sandbox="allow-scripts allow-same-origin"
-                            title={`Preview: ${archiveSelected.label}`}
-                          />
-                        )}
-                      </div>
-                    )}
-
-                    {/* Config sub-tab */}
-                    {archiveSubTab==="config"&&(
-                      <div style={{ flex:1, overflowY:"auto" as const, background:T.surface, border:`1px solid ${T.border}`, borderRadius:10, padding:16 }}>
-                        {!archiveSelected.job_config&&<div style={{ color:T.textMuted, fontSize:12 }}>No config saved</div>}
-                        {archiveSelected.job_config&&(()=>{
-                          const cfg = archiveSelected.job_config;
-                          const rows: [string, any][] = [
-                            ["Status", cfg.status],
-                            ["Built At", cfg.builtAt ? new Date(cfg.builtAt).toLocaleString("en-AU") : "—"],
-                            ["Preview URL", cfg.previewUrl],
-                            ["Domain Slug", cfg.domainSlug],
-                            ["Client Slug", cfg.clientSlug],
-                            ["Shop Platform", cfg.shopPlatform||"—"],
-                            ["Stripe Account", cfg.stripeAccountId||"—"],
-                            ["Stripe Connected", cfg.stripeConnectedAt ? new Date(cfg.stripeConnectedAt).toLocaleString("en-AU") : "—"],
-                            ["GA4 ID", cfg.ga4Id||"—"],
-                            ["Tawk.to ID", cfg.tawktoPropertyId||"—"],
-                            ["SuperSaas URL", cfg.supersaasUrl||"—"],
-                          ];
-                          const ui2 = cfg.userInput||{};
-                          const uiRows: [string,any][] = [
-                            ["Business Name", ui2.businessName],
-                            ["Industry", ui2.industry],
-                            ["Site Type", ui2.siteType],
-                            ["Style", ui2.style],
-                            ["Color Prefs", ui2.colorPrefs],
-                            ["USP", ui2.usp],
-                            ["Goal", ui2.goal],
-                            ["Features", (ui2.features||[]).join(", ")||"—"],
-                            ["Pages", (ui2.pages||[]).join(", ")||"—"],
-                            ["Notes", ui2.additionalNotes],
-                          ];
-                          return (
-                            <div style={{ display:"flex", flexDirection:"column" as const, gap:20 }}>
-                              <div>
-                                <div style={{ fontSize:10, fontWeight:700, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.08em", marginBottom:8 }}>Build Config</div>
-                                {rows.map(([k,v])=>(
-                                  <div key={k} style={{ display:"flex", gap:12, padding:"5px 0", borderBottom:`1px solid ${T.border}`, alignItems:"flex-start" }}>
-                                    <div style={{ fontSize:11, color:T.textMuted, width:130, flexShrink:0 }}>{k}</div>
-                                    <div style={{ fontSize:11, color:T.text, wordBreak:"break-all" as const }}>{v||"—"}</div>
-                                  </div>
-                                ))}
-                              </div>
-                              <div>
-                                <div style={{ fontSize:10, fontWeight:700, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.08em", marginBottom:8 }}>Client Intake (at time of snapshot)</div>
-                                {uiRows.map(([k,v])=>(
-                                  <div key={k} style={{ display:"flex", gap:12, padding:"5px 0", borderBottom:`1px solid ${T.border}`, alignItems:"flex-start" }}>
-                                    <div style={{ fontSize:11, color:T.textMuted, width:130, flexShrink:0 }}>{k}</div>
-                                    <div style={{ fontSize:11, color:T.text, wordBreak:"break-all" as const }}>{v||"—"}</div>
-                                  </div>
-                                ))}
-                              </div>
-                              {cfg.shopCatalogue&&cfg.shopCatalogue.length>0&&(
-                                <div>
-                                  <div style={{ fontSize:10, fontWeight:700, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.08em", marginBottom:8 }}>Shop Catalogue ({cfg.shopCatalogue.length} items)</div>
-                                  {cfg.shopCatalogue.map((item:any,i:number)=>(
-                                    <div key={i} style={{ fontSize:11, color:T.text, padding:"4px 0", borderBottom:`1px solid ${T.border}` }}>
-                                      {item.name} — {item.price ? `$${item.price}` : "—"}{item.paymentLinkUrl?<> · <a href={item.paymentLinkUrl} target="_blank" rel="noopener noreferrer" style={{ color:T.blue }}>Payment Link ↗</a></>:null}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    )}
-
-                    {/* Logs sub-tab */}
-                    {archiveSubTab==="logs"&&(
-                      <div style={{ flex:1, overflowY:"auto" as const, background:"#010508", border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 14px", fontFamily:"monospace", fontSize:11, lineHeight:1.6 }}>
-                        {(!archiveSelected.logs||archiveSelected.logs.length===0)&&(
-                          <div style={{ color:T.textMuted }}>No logs saved for this snapshot</div>
-                        )}
-                        {(archiveSelected.logs||[]).map((l:any,i:number)=>{
-                          const lc = l.level==="error" ? T.red : l.level==="warn" ? T.amber : T.green;
-                          const ts = l.ts ? new Date(l.ts).toLocaleTimeString("en-AU",{hour:"2-digit",minute:"2-digit",second:"2-digit"}) : "";
-                          return (
-                            <div key={i} style={{ display:"flex", gap:8, padding:"2px 0" }}>
-                              <span style={{ color:T.textMuted, flexShrink:0 }}>{ts}</span>
-                              <span style={{ color:lc, flexShrink:0, width:36 }}>{l.level?.toUpperCase()}</span>
-                              <span style={{ color:T.textSec, flexShrink:0 }}>[{l.step}]</span>
-                              <span style={{ color:T.text }}>{l.msg}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          )}
 
         </div>
       </div>

@@ -394,9 +394,15 @@ const buildWebsite = inngest.createFunction(
           const privacyHref = termlyPrivacyUrl || "#privacy-policy";
           const legalLinks = `<span style="margin-top:8px;display:block;font-size:0.8rem;"><a href="${privacyHref}" target="_blank" rel="noopener" style="color:#64748b;text-decoration:underline;margin:0 8px;" data-wg-privacy>Privacy Policy</a><span style="color:#334155;">|</span><a href="#terms" style="color:#64748b;text-decoration:underline;margin:0 8px;" data-wg-terms>Terms of Service</a></span>`;
           const footerHtml = `<footer id="wg-footer" style="margin-top:auto;padding:32px 24px;background:#0a0f1a;text-align:center;color:#64748b;font-size:0.875rem;">&copy; ${yr4b} ${userInput.businessName}. All rights reserved.${legalLinks}</footer>`;
-          if (!html.includes("<footer")) {
+          // Detect existing footer broadly (tag OR common id/class patterns)
+          const hasExistingFooter = /<footer[\s>]/i.test(html) || /id=["']footer["']/i.test(html) || /class=["'][^"']*footer[^"']*["']/i.test(html);
+          if (!hasExistingFooter) {
             html = html.replace(/<\/body>/i, footerHtml + "\n</body>");
           } else {
+            // Inject legal links into the existing footer if not already present
+            if (!html.includes("data-wg-privacy")) {
+              html = html.replace(/(<\/footer>)/i, legalLinks + "$1");
+            }
             // Ensure existing footer has margin-top:auto so it sticks to bottom
             html = html.replace(/<footer(?![^>]*margin-top:auto)([^>]*)>/i, (m: string, attrs: string) => {
               if (attrs.includes("style=")) {
@@ -864,6 +870,56 @@ const buildWebsite = inngest.createFunction(
               return open + realTestimonialsSection + close;
             });
             console.log(`[Step5] Real testimonials injected (${testimonialLines.length} reviews)`);
+          }
+        }
+
+        // ── Guarantee at least 3 testimonials ────────────────────────────────────
+        {
+          const auNames = ["Sarah M., Melbourne","James T., Brisbane","Emily R., Sydney","Michael K., Perth","Jessica L., Adelaide","Daniel W., Gold Coast"];
+          const genReview = (industry: string, idx: number) => {
+            const quotes: Record<string, string[]> = {
+              medical: ["Absolutely outstanding service — I had answers within minutes.","Professional, caring, and incredibly responsive. Highly recommend.","Made a stressful situation so much easier. Five stars."],
+              default: ["Exceptional service from start to finish. Could not be happier.","Professional, reliable, and genuinely great to work with.","Exactly what we needed — delivered on every promise."],
+            };
+            const pool = quotes[industry?.toLowerCase().includes("doctor")||industry?.toLowerCase().includes("medical")||industry?.toLowerCase().includes("health") ? "medical" : "default"];
+            return `<div style="background:rgba(255,255,255,0.06);border-radius:16px;padding:28px 32px;border:1px solid rgba(255,255,255,0.1);display:flex;flex-direction:column;gap:12px;">
+  <div style="color:#f59e0b;font-size:1.1rem;letter-spacing:2px;">★★★★★</div>
+  <p style="color:#e2e8f0;font-size:0.95rem;line-height:1.75;margin:0;">"${pool[idx % pool.length]}"</p>
+  <p style="color:#10b981;font-weight:700;font-size:0.85rem;margin:0;">— ${auNames[idx % auNames.length]}</p>
+</div>`;
+          };
+          const testSection = html.match(/(<(?:section|div)[^>]*id="testimonials"[^>]*>)([\s\S]*?)(<\/(?:section|div)>)/i);
+          if (testSection) {
+            const cardCount = (testSection[2].match(/★★★★★/g) || []).length;
+            if (cardCount < 3) {
+              const needed = 3 - cardCount;
+              const extraCards = Array.from({length: needed}, (_, i) => genReview(userInput.industry || "", cardCount + i)).join("\n");
+              html = html.replace(/(<(?:section|div)[^>]*id="testimonials"[^>]*>)([\s\S]*?)(<\/(?:section|div)>)/i,
+                (_m: string, open: string, body: string, close: string) => {
+                  const grid = body.includes('display:grid') || body.includes('display: grid');
+                  if (grid) return open + body + extraCards + close;
+                  return open + body + `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;margin-top:20px;">${extraCards}</div>` + close;
+                }
+              );
+              console.log(`[Step5] Padded testimonials to 3 (was ${cardCount})`);
+            }
+          }
+        }
+
+        // ── Move any sections that ended up after </footer> back above it ─────────
+        {
+          const footerMatch = html.match(/<footer[\s>]/i) || html.match(/id=["']footer["']/i);
+          if (footerMatch) {
+            // Find content between </footer> and </body> and move it before the footer
+            html = html.replace(/([\s\S]*?)(<\/footer>)([\s\S]*?)(<\/body>)/i, (_m: string, pre: string, ftClose: string, after: string, bodyClose: string) => {
+              const orphaned = after.replace(/^\s+|\s+$/g, "");
+              if (!orphaned || orphaned.length < 20) return _m;
+              // Only move substantial sections, not just whitespace/scripts
+              const hasSections = /<(section|div)\s[^>]*id=/i.test(orphaned);
+              if (!hasSections) return _m;
+              console.log("[Step5] Moving orphaned sections from below footer to above it");
+              return pre + orphaned + "\n" + ftClose + "\n" + bodyClose;
+            });
           }
         }
 
