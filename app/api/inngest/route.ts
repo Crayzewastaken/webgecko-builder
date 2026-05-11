@@ -1417,31 +1417,35 @@ const buildWebsite = inngest.createFunction(
         if (!deployRes.ok) { const deployErr = await deployRes.text(); console.error("[Inngest] Deploy failed:", deployErr); appendPipelineLog(jobId, { level: "error", step: "deploy", msg: `Deploy failed: ${deployErr.slice(0,300)}`, businessName: userInput.businessName }).catch(()=>{}); return ""; }
         const deployData = await deployRes.json();
         const stableUrl = `https://${vercelProjectName}.vercel.app`;
-        // Use the unique per-deployment URL so admin preview shows new content immediately
-        // (stable alias takes ~30-60s to propagate; unique deploy URL is ready in seconds)
         const uniqueDeployUrl = deployData.url ? `https://${deployData.url}` : stableUrl;
         console.log(`[Inngest] Deploy URL: unique=${uniqueDeployUrl} stable=${stableUrl}`);
-        // Fire-and-forget Google Indexing API ping — never blocks deploy
         requestGoogleIndexing(stableUrl).catch(() => {});
-        return uniqueDeployUrl;
+        // Return both so step9 can save stable as liveUrl
+        return JSON.stringify({ unique: uniqueDeployUrl, stable: stableUrl });
       });
+
+      // Parse the JSON returned by step8 to separate unique vs stable URLs
+      const { unique: deployUniqueUrl, stable: deployStableUrl } = (() => {
+        try { return JSON.parse(previewUrl) as { unique: string; stable: string }; }
+        catch { return { unique: previewUrl, stable: previewUrl }; }
+      })();
 
       // ── STEP 8b: Smoke test — fetch live URL and verify critical elements ─────
       // Non-blocking: failures recorded and surfaced in the email, never kill the build.
       type SmokeCheck = { label: string; pass: boolean; severity: "error" | "warn" };
       const smokeResults = await step.run("step8b-smoke", async () => {
         const checks: SmokeCheck[] = [];
-        if (!previewUrl) return [{ label: "Deploy URL", pass: false, severity: "error" as const }];
+        if (!deployUniqueUrl) return [{ label: "Deploy URL", pass: false, severity: "error" as const }];
 
         // Vercel cold-starts — retry up to 3x with backoff
         let liveHtml = "";
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
             await new Promise(r => setTimeout(r, attempt * 2000));
-            const res = await fetch(previewUrl, { headers: { "User-Agent": "WebGecko-SmokeTest/1.0" } });
+            const res = await fetch(deployUniqueUrl, { headers: { "User-Agent": "WebGecko-SmokeTest/1.0" } });
             if (res.ok) { liveHtml = await res.text(); break; }
           } catch {}
-          console.log("[Smoke] Attempt " + attempt + " failed for " + previewUrl);
+          console.log("[Smoke] Attempt " + attempt + " failed for " + deployUniqueUrl);
         }
 
         if (!liveHtml) return [{ label: "Site reachable", pass: false, severity: "error" as const }];
@@ -1492,7 +1496,7 @@ const buildWebsite = inngest.createFunction(
       // patch what it finds, redeploy, re-smoke. Non-blocking if all retries fail.
       const MAX_FIX_ATTEMPTS = 2;
       let loopHtml = deployHtml;
-      let loopPreviewUrl = previewUrl;
+      let loopPreviewUrl = deployStableUrl;  // always use stable alias for saving/display
       let loopSmokeResults = smokeResults;
 
       for (let attempt = 1; attempt <= MAX_FIX_ATTEMPTS; attempt++) {
@@ -2115,16 +2119,4 @@ const featureGoLive = inngest.createFunction(
 
       const userInput = job.userInput || {};
       const existingFeatures: string[] = Array.isArray(userInput.features) ? userInput.features : [];
-      const newFeatures = [...new Set([...existingFeatures, featureId])];
-
-      // Persist the new feature into userInput
-      // Persist the new feature into userInput
-      await saveJob(jobId, { userInput: { ...userInput, features: newFeatures } });
-    });
-  }
-);
-
-export const { GET, POST, PUT } = serve({
-  client: inngest,
-  functions: [buildWebsite, monthlyReports, autoRelease, featureInject, featureGoLive],
-});
+      const newFeatures = [...new Set(
