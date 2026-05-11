@@ -596,7 +596,8 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
 // Non-fatal -- a failure here never blocks the deploy.
 
 async function getGoogleAccessToken(saKeyB64: string): Promise<string> {
-  const sa = JSON.parse(Buffer.from(saKeyB64, "base64").toString("utf-8"));
+  const saRaw = Buffer.from(saKeyB64, "base64").toString("utf-8").replace(/\\n/g, "\n");
+  const sa = JSON.parse(saRaw);
   const now = Math.floor(Date.now() / 1000);
   const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url");
   const payload = Buffer.from(JSON.stringify({
