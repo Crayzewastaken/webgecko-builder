@@ -140,7 +140,7 @@ const buildWebsite = inngest.createFunction(
             supersaasUrl: schedule.embedUrl,
             supersaasId: schedule.id,
             metadata: {
-              ...(job.userInput || {}),
+              ...(job.metadata || {}),
               supersaasSubEmail: schedule.subUserEmail,
             },
           });
@@ -386,10 +386,14 @@ const buildWebsite = inngest.createFunction(
           html = html.replace(/<\/body>/i, contactSection + "\n</body>");
         }
 
-        // 4. Inject footer with copyright if missing; always pin to bottom via flex body
+        // 4. Inject footer with copyright + legal links if missing; always pin to bottom via flex body
         {
           const yr4b = new Date().getFullYear();
-          const footerHtml = `<footer id="wg-footer" style="margin-top:auto;padding:32px 24px;background:#0a0f1a;text-align:center;color:#64748b;font-size:0.875rem;">&copy; ${yr4b} ${userInput.businessName}. All rights reserved.</footer>`;
+          // Pull Termly privacy URL if already set via admin checklist
+          const termlyPrivacyUrl: string = job.metadata?.checklistLinks?.termly_privacy_embed || "";
+          const privacyHref = termlyPrivacyUrl || "#privacy-policy";
+          const legalLinks = `<span style="margin-top:8px;display:block;font-size:0.8rem;"><a href="${privacyHref}" target="_blank" rel="noopener" style="color:#64748b;text-decoration:underline;margin:0 8px;" data-wg-privacy>Privacy Policy</a><span style="color:#334155;">|</span><a href="#terms" style="color:#64748b;text-decoration:underline;margin:0 8px;" data-wg-terms>Terms of Service</a></span>`;
+          const footerHtml = `<footer id="wg-footer" style="margin-top:auto;padding:32px 24px;background:#0a0f1a;text-align:center;color:#64748b;font-size:0.875rem;">&copy; ${yr4b} ${userInput.businessName}. All rights reserved.${legalLinks}</footer>`;
           if (!html.includes("<footer")) {
             html = html.replace(/<\/body>/i, footerHtml + "\n</body>");
           } else {
@@ -1177,12 +1181,21 @@ const buildWebsite = inngest.createFunction(
           // Fall back to WebGecko master Square account if client hasn't connected their own yet
           const effectiveToken = clientSquareToken || process.env.SQUARE_ACCESS_TOKEN || "";
           const effectiveLocation = clientSquareLocation || process.env.SQUARE_LOCATION_ID || "";
-          if (!effectiveToken && !manualPaymentUrl) {
-            console.warn(`[Step7] No Square token and no manual payment URL for ${jobId} — shop buttons inactive`);
+          // Check if client has Stripe Connect — use Stripe payment links if no Square
+          const stripeAccountId = job.stripeAccountId || null;
+          const useStripe = !effectiveToken && !manualPaymentUrl && !!stripeAccountId;
+          if (!effectiveToken && !manualPaymentUrl && !useStripe) {
+            console.warn(`[Step7] No Square token, no Stripe account, and no manual payment URL for ${jobId} — shop buttons inactive`);
             return html;
           }
           let catalogueItems: any[] = [];
-          if (effectiveToken) {
+          if (useStripe) {
+            console.log(`[Step7] Using Stripe Connect for shop (account: ${stripeAccountId})`);
+            const { createStripeShopCatalogue } = await import("@/lib/stripe-connect");
+            const stripeItems = await createStripeShopCatalogue({ connectedAccountId: stripeAccountId!, products: shopProducts, redirectUrl: siteUrl, jobId, businessName: userInput.businessName });
+            catalogueItems = stripeItems.map((item: any) => ({ name: item.name, variationId: item.priceId, itemId: item.productId, priceCents: item.priceCents, paymentLinkUrl: item.paymentLinkUrl, paymentLinkId: item.paymentLinkId }));
+            await supabase.from("jobs").update({ shop_catalogue: catalogueItems }).eq("id", jobId);
+          } else if (effectiveToken) {
             console.log(`[Step7] Using ${clientSquareToken ? "client" : "WebGecko master"} Square token`);
             catalogueItems = await createClientShopCatalogue({ jobId, businessName: userInput.businessName, products: shopProducts, redirectUrl: siteUrl, accessToken: effectiveToken, locationId: effectiveLocation });
             await supabase.from("jobs").update({ user_input: { ...userInput, shopCatalogue: catalogueItems } }).eq("id", jobId);
@@ -2051,14 +2064,12 @@ const featureGoLive = inngest.createFunction(
       }
     });
 
-    // Fire a rebuild — isRebuild=true so it reuses HTML but re-runs injections with new feature
+    // Fire a rebuild
     await inngest.send({ name: "build/website", data: { jobId, isRebuild: true } });
-
-    return { ok: true };
   }
 );
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [buildWebsite, monthlyReports, autoRelease, featureInject, featureGoLive],
+  functions: [buildWebsite, featureGoLive],
 });

@@ -379,6 +379,11 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
       const s=localStorage.getItem("wg_checklist_"+jid); if(s)setChecklistDone(JSON.parse(s));
       const l=localStorage.getItem("wg_checklist_links_"+jid); if(l)setChecklistLinks(JSON.parse(l));
     } catch {}
+    // Also load from Supabase (source of truth)
+    fetch(`/api/admin/checklist-links?jobId=${jid}`,{headers:{"x-process-secret":secret}})
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{ if(d?.links&&Object.keys(d.links).length>0){ setChecklistLinks(d.links); try{localStorage.setItem("wg_checklist_links_"+jid,JSON.stringify(d.links));}catch{} } })
+      .catch(()=>{});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
   function toggleCheck(key:string){
@@ -392,6 +397,12 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
     setChecklistLinks(prev=>{
       const next={...prev,[key]:val};
       try{localStorage.setItem("wg_checklist_links_"+jid,JSON.stringify(next));}catch{}
+      // Persist to Supabase so links survive across devices/sessions
+      fetch("/api/admin/checklist-links",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","x-process-secret":secret},
+        body:JSON.stringify({jobId:jid,links:next}),
+      }).catch(()=>{});
       return next;
     });
   }
@@ -2878,6 +2889,7 @@ function AdminDashboard() {
         </div>
         <div style={{ display:"flex",gap:8,alignItems:"center" }}>
           <button onClick={loadDashboard} style={{ background:T.raised,border:`1px solid ${T.border}`,color:T.textSec,borderRadius:8,padding:"7px 16px",fontSize:12,fontWeight:500,cursor:"pointer" }}>↻ Refresh</button>
+          <a href="/admin/history" style={{ background:T.raised,border:`1px solid ${T.border}`,color:T.textMuted,borderRadius:8,padding:"7px 16px",fontSize:12,cursor:"pointer",textDecoration:"none",display:"flex",alignItems:"center",gap:4 }}>🕐 UI History</a>
           <button onClick={toggleTheme} title={dark?"Light mode":"Dark mode"} style={{ background:T.raised,border:`1px solid ${T.border}`,color:T.textMuted,borderRadius:8,padding:"7px 10px",fontSize:14,cursor:"pointer",width:36,height:34,display:"flex",alignItems:"center",justifyContent:"center" }}>
             {dark?"☀":"🌙"}
           </button>
@@ -3002,13 +3014,5 @@ function AdminDashboard() {
 
       </div>
     </div>
-  );
-}
-
-export default function AdminPage() {
-  return (
-    <Suspense fallback={<div style={{ color:"#e8e8f0",padding:40,fontFamily:"Inter,sans-serif",background:"#07070c",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center" }}>Loading…</div>}>
-      <AdminDashboard/>
-    </Suspense>
   );
 }
