@@ -21,6 +21,7 @@ interface ClientAnalytics {
   tawktoPropertyId?: string; shopCatalogue?: any[] | null;
   logoUrl?: string; heroUrl?: string; photoUrls?: string[];
   squareAccessToken?: string; squareLocationId?: string; ga4Id?: string;
+  stripeAccountId?: string; stripeConnectedAt?: string; shopPlatform?: string;
   userInput?: { features?: string[]; pages?: string[]; siteType?: string; style?: string; colorPrefs?: string; usp?: string; goal?: string; additionalNotes?: string; abn?: string; businessAddress?: string; facebookPage?: string; instagramUrl?: string; linkedinUrl?: string; bookingServices?: string; };
   metadata?: { scheduledReleaseAt?: string; scheduledReleaseDays?: number; checklistCompletedAt?: string; alreadyReleased?: boolean; seo?: SeoData; domainStatus?: string; domainUrl?: string; lastGoodAt?: string; lastGoodUrl?: string; lastGoodHtml?: string; rolledBackAt?: string; };
 }
@@ -370,7 +371,7 @@ function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:
 
 // ── Client slide-over panel ────────────────────────────────────────────────────
 function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:string; onClose:()=>void; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
-  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"content"|"payments"|"actions"|"requests"|"checklist">("perf");
+  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"content"|"payments"|"actions"|"requests"|"checklist"|"archive">("perf");
   const [checklistDone, setChecklistDone] = useState<Record<string,boolean>>({});
   const [checklistLinks, setChecklistLinks] = useState<Record<string,string>>({});
   useEffect(()=>{
@@ -410,6 +411,8 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   const [intMsg, setIntMsg] = useState("");
   const [squareToken, setSquareToken] = useState(c.squareAccessToken||"");
   const [squareLocation, setSquareLocation] = useState(c.squareLocationId||"");
+  const [stripeSyncing, setStripeSyncing] = useState(false);
+  const [stripeMsg, setStripeMsg] = useState("");
   const [ga4Id, setGa4Id] = useState(c.ga4Id||"");
   const [customDomain, setCustomDomain] = useState(c.domain||"");
   const [featureRequests, setFeatureRequests] = useState<any[]>([]);
@@ -417,9 +420,20 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   const [frUpdating, setFrUpdating] = useState<string|null>(null);
   const [feeInputs, setFeeInputs] = useState<Record<string,string>>({});
   const [deployedAt, setDeployedAt] = useState<string|null>(null);
+  // ── Archive tab state ─────────────────────────────────────────────────────────
+  const [archiveVersions, setArchiveVersions] = useState<any[]>([]);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [archiveMsg, setArchiveMsg] = useState("");
+  const [archiveSnapshotting, setArchiveSnapshotting] = useState(false);
+  const [archiveSelected, setArchiveSelected] = useState<any|null>(null);
+  const [archivePreviewHtml, setArchivePreviewHtml] = useState<string|null>(null);
+  const [archivePreviewLoading, setArchivePreviewLoading] = useState(false);
+  const [archiveSubTab, setArchiveSubTab] = useState<"config"|"logs"|"preview">("preview");
+  // ─────────────────────────────────────────────────────────────────────────────
   const a = c.analytics;
   const seo = c.metadata?.seo;
   const ui = c.userInput||{};
+  const features = ui.features||[];
   const jid = c.jobId;
   const sec = encodeURIComponent(secret);
 
@@ -453,7 +467,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   }
 
   const pending = featureRequests.filter(r=>r.status==="pending"||r.status==="draft").length;
-  const tabs = ["perf","engagement","seo","site","assets","integrations","content","payments","actions","requests","checklist"] as const;
+  const tabs = ["perf","engagement","seo","site","assets","integrations","content","payments","actions","requests","checklist","archive"] as const;
 
   // ── Content helpers ────────────────────────────────────────────────────────
   async function loadContent() {
@@ -509,8 +523,70 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
     <div style={{ fontSize:10, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.09em", fontWeight:700, marginBottom:12, paddingBottom:8, borderBottom:`1px solid ${T.border}` }}>{text}</div>
   );
 
+  async function loadArchiveVersions() {
+    setArchiveLoading(true);
+    setArchiveMsg("");
+    try {
+      const r = await fetch(`/api/versions?jobId=${jid}`, { headers: { "x-process-secret": secret } });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Failed to load versions");
+      setArchiveVersions(d.versions || []);
+    } catch(e) { setArchiveMsg((e as Error).message); }
+    finally { setArchiveLoading(false); }
+  }
+
+  async function takeSnapshot() {
+    setArchiveSnapshotting(true);
+    setArchiveMsg("");
+    try {
+      const r = await fetch("/api/versions/snapshot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-process-secret": secret },
+        body: JSON.stringify({ jobId: jid, trigger: "manual" }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Snapshot failed");
+      setArchiveMsg("✓ Snapshot saved");
+      await loadArchiveVersions();
+    } catch(e) { setArchiveMsg((e as Error).message); }
+    finally { setArchiveSnapshotting(false); }
+  }
+
+  async function loadVersionHtml(version: any) {
+    setArchiveSelected(version);
+    setArchivePreviewHtml(null);
+    setArchiveSubTab("preview");
+    if (!version.html_loaded) {
+      setArchivePreviewLoading(true);
+      try {
+        const r = await fetch(`/api/versions/html?id=${version.id}`, { headers: { "x-process-secret": secret } });
+        const d = await r.json();
+        if (r.ok) {
+          setArchivePreviewHtml(d.html || null);
+          // cache it so we don't re-fetch
+          setArchiveVersions(prev => prev.map(v => v.id === version.id ? { ...v, html_loaded: true, html: d.html } : v));
+        }
+      } catch {}
+      finally { setArchivePreviewLoading(false); }
+    } else {
+      setArchivePreviewHtml(version.html || null);
+    }
+  }
+
+  async function deleteVersion(id: string) {
+    if (!confirm("Delete this snapshot? This cannot be undone.")) return;
+    try {
+      const r = await fetch(`/api/versions?id=${id}`, { method: "DELETE", headers: { "x-process-secret": secret } });
+      if (r.ok) {
+        setArchiveVersions(prev => prev.filter(v => v.id !== id));
+        if (archiveSelected?.id === id) { setArchiveSelected(null); setArchivePreviewHtml(null); }
+        setArchiveMsg("Snapshot deleted");
+      }
+    } catch {}
+  }
+
   const tabBtn = (id:typeof tabs[number], label:string) => (
-    <button key={id} onClick={()=>{setTab(id);if(id==="requests"&&featureRequests.length===0)loadFeatureRequests();if(id==="content"&&contentItems.length===0)loadContent();}}
+    <button key={id} onClick={()=>{setTab(id);if(id==="requests"&&featureRequests.length===0)loadFeatureRequests();if(id==="content"&&contentItems.length===0)loadContent();if(id==="archive"&&archiveVersions.length===0)loadArchiveVersions();}}
       style={{ padding:"8px 14px", fontSize:12, fontWeight:tab===id?600:400, color:tab===id?T.text:T.textMuted, background:tab===id?T.raised:"transparent", border:tab===id?`1px solid ${T.border}`:"1px solid transparent", borderRadius:7, cursor:"pointer", transition:"all 0.15s ease", whiteSpace:"nowrap" as const }}>
       {label}
     </button>
@@ -569,6 +645,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
           {tabBtn("actions","Actions")}
           {tabBtn("requests", `Requests${pending>0?` (${pending})`:""}`)}
           {tabBtn("checklist","✅ Checklist")}
+          {tabBtn("archive","🗂 Archive")}
         </div>
 
         {/* Tab content */}
@@ -914,42 +991,72 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
           {tab==="integrations"&&(
             <div style={{display:"flex",flexDirection:"column" as const,gap:20}}>
 
-              {/* Square */}
+              {/* Stripe Connect */}
               <div style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:12,padding:"20px 22px"}}>
-                {sectionTitle("Square (Payments / Shop)")}
+                {sectionTitle("Stripe Connect (Payments / Shop)")}
                 <div style={{fontSize:13,color:T.textSec,marginBottom:16,lineHeight:1.7}}>
-                  Connect this client's Square account to enable the online shop and payment links. Get these from the <strong style={{color:T.text}}>Square Developer Dashboard</strong>.
+                  Connect this client's Stripe account via OAuth. Payments go directly to the client. WebGecko automatically takes a <strong style={{color:T.green}}>2% application fee</strong> on every transaction.
                 </div>
-                <div style={{fontSize:11,color:T.blue,background:T.blue+"12",border:`1px solid ${T.blue}30`,borderRadius:7,padding:"7px 12px",marginBottom:14,display:"flex",alignItems:"center",gap:6}}>
-                  <span>&#x1F4BE;</span> Stored in <code style={{fontFamily:"monospace",background:"transparent"}}>jobs.square_access_token</code> + <code style={{fontFamily:"monospace",background:"transparent"}}>jobs.square_location_id</code>
-                </div>
-                <div style={{display:"flex",flexDirection:"column" as const,gap:12}}>
-                  <div>
-                    <label style={{fontSize:12,color:T.textSec,fontWeight:700,display:"block",marginBottom:6}}>Access Token</label>
-                    <input value={squareToken} onChange={e=>setSquareToken(e.target.value)} placeholder="EAAAl..." type="password"
-                      style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:13,outline:"none",fontFamily:"monospace"}}/>
-                    <div style={{fontSize:11,color:T.textSec,marginTop:4}}>Square Developer Dashboard &rarr; OAuth &rarr; Production Access Token</div>
+                {c.stripeAccountId ? (
+                  <div style={{display:"flex",flexDirection:"column" as const,gap:12}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,background:T.green+"14",border:`1px solid ${T.green}40`,borderRadius:9,padding:"12px 16px"}}>
+                      <span>&#x2705;</span>
+                      <div>
+                        <div style={{fontSize:13,fontWeight:700,color:T.green}}>Stripe Connected</div>
+                        <div style={{fontSize:11,color:T.textSec,marginTop:2,fontFamily:"monospace"}}>{c.stripeAccountId}</div>
+                        {c.stripeConnectedAt&&<div style={{fontSize:10,color:T.textMuted,marginTop:2}}>Connected {new Date(c.stripeConnectedAt).toLocaleDateString("en-AU")}</div>}
+                      </div>
+                    </div>
+                    {features.includes("Payments / Shop")&&(
+                      <div style={{borderTop:`1px solid ${T.border}`,paddingTop:14,marginTop:4}}>
+                        <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:8}}>Shop Products</div>
+                        {(c.shopCatalogue&&c.shopCatalogue.length>0)&&(
+                          <div style={{marginBottom:14}}>
+                            <div style={{fontSize:11,color:T.textSec,fontWeight:600,marginBottom:8}}>Synced products ({c.shopCatalogue.length}):</div>
+                            {c.shopCatalogue.map((item:any,sidx:number)=>(
+                              <div key={sidx} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,marginBottom:6}}>
+                                <div style={{flex:1}}>
+                                  <div style={{fontSize:12,fontWeight:600,color:T.text}}>{item.name}</div>
+                                  <div style={{fontSize:11,color:T.textSec}}>${(item.priceCents/100).toFixed(2)} AUD</div>
+                                </div>
+                                {item.paymentLinkUrl&&<a href={item.paymentLinkUrl} target="_blank" rel="noopener noreferrer" style={{fontSize:10,color:T.blue,textDecoration:"none",border:`1px solid ${T.blue}40`,borderRadius:5,padding:"3px 8px"}}>Link</a>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <button disabled={stripeSyncing} onClick={async()=>{
+                          const products=(c.userInput as any)?.shopProducts||[];
+                          if(!products.length){setStripeMsg("No products in intake form.");return;}
+                          setStripeSyncing(true);setStripeMsg("");
+                          try{
+                            const r=await fetch("/api/stripe/sync-shop",{method:"POST",headers:{"Content-Type":"application/json","x-process-secret":secret||""},body:JSON.stringify({jobId:jid,products})});
+                            const d=await r.json();
+                            if(!r.ok)throw new Error(d.error||"Sync failed");
+                            setStripeMsg("Synced "+d.count+" products to Stripe");
+                            toast("Shop synced","ok");
+                          }catch(e){setStripeMsg((e as Error).message);toast("Sync failed","err");}
+                          finally{setStripeSyncing(false);}
+                        }} style={{background:T.purple,color:"#fff",border:"none",borderRadius:8,padding:"9px 18px",fontSize:12,fontWeight:600,cursor:"pointer",opacity:stripeSyncing?0.6:1}}>
+                          {stripeSyncing?"Syncing...":"Sync Shop to Stripe"}
+                        </button>
+                        {stripeMsg&&<div style={{fontSize:11,color:T.textSec,marginTop:8}}>{stripeMsg}</div>}
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <label style={{fontSize:12,color:T.textSec,fontWeight:700,display:"block",marginBottom:6}}>Location ID</label>
-                    <input value={squareLocation} onChange={e=>setSquareLocation(e.target.value)} placeholder="LXXXXXXXXXXXXXXXXX"
-                      style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:13,outline:"none",fontFamily:"monospace"}}/>
-                    <div style={{fontSize:11,color:T.textSec,marginTop:4}}>Square Dashboard &rarr; Account &amp; Settings &rarr; Locations</div>
+                ):(
+                  <div style={{display:"flex",flexDirection:"column" as const,gap:12}}>
+                    <div style={{fontSize:12,color:T.textSec,lineHeight:1.7,background:T.bg,border:`1px solid ${T.border}`,borderRadius:9,padding:"12px 16px"}}>
+                      <strong style={{color:T.text}}>How it works:</strong> Client connects their Stripe account (free, 30 seconds). WebGecko takes 2% of every sale automatically. All funds go directly to the client.
+                    </div>
+                    <div style={{fontSize:11,color:T.amber,background:T.amber+"12",border:`1px solid ${T.amber}30`,borderRadius:7,padding:"8px 12px"}}>
+                      Stripe verification is usually instant for AU businesses with an ABN.
+                    </div>
+                    <a href={"/api/stripe/connect?jobId="+jid} style={{display:"inline-flex",alignItems:"center",gap:8,background:"#635BFF",color:"#fff",borderRadius:8,padding:"10px 20px",fontSize:13,fontWeight:700,textDecoration:"none",width:"fit-content"}}>
+                      Connect with Stripe
+                    </a>
+                    <div style={{fontSize:11,color:T.textMuted}}>Client will be redirected to Stripe to authorise. You will be returned here when done.</div>
                   </div>
-                  <button disabled={intSaving} onClick={async()=>{
-                    setIntSaving(true); setIntMsg("");
-                    try {
-                      const r=await fetch("/api/admin/update-integration",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:jid,squareAccessToken:squareToken,squareLocationId:squareLocation})});
-                      const d=await r.json();
-                      if(!r.ok)throw new Error(d.error||"Failed");
-                      setIntMsg("✓ Square credentials saved");
-                      toast("Saved","ok");
-                    } catch(e){setIntMsg((e as Error).message);toast("Save failed","err");}
-                    finally{setIntSaving(false);}
-                  }} style={{background:T.blue,color:"#fff",border:"none",borderRadius:8,padding:"9px 18px",fontSize:12,fontWeight:600,cursor:"pointer",opacity:intSaving?0.6:1,width:"fit-content"}}>
-                    {intSaving?"Saving…":"Save Square credentials"}
-                  </button>
-                </div>
+                )}
               </div>
 
               {/* Google Analytics */}
@@ -1437,6 +1544,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
             const hasShop = features.includes("Payments / Shop");
             const hasBooking = features.includes("Booking System");
             const hasNewsletter = features.includes("Newsletter Signup");
+            const hasChat = features.includes("Live Chat");
             const hasGA4 = !!(c.ga4Id);
             const hasFacebook = !!(ui.facebookPage);
             const hasInstagram = !!(ui.instagramUrl);
@@ -1526,15 +1634,14 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               },
 
               ...(hasShop ? [{
-                title:`${n()}. Square Shop Setup`,
-                color:T.green,
-                icon:"🛒",
+                title:`${n()}. Stripe Shop Setup`,
+                color:T.purple,
+                icon:"&#x1F6CD;",
                 items:[
-                  { key:"square_account", label:"Ensure client has a Square account", detail:"Client needs a Square account at squareup.com/au. If they don't have one, send them to squareup.com/au to sign up (free). They'll need to verify their identity and link a bank account to receive payments.", link:"https://squareup.com/au", linkLabel:"Square Australia →", required:true },
-                  { key:"square_token", label:"Get Square Access Token from client", detail:"Client logs into Square Developer Dashboard at developer.squareup.com → My Applications → New Application → name it the same as their business → Credentials tab → copy the Production Access Token.\n\nPaste it into the Integrations tab in this panel.", link:"https://developer.squareup.com", linkLabel:"Square Developer →", required:true },
-                  { key:"square_location", label:"Get Square Location ID", detail:'In the same Square Developer Credentials tab, copy the "Production Location ID". Paste it into the Integrations tab alongside the Access Token.', required:true },
-                  { key:"square_catalogue", label:"Set up product catalogue in Square", detail:"Either:\n• Client adds products directly in their Square Dashboard (Items → Item Library)\n• Or you enter the products from their intake form into Square on their behalf\n\nProducts sync automatically to the site once the Square integration is wired up.", required:true },
-                  { key:"square_test", label:"Test a $1 transaction end-to-end", detail:"Place a test order on the live site and confirm it appears in the client's Square Dashboard. Refund immediately after. This confirms the payment flow is live and money goes to the client's account." },
+                  { key:"stripe_account", label:"Client signs up for Stripe (free, ~5 min)", detail:"Client needs a free Stripe account at dashboard.stripe.com. They need their ABN, business address, and Australian bank BSB/account number. Verification is usually instant in AU.", link:"https://dashboard.stripe.com/register", linkLabel:"Stripe Sign Up", required:true },
+                  { key:"stripe_connect", label:"Connect client Stripe via OAuth (Integrations tab)", detail:"In the Integrations tab, click Connect with Stripe. Client approves in 30 seconds. WebGecko automatically takes 2% of every sale.", required:true },
+                  { key:"stripe_sync", label:"Sync products to Stripe (Integrations tab)", detail:"In the Integrations tab, click Sync Shop to Stripe. Creates a Stripe Product and Payment Link for each item from the intake form.", required:true },
+                  { key:"stripe_test", label:"Test a transaction end-to-end", detail:"Place a test order and confirm payment completes, appears in client Stripe Dashboard, and WebGecko 2% fee shows as application fee. Test card: 4242 4242 4242 4242" },
                 ] as CheckItem[],
               }] : []),
 
@@ -1559,7 +1666,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                   { key:"golive_policies", label:"Confirm Privacy Policy and Terms pages work", detail:"Click the Privacy Policy and Terms of Service links in the footer. Both pages should load. If using Termly hosted URLs, confirm those links open the correct Termly documents.", required:true },
                   { key:"golive_speed", label:"Run a PageSpeed test", detail:"Go to pagespeed.web.dev, enter the preview URL. Aim for 80+ on mobile. Flag anything under 60 to fix before launch.", link:"https://pagespeed.web.dev", linkLabel:"Open PageSpeed →" },
                   { key:"golive_search_console", label:"Add site to Google Search Console", detail:`Go to search.google.com/search-console → Add Property → URL prefix → enter ${siteUrl||"(client domain after launch)"}.\n\nVerify ownership via HTML tag method — add the meta tag to the site <head>, then redeploy.\n\nOnce verified, submit the sitemap: ${siteUrl||"https://clientdomain.com.au"}/sitemap.xml`, link:"https://search.google.com/search-console", linkLabel:"Open Search Console →" },
-                  { key:"golive_email_client", label:"Send go-live email to client", detail:`Email ${email} with:\n• Link to their live site\n• Login details for any platforms (Square, SuperSaas, GA4)\n• Link to their Termly policies\n• Instructions for updating content via the client portal\n• Your support contact details`, required:true },
+                  { key:"golive_email_client", label:"Send go-live email to client", detail:`Email ${email} with:\n• Link to their live site\n• Login details for any platforms (Stripe, SuperSaas, GA4)\n• Link to their Termly policies\n• Instructions for updating content via the client portal\n• Your support contact details`, required:true },
                   { key:"golive_handoff", label:"Mark job as complete in admin", detail:"Update payment status, confirm domain is live, tick off this checklist. Archive the job notes.", required:true },
                 ],
               },
@@ -1665,6 +1772,213 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               </div>
             );
           })()}
+
+          {/* ARCHIVE */}
+          {tab==="archive"&&(
+            <div style={{ display:"flex", gap:20, height:"100%", minHeight:500 }}>
+              {/* Left: version list */}
+              <div style={{ width:260, flexShrink:0, display:"flex", flexDirection:"column" as const, gap:10 }}>
+                {/* Header + snapshot button */}
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:T.text }}>Version History</div>
+                  <button
+                    onClick={takeSnapshot}
+                    disabled={archiveSnapshotting}
+                    style={{ fontSize:11, fontWeight:600, color:T.purple, background:`${T.purple}18`, border:`1px solid ${T.purple}40`, borderRadius:7, padding:"5px 10px", cursor:"pointer" }}>
+                    {archiveSnapshotting?"Saving…":"+ Snapshot"}
+                  </button>
+                </div>
+                {archiveMsg&&<div style={{ fontSize:11, color:archiveMsg.startsWith("✓")?T.green:T.red, marginBottom:4 }}>{archiveMsg}</div>}
+                <button onClick={loadArchiveVersions} disabled={archiveLoading} style={{ fontSize:11, color:T.textMuted, background:"transparent", border:`1px solid ${T.border}`, borderRadius:6, padding:"4px 10px", cursor:"pointer", marginBottom:4 }}>
+                  {archiveLoading?"Loading…":"↻ Refresh"}
+                </button>
+                {archiveVersions.length===0&&!archiveLoading&&(
+                  <div style={{ fontSize:12, color:T.textMuted, padding:"20px 0", textAlign:"center" as const }}>
+                    No snapshots yet.<br/>Click "+ Snapshot" to save the current state.
+                  </div>
+                )}
+                <div style={{ display:"flex", flexDirection:"column" as const, gap:6, overflowY:"auto" as const, flex:1 }}>
+                  {archiveVersions.map(v=>{
+                    const isSelected = archiveSelected?.id === v.id;
+                    const d = new Date(v.created_at);
+                    const dateStr = d.toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"});
+                    const timeStr = d.toLocaleTimeString("en-AU",{hour:"2-digit",minute:"2-digit"});
+                    const triggerColor = v.trigger==="build" ? T.green : T.purple;
+                    return (
+                      <div key={v.id}
+                        onClick={()=>loadVersionHtml(v)}
+                        style={{
+                          background: isSelected ? T.raised : T.surface,
+                          border: `1px solid ${isSelected ? T.blue+"80" : T.border}`,
+                          borderRadius:10, padding:"10px 12px", cursor:"pointer",
+                          transition:"all 0.15s ease",
+                          boxShadow: isSelected ? `0 0 0 2px ${T.blue}30` : "none",
+                        }}>
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
+                          <div style={{ fontSize:12, fontWeight:600, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const, flex:1 }}>{v.label}</div>
+                          <span style={{ fontSize:9, fontWeight:700, color:triggerColor, background:`${triggerColor}18`, border:`1px solid ${triggerColor}30`, borderRadius:20, padding:"1px 6px", marginLeft:6, flexShrink:0 }}>
+                            {v.trigger==="build"?"BUILD":"MANUAL"}
+                          </span>
+                        </div>
+                        <div style={{ fontSize:10, color:T.textMuted }}>{dateStr} · {timeStr}</div>
+                        <div style={{ display:"flex", gap:6, marginTop:6 }}>
+                          {v.html&&<span style={{ fontSize:9, color:T.textSec, background:T.raised, borderRadius:4, padding:"1px 5px" }}>HTML</span>}
+                          {v.job_config&&<span style={{ fontSize:9, color:T.textSec, background:T.raised, borderRadius:4, padding:"1px 5px" }}>Config</span>}
+                          {v.logs&&Array.isArray(v.logs)&&v.logs.length>0&&<span style={{ fontSize:9, color:T.textSec, background:T.raised, borderRadius:4, padding:"1px 5px" }}>{v.logs.length} logs</span>}
+                        </div>
+                        <button
+                          onClick={e=>{e.stopPropagation();deleteVersion(v.id);}}
+                          style={{ marginTop:6, fontSize:9, color:T.red, background:"transparent", border:"none", cursor:"pointer", padding:0, opacity:0.6 }}>
+                          Delete
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Right: version detail */}
+              <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column" as const }}>
+                {!archiveSelected&&(
+                  <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", color:T.textMuted, fontSize:13 }}>
+                    Select a snapshot to inspect it
+                  </div>
+                )}
+                {archiveSelected&&(
+                  <>
+                    {/* Detail header */}
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                      <div>
+                        <div style={{ fontSize:14, fontWeight:700, color:T.text }}>{archiveSelected.label}</div>
+                        <div style={{ fontSize:11, color:T.textMuted }}>{new Date(archiveSelected.created_at).toLocaleString("en-AU")}</div>
+                      </div>
+                      {/* Sub-tab switcher */}
+                      <div style={{ display:"flex", gap:4 }}>
+                        {(["preview","config","logs"] as const).map(st=>(
+                          <button key={st} onClick={()=>setArchiveSubTab(st)}
+                            style={{ fontSize:11, fontWeight:600, padding:"5px 12px", borderRadius:6, cursor:"pointer",
+                              background: archiveSubTab===st ? T.raised : "transparent",
+                              color: archiveSubTab===st ? T.text : T.textMuted,
+                              border: archiveSubTab===st ? `1px solid ${T.border}` : "1px solid transparent" }}>
+                            {st==="preview"?"👁 Preview":st==="config"?"⚙️ Config":"📋 Logs"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Preview sub-tab */}
+                    {archiveSubTab==="preview"&&(
+                      <div style={{ flex:1, borderRadius:10, overflow:"hidden", border:`1px solid ${T.border}`, background:T.surface, minHeight:400 }}>
+                        {archivePreviewLoading&&(
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:400, color:T.textMuted, fontSize:13 }}>Loading HTML preview…</div>
+                        )}
+                        {!archivePreviewLoading&&!archivePreviewHtml&&(
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:400, color:T.textMuted, fontSize:13 }}>No HTML saved for this snapshot</div>
+                        )}
+                        {!archivePreviewLoading&&archivePreviewHtml&&(
+                          <iframe
+                            srcDoc={archivePreviewHtml}
+                            style={{ width:"100%", height:"100%", minHeight:500, border:"none" }}
+                            sandbox="allow-scripts allow-same-origin"
+                            title={`Preview: ${archiveSelected.label}`}
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Config sub-tab */}
+                    {archiveSubTab==="config"&&(
+                      <div style={{ flex:1, overflowY:"auto" as const, background:T.surface, border:`1px solid ${T.border}`, borderRadius:10, padding:16 }}>
+                        {!archiveSelected.job_config&&<div style={{ color:T.textMuted, fontSize:12 }}>No config saved</div>}
+                        {archiveSelected.job_config&&(()=>{
+                          const cfg = archiveSelected.job_config;
+                          const rows: [string, any][] = [
+                            ["Status", cfg.status],
+                            ["Built At", cfg.builtAt ? new Date(cfg.builtAt).toLocaleString("en-AU") : "—"],
+                            ["Preview URL", cfg.previewUrl],
+                            ["Domain Slug", cfg.domainSlug],
+                            ["Client Slug", cfg.clientSlug],
+                            ["Shop Platform", cfg.shopPlatform||"—"],
+                            ["Stripe Account", cfg.stripeAccountId||"—"],
+                            ["Stripe Connected", cfg.stripeConnectedAt ? new Date(cfg.stripeConnectedAt).toLocaleString("en-AU") : "—"],
+                            ["GA4 ID", cfg.ga4Id||"—"],
+                            ["Tawk.to ID", cfg.tawktoPropertyId||"—"],
+                            ["SuperSaas URL", cfg.supersaasUrl||"—"],
+                          ];
+                          const ui2 = cfg.userInput||{};
+                          const uiRows: [string,any][] = [
+                            ["Business Name", ui2.businessName],
+                            ["Industry", ui2.industry],
+                            ["Site Type", ui2.siteType],
+                            ["Style", ui2.style],
+                            ["Color Prefs", ui2.colorPrefs],
+                            ["USP", ui2.usp],
+                            ["Goal", ui2.goal],
+                            ["Features", (ui2.features||[]).join(", ")||"—"],
+                            ["Pages", (ui2.pages||[]).join(", ")||"—"],
+                            ["Notes", ui2.additionalNotes],
+                          ];
+                          return (
+                            <div style={{ display:"flex", flexDirection:"column" as const, gap:20 }}>
+                              <div>
+                                <div style={{ fontSize:10, fontWeight:700, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.08em", marginBottom:8 }}>Build Config</div>
+                                {rows.map(([k,v])=>(
+                                  <div key={k} style={{ display:"flex", gap:12, padding:"5px 0", borderBottom:`1px solid ${T.border}`, alignItems:"flex-start" }}>
+                                    <div style={{ fontSize:11, color:T.textMuted, width:130, flexShrink:0 }}>{k}</div>
+                                    <div style={{ fontSize:11, color:T.text, wordBreak:"break-all" as const }}>{v||"—"}</div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div>
+                                <div style={{ fontSize:10, fontWeight:700, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.08em", marginBottom:8 }}>Client Intake (at time of snapshot)</div>
+                                {uiRows.map(([k,v])=>(
+                                  <div key={k} style={{ display:"flex", gap:12, padding:"5px 0", borderBottom:`1px solid ${T.border}`, alignItems:"flex-start" }}>
+                                    <div style={{ fontSize:11, color:T.textMuted, width:130, flexShrink:0 }}>{k}</div>
+                                    <div style={{ fontSize:11, color:T.text, wordBreak:"break-all" as const }}>{v||"—"}</div>
+                                  </div>
+                                ))}
+                              </div>
+                              {cfg.shopCatalogue&&cfg.shopCatalogue.length>0&&(
+                                <div>
+                                  <div style={{ fontSize:10, fontWeight:700, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.08em", marginBottom:8 }}>Shop Catalogue ({cfg.shopCatalogue.length} items)</div>
+                                  {cfg.shopCatalogue.map((item:any,i:number)=>(
+                                    <div key={i} style={{ fontSize:11, color:T.text, padding:"4px 0", borderBottom:`1px solid ${T.border}` }}>
+                                      {item.name} — {item.price ? `$${item.price}` : "—"}{item.paymentLinkUrl?<> · <a href={item.paymentLinkUrl} target="_blank" rel="noopener noreferrer" style={{ color:T.blue }}>Payment Link ↗</a></>:null}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    {/* Logs sub-tab */}
+                    {archiveSubTab==="logs"&&(
+                      <div style={{ flex:1, overflowY:"auto" as const, background:"#010508", border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 14px", fontFamily:"monospace", fontSize:11, lineHeight:1.6 }}>
+                        {(!archiveSelected.logs||archiveSelected.logs.length===0)&&(
+                          <div style={{ color:T.textMuted }}>No logs saved for this snapshot</div>
+                        )}
+                        {(archiveSelected.logs||[]).map((l:any,i:number)=>{
+                          const lc = l.level==="error" ? T.red : l.level==="warn" ? T.amber : T.green;
+                          const ts = l.ts ? new Date(l.ts).toLocaleTimeString("en-AU",{hour:"2-digit",minute:"2-digit",second:"2-digit"}) : "";
+                          return (
+                            <div key={i} style={{ display:"flex", gap:8, padding:"2px 0" }}>
+                              <span style={{ color:T.textMuted, flexShrink:0 }}>{ts}</span>
+                              <span style={{ color:lc, flexShrink:0, width:36 }}>{l.level?.toUpperCase()}</span>
+                              <span style={{ color:T.textSec, flexShrink:0 }}>[{l.step}]</span>
+                              <span style={{ color:T.text }}>{l.msg}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
         </div>
       </div>

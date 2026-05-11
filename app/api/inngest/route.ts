@@ -1594,6 +1594,19 @@ const buildWebsite = inngest.createFunction(
             });
           }
         }
+
+        // Auto-snapshot: save a version to page_versions so the Archive tab has a record of every build
+        try {
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
+          await fetch(`${appUrl}/api/versions/snapshot`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-process-secret": process.env.PROCESS_SECRET || "" },
+            body: JSON.stringify({ jobId, trigger: "build" }),
+          });
+          console.log("[Step9] Auto-snapshot saved to page_versions");
+        } catch(e) {
+          console.warn("[Step9] Auto-snapshot failed (non-fatal):", (e as Error).message);
+        }
       });
 
           // -- STEP 9b: Domain provisioning via Synergy Wholesale (non-blocking) ------

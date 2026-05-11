@@ -312,6 +312,15 @@ function jobToDbJob(id: string, job: Record<string, any>) {
     ...(job.squareTokenExpiresAt !== undefined ? { square_token_expires_at: job.squareTokenExpiresAt } : {}),
     ...(job.squareMerchantId !== undefined ? { square_merchant_id: job.squareMerchantId } : {}),
     ...(job.squareLocationId !== undefined ? { square_location_id: job.squareLocationId } : {}),
+    // Stripe Connect per-client credentials
+    ...(job.stripeAccountId !== undefined ? { stripe_account_id: job.stripeAccountId } : {}),
+    ...(job.stripeAccessToken !== undefined ? { stripe_access_token: job.stripeAccessToken } : {}),
+    ...(job.stripeRefreshToken !== undefined ? { stripe_refresh_token: job.stripeRefreshToken } : {}),
+    ...(job.stripeConnectedAt !== undefined ? { stripe_connected_at: job.stripeConnectedAt } : {}),
+    // Shop catalogue
+    ...(job.shopCatalogue !== undefined ? { shop_catalogue: job.shopCatalogue } : {}),
+    ...(job.shopSyncedAt !== undefined ? { shop_synced_at: job.shopSyncedAt } : {}),
+    ...(job.shopPlatform !== undefined ? { shop_platform: job.shopPlatform } : {}),
     // Metadata jsonb — stores sub-user creds, extra intake fields, etc.
     ...(job.metadata !== undefined || job.builtAt !== undefined ? {
       metadata: { ...(job.metadata || {}), ...(job.builtAt ? { builtAt: job.builtAt } : {}) }
@@ -346,6 +355,16 @@ function dbJobToJob(row: Record<string, any>) {
     squareTokenExpiresAt: row.square_token_expires_at || null,
     squareMerchantId: row.square_merchant_id || null,
     squareLocationId: row.square_location_id || null,
+    stripeAccountId: row.stripe_account_id || null,
+    stripeAccessToken: row.stripe_access_token || null,
+    stripeRefreshToken: row.stripe_refresh_token || null,
+    stripeConnectedAt: row.stripe_connected_at || null,
+    shopCatalogue: row.shop_catalogue || null,
+    shopSyncedAt: row.shop_synced_at || null,
+    shopPlatform: row.shop_platform || null,
+    slug: row.client_slug || row.domain_slug || null,
+    liveUrl: row.metadata?.liveUrl || row.preview_url || null,
+    businessName: row.user_input?.businessName || null,
     metadata: row.metadata || null,
   };
 }

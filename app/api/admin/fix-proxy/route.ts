@@ -87,6 +87,28 @@ export async function GET(req: NextRequest) {
     });
     html = html.replace(/<[a-z][^>]*>\s*Map View\s*:[^<]{0,100}<\/[a-z]+>/gi, '');
 
+    // DEDUP: remove duplicate Google Maps iframes — keep only the first occurrence
+    {
+      let firstMapFound = false;
+      html = html.replace(/<iframe[^>]+(?:maps\.google|maps\/embed|google\.com\/maps)[^>]*>[\s\S]*?<\/iframe>/gi, (m: string) => {
+        if (!firstMapFound) { firstMapFound = true; return m; }
+        return ''; // drop duplicate maps
+      });
+    }
+
+    // DEDUP: remove duplicate newsletter sections — keep only the first occurrence
+    {
+      let firstNewsletterFound = false;
+      html = html.replace(/(<(?:section|div)[^>]*>)([\s\S]{50,3000}?)<\/(?:section|div)>/gi, (m: string) => {
+        const text = m.replace(/<[^>]+>/g, '').toLowerCase();
+        const isNewsletter = (text.includes('subscribe') || text.includes('newsletter') || text.includes('stay in the loop')) &&
+                             (m.includes('type="email"') || m.includes("type='email'") || (m.includes('placeholder') && text.includes('email')));
+        if (!isNewsletter) return m;
+        if (!firstNewsletterFound) { firstNewsletterFound = true; return m; }
+        return ''; // drop duplicate newsletter blocks
+      });
+    }
+
     // FIX 1: Contact details — only replace clearly fake emails
     const clientDomain = clientEmail.split("@")[1] || "";
     const businessSlug = (userInput?.businessName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
