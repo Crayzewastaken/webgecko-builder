@@ -68,6 +68,13 @@ function ClientDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
+  const [requests, setRequests] = useState<any[]>([]);
+  const [reqType, setReqType] = useState<"blog"|"link"|"text"|"image">("text");
+  const [reqTitle, setReqTitle] = useState("");
+  const [reqBody, setReqBody] = useState("");
+  const [reqLink, setReqLink] = useState("");
+  const [reqSubmitting, setReqSubmitting] = useState(false);
+  const [reqMsg, setReqMsg] = useState("");
 
   useEffect(() => {
     if (!slug) return;
@@ -89,6 +96,10 @@ function ClientDashboard() {
             setBookings(bd.bookings || []);
           } catch {}
         }
+        try {
+          const rd = await fetch(`/api/feature-requests?slug=${encodeURIComponent(slug)}`).then(r => r.json());
+          setRequests((rd.requests || []).filter((r: any) => r.featureId === "Content"));
+        } catch {}
       })
       .catch(e => {
         setError(e.message);
@@ -130,8 +141,35 @@ function ClientDashboard() {
     { id: "overview", label: "Overview", icon: "🏠" },
     { id: "preview", label: "Site Preview", icon: "🌐" },
     ...(data.hasBooking ? [{ id: "bookings", label: `Bookings (${upcomingBookings.length})`, icon: "📅" }] : []),
+    { id: "requests", label: `Requests${requests.filter(r=>r.status==="pending").length>0?" ("+requests.filter(r=>r.status==="pending").length+")":""}`, icon: "✏️" },
     { id: "quote", label: "Quote", icon: "💰" },
   ];
+
+  const submitContentRequest = async () => {
+    if (!reqTitle.trim() && !reqBody.trim() && !reqLink.trim()) { setReqMsg("Please add some content first."); return; }
+    setReqSubmitting(true); setReqMsg("");
+    try {
+      const r = await fetch("/api/feature-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug,
+          featureId: "Content",
+          contentType: reqType,
+          contentTitle: reqTitle,
+          contentBody: reqBody,
+          contentLink: reqLink,
+          message: `New ${reqType} request from ${data.businessName}`,
+        }),
+      });
+      if (!r.ok) throw new Error("Failed");
+      setReqMsg("✓ Request submitted! We'll review it shortly.");
+      setReqTitle(""); setReqBody(""); setReqLink("");
+      const rd = await fetch(`/api/feature-requests?slug=${encodeURIComponent(slug)}`).then(x => x.json());
+      setRequests((rd.requests || []).filter((r: any) => r.featureId === "Content"));
+    } catch { setReqMsg("Something went wrong. Please try again."); }
+    finally { setReqSubmitting(false); }
+  };
 
   const timelineSteps = [
     { icon: "🔨", title: "Your site is being built", desc: "Our team is actively working on your website", done: true },
@@ -371,6 +409,79 @@ function ClientDashboard() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* REQUESTS */}
+        {activeTab === "requests" && (
+          <div className="space-y-4">
+            <div className="bg-[#0f1623] border border-white/8 rounded-2xl p-5">
+              <h3 className="text-white font-semibold mb-1">Request a Site Update</h3>
+              <p className="text-slate-400 text-sm mb-4">Add a blog post, update text, drop a link, or request any content change. We&apos;ll review and push it live.</p>
+              <div className="flex gap-2 mb-4 flex-wrap">
+                {([["text","✏️ Text Update"],["blog","📝 Blog Post"],["link","🔗 Add a Link"],["image","🖼️ Image / Media"]] as [typeof reqType, string][]).map(([t,l]) => (
+                  <button key={t} onClick={() => setReqType(t)}
+                    className={"px-3 py-1.5 rounded-lg text-sm font-medium border transition-all " + (reqType===t?"bg-emerald-500/20 border-emerald-500/60 text-emerald-400":"bg-slate-800/50 border-white/10 text-slate-400 hover:border-white/20")}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+              <div className="space-y-3">
+                <input type="text"
+                  placeholder={reqType==="blog"?"Blog post title...":reqType==="link"?"Link title or label...":"What would you like to update?"}
+                  value={reqTitle} onChange={e => setReqTitle(e.target.value)}
+                  className="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 outline-none focus:border-emerald-500/50"
+                />
+                {(reqType==="blog"||reqType==="text") && (
+                  <textarea
+                    placeholder={reqType==="blog"?"Write your blog post content here...":"Describe what you want changed, or paste in the new text..."}
+                    value={reqBody} onChange={e => setReqBody(e.target.value)} rows={6}
+                    className="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 outline-none focus:border-emerald-500/50 resize-none"
+                  />
+                )}
+                {(reqType==="link"||reqType==="image") && (
+                  <input type="url"
+                    placeholder={reqType==="link"?"Paste the URL to link to...":"Paste a link to your image (Google Drive, Dropbox, etc.)..."}
+                    value={reqLink} onChange={e => setReqLink(e.target.value)}
+                    className="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 outline-none focus:border-emerald-500/50"
+                  />
+                )}
+                {reqType==="link" && (
+                  <textarea placeholder="Any additional context — where on the site should this link appear?"
+                    value={reqBody} onChange={e => setReqBody(e.target.value)} rows={3}
+                    className="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 outline-none focus:border-emerald-500/50 resize-none"
+                  />
+                )}
+              </div>
+              {reqMsg && <p className={"text-sm mt-3 " + (reqMsg.startsWith("✓")?"text-emerald-400":"text-red-400")}>{reqMsg}</p>}
+              <button onClick={submitContentRequest} disabled={reqSubmitting}
+                className="mt-4 w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-bold py-3 rounded-xl text-sm transition-all">
+                {reqSubmitting ? "Submitting…" : "Submit Request →"}
+              </button>
+            </div>
+            {requests.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-slate-500 text-xs uppercase tracking-widest font-semibold px-1">Your Previous Requests</p>
+                {requests.map((req: any, i: number) => {
+                  const statusColor: Record<string,string> = {pending:"text-amber-400 bg-amber-500/10 border-amber-500/30",processing:"text-blue-400 bg-blue-500/10 border-blue-500/30",live:"text-emerald-400 bg-emerald-500/10 border-emerald-500/30",rejected:"text-red-400 bg-red-500/10 border-red-500/30"};
+                  const sc = statusColor[req.status] || "text-slate-400 bg-slate-500/10 border-slate-500/30";
+                  return (
+                    <div key={i} className="bg-[#0f1623] border border-white/8 rounded-2xl p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className={"text-xs font-semibold px-2 py-0.5 rounded-full border " + sc}>{req.status}</span>
+                          <span className="text-slate-500 text-xs">{req.contentType}</span>
+                        </div>
+                        <span className="text-slate-600 text-xs">{new Date(req.createdAt).toLocaleDateString("en-AU")}</span>
+                      </div>
+                      {req.contentTitle && <p className="text-white text-sm font-medium mb-1">{req.contentTitle}</p>}
+                      {req.contentBody && <p className="text-slate-400 text-xs line-clamp-2">{req.contentBody}</p>}
+                      {req.contentLink && <a href={req.contentLink} target="_blank" rel="noreferrer" className="text-emerald-400 text-xs hover:underline">{req.contentLink}</a>}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

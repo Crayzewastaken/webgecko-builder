@@ -315,14 +315,19 @@ const buildWebsite = inngest.createFunction(
         .map((p: string) => normalizePageId(p));
       const rebuiltHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step4b-claude-rebuild", async () => {
 
+        // Use site's actual palette so booking section doesn't clash with the design
+        const siteBg = spec.palette?.background || "#0a0f1a";
+        const siteAccent = spec.palette?.accent || "#00c896";
+        const siteText = spec.palette?.text || "#e2e8f0";
         const bookingBlock = hasBookingFeature && bookingUrl
-          ? `<section id="booking" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">
+          ? `<section id="booking" data-page="booking" class="page-section" style="padding:80px 24px;background:${siteBg};scroll-margin-top:80px;">
     <div style="max-width:900px;margin:0 auto;text-align:center;">
-      <h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;margin:0 0 8px;">Book an Appointment</h2>
-      <p style="color:#94a3b8;margin:0 0 32px;">Schedule your appointment with ${userInput.businessName} online.</p>
-      <div style="border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.4);">
-        <iframe src="${bookingUrl}" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;" loading="lazy"></iframe>
+      <h2 style="color:${siteText};font-size:2.2rem;font-weight:900;margin:0 0 8px;">Book an Appointment</h2>
+      <p style="color:${siteText};opacity:0.7;margin:0 0 32px;">Schedule your appointment with ${userInput.businessName} online.</p>
+      <div style="border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);">
+        <iframe src="${bookingUrl}" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;" title="Book an Appointment" loading="lazy"></iframe>
       </div>
+      <p style="color:${siteText};opacity:0.5;font-size:12px;margin-top:16px;">Prefer to call? <a href="tel:${clientPhone}" style="color:${siteAccent};">${clientPhone}</a></p>
     </div>
   </section>`
           : "";
@@ -332,9 +337,23 @@ const buildWebsite = inngest.createFunction(
         // from Stitch is preserved exactly as-is.
         let html = stitchHtml;
 
-        // 1. Inject id="hero" on the first section/div if missing
+        // 1. Inject id="hero" on the first <section> that appears AFTER </header> (not inside header/nav)
         if (!html.includes('id="hero"') && !html.includes("id='hero'")) {
-          html = html.replace(/(<(?:section|div)\b)(?![^>]*\bid=)/, '$1 id="hero"');
+          // Strip header block first so the regex doesn't match elements inside it
+          const headerEnd = html.search(/<\/header>/i);
+          if (headerEnd > -1) {
+            const afterHeader = html.slice(headerEnd);
+            const heroTagMatch = afterHeader.match(/(<(?:section|div)\b)(?![^>]*\bid=)([^>]*>)/);
+            if (heroTagMatch) {
+              const idx = html.indexOf(heroTagMatch[0], headerEnd);
+              if (idx > -1) {
+                html = html.slice(0, idx) + heroTagMatch[1] + ' id="hero"' + heroTagMatch[2] + html.slice(idx + heroTagMatch[0].length);
+              }
+            }
+          } else {
+            // No header tag — fallback: first section/div without id
+            html = html.replace(/(<(?:section|div)\b)(?![^>]*\bid=)/, '$1 id="hero"');
+          }
         }
 
         // 2. Wire existing hamburger/SVG menu button OR inject our own if missing
@@ -1043,7 +1062,7 @@ const buildWebsite = inngest.createFunction(
     ${siteUrl ? `<meta property="og:url" content="${siteUrl}">` : ""}
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="${pageTitle.replace(/"/g, "&quot;")}">
-    <meta name="twitter:description" content="${metaDesc.replace(/"/g, "&quot;")}`;
+    <meta name="twitter:description" content="${metaDesc.replace(/"/g, "&quot;")}">`;
           // Inject after <head> or <meta charset=...>
           if (html.includes("<head>")) {
             html = html.replace("<head>", "<head>" + seoMeta);
@@ -2119,4 +2138,16 @@ const featureGoLive = inngest.createFunction(
 
       const userInput = job.userInput || {};
       const existingFeatures: string[] = Array.isArray(userInput.features) ? userInput.features : [];
-      const newFeatures = [...new Set(
+      const newFeatures = [...new Set([...existingFeatures, featureId])];
+
+      // Persist the new feature into userInput
+      // Persist the new feature into userInput
+      await saveJob(jobId, { userInput: { ...userInput, features: newFeatures } });
+    });
+  }
+);
+
+export const { GET, POST, PUT } = serve({
+  client: inngest,
+  functions: [buildWebsite, monthlyReports, autoRelease, featureInject, featureGoLive],
+});

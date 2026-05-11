@@ -300,7 +300,7 @@
     "date": "2026-05-10",
     "commit": "3d9a2cb",
     "lines": 2139,
-    "description": "feat: content management \u2014 blog, newsletter, deal, product, review tabs in admin + client portal Content tab with AI gen",
+    "description": "feat: content management — blog, newsletter, deal, product, review tabs in admin + client portal Content tab with AI gen",
     "type": "feat"
   },
   {
@@ -356,7 +356,7 @@
     "date": "2026-05-11",
     "commit": "0578346",
     "lines": 2647,
-    "description": "feat: full AU legal checklist \u2014 Termly privacy+cookie, freeprivacypolicy ToS, ABN, ACL, SSL, Spam Act",
+    "description": "feat: full AU legal checklist — Termly privacy+cookie, freeprivacypolicy ToS, ABN, ACL, SSL, Spam Act",
     "type": "feat"
   },
   {
@@ -406,5 +406,21 @@
     "lines": 2813,
     "description": "fix: restore 11 tabs, FAQ above footer, privacy/terms nav whitelist",
     "type": "fix"
+  },
+  {
+    "version": "v52",
+    "date": "2026-05-11",
+    "commit": "pending",
+    "lines": 2819,
+    "description": "\"Updated admin dashboard\"",
+    "type": "feat"
+  },
+  {
+    "version": "v53",
+    "date": "2026-05-11",
+    "commit": "pending",
+    "lines": 2819,
+    "description": "\"Updated admin dashboard\"",
+    "type": "feat"
   }
 ]

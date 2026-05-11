@@ -1709,6 +1709,8 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                     <div style={{display:"flex",flexDirection:"column" as const,gap:10}}>
                       {section.items.map(item=>{
                         const done = !!checklistDone[item.key];
+                        const needsLink = !!(item.linkInput && !checklistLinks[item.key]);
+                        const canComplete = !needsLink;
                         return (
                           <div key={item.key} style={{background:done?`${section.color}0a`:T.surface,border:`1px solid ${done?section.color+"40":T.border}`,borderRadius:10,padding:"14px 16px",transition:"all 0.2s ease"}}>
                             <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
@@ -1717,14 +1719,17 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                                 background:done?section.color:"transparent",
                                 border:`2px solid ${done?section.color:T.border}`,
                                 display:"flex",alignItems:"center",justifyContent:"center",
-                                cursor:"pointer",transition:"all 0.15s ease",
+                                cursor:canComplete?"pointer":"not-allowed",transition:"all 0.15s ease",
+                                opacity:canComplete?1:0.4,
                               }}>
                                 {done&&<span style={{color:"#000",fontSize:13,fontWeight:900,lineHeight:1}}>✓</span>}
                               </button>
                               <div style={{flex:1,minWidth:0}}>
-                                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"wrap" as const}}>
                                   <div style={{fontSize:13,fontWeight:600,color:done?T.textMuted:T.text,textDecoration:done?"line-through":"none"}}>{item.label}</div>
-                                  {item.required&&!done&&<span style={{fontSize:10,fontWeight:700,color:section.color,background:`${section.color}18`,padding:"1px 7px",borderRadius:20,flexShrink:0}}>REQUIRED</span>}
+                                  {done&&<span style={{fontSize:10,fontWeight:700,color:section.color,background:`${section.color}18`,border:`1px solid ${section.color}40`,padding:"1px 8px",borderRadius:20,flexShrink:0}}>✓ COMPLETED</span>}
+                                  {item.required&&!done&&!needsLink&&<span style={{fontSize:10,fontWeight:700,color:section.color,background:`${section.color}18`,padding:"1px 7px",borderRadius:20,flexShrink:0}}>REQUIRED</span>}
+                                  {needsLink&&!done&&<span style={{fontSize:10,fontWeight:700,color:T.amber,background:`${T.amber}18`,padding:"1px 7px",borderRadius:20,flexShrink:0}}>🔒 Paste URL to unlock</span>}
                                 </div>
                                 {(()=>{
                                   if(!item.detail.startsWith("QUESTIONS\n")){

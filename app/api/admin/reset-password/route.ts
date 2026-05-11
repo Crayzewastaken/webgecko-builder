@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   if (client?.email && process.env.RESEND_API_KEY) {
     try {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app"}/client/login`;
+      const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app"}/client`;
       await resend.emails.send({
         from: "WebGecko <hello@webgecko.au>",
         to: client.email,
@@ -64,8 +64,8 @@ export async function POST(req: NextRequest) {
               </p>
               <div style="background:#12121f;border:1px solid #1a1a2e;border-radius:12px;padding:20px 24px;margin-bottom:28px;">
                 <div style="margin-bottom:12px;">
-                  <div style="font-size:11px;font-weight:700;color:#8888aa;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Username / Email</div>
-                  <div style="font-size:14px;color:#e8e8f0;font-family:monospace;">${client.email}</div>
+                  <div style="font-size:11px;font-weight:700;color:#8888aa;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Username</div>
+                  <div style="font-size:14px;color:#e8e8f0;font-family:monospace;">${slug}</div>
                 </div>
                 <div>
                   <div style="font-size:11px;font-weight:700;color:#8888aa;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Temporary Password</div>
