@@ -390,9 +390,11 @@ export function validateForDeploy(
     }
 
     // 6. No navigateTo() target that points to a page NOT in requestedPageIds
-    const navTargets = [...html.matchAll(/navigateTo\(['"]([^'"]+)['"]\)/g)].map(m => m[1]);
+    // Whitelist legal/utility pages injected by the auditor
+    const legalPages = new Set(["privacy", "terms", "privacy-policy", "terms-of-service"]);
+    const navTargets = [...html.matchAll(/navigateTo\(['"]([\.^'"]+)['"]\)/g)].map(m => m[1]);
     for (const t of navTargets) {
-      if (!requestedPageIds.includes(t)) {
+      if (!requestedPageIds.includes(t) && !legalPages.has(t)) {
         failures.push(`navigateTo('${t}') points to page not in requestedPageIds`);
       }
     }

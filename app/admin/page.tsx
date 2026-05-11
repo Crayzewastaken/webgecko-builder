@@ -371,7 +371,7 @@ function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:
 
 // ── Client slide-over panel ────────────────────────────────────────────────────
 function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:string; onClose:()=>void; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
-  const [tab, setTab] = useState<"analytics"|"site"|"integrations"|"content"|"payments"|"actions"|"checklist">("analytics");
+  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"content"|"payments"|"actions"|"requests"|"checklist">("perf");
   const [checklistDone, setChecklistDone] = useState<Record<string,boolean>>({});
   const [checklistLinks, setChecklistLinks] = useState<Record<string,string>>({});
   useEffect(()=>{
@@ -478,7 +478,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   }
 
   const pending = featureRequests.filter(r=>r.status==="pending"||r.status==="draft").length;
-  const tabs = ["analytics","site","integrations","content","payments","actions","checklist"] as const;
+  const tabs = ["perf","engagement","seo","site","assets","integrations","content","payments","actions","requests","checklist"] as const;
 
   // ── Content helpers ────────────────────────────────────────────────────────
   async function loadContent() {
@@ -597,7 +597,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   }
 
   const tabBtn = (id:typeof tabs[number], label:string) => (
-    <button key={id} onClick={()=>{setTab(id);if(id==="actions"&&featureRequests.length===0)loadFeatureRequests();if(id==="content"&&contentItems.length===0)loadContent();}}
+    <button key={id} onClick={()=>{setTab(id);if(id==="requests"&&featureRequests.length===0)loadFeatureRequests();if(id==="content"&&contentItems.length===0)loadContent();}}
       style={{ padding:"8px 14px", fontSize:12, fontWeight:tab===id?600:400, color:tab===id?T.text:T.textMuted, background:tab===id?T.raised:"transparent", border:tab===id?`1px solid ${T.border}`:"1px solid transparent", borderRadius:7, cursor:"pointer", transition:"all 0.15s ease", whiteSpace:"nowrap" as const }}>
       {label}
     </button>
@@ -644,13 +644,17 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
         </div>
 
         {/* Tabs */}
-        <div style={{ display:"flex", gap:3, padding:"10px 28px", borderBottom:`1px solid ${T.border}`, background:T.bg, flexShrink:0 }}>
-          {tabBtn("analytics","Analytics")}
+        <div style={{ display:"flex", gap:4, padding:"8px 24px", borderBottom:`1px solid ${T.border}`, background:T.bg, flexWrap:"wrap" as const, flexShrink:0 }}>
+          {tabBtn("perf","Perf")}
+          {tabBtn("engagement","Engage")}
+          {tabBtn("seo","SEO")}
           {tabBtn("site","Site")}
+          {tabBtn("assets","Assets")}
           {tabBtn("integrations","Integrations")}
           {tabBtn("content","Content")}
           {tabBtn("payments","Payments")}
-          {tabBtn("actions",`Actions${pending>0?" ("+pending+")":""}`)}
+          {tabBtn("actions","Actions")}
+          {tabBtn("requests",`Requests${pending>0?" ("+pending+")":""}`)}
           {tabBtn("checklist","✅ Checklist")}
         </div>
 
@@ -658,7 +662,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
         <div key={tab} className="wg-tab" style={{ flex:1, overflowY:"auto" as const, padding:"24px" }}>
 
           {/* PERFORMANCE */}
-          {tab==="analytics"&&(
+          {tab==="perf"&&(
             <>
               {/* 6 mini KPI cards */}
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))", gap:10, marginBottom:20 }}>
@@ -745,7 +749,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
           )}
 
           {/* ENGAGEMENT */}
-          {true&&(
+          {tab==="engagement"&&(
             <>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))", gap:10, marginBottom:20 }}>
                 {[
@@ -773,7 +777,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
           )}
 
           {/* SEO */}
-          {true&&(
+          {tab==="seo"&&(
             <>
               {!seo&&<div style={{color:T.textMuted,fontSize:13,padding:"20px 0"}}>No SEO data yet — populated on next build.</div>}
               {seo&&(
@@ -902,7 +906,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
 
 
           {/* ASSETS */}
-          {tab==="site"&&tab==="site"&&true&&(
+          {tab==="assets"&&(
             <div style={{display:"flex",flexDirection:"column" as const,gap:20}}>
               {/* Gallery photos */}
               <div>
@@ -1486,7 +1490,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
           )}
 
           {/* FEATURE REQUESTS */}
-          {tab==="actions"&&tab==="actions"&&true&&(
+          {tab==="requests"&&(
             <div>
               {frLoading&&<div style={{color:T.textMuted,fontSize:13,padding:"20px 0"}}>Loading…</div>}
               {!frLoading&&featureRequests.length===0&&(

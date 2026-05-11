@@ -593,5 +593,10 @@ function addSectionIdSmart(html: string, id: string, classPatterns: RegExp[], he
     }
   }
   console.log('[Auditor] id="' + id + '" via fallback injection');
+  // Inject before footer if one exists, otherwise before </body>
+  if (/<footer[\s>]/i.test(html)) {
+    return html.replace(/<footer[\s>]/i, fallbackSection + '\n<footer ');
+  }
   return html.replace('</body>', fallbackSection + '\n</body>');
 }
+
