@@ -442,7 +442,7 @@ export default function HomePage() {
       setSubmitted(true);
       setSubmitting(false);
     } catch (err) {
-      setErrors(["Network error — please check your connection and try again."]);
+      setErrors(["Network error - please check your connection and try again."]);
       setSubmitting(false);
     }
   }
@@ -473,13 +473,13 @@ export default function HomePage() {
           </div>
           <h1 className="text-3xl font-bold mb-3 tracking-tight">You're all set!</h1>
           <p className="text-slate-400 text-base mb-8 leading-relaxed">
-            Your website request is in. Check <strong className="text-white">{email}</strong> — a confirmation lands in <strong className="text-white">2–5 minutes</strong>.
+            Your website request is in. Check <strong className="text-white">{email}</strong> - a confirmation lands in <strong className="text-white">2-5 minutes</strong>.
           </p>
           <div className="bg-[#0f1623] border border-white/8 rounded-2xl p-5 text-left space-y-4 mb-8">
             {[
               { icon: '📧', title: 'Confirmation email', sub: 'Arrives within 5 minutes (check spam if needed)' },
-              { icon: ‘📞’, title: "We’ll be in touch within a few days", sub: phone || ‘To review your request’ },
-              { icon: ‘🌐’, title: businessName || ‘Your new website’, sub: "We’ll prepare your custom preview — most agencies take months, we take weeks" },
+              { icon: '📞', title: "We'll be in touch within a few days", sub: phone || 'To review your request' },
+              { icon: '🌐', title: businessName || 'Your new website', sub: "We'll prepare your custom preview. Most agencies take months - we take weeks." },
             ].map(({ icon, title, sub }) => (
               <div key={title} className="flex items-center gap-4">
                 <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center text-xl flex-shrink-0">{icon}</div>
@@ -521,7 +521,7 @@ export default function HomePage() {
             <div className="flex items-center justify-between mb-1.5">
               <p className="text-xs text-slate-400 font-medium truncate">
                 <span className="text-white font-semibold">{steps[step - 1]?.icon} {steps[step - 1]?.label}</span>
-                <span className="hidden sm:inline text-slate-600"> — Step {step} of {totalSteps}</span>
+                <span className="hidden sm:inline text-slate-600"> - Step {step} of {totalSteps}</span>
               </p>
               <p className="text-xs font-bold text-emerald-400 ml-2 flex-shrink-0">{progressPct}%</p>
             </div>
@@ -622,7 +622,7 @@ export default function HomePage() {
                     />
                   )}
                 </div>
-                <InputField icon="🎯" label="Target Audience" value={targetAudience} onChange={(e: any) => setTargetAudience(e.target.value)} placeholder="e.g. Homeowners in Brisbane aged 30–55" required />
+                <InputField icon="🎯" label="Target Audience" value={targetAudience} onChange={(e: any) => setTargetAudience(e.target.value)} placeholder="e.g. Homeowners in Brisbane aged 30-55" required />
                 <TextAreaField icon="⭐" label="What makes you unique?" value={usp} onChange={(e: any) => setUsp(e.target.value)} placeholder="What do you offer that competitors don't? What's your edge?" required rows={3} />
                 <InputField icon="🌐" label="Existing Website (optional)" value={existingWebsite} onChange={(e: any) => setExistingWebsite(e.target.value)} placeholder="https://yourwebsite.com.au" />
               </div>
@@ -727,7 +727,7 @@ export default function HomePage() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="h-px flex-1 bg-amber-500/20" />
-                    <p className="text-xs font-bold text-amber-400 uppercase tracking-widest whitespace-nowrap">Pick one — Bookings or Shop</p>
+                    <p className="text-xs font-bold text-amber-400 uppercase tracking-widest whitespace-nowrap">Pick one - Bookings or Shop</p>
                     <div className="h-px flex-1 bg-amber-500/20" />
                   </div>
                   {FEATURE_BUNDLES.filter(b => b.exclusiveGroup === 'commerce').map(bundle => {
@@ -800,8 +800,8 @@ export default function HomePage() {
                 <div className="space-y-2">
                   <Label>💰 Pricing Section <span className="text-red-400">*</span></Label>
                   <div className="space-y-2">
-                    <SelectCard selected={hasPricing === "Yes"} onClick={() => setHasPricing("Yes")} label="Yes — include pricing" desc="Show your prices, packages or menu on the site" icon="✅" />
-                    <SelectCard selected={hasPricing === "No"} onClick={() => setHasPricing("No")} label="No — clients contact me for a quote" desc="No prices shown — leads submit enquiries instead" icon="💬" />
+                    <SelectCard selected={hasPricing === "Yes"} onClick={() => setHasPricing("Yes")} label="Yes - include pricing" desc="Show your prices, packages or menu on the site" icon="✅" />
+                    <SelectCard selected={hasPricing === "No"} onClick={() => setHasPricing("No")} label="No - clients contact me for a quote" desc="No prices shown - leads submit enquiries instead" icon="💬" />
                   </div>
                 </div>
                 {hasPricing === "Yes" && (
@@ -867,7 +867,7 @@ export default function HomePage() {
                 )}
 
                 {pricingMethod === "manual" && pricingType !== "products" && (
-                  <TextAreaField icon="💰" label="Pricing Details" value={pricingDetails} onChange={(e: any) => setPricingDetails(e.target.value)} placeholder={pricingType === "tiers" ? "e.g. Starter $99/mo — X, Y, Z. Business $199/mo — A, B, C" : pricingType === "hourly" ? "e.g. $85/hour, minimum 2 hours" : "Describe how your quoting works"} />
+                  <TextAreaField icon="💰" label="Pricing Details" value={pricingDetails} onChange={(e: any) => setPricingDetails(e.target.value)} placeholder={pricingType === "tiers" ? "e.g. Starter $99/mo - X, Y, Z. Business $199/mo - A, B, C" : pricingType === "hourly" ? "e.g. $85/hour, minimum 2 hours" : "Describe how your quoting works"} />
                 )}
 
                 {pricingMethod === "weknow" && (
@@ -887,7 +887,7 @@ export default function HomePage() {
                 <div className="space-y-2">
                   <Label>🖼️ Do you have a logo?</Label>
                   <div className="space-y-2">
-                    {["Yes — I will provide it", "No — I need one designed", "No — please use text only"].map(opt => (
+                    {["Yes - I will provide it", "No - I need one designed", "No - please use text only"].map(opt => (
                       <SelectCard key={opt} selected={hasLogo === opt} onClick={() => setHasLogo(opt)} label={opt} />
                     ))}
                   </div>
@@ -898,9 +898,9 @@ export default function HomePage() {
             {/* ── STEP: assets ── */}
             {currentStepId === 'assets' && (
               <div className="space-y-4">
-                <p className="text-slate-400 text-sm leading-relaxed">All images are compressed automatically. Skip anything you don't have yet — we'll use professional stock imagery.</p>
-                <FileUploadBox label="Upload Your Logo" hint="Any size — PNG or SVG preferred" file={logoFile} onChange={handleLogoChange} inputRef={logoRef} accept="image/*" icon="🏷️" />
-                <FileUploadBox label="Upload Hero / Banner Image" hint="Main background image — any size" file={heroFile} onChange={handleHeroChange} inputRef={heroRef} accept="image/*" icon="🖼️" />
+                <p className="text-slate-400 text-sm leading-relaxed">All images are compressed automatically. Skip anything you don't have yet - we'll use professional stock imagery.</p>
+                <FileUploadBox label="Upload Your Logo" hint="Any size - PNG or SVG preferred" file={logoFile} onChange={handleLogoChange} inputRef={logoRef} accept="image/*" icon="🏷️" />
+                <FileUploadBox label="Upload Hero / Banner Image" hint="Main background image - any size" file={heroFile} onChange={handleHeroChange} inputRef={heroRef} accept="image/*" icon="🖼️" />
                 <button
                   type="button"
                   onClick={() => photosRef.current?.click()}
@@ -925,7 +925,7 @@ export default function HomePage() {
                 <div className="space-y-2">
                   <Label>📝 Do you have website copy ready?</Label>
                   <div className="space-y-2">
-                    {["Yes — I will provide all text", "Partially — I have some text", "No — please write it for me"].map(opt => (
+                    {["Yes - I will provide all text", "Partially - I have some text", "No - please write it for me"].map(opt => (
                       <SelectCard key={opt} selected={hasContent === opt} onClick={() => setHasContent(opt)} label={opt} />
                     ))}
                   </div>
@@ -950,9 +950,9 @@ export default function HomePage() {
                   <div className="space-y-3 p-4 rounded-xl border border-white/8 bg-[#111827]">
                     <div>
                       <p className="text-white font-semibold text-sm mb-1">⭐ Customer Testimonials</p>
-                      <p className="text-slate-500 text-xs leading-relaxed">Paste real reviews — we'll use these instead of AI-generated ones. Leave blank and we'll create realistic placeholders.</p>
+                      <p className="text-slate-500 text-xs leading-relaxed">Paste real reviews - we'll use these instead of AI-generated ones. Leave blank and we'll create realistic placeholders.</p>
                     </div>
-                    <TextAreaField icon="💬" label="Customer reviews (optional)" value={realTestimonials} onChange={(e: any) => setRealTestimonials(e.target.value)} placeholder={`"Amazing service, would highly recommend!" — Sarah M., Brisbane\n"Best in the business, 5 stars!" — John T., Gold Coast`} rows={4} />
+                    <TextAreaField icon="💬" label="Customer reviews (optional)" value={realTestimonials} onChange={(e: any) => setRealTestimonials(e.target.value)} placeholder={`"Amazing service, would highly recommend!" - Sarah M., Brisbane\n"Best in the business, 5 stars!" - John T., Gold Coast`} rows={4} />
                   </div>
                 )}
 
@@ -990,7 +990,7 @@ export default function HomePage() {
                         <p className="text-emerald-400 text-xs">✓ Using the {products.filter(p => p.name).length} product(s) you entered in the pricing step.</p>
                       </div>
                     ) : (
-                      <TextAreaField icon="🏷️" label="Products to sell (optional)" value={shopProducts} onChange={(e: any) => setShopProducts(e.target.value)} placeholder={"Sourdough Loaf — $12\nCroissant — $5\nCoffee Subscription — $45/month"} rows={4} />
+                      <TextAreaField icon="🏷️" label="Products to sell (optional)" value={shopProducts} onChange={(e: any) => setShopProducts(e.target.value)} placeholder={"Sourdough Loaf - $12\nCroissant - $5\nCoffee Subscription - $45/month"} rows={4} />
                     )}
                   </div>
                 )}
@@ -1002,8 +1002,8 @@ export default function HomePage() {
                       <p className="text-slate-500 text-xs">Do you already have a booking system (e.g. SuperSaas, Calendly)?</p>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <button type="button" onClick={() => setExistingBookingUrl("")} className={`rounded-xl p-3 border-2 text-sm font-semibold text-center transition-all ${!existingBookingUrl ? "border-emerald-500 bg-emerald-500/10 text-white" : "border-white/10 bg-[#111827] text-slate-400"}`}>No — set it up for me</button>
-                      <button type="button" onClick={() => { if (!existingBookingUrl) setExistingBookingUrl("https://"); }} className={`rounded-xl p-3 border-2 text-sm font-semibold text-center transition-all ${existingBookingUrl ? "border-emerald-500 bg-emerald-500/10 text-white" : "border-white/10 bg-[#111827] text-slate-400"}`}>Yes — I have one</button>
+                      <button type="button" onClick={() => setExistingBookingUrl("")} className={`rounded-xl p-3 border-2 text-sm font-semibold text-center transition-all ${!existingBookingUrl ? "border-emerald-500 bg-emerald-500/10 text-white" : "border-white/10 bg-[#111827] text-slate-400"}`}>No - set it up for me</button>
+                      <button type="button" onClick={() => { if (!existingBookingUrl) setExistingBookingUrl("https://"); }} className={`rounded-xl p-3 border-2 text-sm font-semibold text-center transition-all ${existingBookingUrl ? "border-emerald-500 bg-emerald-500/10 text-white" : "border-white/10 bg-[#111827] text-slate-400"}`}>Yes - I have one</button>
                     </div>
                     {existingBookingUrl && (
                       <InputField icon="🔗" label="Your booking link" value={existingBookingUrl} onChange={(e: any) => setExistingBookingUrl(e.target.value)} placeholder="e.g. https://supersaas.com/schedule/yourbusiness/appointments" hint="We'll embed this directly into your site." />
@@ -1097,7 +1097,7 @@ export default function HomePage() {
           {/* Trust badges */}
           <div className="mt-4 bg-[#0f1623] border border-white/8 rounded-2xl p-4 space-y-3">
             {[
-              { icon: '🔒', text: 'Secure & private — your data is never sold' },
+              { icon: '🔒', text: 'Secure & private - your data is never sold' },
               { icon: '⚡', text: 'Sites delivered in weeks, not months' },
               { icon: '💬', text: 'Free revisions included' },
               { icon: '🇦🇺', text: 'Australian-owned & operated' },

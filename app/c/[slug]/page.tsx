@@ -577,6 +577,13 @@ export default function ClientPortal() {
   const [reportSending, setReportSending] = useState(false);
   const [reportSent, setReportSent] = useState(false);
 
+  // Pre-payment business details
+  const [prePayAbn, setPrePayAbn] = useState("");
+  const [prePayDomain, setPrePayDomain] = useState("");
+  const [prePayAddress, setPrePayAddress] = useState("");
+  const [prePaySaving, setPrePaySaving] = useState(false);
+  const [prePaySaved, setPrePaySaved] = useState(false);
+
   // Shop payment link
   const [shopPaymentUrl, setShopPaymentUrl] = useState("");
   const [shopPaymentSaving, setShopPaymentSaving] = useState(false);
@@ -779,8 +786,28 @@ export default function ClientPortal() {
       const normalised = normalizeClient(raw);
       setClient(normalised);
       if (normalised.shopPaymentUrl) setShopPaymentUrl(normalised.shopPaymentUrl);
+      if (normalised.abn) setPrePayAbn(normalised.abn);
+      if (normalised.businessAddress) setPrePayAddress(normalised.businessAddress);
+      // preferredDomain from user_input
+      const ui = (raw.user_input || raw.userInput || {}) as Record<string, string>;
+      if (ui.preferredDomain) setPrePayDomain(ui.preferredDomain);
     } catch { setError("Failed to load your project. Please refresh."); }
     finally { setLoading(false); }
+  }
+
+  async function savePrePayDetails() {
+    if (!client?.jobId) return;
+    setPrePaySaving(true);
+    setPrePaySaved(false);
+    try {
+      await fetch(`/api/client-login`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-job-id": client.jobId, "x-client-slug": slug },
+        body: JSON.stringify({ abn: prePayAbn, businessAddress: prePayAddress, preferredDomain: prePayDomain }),
+      });
+      setPrePaySaved(true);
+    } catch { /* non-fatal */ }
+    finally { setPrePaySaving(false); }
   }
 
   async function saveShopPaymentUrl() {
@@ -1646,6 +1673,37 @@ export default function ClientPortal() {
                   </div>
                 </div>
 
+                {/* Pre-payment business details — required before deposit */}
+                {!paymentStatus.depositPaid && (
+                  <div style={{ ...S.card, borderColor: (!prePayAbn.trim() || !prePayDomain.trim() || !prePayAddress.trim()) ? "#f59e0b60" : "#00c89630" }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: C.text, marginBottom: 4 }}>📋 Before You Pay — Business Details</div>
+                    <div style={{ color: C.textMuted, fontSize: 12, marginBottom: 14 }}>We need these to register your domain and set up your account correctly.</div>
+                    {[
+                      { label: "ABN", placeholder: "e.g. 12 345 678 901", value: prePayAbn, onChange: setPrePayAbn },
+                      { label: "Preferred Domain", placeholder: "e.g. doctors247.com.au", value: prePayDomain, onChange: setPrePayDomain },
+                      { label: "Business Address", placeholder: "e.g. 9 Kondalilla Parade, Forest Lake QLD 4078", value: prePayAddress, onChange: setPrePayAddress },
+                    ].map(f => (
+                      <div key={f.label} style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: C.textSec, marginBottom: 4 }}>{f.label} <span style={{ color: "#f87171" }}>*</span></div>
+                        <input
+                          type="text"
+                          placeholder={f.placeholder}
+                          value={f.value}
+                          onChange={e => f.onChange(e.target.value)}
+                          style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", color: C.text, fontSize: 13, outline: "none", boxSizing: "border-box" }}
+                        />
+                      </div>
+                    ))}
+                    <button
+                      onClick={savePrePayDetails}
+                      disabled={prePaySaving || !prePayAbn.trim() || !prePayDomain.trim() || !prePayAddress.trim()}
+                      style={{ background: prePaySaved ? "#00c896" : C.accentBlue, color: "#fff", fontWeight: 700, fontSize: 13, padding: "9px 18px", borderRadius: 8, border: "none", cursor: "pointer", opacity: (!prePayAbn.trim() || !prePayDomain.trim() || !prePayAddress.trim()) ? 0.5 : 1, width: "100%" }}
+                    >
+                      {prePaySaving ? "Saving..." : prePaySaved ? "✓ Saved — you can now pay below" : "Save & Continue to Payment"}
+                    </button>
+                  </div>
+                )}
+
                 {/* Deposit */}
                 <div style={{ ...S.card, borderColor: paymentStatus.depositPaid ? "#00c89630" : C.border }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -1654,7 +1712,7 @@ export default function ClientPortal() {
                   </div>
                   {paymentStatus.depositPaid
                     ? <div style={{ color: C.accent, fontSize: 13, fontWeight: 600, marginTop: 12 }}>✓ Paid — build in progress</div>
-                    : <button onClick={() => handlePay("deposit")} disabled={payLoading === "deposit"} style={{ ...S.payBtn(true), opacity: payLoading === "deposit" ? 0.6 : 1 }}>{payLoading === "deposit" ? "Loading…" : "Pay Deposit →"}</button>
+                    : <button onClick={() => handlePay("deposit")} disabled={payLoading === "deposit" || (!prePayAbn.trim() || !prePayDomain.trim() || !prePayAddress.trim())} style={{ ...S.payBtn(true), opacity: (payLoading === "deposit" || !prePayAbn.trim() || !prePayDomain.trim() || !prePayAddress.trim()) ? 0.5 : 1 }} title={(!prePayAbn.trim() || !prePayDomain.trim() || !prePayAddress.trim()) ? "Fill in business details above first" : ""}>{payLoading === "deposit" ? "Loading…" : "Pay Deposit →"}</button>
                   }
                 </div>
 
