@@ -596,12 +596,22 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
 // Non-fatal -- a failure here never blocks the deploy.
 
 async function getGoogleAccessToken(saKeyB64: string): Promise<string> {
-  const saRaw = Buffer.from(saKeyB64, "base64").toString("utf-8").replace(/\\n/g, "\n");
-  const sa = JSON.parse(saRaw);
+  const saRaw = Buffer.from(saKeyB64, "base64").toString("utf-8");
+  // Parse private_key separately to handle literal newlines in the PEM block
+  const keyMatch = saRaw.match(/"private_key"\s*:\s*"([\s\S]+?)"\s*,/);
+  const saObj = JSON.parse(
+    keyMatch
+      ? saRaw.replace(keyMatch[0], '"private_key":"__PK__",')
+      : saRaw
+  );
+  if (keyMatch) {
+    saObj.private_key = keyMatch[1].replace(/\\n/g, "\n");
+  }
+
   const now = Math.floor(Date.now() / 1000);
   const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url");
   const payload = Buffer.from(JSON.stringify({
-    iss: sa.client_email,
+    iss: saObj.client_email,
     scope: "https://www.googleapis.com/auth/indexing",
     aud: "https://oauth2.googleapis.com/token",
     iat: now,
@@ -611,7 +621,7 @@ async function getGoogleAccessToken(saKeyB64: string): Promise<string> {
   const { createSign } = await import("crypto");
   const sign = createSign("RSA-SHA256");
   sign.update(`${header}.${payload}`);
-  const sig = sign.sign(sa.private_key, "base64url");
+  const sig = sign.sign(saObj.private_key, "base64url");
   const jwt = `${header}.${payload}.${sig}`;
 
   const res = await fetch("https://oauth2.googleapis.com/token", {
