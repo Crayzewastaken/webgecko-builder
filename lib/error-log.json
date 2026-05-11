@@ -1,0 +1,42 @@
+[
+  {
+    "date": "2026-05-11",
+    "jobId": "doctors247",
+    "step": "Step0/SuperSaas",
+    "type": "API_400",
+    "message": "SuperSaas POST /users HTTP 400 — email-as-username rejected. Fixed: added slug-based username fallback strategy.",
+    "fixed": true
+  },
+  {
+    "date": "2026-05-11",
+    "jobId": "doctors247",
+    "step": "Blueprint",
+    "type": "JSON_PARSE",
+    "message": "Blueprint JSON parse failed — model returned markdown code fence around JSON. Fixed: parseJson strips fences before parsing.",
+    "fixed": true
+  },
+  {
+    "date": "2026-05-11",
+    "jobId": "doctors247",
+    "step": "Step7b",
+    "type": "VALIDATION",
+    "message": "Pre-deploy validation failed: navigateTo('privacy') not in requestedPageIds. Fixed: legal pages whitelisted in validator.",
+    "fixed": true
+  },
+  {
+    "date": "2026-05-11",
+    "jobId": "doctors247",
+    "step": "Auditor",
+    "type": "FAQ_PLACEMENT",
+    "message": "FAQ injected below footer. Fixed: fallback injection now targets position before <footer>.",
+    "fixed": true
+  },
+  {
+    "date": "2026-05-11",
+    "jobId": "doctors247",
+    "step": "Tawk.to",
+    "type": "API_404",
+    "message": "Live chat skipped — Tawk.to property creation returned 404 (plan limitation). Non-fatal, build continues.",
+    "fixed": false
+  }
+]

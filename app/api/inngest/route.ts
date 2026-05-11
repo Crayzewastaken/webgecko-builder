@@ -34,6 +34,17 @@ import { auditAndFixSite } from "@/lib/auditor";
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
+// ─── Pipeline error logger ────────────────────────────────────────────────────
+async function logPipelineError(jobId: string, step: string, type: string, message: string, fixed = false) {
+  try {
+    await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/admin/error-log`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-process-secret": process.env.PROCESS_SECRET || "" },
+      body: JSON.stringify({ jobId, step, type, message, fixed }),
+    });
+  } catch { /* non-fatal */ }
+}
+
 // ─── Build Website ─────────────────────────────────────────────────────────────
 
 const buildWebsite = inngest.createFunction(
@@ -151,6 +162,7 @@ const buildWebsite = inngest.createFunction(
           return schedule.embedUrl;
         }
         console.warn("[Step0] SuperSaas creation failed — will use placeholder booking section");
+        logPipelineError(jobId, "Step0/SuperSaas", "SCHEDULE_FAIL", "SuperSaas schedule creation failed — placeholder booking section used").catch(()=>{});
         return "";
         });
 
@@ -1328,6 +1340,7 @@ const buildWebsite = inngest.createFunction(
         if (failures.length > 0) {
           console.error("[Step7b] Pre-deploy validation FAILED:", failures.join("; "));
           appendPipelineLog(jobId, { level: "error", step: "validate", msg: failures.join("; "), businessName: userInput.businessName }).catch(()=>{});
+          logPipelineError(jobId, "Step7b/Validate", "VALIDATION_FAIL", failures.join("; ")).catch(()=>{});
 
           // Pass 1: structural repair (truncated tags, missing footer/body/html)
           let repaired = repairHtml(finalHtmlWithShop, userInput.businessName, new Date().getFullYear());
@@ -2105,27 +2118,13 @@ const featureGoLive = inngest.createFunction(
       const newFeatures = [...new Set([...existingFeatures, featureId])];
 
       // Persist the new feature into userInput
-      await saveJob(jobId, {
-        ...job,
-        userInput: { ...userInput, features: newFeatures },
-      });
-
-      // Mark request as live
-      const { data: jobRow } = await supabase.from("jobs").select("metadata").eq("id", jobId).single();
-      const requests: any[] = jobRow?.metadata?.featureRequests || [];
-      const idx = requests.findIndex((r: any) => r.id === requestId);
-      if (idx !== -1) {
-        requests[idx] = { ...requests[idx], status: "live", updatedAt: new Date().toISOString() };
-        await supabase.from("jobs").update({ metadata: { ...(jobRow?.metadata || {}), featureRequests: requests } }).eq("id", jobId);
-      }
+      // Persist the new feature into userInput
+      await saveJob(jobId, { userInput: { ...userInput, features: newFeatures } });
     });
-
-    // Fire a rebuild
-    await inngest.send({ name: "build/website", data: { jobId, isRebuild: true } });
   }
 );
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [buildWebsite, featureGoLive],
+  functions: [buildWebsite, monthlyReports, autoRelease, featureInject, featureGoLive],
 });

@@ -416,10 +416,18 @@ ${extraSectionsScaffold}
   - Heading: "What Our Clients Say"
   - 3 testimonial cards with Australian names, 5-star ★★★★★, quote text
 
-[6] SECTION id=faq
+${(() => {
+  // FAQ placement: only include as a dedicated section if it genuinely adds value
+  // Skip for sites where FAQ is its own page, or very simple portfolio/creative sites
+  const faqAsOwnPage = isMultiPage && pages.some((p: string) => /^faq$/i.test(p.trim()));
+  const skipFaq = faqAsOwnPage || /portfolio|artist|photographer|creative|gallery/i.test(industry);
+  if (skipFaq) return faqAsOwnPage ? `[6] NOTE: FAQ is its own page — do NOT duplicate it as a section on other pages.` : '';
+  return `[6] SECTION id=faq
   - Heading: "Frequently Asked Questions"
-  - 6 accordion Q&A items relevant to ${industry}
-  - Each item: summary (question) + details (answer)
+  - 5-6 accordion Q&A items highly specific to "${industry}" (NOT generic)
+  - Each item: <details><summary>Question</summary><p>Answer</p></details>
+  - Place this section on the page where it makes most sense: services page for trade businesses, home page for general businesses, booking page for appointment-based businesses`;
+})()}
 
 [7] SECTION id=contact (CRITICAL — copy this form structure EXACTLY)
   - Heading: "Get in Touch"

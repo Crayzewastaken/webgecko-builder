@@ -19,7 +19,9 @@ async function deployToVercel(html: string, projectName: string): Promise<string
     }),
   });
   if (!resp.ok) throw new Error(`Vercel deploy failed: ${await resp.text()}`);
-  return `https://${safeName}.vercel.app`;
+  const data = await resp.json().catch(() => ({}));
+  const uniqueUrl = data?.url ? `https://${data.url}` : null;
+  return uniqueUrl || `https://${safeName}.vercel.app`;
 }
 
 export async function POST(req: NextRequest) {

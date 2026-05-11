@@ -1,0 +1,410 @@
+[
+  {
+    "version": "v1",
+    "date": "2026-04-28",
+    "commit": "bef1890",
+    "lines": 197,
+    "description": "Add Inngest pipeline, booking manager upgrade, analytics tracking, admin dashboard, monthly reports",
+    "type": "feat"
+  },
+  {
+    "version": "v2",
+    "date": "2026-04-29",
+    "commit": "80ca6b8",
+    "lines": 426,
+    "description": "fixing common issues",
+    "type": "fix"
+  },
+  {
+    "version": "v3",
+    "date": "2026-04-29",
+    "commit": "6976277",
+    "lines": 435,
+    "description": "Fix corruption; booking widget; no-Claude step5; delete client; TSC clean",
+    "type": "feat"
+  },
+  {
+    "version": "v4",
+    "date": "2026-04-29",
+    "commit": "87059f3",
+    "lines": 506,
+    "description": "Stable preview URLs + domain assignment + delete client + TSC fixes",
+    "type": "feat"
+  },
+  {
+    "version": "v5",
+    "date": "2026-05-01",
+    "commit": "bc45bc8",
+    "lines": 517,
+    "description": "feat: add Rebuild button to admin panel + fix payment route error handling",
+    "type": "feat"
+  },
+  {
+    "version": "v6",
+    "date": "2026-05-02",
+    "commit": "860940f",
+    "lines": 507,
+    "description": "fix: resolve JSX structure errors in client portal page",
+    "type": "fix"
+  },
+  {
+    "version": "v7",
+    "date": "2026-05-02",
+    "commit": "b23d69b",
+    "lines": 515,
+    "description": "fix: add default export to admin page, fix client portal JSX structure",
+    "type": "fix"
+  },
+  {
+    "version": "v8",
+    "date": "2026-05-02",
+    "commit": "273d828",
+    "lines": 535,
+    "description": "feat: admin password reset, fix blueprint labels, strip null bytes",
+    "type": "feat"
+  },
+  {
+    "version": "v9",
+    "date": "2026-05-03",
+    "commit": "e393fe2",
+    "lines": 641,
+    "description": "fix: supersaas manual schedule checklist in admin email + client portal, 14-day login persistence",
+    "type": "fix"
+  },
+  {
+    "version": "v10",
+    "date": "2026-05-03",
+    "commit": "273920d",
+    "lines": 643,
+    "description": "fix: fixNavigateToTargets compile-time pass rewrites nav onclick targets from link text",
+    "type": "fix"
+  },
+  {
+    "version": "v11",
+    "date": "2026-05-04",
+    "commit": "ca19e05",
+    "lines": 739,
+    "description": "finished most issues hopefully",
+    "type": "feat"
+  },
+  {
+    "version": "v12",
+    "date": "2026-05-04",
+    "commit": "0d66671",
+    "lines": 739,
+    "description": "timing out",
+    "type": "feat"
+  },
+  {
+    "version": "v13",
+    "date": "2026-05-04",
+    "commit": "8f59279",
+    "lines": 800,
+    "description": "fixed issues",
+    "type": "fix"
+  },
+  {
+    "version": "v14",
+    "date": "2026-05-06",
+    "commit": "d20491f",
+    "lines": 571,
+    "description": "feat: newsletter endpoint + popup + SEO + sitemap + synergy + shop fixes + admin dashboard rewrite",
+    "type": "feat"
+  },
+  {
+    "version": "v15",
+    "date": "2026-05-06",
+    "commit": "361f8a8",
+    "lines": 571,
+    "description": "fiex fixed build",
+    "type": "redesign"
+  },
+  {
+    "version": "v16",
+    "date": "2026-05-06",
+    "commit": "1a8289b",
+    "lines": 967,
+    "description": "new admin page",
+    "type": "feat"
+  },
+  {
+    "version": "v17",
+    "date": "2026-05-06",
+    "commit": "d27f17f",
+    "lines": 1078,
+    "description": "light/dark mode, professional theme, fee quoting, contact tab, force-reset/rollback",
+    "type": "feat"
+  },
+  {
+    "version": "v18",
+    "date": "2026-05-07",
+    "commit": "aed5cea",
+    "lines": 1071,
+    "description": "rebuild issues",
+    "type": "redesign"
+  },
+  {
+    "version": "v19",
+    "date": "2026-05-07",
+    "commit": "8d4c096",
+    "lines": 1010,
+    "description": "push",
+    "type": "feat"
+  },
+  {
+    "version": "v20",
+    "date": "2026-05-07",
+    "commit": "f026fea",
+    "lines": 1171,
+    "description": "fix: map embed, live preview iframe, auto-refresh, example HTML library",
+    "type": "fix"
+  },
+  {
+    "version": "v21",
+    "date": "2026-05-07",
+    "commit": "ab15d98",
+    "lines": 1179,
+    "description": "feat: live preview proxy, example HTML upload panel, map fix, auto-refresh",
+    "type": "feat"
+  },
+  {
+    "version": "v22",
+    "date": "2026-05-07",
+    "commit": "99b2dba",
+    "lines": 1272,
+    "description": "feat: per-client reference HTML upload in Actions tab",
+    "type": "feat"
+  },
+  {
+    "version": "v23",
+    "date": "2026-05-07",
+    "commit": "25534f7",
+    "lines": 1288,
+    "description": "fix: map embed (OpenStreetMap fallback), preview iframe refresh button, per-client HTML upload",
+    "type": "fix"
+  },
+  {
+    "version": "v24",
+    "date": "2026-05-07",
+    "commit": "2dc62ac",
+    "lines": 1298,
+    "description": "admin dashboard transition, sitch error",
+    "type": "feat"
+  },
+  {
+    "version": "v25",
+    "date": "2026-05-07",
+    "commit": "3bd16cc",
+    "lines": 1367,
+    "description": "fix: double map, thum.io preview, rate limiting, transitions, SERP indicators, example htmls, password hashing",
+    "type": "fix"
+  },
+  {
+    "version": "v26",
+    "date": "2026-05-07",
+    "commit": "c823bd4",
+    "lines": 1389,
+    "description": "fix: newsletter forms post directly to Beehiiv, no central app dependency",
+    "type": "fix"
+  },
+  {
+    "version": "v27",
+    "date": "2026-05-09",
+    "commit": "2dfc06a",
+    "lines": 1396,
+    "description": "fix: raise stitchPrompt cap from 5000 to 12000 chars in blueprint.ts",
+    "type": "fix"
+  },
+  {
+    "version": "v28",
+    "date": "2026-05-09",
+    "commit": "403940e",
+    "lines": 1399,
+    "description": "fix: preview auto-refresh, duplicate map, CTA routing, contact form framing",
+    "type": "fix"
+  },
+  {
+    "version": "v29",
+    "date": "2026-05-09",
+    "commit": "862b324",
+    "lines": 1050,
+    "description": "feat: rebuild admin and client dashboards with modern design",
+    "type": "feat"
+  },
+  {
+    "version": "v30",
+    "date": "2026-05-10",
+    "commit": "51e365a",
+    "lines": 1050,
+    "description": "fix: widen toast type to include 'info' across ActionBtn, ClientPanel, ClientHtmlUpload, ExampleHtmlsPanel",
+    "type": "fix"
+  },
+  {
+    "version": "v31",
+    "date": "2026-05-10",
+    "commit": "5ab33dc",
+    "lines": 1097,
+    "description": "feat: fix preview refresh, pipeline bugs, and add deploy-HTML action",
+    "type": "feat"
+  },
+  {
+    "version": "v32",
+    "date": "2026-05-10",
+    "commit": "6955b64",
+    "lines": 1166,
+    "description": "feat: pipeline error log tab in admin dashboard",
+    "type": "feat"
+  },
+  {
+    "version": "v33",
+    "date": "2026-05-10",
+    "commit": "096297f",
+    "lines": 1163,
+    "description": "fix: live preview iframe, double map, and plan buttons",
+    "type": "fix"
+  },
+  {
+    "version": "v34",
+    "date": "2026-05-10",
+    "commit": "447c8d4",
+    "lines": 1164,
+    "description": "fix: force redeploy, canvas map removal, ctaExternalUrl in fix-proxy, rigid blueprint",
+    "type": "fix"
+  },
+  {
+    "version": "v35",
+    "date": "2026-05-10",
+    "commit": "d6acd4d",
+    "lines": 1567,
+    "description": "feat: real analytics, contact form delivery, monthly active fix",
+    "type": "feat"
+  },
+  {
+    "version": "v36",
+    "date": "2026-05-10",
+    "commit": "e303000",
+    "lines": 1626,
+    "description": "Admin: full-width layout, KPI one-liner, Needs Attention auto-fix; Pipeline: top-level catch logs all errors to Pipeline",
+    "type": "feat"
+  },
+  {
+    "version": "v37",
+    "date": "2026-05-10",
+    "commit": "a67e706",
+    "lines": 1829,
+    "description": "feat: Assets + Integrations tabs in admin, upload-assets API, update-integration API, footer always bottom, map placehol",
+    "type": "feat"
+  },
+  {
+    "version": "v38",
+    "date": "2026-05-10",
+    "commit": "3d9a2cb",
+    "lines": 2139,
+    "description": "feat: content management \u2014 blog, newsletter, deal, product, review tabs in admin + client portal Content tab with AI gen",
+    "type": "feat"
+  },
+  {
+    "version": "v39",
+    "date": "2026-05-10",
+    "commit": "38038dd",
+    "lines": 2193,
+    "description": "fix: pipeline logs readability + two-section layout, fix-proxy dedup maps/newsletter, preview iframe uses proxy, webgeck",
+    "type": "fix"
+  },
+  {
+    "version": "v40",
+    "date": "2026-05-10",
+    "commit": "e906452",
+    "lines": 2139,
+    "description": "fix: wire dead buttons, strip map placeholder, fix FAQ/testimonials fallbacks, pass all fields to blueprint",
+    "type": "fix"
+  },
+  {
+    "version": "v41",
+    "date": "2026-05-10",
+    "commit": "6c003ab",
+    "lines": 2388,
+    "description": "feat: error history panel (121 errors), wire dead buttons, strip map placeholder, fix FAQ/testimonials fallbacks, pass a",
+    "type": "feat"
+  },
+  {
+    "version": "v42",
+    "date": "2026-05-10",
+    "commit": "9c82933",
+    "lines": 2577,
+    "description": "feat: per-client setup checklist with exact Termly, domain, GA4, Square, booking steps",
+    "type": "feat"
+  },
+  {
+    "version": "v43",
+    "date": "2026-05-11",
+    "commit": "c32ca03",
+    "lines": 2608,
+    "description": "fix: bookingServices type, add Termly URL paste fields to checklist",
+    "type": "fix"
+  },
+  {
+    "version": "v44",
+    "date": "2026-05-11",
+    "commit": "c4104bd",
+    "lines": 2627,
+    "description": "feat: checklist Q&A two-column layout, click answers to copy",
+    "type": "feat"
+  },
+  {
+    "version": "v45",
+    "date": "2026-05-11",
+    "commit": "0578346",
+    "lines": 2647,
+    "description": "feat: full AU legal checklist \u2014 Termly privacy+cookie, freeprivacypolicy ToS, ABN, ACL, SSL, Spam Act",
+    "type": "feat"
+  },
+  {
+    "version": "v46",
+    "date": "2026-05-11",
+    "commit": "4934a87",
+    "lines": 2700,
+    "description": "feat: lock content tabs by feature, Spam Act notice on newsletter, full AU legal checklist",
+    "type": "feat"
+  },
+  {
+    "version": "v47",
+    "date": "2026-05-11",
+    "commit": "7c342cd",
+    "lines": 3014,
+    "description": "stripe and admin archive page",
+    "type": "feat"
+  },
+  {
+    "version": "v48",
+    "date": "2026-05-11",
+    "commit": "cf70103",
+    "lines": 3018,
+    "description": "feat: Stripe Connect onboarding, Termly URL injection, footer legal links, audit fixes",
+    "type": "feat"
+  },
+  {
+    "version": "v49",
+    "date": "2026-05-11",
+    "commit": "5d4dfd7",
+    "lines": 3020,
+    "description": "fix: add missing export default AdminDashboard (Vercel build error)",
+    "type": "fix"
+  },
+  {
+    "version": "v50",
+    "date": "2026-05-11",
+    "commit": "56b0f2c",
+    "lines": 2809,
+    "description": "fix: full-page panel, 7 tabs, footer dedup, 3+ reviews, FAQ placement, supersaas username fallback",
+    "type": "fix"
+  },
+  {
+    "version": "v51",
+    "date": "2026-05-11",
+    "commit": "1dc3c6e",
+    "lines": 2813,
+    "description": "fix: restore 11 tabs, FAQ above footer, privacy/terms nav whitelist",
+    "type": "fix"
+  }
+]

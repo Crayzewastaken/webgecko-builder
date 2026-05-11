@@ -30,6 +30,7 @@ export interface SuperSaasSchedule {
   name: string;
   embedUrl: string;
   bookUrl: string;
+  calUrl?: string;
   // Sub-user identifiers — password is never stored in this struct or in job records.
   subUserId?: number;
   subUserEmail?: string;
@@ -58,6 +59,20 @@ export async function createSuperSaasSchedule(params: {
     .slice(0, 40);
 
   try {
+    // ── Step 0: Check if schedule already exists to avoid duplicates on rebuild ─
+    try {
+      const existing = await ssRequest("/schedules", "GET");
+      const list: any[] = Array.isArray(existing) ? existing : [];
+      const found = list.find((s: any) => s.name === slugName);
+      if (found?.id) {
+        console.log(`[SuperSaas] Schedule "${slugName}" already exists (id=${found.id}) — reusing, skipping creation`);
+        const baseUrl = `https://www.supersaas.com/schedule/${encodeURIComponent(SS_ACCOUNT)}/${encodeURIComponent(slugName)}`;
+        return { id: found.id, name: slugName, embedUrl: baseUrl + "?mobile=0", bookUrl: baseUrl, calUrl: baseUrl };
+      }
+    } catch (existErr) {
+      console.warn("[SuperSaas] Could not check existing schedules:", (existErr as Error).message);
+    }
+
     // ── Step 1: Create the schedule ──────────────────────────────────────────
     const result = await ssRequest("/schedules", "POST", {
       schedule: {
@@ -214,7 +229,7 @@ export async function createSuperSaasSchedule(params: {
       // sub-user creation and is not stored anywhere downstream.
     };
   } catch (err) {
-    console.error("[SuperSaas] Failed to create schedule:", err);
+    console.error("[SuperSaas] createSuperSaasSchedule failed:", err);
     return null;
   }
 }
@@ -313,7 +328,7 @@ export async function rescheduleAppointment(appointmentId: number, params: {
       appointment: { start: params.start, finish: params.finish },
     });
     return true;
-  } catch {
+  } catch (_err) {
     return false;
   }
 }

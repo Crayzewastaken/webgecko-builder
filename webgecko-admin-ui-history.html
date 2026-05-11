@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WebGecko Admin — UI Progression</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#05050f; color:#e8e8f0; font-family:'Inter',system-ui,sans-serif; min-height:100vh; }
+.header { background:#0a0a18; border-bottom:1px solid #1a1a30; padding:36px 48px; }
+.header h1 { font-size:30px; font-weight:800; background:linear-gradient(135deg,#00c896,#a855f7); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.header p { font-size:14px; color:#8888aa; margin-top:6px; }
+.timeline { padding:48px; max-width:960px; margin:0 auto; display:flex; flex-direction:column; gap:48px; position:relative; }
+.timeline::before { content:''; position:absolute; left:48px; top:0; bottom:0; width:2px; background:linear-gradient(to bottom,#00c89644,#a855f744,#3b82f644); pointer-events:none; }
+.version-card { background:#0d0d1e; border:1px solid #1a1a30; border-radius:16px; overflow:hidden; box-shadow:0 4px 24px #00000044; }
+.version-header { display:flex; justify-content:space-between; align-items:flex-start; padding:20px 24px 0; }
+.version-label { font-size:17px; font-weight:700; color:#e8e8f0; }
+.version-date { font-size:12px; color:#8888aa; margin-top:3px; }
+.version-date code { background:#1a1a30; border-radius:4px; padding:1px 5px; font-size:10px; }
+.version-num { font-size:36px; font-weight:900; color:#1a1a30; }
+.version-desc { padding:10px 24px 16px; font-size:13px; color:#aaaacc; line-height:1.6; border-bottom:1px solid #1a1a30; }
+.mock-browser { margin:0; }
+.mock-browser-bar { background:#111120; padding:8px 14px; display:flex; align-items:center; gap:8px; border-bottom:1px solid #1a1a30; }
+.dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+.dot.red { background:#ef4444; }
+.dot.yellow { background:#f59e0b; }
+.dot.green { background:#00c896; }
+.mock-url { font-size:11px; color:#8888aa; margin-left:8px; background:#0a0a18; border-radius:4px; padding:2px 10px; flex:1; }
+.mock-screen { padding:10px; min-height:260px; overflow:hidden; font-size:12px; }
+.mock-header { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid #1a1a2e; background:#0a0a14; }
+.mock-stats { display:flex; gap:8px; padding:10px; }
+.mock-stat { background:#0d0d18; border:1px solid #1a1a2e; border-radius:8px; padding:10px 14px; flex:1; font-size:18px; font-weight:800; text-align:center; }
+.mock-stat-card { background:#0d0d18; border:1px solid #1a1a2e; border-radius:8px; padding:10px 14px; font-size:16px; font-weight:800; text-align:center; }
+.mock-kpi { background:#0d0d18; border:1px solid #1a1a2e; border-radius:6px; padding:6px 10px; font-size:13px; font-weight:700; }
+.mock-card { background:#0d0d18; border:1px solid #1a1a2e; border-radius:10px; padding:12px; margin:0 10px 8px; }
+.mock-input { background:#111120; border:1px solid #1a1a2e; border-radius:6px; padding:6px 10px; color:#8888aa; font-size:11px; width:100%; outline:none; }
+.mock-btn { background:#0d0d18; border:1px solid #1a1a2e; color:#8888aa; border-radius:6px; padding:5px 10px; font-size:11px; cursor:pointer; }
+.mock-btn-link { background:#111120; border:1px solid #1a1a2e; color:#00c896; border-radius:6px; padding:4px 8px; font-size:10px; }
+.mock-btn-sm { background:#0d0d18; border:1px solid #1a1a2e; color:#aaaacc; border-radius:5px; padding:3px 7px; font-size:10px; }
+.mock-badge { border-radius:20px; padding:2px 7px; font-size:10px; font-weight:700; }
+.mock-badge.green { background:#00c89622; color:#00c896; border:1px solid #00c89644; }
+.mock-badge.blue { background:#3b82f622; color:#3b82f6; border:1px solid #3b82f644; }
+.mock-badge.purple { background:#a855f722; color:#a855f7; border:1px solid #a855f744; }
+.mock-tab { background:#0d0d18; border:1px solid #1a1a2e; color:#8888aa; border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer; }
+.mock-tab.active { background:#1a1a30; color:#e8e8f0; border-color:#2a2a50; }
+.mock-tab-sm { background:#0d0d18; border:1px solid #1a1a2e; color:#8888aa; border-radius:5px; padding:3px 7px; font-size:9px; cursor:pointer; white-space:nowrap; }
+.mock-tab-sm.active { background:#1a1a30; color:#e8e8f0; border-color:#3b82f680; }
+.mock-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+.mock-mini-stat { background:#111120; border-radius:6px; padding:6px 8px; font-weight:700; font-size:12px; }
+.mock-nav-icon { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; color:#8888aa; cursor:pointer; }
+.mock-nav-icon.active { background:#1a1a30; color:#e8e8f0; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>WebGecko Admin — UI Progression</h1>
+  <p>Visual history of how the admin dashboard evolved from v1 to today</p>
+</div>
+<div class="timeline">
+
+    <div class="version-card">
+      <div class="version-header">
+        <div>
+          <div class="version-label">v1 — Original Dashboard</div>
+          <div class="version-date">28 Apr 2026 · 197 lines · <code>bef18902</code></div>
+        </div>
+        <div class="version-num">v1</div>
+      </div>
+      <div class="version-desc">First admin dashboard. Simple card list, basic analytics grid, no tabs.</div>
+      <div class="mock-browser">
+        <div class="mock-browser-bar">
+          <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+          <span class="mock-url">webgecko-builder.vercel.app/admin</span>
+        </div>
+        <div class="mock-screen" style="background:#07070c;color:#e8e8f0">
+          
+    <div class="mock-header">
+      <span style="font-size:20px">🦎</span>
+      <span style="font-size:16px;font-weight:800">WebGecko Admin</span>
+      <span style="color:#555;font-size:11px">Client Analytics Overview</span>
+      <button class="mock-btn" style="margin-left:auto">↻ Refresh</button>
+    </div>
+    <div class="mock-stats">
+      <div class="mock-stat" style="color:#fff">4<br><small>Total Clients</small></div>
+      <div class="mock-stat" style="color:#00c896">3<br><small>Monthly Active</small></div>
+      <div class="mock-stat" style="color:#3b82f6">1,240<br><small>Views This Month</small></div>
+      <div class="mock-stat" style="color:#f59e0b">28<br><small>Total Bookings</small></div>
+    </div>
+    <input class="mock-input" placeholder="Search clients…" readonly/>
+    <div class="mock-card">
+      <div style="font-weight:700">Acme Dental</div>
+      <div style="color:#555;font-size:11px">dental · /c/acme-dental</div>
+      <div style="display:flex;gap:4px;margin-top:6px">
+        <span class="mock-badge green">completed</span>
+        <span class="mock-badge blue">Active</span>
+        <span class="mock-badge purple">Bookings</span>
+      </div>
+      <div class="mock-grid-3" style="margin-top:8px">
+        <div class="mock-mini-stat" style="color:#3b82f6">420<br><small>Views/Mo</small></div>
+        <div class="mock-mini-stat" style="color:#f59e0b">12<br><small>Booking Clicks</small></div>
+        <div class="mock-mini-stat" style="color:#8b5cf6">8<br><small>Bookings</small></div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <span class="mock-btn-link">🌐 Preview</span>
+        <span class="mock-btn-link">📅 Bookings</span>
+        <span class="mock-btn-link">📧 Send Report</span>
+      </div>
+    </div>
+    <div class="mock-card" style="opacity:.6">
+      <div style="font-weight:700">Brisbane Physio</div>
+      <div style="color:#555;font-size:11px">physio · /c/brisbane-physio</div>
+    </div>
+        </div>
+      </div>
+    </div>
+    <div class="version-card">
+      <div class="version-header">
+        <div>
+          <div class="version-label">v2 — Dashboard Rewrite</div>
+          <div class="version-date">06 May 2026 · 571 lines · <code>d20491f2</code></div>
+        </div>
+        <div class="version-num">v2</div>
+      </div>
+      <div class="version-desc">Major rewrite with light/dark mode, professional theme, fee quoting, contact tab.</div>
+      <div class="mock-browser">
+        <div class="mock-browser-bar">
+          <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+          <span class="mock-url">webgecko-builder.vercel.app/admin</span>
+        </div>
+        <div class="mock-screen" style="background:#f8f8ff;color:#1a1a2e">
+          
+    <div class="mock-header" style="border-bottom:1px solid #1a1a2e">
+      <span style="font-size:18px">🦎</span>
+      <span style="font-weight:800;font-size:15px">WebGecko Admin</span>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="mock-btn">Light Mode</button>
+        <button class="mock-btn">↻ Refresh</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;padding:10px 0">
+      <div class="mock-stat-card" style="flex:1">4<br><small style="color:#8888aa">Clients</small></div>
+      <div class="mock-stat-card" style="flex:1;color:#00c896">3<br><small style="color:#8888aa">Active</small></div>
+      <div class="mock-stat-card" style="flex:1;color:#f59e0b">$2,400<br><small style="color:#8888aa">Monthly Revenue</small></div>
+      <div class="mock-stat-card" style="flex:1;color:#3b82f6">1.2k<br><small style="color:#8888aa">Views</small></div>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      <span class="mock-tab active">Overview</span>
+      <span class="mock-tab">Contact</span>
+      <span class="mock-tab">Analytics</span>
+    </div>
+    <div class="mock-card">
+      <div style="display:flex;justify-content:space-between">
+        <div>
+          <div style="font-weight:700;font-size:14px">Acme Dental</div>
+          <div style="color:#8888aa;font-size:10px">dental · /c/acme-dental</div>
+        </div>
+        <div style="display:flex;gap:4px">
+          <span class="mock-badge green">live</span>
+          <span class="mock-badge blue">Paid</span>
+        </div>
+      </div>
+      <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+        <div class="mock-kpi">420 <small>views</small></div>
+        <div class="mock-kpi">12 <small>bookings</small></div>
+        <div class="mock-kpi">$199 <small>/mo fee</small></div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:4px">
+        <span class="mock-btn-sm">Preview ↗</span>
+        <span class="mock-btn-sm">Edit</span>
+        <span class="mock-btn-sm">Report</span>
+        <span class="mock-btn-sm">Rebuild</span>
+      </div>
+    </div>
+        </div>
+      </div>
+    </div>
+    <div class="version-card">
+      <div class="version-header">
+        <div>
+          <div class="version-label">v3 — Modern Redesign</div>
+          <div class="version-date">09 May 2026 · 1050 lines · <code>862b3241</code></div>
+        </div>
+        <div class="version-num">v3</div>
+      </div>
+      <div class="version-desc">Full modern redesign. Sidebar layout, tabbed client panels, theme tokens.</div>
+      <div class="mock-browser">
+        <div class="mock-browser-bar">
+          <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+          <span class="mock-url">webgecko-builder.vercel.app/admin</span>
+        </div>
+        <div class="mock-screen" style="background:#07070c;color:#e8e8f0">
+          
+    <div style="display:flex;height:100%;min-height:220px">
+      <div style="width:52px;background:#0a0a14;border-right:1px solid #1a1a2e;display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:14px">
+        <span style="font-size:18px">🦎</span>
+        <div class="mock-nav-icon active">📊</div>
+        <div class="mock-nav-icon">👥</div>
+        <div class="mock-nav-icon">⚙️</div>
+      </div>
+      <div style="flex:1;overflow:hidden">
+        <div style="padding:10px 12px;border-bottom:1px solid #1a1a2e;font-weight:700;font-size:13px">WebGecko Admin</div>
+        <div style="display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid #1a1a2e;overflow:hidden">
+          <span class="mock-tab-sm active">Perf</span>
+          <span class="mock-tab-sm">SEO</span>
+          <span class="mock-tab-sm">Site</span>
+          <span class="mock-tab-sm">Assets</span>
+          <span class="mock-tab-sm">Actions</span>
+        </div>
+        <div style="padding:8px 12px">
+          <div style="display:flex;gap:6px;margin-bottom:8px">
+            <div style="background:#0d0d18;border:1px solid #1a1a2e;border-radius:8px;padding:8px 10px;flex:1">
+              <div style="font-size:16px;font-weight:800;color:#fff">4</div>
+              <div style="font-size:9px;color:#8888aa">Total Clients</div>
+            </div>
+            <div style="background:#0d0d18;border:1px solid #1a1a2e;border-radius:8px;padding:8px 10px;flex:1">
+              <div style="font-size:16px;font-weight:800;color:#00c896">3</div>
+              <div style="font-size:9px;color:#8888aa">Active</div>
+            </div>
+            <div style="background:#0d0d18;border:1px solid #1a1a2e;border-radius:8px;padding:8px 10px;flex:1">
+              <div style="font-size:16px;font-weight:800;color:#3b82f6">1.2k</div>
+              <div style="font-size:9px;color:#8888aa">Views</div>
+            </div>
+          </div>
+          <div style="background:#0d0d18;border:1px solid #1a1a2e;border-radius:8px;padding:8px">
+            <div style="font-weight:600;font-size:11px">Acme Dental</div>
+            <div style="display:flex;gap:4px;margin-top:4px">
+              <span class="mock-badge green" style="font-size:9px">live</span>
+              <span class="mock-badge blue" style="font-size:9px">Active</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+        </div>
+      </div>
+    </div>
+    <div class="version-card">
+      <div class="version-header">
+        <div>
+          <div class="version-label">v4 — Full-Width + Pipeline</div>
+          <div class="version-date">10 May 2026 · 1626 lines · <code>e3030005</code></div>
+        </div>
+        <div class="version-num">v4</div>
+      </div>
+      <div class="version-desc">Full-width layout, KPI strip, pipeline log tab, Needs Attention auto-fix.</div>
+      <div class="mock-browser">
+        <div class="mock-browser-bar">
+          <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+          <span class="mock-url">webgecko-builder.vercel.app/admin</span>
+        </div>
+        <div class="mock-screen" style="background:#07070c;color:#e8e8f0">
+          
+    <div style="background:#07070c;border-bottom:1px solid #1a1a2e;padding:8px 12px;display:flex;gap:10px;align-items:center">
+      <span>🦎</span>
+      <span style="font-weight:700;font-size:13px">WebGecko</span>
+      <div style="display:flex;gap:16px;margin-left:12px">
+        <div style="text-align:center"><div style="font-size:14px;font-weight:800">4</div><div style="font-size:9px;color:#8888aa">Clients</div></div>
+        <div style="text-align:center"><div style="font-size:14px;font-weight:800;color:#00c896">3</div><div style="font-size:9px;color:#8888aa">Active</div></div>
+        <div style="text-align:center"><div style="font-size:14px;font-weight:800;color:#f59e0b">2</div><div style="font-size:9px;color:#8888aa">Needs Attention</div></div>
+        <div style="text-align:center"><div style="font-size:14px;font-weight:800;color:#3b82f6">1.4k</div><div style="font-size:9px;color:#8888aa">Views/Mo</div></div>
+      </div>
+      <button class="mock-btn" style="margin-left:auto;font-size:10px">↻</button>
+    </div>
+    <div style="display:flex;height:190px">
+      <div style="width:180px;border-right:1px solid #1a1a2e;overflow:hidden">
+        <div style="padding:8px;border-bottom:1px solid #1a1a2e"><input class="mock-input" style="font-size:10px;padding:4px 8px" placeholder="Search…" readonly/></div>
+        <div style="padding:4px">
+          <div style="background:#12121f;border:1px solid #3b82f680;border-radius:6px;padding:6px 8px;margin-bottom:4px">
+            <div style="font-size:11px;font-weight:600">Acme Dental</div>
+            <div style="font-size:9px;color:#8888aa">dental</div>
+            <span class="mock-badge green" style="font-size:8px">live</span>
+          </div>
+          <div style="background:#0d0d18;border:1px solid #1a1a2e;border-radius:6px;padding:6px 8px;opacity:.7">
+            <div style="font-size:11px;font-weight:600">Brisbane Physio</div>
+            <div style="font-size:9px;color:#8888aa">physio</div>
+          </div>
+        </div>
+      </div>
+      <div style="flex:1;padding:8px">
+        <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap">
+          <span class="mock-tab-sm active">Perf</span>
+          <span class="mock-tab-sm">SEO</span>
+          <span class="mock-tab-sm">Site</span>
+          <span class="mock-tab-sm">Assets</span>
+          <span class="mock-tab-sm">Integrations</span>
+          <span class="mock-tab-sm">Pipeline</span>
+          <span class="mock-tab-sm">Actions</span>
+        </div>
+        <div style="background:#0d0d18;border:1px solid #1a1a2e;border-radius:8px;padding:8px">
+          <div style="font-size:10px;font-weight:600;color:#8888aa;margin-bottom:6px">PIPELINE LOG</div>
+          <div style="font-family:monospace;font-size:9px;color:#00c896">✓ Step1 brief built</div>
+          <div style="font-family:monospace;font-size:9px;color:#00c896">✓ Step2 HTML generated</div>
+          <div style="font-family:monospace;font-size:9px;color:#f59e0b">⚠ Step3 map replaced</div>
+          <div style="font-family:monospace;font-size:9px;color:#00c896">✓ Deployed to Vercel</div>
+        </div>
+      </div>
+    </div>
+        </div>
+      </div>
+    </div>
+    <div class="version-card">
+      <div class="version-header">
+        <div>
+          <div class="version-label">v5 — Current (Stripe + Archive)</div>
+          <div class="version-date">11 May 2026 · 3014 lines · <code>7c342cd</code></div>
+        </div>
+        <div class="version-num">v5</div>
+      </div>
+      <div class="version-desc">Stripe Connect integration, Archive tab with version history, checklist, content management.</div>
+      <div class="mock-browser">
+        <div class="mock-browser-bar">
+          <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+          <span class="mock-url">webgecko-builder.vercel.app/admin</span>
+        </div>
+        <div class="mock-screen" style="background:#07070c;color:#e8e8f0">
+          
+    <div style="background:#07070c;border-bottom:1px solid #1a1a2e;padding:8px 12px;display:flex;gap:10px;align-items:center">
+      <span>🦎</span>
+      <span style="font-weight:700;font-size:13px">WebGecko</span>
+      <div style="display:flex;gap:12px;margin-left:12px">
+        <div style="text-align:center"><div style="font-size:14px;font-weight:800">4</div><div style="font-size:9px;color:#8888aa">Clients</div></div>
+        <div style="text-align:center"><div style="font-size:14px;font-weight:800;color:#00c896">3</div><div style="font-size:9px;color:#8888aa">Active</div></div>
+        <div style="text-align:center"><div style="font-size:14px;font-weight:800;color:#f59e0b">1</div><div style="font-size:9px;color:#8888aa">Attention</div></div>
+        <div style="text-align:center"><div style="font-size:14px;font-weight:800;color:#3b82f6">1.8k</div><div style="font-size:9px;color:#8888aa">Views/Mo</div></div>
+      </div>
+      <button class="mock-btn" style="margin-left:auto;font-size:10px">↻</button>
+    </div>
+    <div style="display:flex;height:190px">
+      <div style="width:175px;border-right:1px solid #1a1a2e;overflow:hidden">
+        <div style="padding:6px"><input class="mock-input" style="font-size:10px;padding:4px 8px" placeholder="Search…" readonly/></div>
+        <div style="padding:4px">
+          <div style="background:#12121f;border:1px solid #3b82f680;border-radius:6px;padding:6px 8px;margin-bottom:4px">
+            <div style="font-size:11px;font-weight:600">Acme Dental</div>
+            <div style="display:flex;gap:3px;margin-top:3px">
+              <span class="mock-badge green" style="font-size:8px">live</span>
+              <span style="font-size:8px;color:#00c896;background:#00c89620;border-radius:4px;padding:1px 4px">Stripe ✓</span>
+            </div>
+          </div>
+          <div style="background:#0d0d18;border:1px solid #1a1a2e;border-radius:6px;padding:6px 8px;opacity:.6">
+            <div style="font-size:11px;font-weight:600">Brisbane Physio</div>
+          </div>
+        </div>
+      </div>
+      <div style="flex:1;padding:6px;overflow:hidden">
+        <div style="display:flex;gap:3px;margin-bottom:6px;flex-wrap:wrap">
+          <span class="mock-tab-sm active">Perf</span>
+          <span class="mock-tab-sm">SEO</span>
+          <span class="mock-tab-sm">Site</span>
+          <span class="mock-tab-sm">Integrations</span>
+          <span class="mock-tab-sm">Content</span>
+          <span class="mock-tab-sm">Payments</span>
+          <span class="mock-tab-sm">Checklist</span>
+          <span class="mock-tab-sm" style="color:#a855f7;border-color:#a855f740">🗂 Archive</span>
+        </div>
+        <div style="background:#0d0d18;border:1px solid #00c89630;border-radius:8px;padding:8px">
+          <div style="font-size:10px;color:#00c896;font-weight:700;margin-bottom:4px">STRIPE CONNECTED ✓</div>
+          <div style="font-size:9px;color:#8888aa">acct_1QxK... · Connected 11 May</div>
+          <button style="margin-top:6px;font-size:9px;background:#00c89620;color:#00c896;border:1px solid #00c89640;border-radius:5px;padding:3px 8px;cursor:pointer">Sync Products →</button>
+        </div>
+      </div>
+    </div>
+        </div>
+      </div>
+    </div>
+</div>
+</body>
+</html>
