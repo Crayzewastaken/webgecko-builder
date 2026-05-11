@@ -235,6 +235,26 @@ function ActionBtn({ label, color, confirm, onConfirm, fill=false, toast }: {
   );
 }
 
+// ── Info Button ────────────────────────────────────────────────────────────────
+function InfoBtn({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span style={{ position:"relative", display:"inline-block" }}>
+      <button
+        onClick={e=>{e.stopPropagation();setOpen(o=>!o);}}
+        style={{ background:"none", border:`1px solid ${T.border}`, borderRadius:"50%", width:16, height:16, fontSize:9, fontWeight:700, color:T.textMuted, cursor:"pointer", lineHeight:"14px", padding:0, flexShrink:0, verticalAlign:"middle" }}
+        title="Info"
+      >ℹ</button>
+      {open&&(
+        <div onClick={e=>e.stopPropagation()} style={{ position:"absolute", zIndex:9999, left:"50%", top:22, transform:"translateX(-50%)", minWidth:220, maxWidth:300, background:T.raised, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 14px", boxShadow:T.shadowLg, fontSize:12, color:T.textSec, lineHeight:1.6, animation:"wg-up 0.15s ease" }}>
+          <button onClick={()=>setOpen(false)} style={{ position:"absolute", top:6, right:8, background:"none", border:"none", color:T.textMuted, cursor:"pointer", fontSize:14 }}>×</button>
+          {text}
+        </div>
+      )}
+    </span>
+  );
+}
+
 // ── Preview frame ──────────────────────────────────────────────────────────────
 function PreviewFrame({ previewUrl, builtAt, jobId }: { previewUrl:string; builtAt?:string; jobId?:string }) {
   const [key, setKey] = useState(()=>Date.now());
@@ -660,6 +680,31 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
 
         {/* Tab content */}
         <div key={tab} className="wg-tab" style={{ flex:1, overflowY:"auto" as const, padding:"24px" }}>
+
+          {/* Tab info banner */}
+          {(()=>{
+            const INFO: Record<string,string> = {
+              perf: "Performance shows real visitor data tracked by WebGecko's pixel. Views = page loads. Booking clicks = taps on the booking button. Form submits = contact form sends. Data updates every few hours.",
+              engagement: "Engagement tracks how visitors interact with the site — scroll depth, time on page, CTA clicks. Use this to identify which sections are working and which aren't.",
+              seo: "SEO shows the keywords and meta data used by the search engine optimiser during the build. LSI keywords are injected into the page. SERP insights show what the top-ranking competitors are doing.",
+              site: "Site shows the live preview of the client's website. The preview always shows the latest deployed HTML. The Live URL is what the public sees. Use Actions → Fix URL if the URL looks wrong.",
+              assets: "Assets are the images and files uploaded for this client — logo, hero image, photos. These are injected into the site at build time. Upload new ones and rebuild to update.",
+              integrations: "Integrations connect third-party services: GA4 (analytics), SuperSaas (bookings), Square (payments), Tawk.to (live chat). Add IDs/keys here then rebuild the site for them to take effect.",
+              content: "Content is how you push updates to the client's live site. Blog posts, newsletters, deals, reviews and products are all managed here.\n\n📰 Blog — client submits a post via their portal → you review and approve → pushed live on next redeploy.\n✉️ Newsletter — captured emails go to Beehiiv. You send campaigns from Beehiiv's dashboard. WebGecko doesn't send newsletters directly.\n🏷️ Deals — create a promo that appears as a popup or banner. You rebuild the site to push it live.\n⭐ Reviews — add or approve testimonials. Pushed live on next rebuild.\n🛍️ Products — manage the shop catalogue. Updates go live on next rebuild.",
+              payments: "Payments shows Stripe connection status and payment history. Deposit = first payment. Final = second payment. Monthly = subscription. Connect Stripe via the button below.",
+              actions: "Actions let you control the build pipeline for this client. Force redeploy = push current HTML instantly. Fix site = run an AI fix pass. Rebuild = full regeneration from scratch (5–10 min). Fix URL = correct the saved URL in the database.",
+              requests: "Requests are change requests submitted by the client through their portal. They can request blog posts, text changes, new images, or links. You review here, approve or reject, and push changes. Approved requests trigger a site rebuild.",
+              checklist: "The checklist guides you through every step needed to fully set up and launch this client's site — legal pages, domain, analytics, booking, go-live. Items marked REQUIRED must be completed before the site can launch. URL fields must be filled before an item can be marked done.",
+            };
+            const info = INFO[tab];
+            if (!info) return null;
+            return (
+              <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 16px",marginBottom:20,display:"flex",gap:10,alignItems:"flex-start"}}>
+                <span style={{fontSize:16,flexShrink:0,marginTop:1}}>ℹ️</span>
+                <div style={{fontSize:12,color:T.textMuted,lineHeight:1.7,whiteSpace:"pre-line" as const}}>{info}</div>
+              </div>
+            );
+          })()}
 
           {/* PERFORMANCE */}
           {tab==="perf"&&(
@@ -1466,6 +1511,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                 {[
                   {title:"Release preview",color:T.green,desc:"Email the client their portal link to review the site.",label:"Release preview →",confirm:`Release preview to ${c.businessName}? This emails the client.`,fn:()=>api(`/api/unlock/release?jobId=${jid}&secret=${sec}`)},
                   {title:"Force redeploy",color:T.green,desc:"Deploy current stored HTML instantly — no fix pass, no rebuild. Use when preview shows old site.",label:"Force redeploy →",confirm:"Force-redeploy stored HTML to Vercel now?",fn:()=>api(`/api/admin/redeploy`,"POST",{jobId:jid})},
+                  {title:"Fix live URL",color:T.cyan,desc:"Updates the saved URL to the stable alias (wg-xxx.vercel.app). Use when the admin shows an old unique deploy URL.",label:"Fix URL in DB →",confirm:"Update saved URL to stable Vercel alias?",fn:async()=>{const d=await api(`/api/admin/fix-url`,"POST",{jobId:jid});return {message:`URL fixed → ${d.stableUrl}`};}},
                   {title:"Fix site",color:T.blue,desc:"Run a code fix pass and redeploy. Takes 1–2 min.",label:"Fix this site",confirm:"Run a fix pass on this site?",fn:()=>api(`/api/admin/fix-proxy?jobId=${jid}&secret=${sec}`)},
                   {title:"Rebuild site",color:T.amber,desc:"Full rebuild from scratch — regenerates design. 5–10 min.",label:"Rebuild site",confirm:`Fully rebuild ${c.businessName} from scratch?`,fn:async()=>{await api(`/api/admin/reset-job`,"POST",{jobId:jid,action:"reset-and-rebuild",secret:sec});}},
                   {title:"Monthly report",color:T.cyan,desc:"Email this month's analytics to the client.",label:"Send report",confirm:"Send monthly analytics report?",fn:()=>api(`/api/analytics/monthly?jobId=${jid}&secret=${sec}&send=true`)},
@@ -1630,16 +1676,34 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               },
 
               {
+                title:`${n()}. Newsletter — Beehiiv`,
+                color:T.cyan,
+                icon:"✉️",
+                items: hasNewsletter ? [
+                  { key:"beehiiv_account", label:"Log in to Beehiiv (one account for all clients)", detail:"Go to beehiiv.com and log in with your WebGecko account. One account handles all clients — you add each client as a separate publication inside it.", link:"https://app.beehiiv.com", linkLabel:"Open Beehiiv →", required:true },
+                  { key:"beehiiv_publication", label:"Create a publication for this client", detail:`Inside Beehiiv:\n1. Click '+ New Publication' (bottom-left)\n2. Publication name: ${biz}\n3. Description: Newsletter for ${biz} customers\n4. Complete setup → you're now inside the publication`, required:true },
+                  { key:"beehiiv_api_key", label:"Get the API key", detail:"Inside the client's publication:\n1. Click Settings (bottom-left)\n2. Click API tab\n3. Click 'New API Key' → name it 'WebGecko'\n4. Copy the key\n5. Go to Vercel → Settings → Environment Variables → update BEEHIIV_API_KEY", required:true },
+                  { key:"beehiiv_pub_id", label:"Get the Publication ID", detail:"Inside the client's publication:\n1. Click Settings (bottom-left)\n2. Click Publication tab\n3. Copy the Publication ID (starts with pub_)\n4. Go to Vercel → Settings → Environment Variables → update BEEHIIV_PUBLICATION_ID", required:true },
+                  { key:"beehiiv_redeploy", label:"Redeploy the site to wire up the new IDs", detail:"After updating both env vars in Vercel:\n1. Go to Vercel → Deployments\n2. Click ••• on the latest deployment → Redeploy\n3. Wait 2 min\n4. Test by submitting an email on the live site → should appear in Beehiiv Subscribers within 1 min" },
+                  { key:"beehiiv_send", label:"How to send a newsletter", detail:`When ${biz} wants to send a newsletter:\n1. Log into beehiiv.com\n2. Click Newsletter in the left sidebar\n3. Click 'New Post'\n4. Write and design the email\n5. Click Send/Schedule\n\nEVERY email MUST include:\n• Sender name: ${biz}\n• Business address: ${addr||"(add in checklist)"}\n• Unsubscribe link (Beehiiv adds this automatically)\n\nThis is required by Australian Spam Act 2003.` },
+                ] : [
+                  { key:"beehiiv_na", label:"Newsletter not selected for this client", detail:"This client did not select the Newsletter Signup feature. No Beehiiv setup needed. If they want to add it later, rebuild with Newsletter Signup enabled." },
+                ],
+              },
+
+              {
                 title:`${n()}. Google Analytics (GA4)`,
                 color:T.amber,
                 icon:"📊",
                 items: hasGA4 ? [
-                  { key:"ga4_verify", label:"GA4 ID already provided by client", detail:`Client submitted GA4 ID: ${c.ga4Id}\n\nVerify it's the correct format (starts with G-). It's already been injected into the site during build. Check the site source to confirm it's wired up.` },
-                  { key:"ga4_test", label:"Test GA4 is firing", detail:"Open the live site, then go to Google Analytics → Realtime. You should see your visit appear within 30 seconds. If not, check that the G- ID in the site HTML matches the one in the GA4 property.", link:"https://analytics.google.com", linkLabel:"Open GA4 →" },
+                  { key:"ga4_verify", label:"GA4 ID already added ✓", detail:`GA4 ID on file: ${c.ga4Id}\n\nVerify it's the correct format (starts with G-). It's already injected into the site during build.` },
+                  { key:"ga4_test", label:"Test GA4 is firing on the live site", detail:"1. Open the live site in your browser\n2. Go to analytics.google.com → your property → Reports → Realtime\n3. You should appear as an active user within 30 seconds\n\nIf not firing: check the G- ID in the site HTML matches the GA4 property.", link:"https://analytics.google.com", linkLabel:"Open GA4 →" },
                 ] : [
-                  { key:"ga4_create", label:"Create a GA4 property for this client", detail:`Go to analytics.google.com → Admin → Create Property.\n\nEnter:\n• Property name: ${biz}\n• Reporting timezone: Australia/${addr.includes("VIC")?"Melbourne":addr.includes("WA")?"Perth":addr.includes("SA")?"Adelaide":addr.includes("QLD")?"Brisbane":"Sydney"}\n• Currency: Australian Dollar (AUD)\n\nThen go to Data Streams → Add Stream → Web → enter the client domain.`, link:"https://analytics.google.com", linkLabel:"Open GA4 →" },
-                  { key:"ga4_id_add", label:"Copy the Measurement ID and add to site", detail:'After creating the web stream, copy the Measurement ID (format: G-XXXXXXXXXX). Go to the Integrations tab in this panel and paste it into the GA4 field, then click save. The pipeline will inject it into the site on next redeploy.', required:true },
-                  { key:"ga4_test", label:"Test GA4 is firing after deploy", detail:"Open the live site in a browser, then check GA4 Realtime. Should show 1 active user within 30 seconds.", link:"https://analytics.google.com", linkLabel:"Open GA4 →" },
+                  { key:"ga4_account", label:"Open Google Analytics (one account for all clients)", detail:"Go to analytics.google.com. Sign in with your WebGecko Google account. You only need ONE Google Analytics account — each client gets their own property inside it.\n\nIf first time: click 'Start measuring' → Account name: WebGecko → Next.", link:"https://analytics.google.com", linkLabel:"Open GA4 →", required:true },
+                  { key:"ga4_property", label:"Create a property for this client", detail:`1. Click Admin (bottom-left gear icon)\n2. Click 'Create Property'\n3. Property name: ${biz}\n4. Reporting timezone: Australia/${addr.includes("VIC")?"Melbourne":addr.includes("WA")?"Perth":addr.includes("SA")?"Adelaide":addr.includes("QLD")?"Brisbane":"Sydney"}\n5. Currency: Australian Dollar (AUD)\n6. Click Next → fill in business details → Create`, required:true },
+                  { key:"ga4_stream", label:"Add a data stream for the website", detail:`After creating the property:\n1. Click 'Data Streams' in the left sidebar\n2. Click 'Add Stream' → Web\n3. Website URL: ${siteUrl||"(client domain)"}\n4. Stream name: ${biz}\n5. Leave Enhanced Measurement ON\n6. Click 'Create stream'`, required:true },
+                  { key:"ga4_id_add", label:"Copy Measurement ID → paste into Integrations tab", detail:"On the stream detail page:\n1. Copy the Measurement ID (format: G-XXXXXXXXXX)\n2. Go to the Integrations tab in this admin panel\n3. Paste into the GA4 Measurement ID field\n4. Click Save\n5. Then go to Actions tab → Rebuild Site to inject it", required:true, linkInput:{ label:"GA4 Measurement ID", placeholder:"G-XXXXXXXXXX" } },
+                  { key:"ga4_test", label:"Test GA4 is firing after rebuild", detail:"1. Open the live site in your browser\n2. Go to GA4 → Reports → Realtime\n3. Should show 1 active user within 30 seconds\n\nIf not: confirm the G- ID in the Integrations tab matches the one in GA4.", link:"https://analytics.google.com", linkLabel:"Open GA4 →" },
                 ],
               },
 

@@ -230,6 +230,10 @@ function ClientDashboard() {
         {/* OVERVIEW */}
         {activeTab === "overview" && (
           <div className="space-y-4">
+            <div className="bg-blue-500/8 border border-blue-500/20 rounded-xl p-4 flex gap-3 items-start">
+              <span className="text-base flex-shrink-0">ℹ️</span>
+              <p className="text-slate-400 text-xs leading-relaxed">This is your client dashboard. Track your website build progress, view your site preview, manage bookings, and request content changes. Use the tabs above to navigate. If anything looks wrong or you have questions, use the <strong className="text-slate-300">Requests</strong> tab to contact your manager.</p>
+            </div>
             {/* Status */}
             <div className="bg-[#0f1623] border border-emerald-500/30 rounded-2xl p-5">
               <div className="flex items-center gap-3 mb-2">
@@ -327,6 +331,10 @@ function ClientDashboard() {
         {/* PREVIEW */}
         {activeTab === "preview" && (
           <div className="space-y-4">
+            <div className="bg-blue-500/8 border border-blue-500/20 rounded-xl p-4 flex gap-3 items-start">
+              <span className="text-base flex-shrink-0">ℹ️</span>
+              <p className="text-slate-400 text-xs leading-relaxed">This is a live preview of your website as it currently looks to visitors. It updates every time we make a change. Share feedback via the Requests tab and we&apos;ll make adjustments.</p>
+            </div>
             <div className="bg-[#0f1623] border border-white/8 rounded-2xl p-5">
               <h3 className="text-white font-semibold mb-2">Your Website Preview</h3>
               <p className="text-slate-400 text-sm mb-4">
@@ -367,6 +375,10 @@ function ClientDashboard() {
         {/* BOOKINGS */}
         {activeTab === "bookings" && data.hasBooking && (
           <div className="space-y-4">
+            <div className="bg-blue-500/8 border border-blue-500/20 rounded-xl p-4 flex gap-3 items-start">
+              <span className="text-base flex-shrink-0">ℹ️</span>
+              <p className="text-slate-400 text-xs leading-relaxed">These are appointments booked through your website. New bookings are automatically emailed to you. Click <strong className="text-slate-300">Email</strong> or <strong className="text-slate-300">Call</strong> to contact a customer directly. Your booking page is managed through SuperSaas — contact your WebGecko manager to change hours, services, or pricing.</p>
+            </div>
             <div className="grid grid-cols-3 gap-3 mb-2">
               {[
                 { label: "Total", value: bookings.length, icon: "📅" },
@@ -417,6 +429,16 @@ function ClientDashboard() {
         {/* REQUESTS */}
         {activeTab === "requests" && (
           <div className="space-y-4">
+            <div className="bg-blue-500/8 border border-blue-500/20 rounded-xl p-4 flex gap-3 items-start">
+              <span className="text-base flex-shrink-0">ℹ️</span>
+              <div className="text-slate-400 text-xs leading-relaxed space-y-1">
+                <p>Use this tab to request changes to your website. Your WebGecko manager reviews every request before anything goes live.</p>
+                <p><strong className="text-slate-300">✏️ Text Update</strong> — change wording, pricing, hours, or any text on the site.</p>
+                <p><strong className="text-slate-300">📝 Blog Post</strong> — write a post and we&apos;ll publish it to your site.</p>
+                <p><strong className="text-slate-300">🔗 Add a Link</strong> — add a button, menu link, or external URL.</p>
+                <p><strong className="text-slate-300">🖼️ Image / Media</strong> — update photos, add a gallery image, or swap the hero image.</p>
+              </div>
+            </div>
             <div className="bg-[#0f1623] border border-white/8 rounded-2xl p-5">
               <h3 className="text-white font-semibold mb-1">Request a Site Update</h3>
               <p className="text-slate-400 text-sm mb-4">Add a blog post, update text, drop a link, or request any content change. We&apos;ll review and push it live.</p>
