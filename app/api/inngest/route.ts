@@ -25,7 +25,7 @@ import { createSuperSaasSchedule } from "@/lib/supersaas";
 import { createClientShopCatalogue } from "@/lib/square";
 import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailability, getAnalyticsCount, getBookingsForJob, appendPipelineLog } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import { createTawktoProperty } from "@/lib/tawkto";
+import { createTawktoProperty, inviteTawktoAgent } from "@/lib/tawkto";
 import { subscribeToNewsletter } from "@/lib/beehiiv";
 import { provisionClientDomain } from "@/lib/synergy";
 import { generateSiteBlueprint, requestGoogleIndexing } from "@/lib/blueprint";
@@ -1106,6 +1106,13 @@ const buildWebsite = inngest.createFunction(
               tawktoPropertyId = propId;
               await saveJob(jobId, { ...job, tawktoPropertyId: propId });
               console.log("[Step6] Tawk.to property created:", propId);
+              // Auto-invite client as agent so they can see their own chats
+              if (clientEmail) {
+                await inviteTawktoAgent(propId, clientEmail, userInput.businessName || clientEmail);
+              }
+            } else {
+              console.error("[Step6] Tawk.to: property creation failed — live chat will not be active.");
+              logPipelineError(jobId, "Step6/TawkTo", "TAWKTO_FAIL", `Failed to create Tawk.to property for "${userInput.businessName}" — live chat not injected. Check TAWKTO_API_KEY in Vercel.`).catch(() => {});
             }
           }
         }

@@ -2,9 +2,12 @@
 // Client submits a feature upgrade request → stored in job.metadata.featureRequests
 // Admin can read all requests, update status (pending → processing → draft → approved → live)
 import { NextRequest } from "next/server";
+import { Resend } from "resend";
 import { supabase } from "@/lib/supabase";
 import { getJob, saveJob } from "@/lib/db";
 import { isAdminAuthedLegacy } from "@/lib/admin-auth";
+
+const resend = new Resend(process.env.RESEND_API_KEY!);
 
 // All available add-on features a client can request
 export const AVAILABLE_FEATURES = [
@@ -93,6 +96,32 @@ export async function POST(req: NextRequest) {
     ...job,
     metadata: { ...(job.metadata || {}), featureRequests: updatedRequests },
   });
+
+  // Notify admin of new feature request(s)
+  try {
+    const base = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
+    const featureLabels = newRequests.map((r: any) => {
+      const feat = AVAILABLE_FEATURES.find(f => f.id === r.featureId);
+      return feat ? feat.label : r.featureId;
+    });
+    await resend.emails.send({
+      from: "WebGecko <hello@webgecko.au>",
+      to: process.env.RESULT_TO_EMAIL!,
+      subject: `New feature request -- ${clientRow.business_name || slug}`,
+      html: [
+        "<div style='font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;background:#0a0f1a;color:#e2e8f0;'>",
+        "<h1 style='color:#8b5cf6;margin:0 0 8px;'>New Feature Request</h1>",
+        "<p style='color:#94a3b8;margin:0 0 24px;'>A client has requested new features for their website.</p>",
+        "<table style='width:100%;border-collapse:collapse;margin:0 0 20px;'>",
+        "<tr><td style='color:#64748b;padding:8px 0;'>Business</td><td style='color:#e2e8f0;font-weight:600;'>" + (clientRow.business_name || slug) + "</td></tr>",
+        "<tr><td style='color:#64748b;padding:8px 0;'>Features</td><td style='color:#e2e8f0;'>" + featureLabels.join(", ") + "</td></tr>",
+        message ? "<tr><td style='color:#64748b;padding:8px 0;'>Message</td><td style='color:#e2e8f0;font-style:italic;'>" + message + "</td></tr>" : "",
+        "</table>",
+        "<a href='" + base + "/admin' style='display:inline-block;background:#8b5cf6;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;'>Review in Admin</a>",
+        "</div>",
+      ].join(""),
+    });
+  } catch (e) { console.error("[FeatureRequest] Admin notification failed:", e); }
 
   return Response.json({ ok: true, requests: newRequests });
 }

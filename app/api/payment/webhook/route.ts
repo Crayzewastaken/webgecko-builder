@@ -94,6 +94,44 @@ export async function POST(req: NextRequest) {
         const base = (process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app");
         const resend = new (await import("resend")).Resend(process.env.RESEND_API_KEY!);
 
+        const clientEmail = job?.userInput?.email || "";
+        const businessName = job?.userInput?.businessName || "your website";
+        const clientSlug = job?.clientSlug || "";
+        const portalUrl = `${base}/c/${clientSlug}`;
+
+        // Email client: deposit receipt
+        if (clientEmail) {
+          resend.emails.send({
+            from: "WebGecko <hello@webgecko.au>",
+            to: clientEmail,
+            subject: `Deposit received - ${businessName}`,
+            html: [
+              "<!DOCTYPE html><html><body style='margin:0;padding:0;background:#0a0f1a;font-family:Arial,sans-serif;'>",
+              "<table width='100%' cellpadding='0' cellspacing='0' style='background:#0a0f1a;padding:40px 20px;'><tr><td align='center'>",
+              "<table width='600' cellpadding='0' cellspacing='0' style='background:#0f1623;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);'>",
+              "<tr><td style='background:linear-gradient(135deg,#00c896,#0099ff);padding:28px 32px;'>",
+              "<h1 style='margin:0;color:#fff;font-size:22px;'>Deposit Received!</h1>",
+              "</td></tr>",
+              "<tr><td style='padding:32px 32px 24px;'>",
+              "<p style='color:#e2e8f0;margin:0 0 16px;'>Thanks for your deposit, <strong style='color:#00c896;'>" + businessName + "</strong>.</p>",
+              "<p style='color:#94a3b8;margin:0 0 24px;'>We have received your payment and your website build has started. We will be in touch shortly with a preview link.</p>",
+              "<div style='background:#0a1628;border:1px solid rgba(0,200,150,0.2);border-radius:10px;padding:20px 24px;margin:0 0 24px;'>",
+              "<p style='color:#00c896;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 12px;'>What happens next</p>",
+              "<p style='color:#94a3b8;font-size:14px;margin:0 0 8px;'>1. We build your site (usually within a few days)</p>",
+              "<p style='color:#94a3b8;font-size:14px;margin:0 0 8px;'>2. You get a preview link to review everything</p>",
+              "<p style='color:#94a3b8;font-size:14px;margin:0;'>3. Once you are happy, your site goes live</p>",
+              "</div>",
+              "<a href='" + portalUrl + "' style='display:inline-block;background:linear-gradient(135deg,#00c896,#0099ff);color:#000;font-weight:800;padding:16px 32px;border-radius:10px;text-decoration:none;font-size:14px;'>View Your Client Portal</a>",
+              "</td></tr>",
+              "<tr><td style='padding:20px 32px;border-top:1px solid rgba(255,255,255,0.06);'>",
+              "<p style='color:#475569;font-size:12px;margin:0;'>WebGecko - hello@webgecko.au - Reply any time with questions.</p>",
+              "</td></tr>",
+              "</table></td></tr></table>",
+              "</body></html>",
+            ].join(""),
+          }).catch((e: any) => console.error("[Payment] Deposit receipt email failed:", e));
+        }
+
         if (!hasBooking) {
           // FULLY AUTOMATED: trigger build immediately
           console.log(`[Payment] No booking feature -- auto-triggering build for ${jobId}`);
@@ -122,13 +160,13 @@ export async function POST(req: NextRequest) {
           await resend.emails.send({
             from: "WebGecko <hello@webgecko.au>",
             to: process.env.RESULT_TO_EMAIL!,
-            subject: `Auto-build started -- ${job?.userInput?.businessName || jobId}`,
+            subject: `Auto-build started -- ${businessName}`,
             html: [
               "<div style='font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;background:#0a0f1a;color:#e2e8f0;'>",
               "<h1 style='color:#00c896;'>Build Started Automatically</h1>",
               "<p style='color:#94a3b8;'>Deposit received. No booking system selected -- build triggered automatically.</p>",
               "<table style='width:100%;border-collapse:collapse;margin:20px 0;'>",
-              "<tr><td style='color:#64748b;padding:8px 0;'>Business</td><td style='color:#e2e8f0;font-weight:600;'>" + (job?.userInput?.businessName || "--") + "</td></tr>",
+              "<tr><td style='color:#64748b;padding:8px 0;'>Business</td><td style='color:#e2e8f0;font-weight:600;'>" + businessName + "</td></tr>",
               "<tr><td style='color:#64748b;padding:8px 0;'>Industry</td><td style='color:#e2e8f0;'>" + (job?.userInput?.industry || "--") + "</td></tr>",
               "<tr><td style='color:#64748b;padding:8px 0;'>Features</td><td style='color:#e2e8f0;'>" + (features.join(", ") || "None") + "</td></tr>",
               "<tr><td style='color:#64748b;padding:8px 0;'>Auto-release in</td><td style='color:#10b981;font-weight:600;'>" + releaseDays + " days (" + new Date(releaseAt).toLocaleDateString("en-AU", { day: "numeric", month: "short" }) + ")</td></tr>",
@@ -147,25 +185,24 @@ export async function POST(req: NextRequest) {
           const { inngest: inngestClient } = await import("@/lib/inngest");
           await inngestClient.send({ name: "build/website", data: { jobId } });
 
-          const adminUrl = `${base}/admin`;
           await resend.emails.send({
             from: "WebGecko <hello@webgecko.au>",
             to: process.env.RESULT_TO_EMAIL!,
-            subject: `Build started (verify booking) -- ${job?.userInput?.businessName || jobId}`,
+            subject: `Build started (verify booking) -- ${businessName}`,
             html: [
               "<div style='font-family:sans-serif;max-width:600px;margin:0 auto;padding:40px 20px;background:#0a0f1a;color:#e2e8f0;'>",
               "<h1 style='color:#00c896;'>Build Started -- Booking Included</h1>",
               "<p style='color:#94a3b8;'>Deposit received. Build triggered automatically. SuperSaas schedule was created in Step 0 -- please verify it looks right.</p>",
               "<table style='width:100%;border-collapse:collapse;margin:20px 0;'>",
-              "<tr><td style='color:#64748b;padding:8px 0;'>Business</td><td style='color:#e2e8f0;font-weight:600;'>" + (job?.userInput?.businessName || "--") + "</td></tr>",
-              "<tr><td style='color:#64748b;padding:8px 0;'>Client Email</td><td style='color:#e2e8f0;'>" + (job?.userInput?.email || "--") + "</td></tr>",
+              "<tr><td style='color:#64748b;padding:8px 0;'>Business</td><td style='color:#e2e8f0;font-weight:600;'>" + businessName + "</td></tr>",
+              "<tr><td style='color:#64748b;padding:8px 0;'>Client Email</td><td style='color:#e2e8f0;'>" + (clientEmail || "--") + "</td></tr>",
               "<tr><td style='color:#64748b;padding:8px 0;'>Services</td><td style='color:#e2e8f0;'>" + (job?.userInput?.bookingServices || "auto-generated from industry") + "</td></tr>",
               "</table>",
               "<div style='background:#0c1a0e;border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:16px 20px;margin:20px 0;'>",
               "<p style='color:#10b981;font-weight:700;margin:0 0 8px;'>Build is running automatically</p>",
               "<p style='color:#94a3b8;font-size:14px;margin:0;'>SuperSaas schedule was auto-created in pipeline Step 0. Please log into SuperSaas and verify the schedule has the right services and availability.</p>",
               "</div>",
-              "<a href='" + adminUrl + "' style='display:inline-block;background:#00c896;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;'>Open Admin Dashboard</a>",
+              "<a href='" + base + "/admin' style='display:inline-block;background:#00c896;color:#000;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;'>Open Admin Dashboard</a>",
               "</div>",
             ].join(""),
           });
@@ -174,13 +211,59 @@ export async function POST(req: NextRequest) {
       } catch (e) { console.error("Failed to handle deposit event:", e); }
     }
 
-    // Mark launch ready on final payment
+    // Mark launch ready on final payment + email client that site is live
     if (stage === "final") {
       try {
         const job = await getJob(jobId);
+        const clientEmail = job?.userInput?.email || "";
+        const businessName = job?.userInput?.businessName || "your website";
+        const clientSlug = job?.clientSlug || "";
+        const base = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
+        const liveUrl = job?.liveUrl || job?.previewUrl || `${base}/c/${clientSlug}`;
+        const portalUrl = `${base}/c/${clientSlug}`;
+
         if (job?.clientSlug) {
           const client = await getClient(job.clientSlug);
           if (client) await saveClient(job.clientSlug, { ...client, launch_ready: true });
+        }
+
+        if (clientEmail) {
+          const resend = new (await import("resend")).Resend(process.env.RESEND_API_KEY!);
+          resend.emails.send({
+            from: "WebGecko <hello@webgecko.au>",
+            to: clientEmail,
+            subject: `Your website is live! - ${businessName}`,
+            html: [
+              "<!DOCTYPE html><html><body style='margin:0;padding:0;background:#0a0f1a;font-family:Arial,sans-serif;'>",
+              "<table width='100%' cellpadding='0' cellspacing='0' style='background:#0a0f1a;padding:40px 20px;'><tr><td align='center'>",
+              "<table width='600' cellpadding='0' cellspacing='0' style='background:#0f1623;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);'>",
+              "<tr><td style='background:linear-gradient(135deg,#8b5cf6,#00c896);padding:28px 32px;'>",
+              "<h1 style='margin:0;color:#fff;font-size:24px;'>Your website is LIVE!</h1>",
+              "</td></tr>",
+              "<tr><td style='padding:32px 32px 24px;'>",
+              "<p style='color:#e2e8f0;font-size:16px;margin:0 0 16px;'>Congratulations, <strong style='color:#00c896;'>" + businessName + "</strong> is now live on the internet!</p>",
+              "<p style='color:#94a3b8;margin:0 0 24px;'>Your site is up and ready to bring in customers. Here is where to find everything:</p>",
+              "<div style='background:#0a1628;border:1px solid rgba(139,92,246,0.25);border-radius:10px;padding:20px 24px;margin:0 0 20px;'>",
+              "<table style='width:100%;' cellpadding='0' cellspacing='0'>",
+              "<tr><td style='color:#64748b;font-size:13px;padding:6px 0;width:120px;'>Your website</td><td><a href='" + liveUrl + "' style='color:#8b5cf6;font-size:14px;font-weight:600;'>" + liveUrl + "</a></td></tr>",
+              "<tr><td style='color:#64748b;font-size:13px;padding:6px 0;'>Client portal</td><td><a href='" + portalUrl + "' style='color:#38bdf8;font-size:14px;'>" + portalUrl + "</a></td></tr>",
+              "</table>",
+              "</div>",
+              "<div style='background:#0a1628;border:1px solid rgba(0,200,150,0.2);border-radius:10px;padding:20px 24px;margin:0 0 24px;'>",
+              "<p style='color:#00c896;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 12px;'>Tips to get started</p>",
+              "<p style='color:#94a3b8;font-size:14px;margin:0 0 8px;'>Share your website link on social media and Google Business</p>",
+              "<p style='color:#94a3b8;font-size:14px;margin:0 0 8px;'>Add your website to your email signature</p>",
+              "<p style='color:#94a3b8;font-size:14px;margin:0;'>Log in to your portal any time to request updates or new features</p>",
+              "</div>",
+              "<a href='" + liveUrl + "' style='display:inline-block;background:linear-gradient(135deg,#8b5cf6,#00c896);color:#fff;font-weight:800;padding:16px 32px;border-radius:10px;text-decoration:none;font-size:14px;'>Visit Your Live Website</a>",
+              "</td></tr>",
+              "<tr><td style='padding:20px 32px;border-top:1px solid rgba(255,255,255,0.06);'>",
+              "<p style='color:#475569;font-size:12px;margin:0;'>WebGecko - hello@webgecko.au - Reply any time if you need help.</p>",
+              "</td></tr>",
+              "</table></td></tr></table>",
+              "</body></html>",
+            ].join(""),
+          }).catch((e: any) => console.error("[Payment] Go-live email failed:", e));
         }
       } catch (e) { console.error("Failed to update launch status:", e); }
     }

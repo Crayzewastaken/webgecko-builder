@@ -57,3 +57,36 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Failed" }, { status: 500 });
   }
 }
+
+// ─── POST — bulk delete multiple clients ────────────────────────────────────
+// Body: { jobIds: string[] }
+export async function POST(req: NextRequest) {
+  if (!isAdminAuthedLegacy(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
+  let body: any;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
+
+  const jobIds: string[] = Array.isArray(body.jobIds) ? body.jobIds : [];
+  if (jobIds.length === 0) return NextResponse.json({ error: "No jobIds provided" }, { status: 400 });
+
+  const results: { jobId: string; ok: boolean; error?: string }[] = [];
+
+  for (const jobId of jobIds) {
+    try {
+      await supabase.from("bookings").delete().eq("job_id", jobId);
+      await supabase.from("availability").delete().eq("job_id", jobId);
+      await supabase.from("payments").delete().eq("job_id", jobId);
+      await supabase.from("feedback").delete().eq("job_id", jobId);
+      await supabase.from("clients").delete().eq("job_id", jobId);
+      await supabase.from("jobs").delete().eq("id", jobId);
+      results.push({ jobId, ok: true });
+    } catch (e) {
+      results.push({ jobId, ok: false, error: e instanceof Error ? e.message : "Failed" });
+    }
+  }
+
+  const failed = results.filter(r => !r.ok);
+  return NextResponse.json({ ok: failed.length === 0, results, deleted: results.filter(r => r.ok).length, failed: failed.length });
+}

@@ -64,3 +64,23 @@ export async function listTawktoProperties() {
     return [];
   }
 }
+
+/**
+ * Invites a client as an agent to their Tawk.to property.
+ * This gives them access to their own chat dashboard.
+ */
+export async function inviteTawktoAgent(propertyId: string, email: string, name: string): Promise<boolean> {
+  if (!TAWKTO_API_KEY || !propertyId) return false;
+  try {
+    await tawkRequest(`/properties/${propertyId}/members`, "POST", {
+      email,
+      name,
+      role: "agent",
+    });
+    console.log(`[Tawk.to] Invited ${email} as agent to property ${propertyId}`);
+    return true;
+  } catch (err: any) {
+    console.warn(`[Tawk.to] Failed to invite agent (non-fatal): ${err?.message}`);
+    return false;
+  }
+}

@@ -391,7 +391,8 @@ function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:
 
 // ── Client slide-over panel ────────────────────────────────────────────────────
 function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:string; onClose:()=>void; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
-  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"content"|"payments"|"actions"|"requests"|"checklist">("perf");
+  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"content"|"payments"|"actions"|"requests"|"checklist"|"todo">("perf");
+  const [todoCompleted, setTodoCompleted] = useState<Set<string>>(()=>{try{const s=localStorage.getItem("wg_todo_done_"+c.jobId);return s?new Set(JSON.parse(s)):new Set();}catch{return new Set();}});
   const [checklistDone, setChecklistDone] = useState<Record<string,boolean>>({});
   const [checklistLinks, setChecklistLinks] = useState<Record<string,string>>({});
   useEffect(()=>{
@@ -498,7 +499,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   }
 
   const pending = featureRequests.filter(r=>r.status==="pending"||r.status==="draft").length;
-  const tabs = ["perf","engagement","seo","site","assets","integrations","content","payments","actions","requests","checklist"] as const;
+  const tabs = ["perf","engagement","seo","site","assets","integrations","content","payments","actions","requests","checklist","todo"] as const;
 
   // ── Content helpers ────────────────────────────────────────────────────────
   async function loadContent() {
@@ -676,6 +677,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
           {tabBtn("actions","Actions")}
           {tabBtn("requests",`Requests${pending>0?" ("+pending+")":""}`)}
           {tabBtn("checklist","✅ Checklist")}
+          {tabBtn("todo","☰ To-Do")}
         </div>
 
         {/* Tab content */}
@@ -849,13 +851,18 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                       <div style={{marginBottom:20}}>
                         {sectionTitle("SERP intelligence")}
                         {[
-                          {title:"Content length",note:`Competitors avg ${wc} words`,status:(wc>1200?"bad":wc>600?"good":"warn") as IS,detail:wc>1200?`⚠️ Match competitor depth — add FAQs, detail sections.`:wc>600?`✓ Content depth is competitive.`:`ℹ️ Concise sites can outrank with good structure.`},
-                          {title:"Section headings (H2s)",note:`Competitors use ${h2} headings`,status:(h2>=5&&h2<=10?"good":h2<3?"bad":"warn") as IS,detail:h2>=5&&h2<=10?`✓ ${h2} H2s is solid.`:h2<3?`⚠️ Use more clear section headings.`:`ℹ️ ${h2} H2s — ensure each targets a keyword.`},
+                          {title:"Content length",note:`Competitors avg ${wc} words`,status:(wc>1200?"bad":wc>600?"good":"warn") as IS,detail:wc>1200?`Match competitor depth — add FAQs, detail sections.`:wc>600?`Content depth is competitive.`:`Concise sites can outrank with good structure.`},
+                          {title:"Section headings (H2s)",note:`Competitors use ${h2} headings`,status:(h2>=5&&h2<=10?"good":h2<3?"bad":"warn") as IS,detail:h2>=5&&h2<=10?`${h2} H2s is solid.`:h2<3?`Use more clear section headings.`:`${h2} H2s -- ensure each targets a keyword.`},
                         ].map(row=>(
                           <div key={row.title} style={{background:T.raised,borderRadius:10,padding:"14px 16px",border:`1px solid ${T.border}`,marginBottom:10}}>
                             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
                               <div><span style={{fontSize:13,fontWeight:600,color:T.text}}>{row.title}</span><span style={{fontSize:11,color:T.textMuted,marginLeft:8}}>{row.note}</span></div>
-                              {ind(row.status)}
+                              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                                {(row.status==="warn"||row.status==="bad")&&(
+                                  <button onClick={()=>api(`/api/admin/fix-proxy?jobId=${jid}&secret=${sec}`).then(()=>toast("SEO fix pass started","ok")).catch((e:any)=>toast(e.message,"err"))} style={{fontSize:11,background:T.amber+"20",color:T.amber,border:`1px solid ${T.amber}40`,borderRadius:6,padding:"3px 10px",cursor:"pointer",fontWeight:700}}>Fix SEO</button>
+                                )}
+                                {ind(row.status)}
+                              </div>
                             </div>
                             <div style={{fontSize:12,color:T.textMuted,lineHeight:1.6}}>{row.detail}</div>
                           </div>
@@ -1850,6 +1857,81 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
           })()}
 
 
+
+          {/* To-Do Tab */}
+          {tab==="todo"&&(()=>{
+            const seoIssues: {id:string;source:string;label:string;detail:string;severity:"error"|"warn";action?:string}[] = [];
+            if (seo?.serpInsights) {
+              const siWc = seo.serpInsights.avgWordCount||800;
+              const siH2 = seo.serpInsights.avgH2Count||6;
+              if (siWc>1200||siWc<=600) seoIssues.push({id:"seo_content_length",source:"SEO",label:"Content length needs work",detail:`Competitors avg ${siWc} words. ${siWc>1200?"Add FAQs and detail sections to match.":"Concise site — ensure structure is strong."}`,severity:"warn",action:"fix-seo"});
+              if (!(siH2>=5&&siH2<=10)) seoIssues.push({id:"seo_h2s",source:"SEO",label:"Section headings (H2s) needs work",detail:`Competitors use ${siH2} headings. ${siH2<3?"Add more clear section headings.":"Ensure each H2 targets a keyword."}`,severity:"warn",action:"fix-seo"});
+            }
+            const payIssues: {id:string;source:string;label:string;detail:string;severity:"error"|"warn";action?:string}[] = [];
+            if (!c.paymentState?.depositPaid) payIssues.push({id:"pay_deposit",source:"Payments",label:"Deposit not yet paid",detail:"Client has not completed their deposit payment.",severity:"warn"});
+            if (c.paymentState?.depositPaid&&!c.paymentState?.finalPaid) payIssues.push({id:"pay_final",source:"Payments",label:"Final payment pending",detail:"Deposit paid but final payment not yet received.",severity:"warn"});
+            if (c.paymentState?.finalPaid&&!c.paymentState?.monthlyActive) payIssues.push({id:"pay_monthly",source:"Payments",label:"Monthly sub not active",detail:"Final paid but monthly subscription not set up yet.",severity:"warn"});
+            const buildIssues: {id:string;source:string;label:string;detail:string;severity:"error"|"warn";action?:string}[] = [];
+            if (c.buildStatus==="failed") buildIssues.push({id:"build_failed",source:"Build",label:"Build failed",detail:"Last build attempt failed. Check Pipeline tab for errors.",severity:"error"});
+            if (!c.previewUrl&&c.buildStatus!=="building") buildIssues.push({id:"build_no_url",source:"Build",label:"No preview URL",detail:"Site has no preview URL. Trigger a rebuild.",severity:"error"});
+            if (c.paymentState?.finalPaid&&!c.domain&&!c.liveDomain) buildIssues.push({id:"domain_missing",source:"Build",label:"No custom domain assigned",detail:"Final payment received but no custom domain set. Assign one in Integrations.",severity:"warn"});
+            const frIssues: {id:string;source:string;label:string;detail:string;severity:"error"|"warn";action?:string}[] = featureRequests.filter((r:any)=>r.status==="pending").map((r:any)=>({id:`fr_${r.id}`,source:"Requests",label:`Feature request: ${r.featureId}`,detail:r.message||"Client requested this feature.",severity:"warn" as const}));
+            const allIssues = [...buildIssues,...seoIssues,...payIssues,...frIssues];
+            const openIssues = allIssues.filter(i=>!todoCompleted.has(i.id));
+            const doneIssues = allIssues.filter(i=>todoCompleted.has(i.id));
+            function toggleTodo(id:string){setTodoCompleted((prev:Set<string>)=>{const n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);try{localStorage.setItem("wg_todo_done_"+jid,JSON.stringify([...n]));}catch{}return n;});}
+            const sevColor=(s:"error"|"warn")=>s==="error"?T.red:T.amber;
+            const srcColor=(s:string)=>s==="SEO"?T.blue:s==="Build"?T.red:s==="Payments"?T.green:s==="Requests"?"#a78bfa":T.textMuted;
+            return (
+              <div>
+                {allIssues.length===0&&(
+                  <div style={{textAlign:"center" as const,padding:"60px 0",color:T.textMuted}}>
+                    <div style={{fontSize:32,marginBottom:12}}>&#x2705;</div>
+                    <div style={{fontSize:15,fontWeight:600,color:T.textSec,marginBottom:6}}>All clear!</div>
+                    <div style={{fontSize:13}}>No outstanding issues for this client.</div>
+                  </div>
+                )}
+                {openIssues.length>0&&(
+                  <div style={{marginBottom:24}}>
+                    <div style={{fontSize:11,fontWeight:800,letterSpacing:"0.1em",color:T.textMuted,textTransform:"uppercase" as const,marginBottom:12}}>To Do ({openIssues.length})</div>
+                    {openIssues.map(issue=>(
+                      <div key={issue.id} style={{background:T.raised,borderRadius:10,border:`1px solid ${sevColor(issue.severity)}30`,padding:"14px 16px",marginBottom:8,display:"flex",gap:12,alignItems:"flex-start"}}>
+                        <input type="checkbox" checked={false} onChange={()=>toggleTodo(issue.id)} style={{marginTop:2,accentColor:T.green,width:16,height:16,flexShrink:0,cursor:"pointer"}}/>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap" as const}}>
+                            <span style={{fontSize:13,fontWeight:600,color:T.text}}>{issue.label}</span>
+                            <span style={{fontSize:10,fontWeight:700,background:srcColor(issue.source)+"20",color:srcColor(issue.source),border:`1px solid ${srcColor(issue.source)}35`,borderRadius:4,padding:"2px 7px"}}>{issue.source}</span>
+                            {issue.severity==="error"&&<span style={{fontSize:10,fontWeight:700,background:T.red+"20",color:T.red,border:`1px solid ${T.red}35`,borderRadius:4,padding:"2px 7px"}}>Action needed</span>}
+                          </div>
+                          <div style={{fontSize:12,color:T.textMuted,lineHeight:1.6}}>{issue.detail}</div>
+                          {issue.action==="fix-seo"&&(
+                            <button onClick={()=>api(`/api/admin/fix-proxy?jobId=${jid}&secret=${sec}`).then(()=>{toast("SEO fix started","ok");toggleTodo(issue.id);}).catch((e:any)=>toast(e.message,"err"))} style={{marginTop:8,fontSize:11,background:T.amber+"20",color:T.amber,border:`1px solid ${T.amber}40`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontWeight:700}}>Fix automatically</button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {doneIssues.length>0&&(
+                  <div>
+                    <div style={{fontSize:11,fontWeight:800,letterSpacing:"0.1em",color:T.textMuted,textTransform:"uppercase" as const,marginBottom:12}}>Done ({doneIssues.length})</div>
+                    {doneIssues.map(issue=>(
+                      <div key={issue.id} style={{background:T.surface,borderRadius:10,border:`1px solid ${T.border}`,padding:"12px 16px",marginBottom:8,display:"flex",gap:12,alignItems:"center",opacity:0.5}}>
+                        <input type="checkbox" checked={true} onChange={()=>toggleTodo(issue.id)} style={{accentColor:T.green,width:16,height:16,flexShrink:0,cursor:"pointer"}}/>
+                        <div style={{flex:1}}>
+                          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap" as const}}>
+                            <span style={{fontSize:13,fontWeight:500,color:T.textMuted,textDecoration:"line-through"}}>{issue.label}</span>
+                            <span style={{fontSize:10,background:srcColor(issue.source)+"15",color:srcColor(issue.source),borderRadius:4,padding:"2px 7px"}}>{issue.source}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
         </div>
       </div>
     </>
@@ -2656,6 +2738,8 @@ function AdminDashboard() {
   const [filter, setFilter] = useState<"all"|"active"|"building"|"unpaid">("all");
   const [sort, setSort] = useState<"views"|"name"|"status">("views");
   const [selectedClient, setSelectedClient] = useState<ClientAnalytics|null>(null);
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const { toasts, add: toast } = useToast();
 
   function openClient(c: ClientAnalytics) {
@@ -2681,6 +2765,32 @@ function AdminDashboard() {
       const d=await r.json(); setClients(d.clients||[]);
     } catch(e){setError(e instanceof Error?e.message:"Failed");}
     finally{setLoading(false);}
+  }
+
+  async function bulkDelete() {
+    if (bulkSelected.size === 0) return;
+    const names = clients.filter(c => bulkSelected.has(c.jobId)).map(c => c.businessName).join(", ");
+    if (!confirm(`Permanently delete ${bulkSelected.size} client(s)?\n\n${names}\n\nThis cannot be undone.`)) return;
+    setBulkDeleting(true);
+    try {
+      const r = await fetch("/api/admin/delete-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobIds: [...bulkSelected] }),
+      });
+      const d = await r.json();
+      if (d.ok || d.deleted > 0) {
+        toast(`Deleted ${d.deleted} client(s)`, "ok");
+        setBulkSelected(new Set());
+        await loadDashboard();
+      } else {
+        toast(`Failed to delete: ${d.error || "unknown error"}`, "err");
+      }
+    } catch (e) {
+      toast("Bulk delete failed", "err");
+    } finally {
+      setBulkDeleting(false);
+    }
   }
 
   useEffect(()=>{
@@ -2827,8 +2937,7 @@ function AdminDashboard() {
         </div>
 
         {/* Search + filters */}
-                {/* Search + filters */}
-        <div style={{ display:"flex",gap:10,marginBottom:20,flexWrap:"wrap" as const,alignItems:"center" }}>
+        <div style={{ display:"flex",gap:10,marginBottom:12,flexWrap:"wrap" as const,alignItems:"center" }}>
           <input type="text" placeholder="⌕  Search clients by name or industry…" value={search} onChange={e=>setSearch(e.target.value)} style={inp}/>
           <div style={{ display:"flex",gap:2,background:T.raised,border:`1px solid ${T.border}`,borderRadius:9,padding:3,boxShadow:T.shadow }}>
             {(["all","active","building","unpaid"] as const).map(f=>(
@@ -2842,8 +2951,31 @@ function AdminDashboard() {
             <option value="name">Sort: Name</option>
             <option value="status">Sort: Status</option>
           </select>
-          <div style={{ marginLeft:"auto",fontSize:11,color:T.textMuted,letterSpacing:"0.02em" }}>{filtered.length} <span style={{color:T.border}}/> of {clients.length}</div>
+          <div style={{ marginLeft:"auto",fontSize:11,color:T.textMuted,letterSpacing:"0.02em" }}>{filtered.length} of {clients.length}</div>
         </div>
+
+        {/* Bulk action bar */}
+        {bulkSelected.size > 0 && (
+          <div style={{ display:"flex",alignItems:"center",gap:12,background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:10,padding:"10px 16px",marginBottom:12 }}>
+            <span style={{ fontSize:13,color:T.text,fontWeight:600 }}>{bulkSelected.size} selected</span>
+            <button onClick={()=>setBulkSelected(new Set())} style={{ fontSize:11,color:T.textMuted,background:"transparent",border:"none",cursor:"pointer",padding:"2px 6px" }}>x Clear</button>
+            <button onClick={()=>{const all=new Set(filtered.map((c:ClientAnalytics)=>c.jobId));setBulkSelected(all);}} style={{ fontSize:11,color:T.blue,background:"transparent",border:"none",cursor:"pointer",padding:"2px 6px" }}>
+              Select all {filtered.length}
+            </button>
+            <button onClick={bulkDelete} disabled={bulkDeleting} style={{ marginLeft:"auto",background:"#ef4444",color:"#fff",border:"none",borderRadius:8,padding:"8px 20px",fontSize:13,fontWeight:700,cursor:bulkDeleting?"not-allowed":"pointer",opacity:bulkDeleting?0.6:1 }}>
+              {bulkDeleting ? "Deleting..." : `Delete ${bulkSelected.size} client${bulkSelected.size===1?"":"s"}`}
+            </button>
+          </div>
+        )}
+
+        {/* Select all shortcut */}
+        {bulkSelected.size === 0 && !loading && filtered.length > 0 && (
+          <div style={{ marginBottom:10 }}>
+            <button onClick={()=>setBulkSelected(new Set(filtered.map((c:ClientAnalytics)=>c.jobId)))} style={{ fontSize:11,color:T.textMuted,background:"transparent",border:`1px solid ${T.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer" }}>
+              Select all for bulk delete
+            </button>
+          </div>
+        )}
 
         {/* Grid */}
         {loading&&(
@@ -2853,18 +2985,28 @@ function AdminDashboard() {
         )}
         {!loading&&filtered.length===0&&(
           <div style={{ textAlign:"center" as const,padding:"80px 0",color:T.textMuted }}>
-            <div style={{ fontSize:36,marginBottom:12 }}>🔍</div>
+            <div style={{ fontSize:36,marginBottom:12 }}>&#x1F50D;</div>
             <div style={{ fontSize:16,fontWeight:600,color:T.textSec,marginBottom:6 }}>No clients found</div>
             <div style={{ fontSize:13 }}>Try adjusting your search or filter.</div>
           </div>
         )}
         {!loading&&filtered.length>0&&(
           <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12 }}>
-            {filtered.map((c,i)=>(
-              <div key={c.slug} style={{ animationDelay:`${i*0.03}s` }}>
-                <ClientCard c={c} secret="" dark={dark} toast={toast}/>
-              </div>
-            ))}
+            {filtered.map((c:ClientAnalytics,i:number)=>{
+              const isSelected = bulkSelected.has(c.jobId);
+              return (
+                <div key={c.slug} style={{ animationDelay:`${i*0.03}s`,position:"relative" as const }}>
+                  <div
+                    onClick={e=>{e.stopPropagation();setBulkSelected((prev:Set<string>)=>{const n=new Set(prev);if(n.has(c.jobId))n.delete(c.jobId);else n.add(c.jobId);return n;});}}
+                    style={{ position:"absolute",top:10,right:10,zIndex:10,width:20,height:20,borderRadius:5,border:`2px solid ${isSelected?"#ef4444":T.border}`,background:isSelected?"#ef4444":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s",boxShadow:isSelected?"0 0 8px rgba(239,68,68,0.4)":"none" }}>
+                    {isSelected&&<span style={{color:"#fff",fontSize:12,lineHeight:1,fontWeight:900}}>&#x2713;</span>}
+                  </div>
+                  <div style={{ outline:isSelected?"2px solid rgba(239,68,68,0.5)":"none",borderRadius:14,transition:"outline 0.15s" }}>
+                    <ClientCard c={c} secret="" dark={dark} toast={toast}/>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
