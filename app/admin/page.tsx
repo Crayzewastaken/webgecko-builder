@@ -1625,41 +1625,37 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
             const sections: Section[] = [
 
               {
-                title:`${n()}. Privacy Policy — Termly (Free)`,
+                title:`${n()}. Privacy Policy`,
                 color:T.blue,
                 icon:"🔒",
                 items:[
-                  { key:"termly_account", label:"One-time: create your free Termly account", detail:"Go to termly.io and sign up with your WebGecko email. You only need ONE account total — you add each client as a separate website inside it. Free plan gives 1 policy per website.", link:"https://app.termly.io/authentication/sign-up", linkLabel:"Sign up to Termly →", required:true },
-                  { key:"termly_add_site", label:'Add this client as a new website in Termly', detail:`QUESTIONS\nWebsite name?\nWebsite URL?\nCountry?\nIndustry?\nANSWERS\n${biz}\n${siteUrl||"(client domain — add after launch)"}\nAustralia\n${c.industry||"(select closest match)"}`, link:"https://app.termly.io/dashboard/website/add-website", linkLabel:"Add website in Termly →", required:true },
-                  { key:"termly_privacy_wizard", label:"Generate the Privacy Policy", detail:`QUESTIONS\nDo you collect names/emails?\nDo you use analytics?\nDo you process payments?\nDo you use cookies?\nBusiness country?\nContact email?\nBusiness address?\nANSWERS\nYES (contact form)\n${hasGA4?"YES — select Google Analytics":"NO"}\n${hasShop?"YES — select Square":"NO"}\nYES (standard)\nAustralia\n${email||"(enter client email)"}\n${addr||"(enter client address)"}`, required:true },
-                  { key:"termly_privacy_embed", label:'Copy hosted URL → paste below', detail:'In Termly click "Embed" on the generated policy → copy the Hosted Policy URL (https://app.termly.io/document/privacy-policy/xxxx). Paste below.', required:true, linkInput:{ label:"Termly Privacy Policy URL", placeholder:"https://app.termly.io/document/privacy-policy/xxxx" } },
-                  { key:"termly_cookie_banner", label:"Enable the Cookie Banner in Termly", detail:'In Termly, go to Cookie Consent → Cookie Banner → toggle ON. This covers the Australian Privacy Act cookie disclosure requirement. The banner auto-loads via the Termly embed script — no extra code needed on the site.', required:true },
-                  { key:"termly_privacy_footer", label:"Update Privacy Policy footer link on site", detail:"In the client site footer, replace the auto-generated privacy page link with the Termly hosted URL. Redeploy via the Actions tab." },
+                  { key:"termly_account", label:"Sign up to Termly (free, one-time)", detail:"1. Click the link below\n2. Sign up with your WebGecko email\n3. Done — you only ever need one account", link:"https://app.termly.io/authentication/sign-up", linkLabel:"Sign up to Termly →", required:true },
+                  { key:"termly_add_site", label:`Add ${biz} as a website in Termly`, detail:`1. Click the link below\n2. Website name: ${biz}\n3. Website URL: ${siteUrl||"(client domain)"}\n4. Country: Australia\n5. Industry: ${c.industry||"(pick closest)"}\n6. Click Save`, link:"https://app.termly.io/dashboard/website/add-website", linkLabel:"Add website in Termly →", required:true },
+                  { key:"termly_privacy_wizard", label:"Generate the Privacy Policy", detail:`In Termly, click Generate Policy. Answer:\n• Collect names/emails? YES\n• Analytics? ${hasGA4?"YES":"NO"}\n• Payments? ${hasShop?"YES":"NO"}\n• Cookies? YES\n• Country: Australia\n• Email: ${email||"(client email)"}\n• Address: ${addr||"(client address)"}`, required:true },
+                  { key:"termly_privacy_embed", label:"Paste the Privacy Policy URL here", detail:`1. In Termly, click Embed on your policy\n2. Copy the Hosted Policy URL\n3. Paste it below`, required:true, linkInput:{ label:"Termly Privacy Policy URL", placeholder:"https://app.termly.io/document/privacy-policy/xxxx" } },
+                  { key:"termly_cookie_banner", label:"Turn on the Cookie Banner in Termly", detail:"1. In Termly go to Cookie Consent\n2. Click Cookie Banner\n3. Toggle ON\n\nDone. The banner auto-appears on the site.", required:true },
                 ],
               },
 
               {
-                title:`${n()}. Terms of Service — Free Privacy Policy (Free)`,
+                title:`${n()}. Terms of Service`,
                 color:T.purple,
                 icon:"📄",
                 items:[
-                  { key:"tos_generate", label:"Generate Terms of Service (no account needed)", detail:`QUESTIONS\nWebsite / company name?\nWebsite URL?\nGoverning country?\n${abn?"ABN?\n":""}Contact email?\nBusiness address?\nANSWERS\n${biz}\n${siteUrl||"(client domain)"}\nAustralia\n${abn?abn+"\n":""}${email||"(enter client email)"}\n${addr||"(enter client address)"}`, link:"https://www.freeprivacypolicy.com/free-terms-and-conditions-generator/", linkLabel:"Generate Terms →", required:true },
-                  { key:"tos_clauses", label:"Select applicable clauses", detail:`QUESTIONS\nContact / enquiry forms?\n${hasShop?"Online shop / payments?\n":""}${hasBooking?"Bookings or appointments?\n":""}User accounts?\nLimitation of liability?\nGoverning law?\nANSWERS\nYES\n${hasShop?"YES — Square payments\n":""}${hasBooking?"YES\n":""}NO\nYES\nAustralia`, required:true },
-                  { key:"tos_embed", label:"Copy hosted URL → paste below", detail:"After generating, copy the hosted URL from freeprivacypolicy.com. Paste below.", required:true, linkInput:{ label:"Terms of Service URL", placeholder:"https://www.freeprivacypolicy.com/live/xxxx" } },
-                  { key:"tos_footer", label:"Update Terms of Service footer link on site", detail:"In the client site footer, replace the auto-generated terms page link with the freeprivacypolicy.com hosted URL. Redeploy via the Actions tab." },
+                  { key:"tos_generate", label:"Generate Terms of Service (free, no account)", detail:`1. Click the link below\n2. Fill in:\n   • Company: ${biz}\n   • URL: ${siteUrl||"(client domain)"}\n   • Country: Australia\n   • ABN: ${abn||"(client ABN)"}\n   • Email: ${email||"(client email)"}\n3. Select: Contact forms YES${hasBooking?" · Bookings YES":""}${hasShop?" · Payments YES":""}\n4. Click Generate`, link:"https://www.freeprivacypolicy.com/free-terms-and-conditions-generator/", linkLabel:"Generate Terms →", required:true },
+                  { key:"tos_embed", label:"Paste the Terms URL here", detail:"1. After generating, copy the hosted URL\n2. Paste it below", required:true, linkInput:{ label:"Terms of Service URL", placeholder:"https://www.freeprivacypolicy.com/live/xxxx" } },
                 ],
               },
 
               {
-                title:`${n()}. Legal Compliance — AU Requirements`,
+                title:`${n()}. Legal Checks`,
                 color:T.amber,
                 icon:"⚖️",
                 items:[
-                  { key:"legal_abn", label:"Confirm ABN is displayed on the site", detail:`Australian law requires ABN to be visible on any business website that sells goods or services.\n\nClient ABN: ${abn||"(not provided — ask client)"}\n\nCheck the site footer — the pipeline auto-injects the copyright line which should include the ABN. If missing, add it manually to the footer before launch.`, required:true },
-                  { key:"legal_acl", label:"Confirm Australian Consumer Law disclaimer is present", detail:"The site Terms of Service (generated above) must include an ACL clause — this states that nothing in the terms overrides consumer rights under Australian Consumer Law. The freeprivacypolicy.com generator includes this automatically when you select Australia as governing law. Verify it's in the generated document.", required:true },
-                  { key:"legal_copyright", label:"Confirm copyright notice is in the footer", detail:`The site footer must include a copyright line. The pipeline auto-injects:\n© ${new Date().getFullYear()} ${biz}. All rights reserved.\n\nVerify this appears on the live site footer.`, required:true },
-                  { key:"legal_spam", label:(hasNewsletter||hasChat)?"Spam Act compliance — unsubscribe link required":"Spam Act — not applicable (no newsletter)", detail:(hasNewsletter||hasChat)?`The Australian Spam Act 2003 requires ALL marketing emails to include:\n• Clear identification of the sender (${biz})\n• A working unsubscribe link\n• The sender's physical address\n\nIf using a newsletter tool (Mailchimp, etc.), these are included by default. If sending manually, ensure every marketing email includes these three elements.`:"This client has no newsletter or marketing email feature selected — Spam Act compliance is not required." },
-                  { key:"legal_ssl", label:"Confirm SSL certificate is active (https://)", detail:"Any site collecting personal data (contact forms, bookings, payments) must use HTTPS. Vercel auto-issues SSL via Let's Encrypt when the domain is connected. Verify the site loads on https:// and shows a padlock in the browser. If not, check Vercel domain settings." , required:true },
+                  { key:"legal_abn", label:`ABN ${abn||"(not provided)"} visible in footer`, detail:`Open the live site. Scroll to the footer. You should see "ABN ${abn||"(ask client)"}" in the copyright line. The pipeline injects this automatically.`, required:true },
+                  { key:"legal_ssl", label:"Site loads on https:// with padlock", detail:"Open the live site URL. Check the browser address bar shows a padlock icon and https://. If missing, go to Vercel → Domains and check SSL status.", required:true },
+                  { key:"legal_copyright", label:"Copyright line in footer", detail:`Footer should show: © ${new Date().getFullYear()} ${biz}. All rights reserved.`, required:true },
+                  ...(hasNewsletter||hasChat ? [{ key:"legal_spam", label:"Every newsletter has unsubscribe link", detail:`Australian law requires every marketing email to include:\n• Sender name: ${biz}\n• Unsubscribe link (Beehiiv adds this automatically)\n• Business address: ${addr||"(add in checklist)"}` }] : []),
                 ],
               },
 
@@ -1668,10 +1664,11 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                 color:T.cyan,
                 icon:"🌐",
                 items:[
-                  { key:"domain_check", label:"Check if client already has a domain", detail:`Client submitted: "${domain||"(not provided — ask client)"}"\n\nIf they have one: get login details for their registrar (Crazy Domains, GoDaddy, VentraIP, etc.) and point DNS to the WebGecko servers.\n\nIf they don't have one: register it for them.`, required:true },
-                  { key:"domain_register", label:"Register the .com.au domain", detail:`Go to VentraIP (ventraip.com.au) — cheapest and most reliable for .com.au.\n\nRequired info:\n• Domain: ${domain||"(confirm with client)"}\n• ABN: ${abn||"(required for .com.au)"}\n• Registrant name: ${biz}\n• Registrant email: ${email}\n• Address: ${addr||"(enter client address)"}\n\nCost: ~$20/year. Bill to client or include in package.`, link:"https://ventraip.com.au", linkLabel:"Open VentraIP →" },
-                  { key:"domain_dns", label:"Point DNS to Vercel", detail:"In the domain registrar's DNS settings, add:\n• Type: A — Name: @ — Value: 76.76.21.21\n• Type: CNAME — Name: www — Value: cname.vercel-dns.com\n\nThen in the Vercel project, go to Settings → Domains → Add Domain → enter the domain. Vercel will verify and issue an SSL certificate automatically (takes 5–60 min).", required:true },
-                  { key:"domain_vercel", label:"Add domain in Vercel and verify SSL", detail:"In the WebGecko Vercel project for this client, go to:\nSettings → Domains → Add → enter the client domain.\n\nVercel will confirm DNS propagation and auto-issue an SSL certificate. Once live, update the site URL in this admin panel using the Integrations tab.", required:true },
+                  { key:"domain_check", label:`Client domain: ${domain||"(not provided — ask client)"}`, detail:`Client requested: ${domain||"(not provided)"}\n\nIf they already own it: get their registrar login (GoDaddy, Crazy Domains, VentraIP) and skip to DNS step.\nIf they need one: register it on VentraIP.`, required:true },
+                  { key:"domain_register", label:"Register the domain on VentraIP (~$20/yr)", detail:`1. Click the link below\n2. Search for: ${domain||"(client domain)"}\n3. At checkout:\n   • ABN: ${abn||"(required for .com.au)"}\n   • Name: ${biz}\n   • Email: ${email}\n   • Address: ${addr||"(client address)"}`, link:"https://ventraip.com.au", linkLabel:"Open VentraIP →" },
+                  { key:"domain_dns", label:"Point DNS to Vercel (2 records)", detail:"In the domain registrar DNS settings:\n\n1. Add A record:\n   Name: @\n   Value: 76.76.21.21\n\n2. Add CNAME record:\n   Name: www\n   Value: cname.vercel-dns.com\n\nSave. Takes 5-60 min to go live.", required:true },
+                  { key:"domain_vercel", label:"Add domain in Vercel", detail:"1. Go to vercel.com → your project → Settings → Domains\n2. Click Add\n3. Type the client domain\n4. Click Add\n5. Wait for green tick (SSL auto-issues)\n\nThen come back here → Integrations tab → update the Live URL field.", required:true },
+                  { key:"domain_gsc", label:"Add site to Google Search Console", detail:`1. Go to the link below\n2. Click Add Property → URL prefix\n3. Enter: ${siteUrl||"https://clientdomain.com.au"}\n4. Verify via HTML tag (add to site head, then rebuild)\n5. Submit sitemap: ${siteUrl||"https://clientdomain.com.au"}/sitemap.xml\n\nNote: Add the WebGecko service account email as Owner to enable auto-indexing.`, link:"https://search.google.com/search-console", linkLabel:"Open Search Console →" },
                 ],
               },
 
