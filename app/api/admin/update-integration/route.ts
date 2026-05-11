@@ -3,6 +3,7 @@
 
 import { NextRequest } from "next/server";
 import { getJob, saveJob } from "@/lib/db";
+import { requestGoogleIndexing } from "@/lib/blueprint";
 import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 
 export async function POST(req: NextRequest) {
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
   let body: any;
   try { body = await req.json(); } catch { return Response.json({ error: "Invalid JSON" }, { status: 400 }); }
 
-  const { jobId, squareAccessToken, squareLocationId, squareRefreshToken, squareMerchantId, ga4Id } = body;
+  const { jobId, squareAccessToken, squareLocationId, squareRefreshToken, squareMerchantId, ga4Id, liveUrl, tawktoPropertyId } = body;
 
   if (!jobId) return Response.json({ error: "jobId required" }, { status: 400 });
 
@@ -26,12 +27,19 @@ export async function POST(req: NextRequest) {
   if (squareRefreshToken !== undefined) updates.squareRefreshToken = squareRefreshToken;
   if (squareMerchantId !== undefined) updates.squareMerchantId = squareMerchantId;
   if (ga4Id !== undefined) updates.ga4Id = ga4Id;
+  if (tawktoPropertyId !== undefined) updates.tawktoPropertyId = tawktoPropertyId;
+  if (liveUrl !== undefined) updates.liveUrl = liveUrl;
 
   if (!Object.keys(updates).length) {
     return Response.json({ error: "No fields to update" }, { status: 400 });
   }
 
   await saveJob(jobId, { ...job, ...updates });
+
+  // When a custom domain is saved, auto-submit to Google Indexing API (non-fatal)
+  if (liveUrl && !liveUrl.includes("vercel.app")) {
+    requestGoogleIndexing(liveUrl).catch(() => {});
+  }
 
   return Response.json({ ok: true, updated: Object.keys(updates) });
 }

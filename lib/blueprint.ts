@@ -593,12 +593,68 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
 // Pings Google to index a URL immediately after deploy.
 // Requires GOOGLE_INDEXING_SA_KEY env var = base64-encoded service account JSON
 // with the Indexing API enabled and the site verified in Search Console.
-// Non-fatal — a failure here never blocks the deploy.
+// Non-fatal -- a failure here never blocks the deploy.
+
+async function getGoogleAccessToken(saKeyB64: string): Promise<string> {
+  const sa = JSON.parse(Buffer.from(saKeyB64, "base64").toString("utf-8"));
+  const now = Math.floor(Date.now() / 1000);
+  const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({
+    iss: sa.client_email,
+    scope: "https://www.googleapis.com/auth/indexing",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600,
+  })).toString("base64url");
+
+  const { createSign } = await import("crypto");
+  const sign = createSign("RSA-SHA256");
+  sign.update(`${header}.${payload}`);
+  const sig = sign.sign(sa.private_key, "base64url");
+  const jwt = `${header}.${payload}.${sig}`;
+
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
+    }),
+  });
+  const data = await res.json() as { access_token?: string; error?: string };
+  if (!data.access_token) throw new Error(`Google OAuth failed: ${data.error}`);
+  return data.access_token;
+}
 
 export async function requestGoogleIndexing(url: string): Promise<void> {
   const saKeyB64 = process.env.GOOGLE_INDEXING_SA_KEY;
   if (!saKeyB64) {
-    console.log("[Indexing] GOOGLE_INDEXING_SA_KEY not set — skipping");
+    console.log("[Indexing] GOOGLE_INDEXING_SA_KEY not set -- skipping");
     return;
+  }
+  if (url.includes("vercel.app")) {
+    console.log("[Indexing] Skipping vercel.app URL -- only indexing custom domains");
+    return;
+  }
+  try {
+    const token = await getGoogleAccessToken(saKeyB64);
+    const res = await fetch("https://indexing.googleapis.com/v3/urlNotifications:publish", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ url, type: "URL_UPDATED" }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data));
+    console.log(`[Indexing] Submitted ${url} to Google:`, data);
+
+    const sitemapUrl = `${url.replace(/\/$/, "")}/sitemap.xml`;
+    await fetch("https://indexing.googleapis.com/v3/urlNotifications:publish", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ url: sitemapUrl, type: "URL_UPDATED" }),
+    });
+    console.log(`[Indexing] Sitemap submitted: ${sitemapUrl}`);
+  } catch (err: any) {
+    console.error("[Indexing] Failed (non-fatal):", err?.message || err);
   }
 }
