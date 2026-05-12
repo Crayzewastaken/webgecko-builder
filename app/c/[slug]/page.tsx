@@ -58,6 +58,7 @@ let C = LIGHT;
 interface ClientMetadata {
   name?: string;
   abn?: string;
+  ga4Id?: string;
   goal?: string;
   targetAudience?: string;
   siteType?: string;
@@ -113,6 +114,7 @@ interface ClientData {
   shopPaymentUrl?: string | null;
   name?: string;
   abn?: string;
+  ga4Id?: string;
   goal?: string;
   targetAudience?: string;
   siteType?: string;
