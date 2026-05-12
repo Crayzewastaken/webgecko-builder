@@ -32,9 +32,9 @@ async function deployToVercel(html: string, projectName: string): Promise<string
     }),
   });
   if (!resp.ok) throw new Error(`Vercel deploy failed: ${await resp.text()}`);
-  const data = await resp.json();
-  // Use unique per-deployment URL for immediate preview (stable alias takes 30-60s to propagate)
-  return data.url ? `https://${data.url}` : `https://${safeName}.vercel.app`;
+  await resp.json(); // consume response body
+  // Always return stable alias — unique hash URLs go stale. Stable alias updates within ~10s.
+  return `https://${safeName}.vercel.app`;
 }
 
 export async function GET(req: NextRequest) {

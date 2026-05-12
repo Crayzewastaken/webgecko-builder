@@ -1,13 +1,31 @@
 // app/api/preview/proxy/route.ts
-// Serves stored site HTML directly — bypasses X-Frame-Options on Vercel deployments.
+// Serves stored site HTML for the admin preview iframe.
+// Auth: admin session cookie OR client session cookie (slug must match).
+// A one-time _wg nonce param is accepted for the initial iframe load from the admin.
 import { NextRequest } from "next/server";
 import { getJob, getClient } from "@/lib/db";
+import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const jobId = searchParams.get("jobId");
   const slug = searchParams.get("slug");
   if (!jobId && !slug) return new Response("Missing params", { status: 400 });
+
+  // Auth: must be admin session, OR client cookie matches slug
+  const isAdmin = isAdminAuthedLegacy(req);
+  if (!isAdmin) {
+    // Allow client to view their own preview via slug + session cookie
+    if (slug) {
+      const sessionSlug = req.cookies.get("wg_client_slug")?.value;
+      if (!sessionSlug || sessionSlug !== slug) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+    } else {
+      // jobId access requires admin
+      return new Response("Unauthorized", { status: 401 });
+    }
+  }
 
   let html = "";
   if (jobId) {
@@ -26,7 +44,6 @@ export async function GET(req: NextRequest) {
   return new Response(html, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      // allow-same-origin lets anchor scroll + JS work inside the preview iframe
       "Content-Security-Policy": [
         "sandbox allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin",
         "default-src 'self' https: data: blob:",

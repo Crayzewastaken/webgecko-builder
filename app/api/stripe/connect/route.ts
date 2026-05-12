@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getJob, saveJob } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
+import { generateStripeState } from "@/app/api/stripe/callback/route";
 
 export const runtime = "nodejs";
 
@@ -48,10 +49,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Include CSRF state token in return URL so callback can verify it
+    const state = generateStripeState(jobId);
+
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
       refresh_url: `${appUrl}/api/stripe/connect?jobId=${jobId}`,
-      return_url: `${appUrl}/api/stripe/callback?jobId=${jobId}&accountId=${accountId}`,
+      return_url: `${appUrl}/api/stripe/callback?jobId=${jobId}&accountId=${accountId}&state=${state}`,
       type: "account_onboarding",
     });
 

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClient, getJob } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 
-// ── Password hashing helpers ─────────────────────────────────────────────────
+// ── Password hashing helpers ──────────────────────────────────────────────────
 // Uses Node crypto scrypt — no extra dependency.
 const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1 };
 const KEY_LEN = 64;
@@ -131,26 +131,69 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// PATCH - update client settings from the portal (e.g. shop payment URL)
+// PATCH - update client settings from the portal
+// Allowed fields: shopPaymentUrl, abn, businessAddress, preferredDomain
 export async function PATCH(req: NextRequest) {
   try {
     const sessionSlug = req.cookies.get("wg_client_slug")?.value;
     const body = await req.json();
-    const { slug, shopPaymentUrl } = body;
+
+    // Support both body.slug and x-client-slug header (pre-payment form sends header)
+    const slug = body.slug || req.headers.get("x-client-slug") || "";
+    const jobIdHeader = req.headers.get("x-job-id") || "";
 
     if (!slug || !sessionSlug || sessionSlug !== slug) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    const { shopPaymentUrl, abn, businessAddress, preferredDomain } = body;
+    const clientUpdates: Record<string, any> = {};
+    const jobUpdates: Record<string, any> = {};
+
+    // Shop payment URL — validate format
     if (shopPaymentUrl !== undefined) {
       if (shopPaymentUrl && !/^https?:\/\/.{4,}/.test(shopPaymentUrl)) {
         return NextResponse.json({ error: "Invalid payment URL" }, { status: 400 });
       }
-      const { error } = await supabase
-        .from("clients")
-        .update({ shop_payment_url: shopPaymentUrl || null })
-        .eq("slug", slug);
+      clientUpdates.shop_payment_url = shopPaymentUrl || null;
+    }
+
+    // Pre-payment business details — sanitise and store
+    if (abn !== undefined) {
+      const cleanAbn = String(abn).replace(/[^0-9 ]/g, "").trim().slice(0, 20);
+      clientUpdates.abn = cleanAbn;
+      jobUpdates.abn = cleanAbn;
+    }
+    if (businessAddress !== undefined) {
+      const cleanAddr = String(businessAddress).slice(0, 300).trim();
+      clientUpdates.business_address = cleanAddr;
+      jobUpdates.businessAddress = cleanAddr;
+    }
+    if (preferredDomain !== undefined) {
+      // Basic domain format check
+      const cleanDomain = String(preferredDomain).toLowerCase().replace(/^https?:\/\//, "").trim().slice(0, 253);
+      clientUpdates.preferred_domain = cleanDomain;
+      jobUpdates.preferredDomain = cleanDomain;
+    }
+
+    if (Object.keys(clientUpdates).length === 0 && Object.keys(jobUpdates).length === 0) {
+      return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+    }
+
+    // Update clients table
+    if (Object.keys(clientUpdates).length > 0) {
+      const { error } = await supabase.from("clients").update(clientUpdates).eq("slug", slug);
       if (error) throw new Error(error.message);
+    }
+
+    // Update job user_input for abn/address/domain (merge into existing)
+    if (Object.keys(jobUpdates).length > 0) {
+      const jobId = jobIdHeader || (await supabase.from("clients").select("job_id").eq("slug", slug).single()).data?.job_id;
+      if (jobId) {
+        const { data: jobRow } = await supabase.from("jobs").select("user_input").eq("id", jobId).single();
+        const existing = jobRow?.user_input || {};
+        await supabase.from("jobs").update({ user_input: { ...existing, ...jobUpdates } }).eq("id", jobId);
+      }
     }
 
     return NextResponse.json({ ok: true });

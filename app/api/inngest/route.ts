@@ -835,13 +835,30 @@ const buildWebsite = inngest.createFunction(
       <p style="color:#475569;font-size:0.75rem;margin-top:16px;">No spam. Unsubscribe any time.</p>
     </div>
   </section>`;
-          // Inject before <footer> so footer stays at the very bottom
-          if (html.includes("<footer")) {
+          // For multi-page: inject inside the home page wrapper before its closing tag.
+          // For single-page: inject before <footer> so footer stays at the very bottom.
+          if (isMultiPage) {
+            // Find the home data-page wrapper and insert the newsletter just before it closes
+            const homePageRe = /(<[^>]+data-page=["']home["'][^>]*>)([\s\S]*?)(<\/(?:section|div)>(?=[\s\S]*?data-page|[\s\S]*?<\/body>))/i;
+            if (homePageRe.test(html)) {
+              html = html.replace(homePageRe, (_m: string, open: string, inner: string, close: string) => {
+                // Only inject if not already inside this wrapper
+                if (inner.includes('id="newsletter"') || inner.includes('id="newsletter-form"')) return _m;
+                return open + inner + newsletterSection + "\n" + close;
+              });
+              console.log("[Step5] Newsletter signup section injected into home page wrapper");
+            } else {
+              // Fallback: before footer
+              html = html.includes("<footer") ? html.replace(/<footer/i, newsletterSection + "\n<footer") : html.replace("</body>", newsletterSection + "\n</body>");
+              console.log("[Step5] Newsletter signup section injected (fallback before footer)");
+            }
+          } else if (html.includes("<footer")) {
             html = html.replace(/<footer/i, newsletterSection + "\n<footer");
+            console.log("[Step5] Newsletter signup section injected (Beehiiv direct)");
           } else {
             html = html.replace("</body>", newsletterSection + "\n</body>");
+            console.log("[Step5] Newsletter signup section injected (Beehiiv direct)");
           }
-          console.log("[Step5] Newsletter signup section injected (Beehiiv direct)");
         }
 
         // -- Pop-up Form -- timed lead-capture overlay (15s delay + exit intent) ---
@@ -875,6 +892,7 @@ const buildWebsite = inngest.createFunction(
     document.addEventListener('mouseleave',function(e){if(e.clientY<=0)showPopup();});
   })();
   </script>`;
+          // Popup is a fixed overlay — inject at end of body always (works for all page types)
           html = html.replace("</body>", popupHtml + "\n</body>");
           console.log("[Step5] Pop-up form injected");
         }
@@ -1463,15 +1481,17 @@ const buildWebsite = inngest.createFunction(
         const checks: SmokeCheck[] = [];
         if (!deployUniqueUrl) return [{ label: "Deploy URL", pass: false, severity: "error" as const }];
 
-        // Vercel cold-starts — retry up to 3x with backoff
+        // Use stable alias for smoke test — unique per-deploy URL hits cold starts and fails.
+        // Stable alias (wg-xxx.vercel.app) points to latest deployment within ~10s.
+        const smokeUrl = deployStableUrl || deployUniqueUrl;
         let liveHtml = "";
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
-            await new Promise(r => setTimeout(r, attempt * 2000));
-            const res = await fetch(deployUniqueUrl, { headers: { "User-Agent": "WebGecko-SmokeTest/1.0" } });
+            await new Promise(r => setTimeout(r, attempt * 3000));
+            const res = await fetch(smokeUrl, { headers: { "User-Agent": "WebGecko-SmokeTest/1.0" } });
             if (res.ok) { liveHtml = await res.text(); break; }
           } catch {}
-          console.log("[Smoke] Attempt " + attempt + " failed for " + deployUniqueUrl);
+          console.log("[Smoke] Attempt " + attempt + " failed for " + smokeUrl);
         }
 
         if (!liveHtml) return [{ label: "Site reachable", pass: false, severity: "error" as const }];

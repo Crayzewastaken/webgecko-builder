@@ -20,8 +20,9 @@ async function deployToVercel(html: string, projectName: string): Promise<string
   });
   if (!resp.ok) throw new Error(`Vercel deploy failed: ${await resp.text()}`);
   const data = await resp.json().catch(() => ({}));
-  const uniqueUrl = data?.url ? `https://${data.url}` : null;
-  return uniqueUrl || `https://${safeName}.vercel.app`;
+  // Always return the stable alias — the unique per-deployment URL goes stale.
+  // The stable alias auto-updates to point to the latest deployment within ~10s.
+  return `https://${safeName}.vercel.app`;
 }
 
 export async function POST(req: NextRequest) {
