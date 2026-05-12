@@ -402,10 +402,7 @@ export default function HomePage() {
       if (!name.trim()) errs.push("Full name is required");
       if (!email.trim() || !email.includes('@')) errs.push("A valid email address is required");
       if (!phone.trim() || phone.replace(/\D/g, '').length < 8) errs.push("A valid phone number is required");
-      if (!businessAddress.trim()) errs.push("Business address is required");
-      if (!abn.trim()) errs.push("ABN is required");
       if (abn.trim() && abn.replace(/\s/g, '').length !== 11) errs.push("ABN must be 11 digits");
-      if (!domain.trim()) errs.push("Preferred domain name is required");
       if (!turnstileToken) errs.push("Please wait for the security check to complete");
     }
     return errs;
@@ -950,7 +947,7 @@ export default function HomePage() {
                   <div className="space-y-3 p-4 rounded-xl border border-white/8 bg-[#111827]">
                     <div>
                       <p className="text-white font-semibold text-sm mb-1">⭐ Customer Testimonials</p>
-                      <p className="text-slate-500 text-xs leading-relaxed">Paste real reviews - we'll use these instead of AI-generated ones. Leave blank and we'll create realistic placeholders.</p>
+                      <p className="text-slate-500 text-xs leading-relaxed">Paste real reviews and we'll use them on your site. Leave blank and we'll write them for you.</p>
                     </div>
                     <TextAreaField icon="💬" label="Customer reviews (optional)" value={realTestimonials} onChange={(e: any) => setRealTestimonials(e.target.value)} placeholder={`"Amazing service, would highly recommend!" - Sarah M., Brisbane\n"Best in the business, 5 stars!" - John T., Gold Coast`} rows={4} />
                   </div>
@@ -960,7 +957,7 @@ export default function HomePage() {
                   <div className="space-y-3 p-4 rounded-xl border border-white/8 bg-[#111827]">
                     <div>
                       <p className="text-white font-semibold text-sm mb-1">📰 Blog Topics</p>
-                      <p className="text-slate-500 text-xs leading-relaxed">Give us a few topics and we'll create preview blog cards. Leave blank for AI-generated industry topics.</p>
+                      <p className="text-slate-500 text-xs leading-relaxed">Give us a few topics and we'll create preview blog cards. Leave blank and we'll come up with relevant topics for your industry.</p>
                     </div>
                     <InputField icon="✍️" label="Blog topics (optional)" value={blogTopics} onChange={(e: any) => setBlogTopics(e.target.value)} placeholder="e.g. Tips for saving water, 5 signs your pipes need fixing, DIY vs calling a plumber" hint="Comma-separated list of topics or post ideas." />
                   </div>
@@ -1017,10 +1014,10 @@ export default function HomePage() {
                   <InputField icon="👤" label="Full Name" value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Your full name" required />
                   <InputField icon="📧" label="Email Address" value={email} onChange={(e: any) => setEmail(e.target.value)} placeholder="your@email.com.au" required type="email" />
                   <InputField icon="📱" label="Phone Number" value={phone} onChange={(e: any) => { const digits = e.target.value.replace(/\D/g, "").slice(0, 10); setPhone(digits); }} placeholder="0412345678" required type="tel" inputMode="numeric" maxLength={10} />
-                  <InputField icon="🔢" label="ABN" value={abn} onChange={(e: any) => setAbn(e.target.value)} placeholder="12 345 678 901" required hint="Required to register your .com.au domain." />
-                  <InputField icon="🌐" label="Preferred Domain Name" value={domain} onChange={(e: any) => setDomain(e.target.value)} placeholder="e.g. mysalonbrisbane.com.au" required hint="Already have one? Enter it here. Don't have one? We'll register it for you." />
-                  <InputField icon="📍" label="Business Address" value={businessAddress} onChange={(e: any) => setBusinessAddress(e.target.value)} placeholder="e.g. 123 Main St, Brisbane QLD 4000" required hint="Used to embed a Google Map so customers can find you." />
-                  <InputField icon="📊" label="Google Analytics ID (optional)" value={ga4Id} onChange={(e: any) => setGa4Id(e.target.value)} placeholder="G-XXXXXXXXXX" hint="If you have a GA4 property, we'll wire it into your site automatically." />
+                  <InputField icon="🔢" label="ABN (optional)" value={abn} onChange={(e: any) => setAbn(e.target.value)} placeholder="12 345 678 901" hint="You can add this later in your client dashboard. Required before we register your domain." />
+                  <InputField icon="🌐" label="Preferred Domain Name (optional)" value={domain} onChange={(e: any) => setDomain(e.target.value)} placeholder="e.g. mysalonbrisbane.com.au" hint="Already have one? Enter it here. Don't have one? No worries — you can add this in your dashboard after signing up." />
+                  <InputField icon="📍" label="Business Address (optional)" value={businessAddress} onChange={(e: any) => setBusinessAddress(e.target.value)} placeholder="e.g. 123 Main St, Brisbane QLD 4000" hint="Used to embed a Google Map. You can add this later in your dashboard." />
+                  <InputField icon="📊" label="Google Analytics ID (optional)" value={ga4Id} onChange={(e: any) => setGa4Id(e.target.value)} placeholder="G-XXXXXXXXXX" hint="Don't have one yet? No problem — you can add this anytime from your client dashboard." />
                 </div>
 
                 <div className="pt-1">

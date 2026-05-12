@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
 }
 
 // PATCH - update client settings from the portal
-// Allowed fields: shopPaymentUrl, abn, businessAddress, preferredDomain
+// Allowed fields: shopPaymentUrl, abn, businessAddress, preferredDomain, ga4Id
 export async function PATCH(req: NextRequest) {
   try {
     const sessionSlug = req.cookies.get("wg_client_slug")?.value;
@@ -146,7 +146,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { shopPaymentUrl, abn, businessAddress, preferredDomain } = body;
+    const { shopPaymentUrl, abn, businessAddress, preferredDomain, ga4Id } = body;
     const clientUpdates: Record<string, any> = {};
     const jobUpdates: Record<string, any> = {};
 
@@ -174,6 +174,11 @@ export async function PATCH(req: NextRequest) {
       const cleanDomain = String(preferredDomain).toLowerCase().replace(/^https?:\/\//, "").trim().slice(0, 253);
       clientUpdates.preferred_domain = cleanDomain;
       jobUpdates.preferredDomain = cleanDomain;
+    }
+    if (ga4Id !== undefined) {
+      const cleanGa4 = String(ga4Id).trim().slice(0, 20);
+      clientUpdates.ga4_id = cleanGa4 || null;
+      jobUpdates.ga4Id = cleanGa4;
     }
 
     if (Object.keys(clientUpdates).length === 0 && Object.keys(jobUpdates).length === 0) {

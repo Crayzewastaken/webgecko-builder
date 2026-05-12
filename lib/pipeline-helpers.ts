@@ -243,7 +243,7 @@ export function checkAndFixLinks(html: string, pages: string[]): { html: string;
       about: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:16px;">About Us</h2><p style="color:#94a3b8;font-size:1.1rem;line-height:1.8;">We are a dedicated team committed to delivering exceptional results for our clients. With years of experience in the industry, we pride ourselves on quality, reliability, and customer satisfaction.</p></div></div>`,
       services: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:none;padding:80px 24px;background:#0a0f1a;"><div style="max-width:900px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Our Services</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:24px;"><div style="background:#1e293b;border-radius:12px;padding:28px;"><h3 style="color:#10b981;margin-bottom:8px;">Professional Service</h3><p style="color:#94a3b8;">High quality results delivered on time and on budget.</p></div></div></div></div>`,
       pricing: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Pricing</h2><p style="color:#94a3b8;">Contact us for a custom quote tailored to your needs.</p></div></div>`,
-      gallery: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:none;padding:80px 24px;background:#0a0f1a;"><div style="max-width:1000px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Gallery</h2><p style="color:#94a3b8;">Our portfolio of recent work.</p></div></div>`,
+      gallery: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:none;padding:80px 24px;background:#0a0f1a;"><div style="max-width:1100px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:16px;">Our Work</h2><p style="color:#94a3b8;margin-bottom:40px;">A selection of recent projects and completed work. Contact us to discuss your project and see more examples.</p><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px;">${[1,2,3,4,5,6].map(i=>`<div style="border-radius:12px;overflow:hidden;aspect-ratio:4/3;background:#1e293b;"><img src="https://placehold.co/400x300/1e293b/94a3b8?text=Project+${i}" alt="Project ${i}" style="width:100%;height:100%;object-fit:cover;"/></div>`).join("")}</div></div></div>`,
     };
 
     const templateKey = Object.keys(sectionTemplates).find(k => new RegExp(k, "i").test(pageId));
@@ -379,13 +379,20 @@ export function validateForDeploy(
     if (activeCount === 0) failures.push("No data-page wrapper has class 'active'");
     if (activeCount > 1)   failures.push(`Multiple data-page wrappers (${activeCount}) have class 'active'`);
 
-    // 5. No requested page wrapper should be empty/tiny (< 300 stripped chars)
+    // 5. No requested page wrapper should be empty/tiny
+    // Visual pages (gallery, portfolio, team) are image-heavy — use raw HTML length, not stripped text
+    const visualPages = new Set(["gallery", "portfolio", "our-work", "team"]);
     for (const id of requestedPageIds) {
-      const wrapperRe = new RegExp(`data-page=["']${id}["'][\\s\\S]{0,5000}`, "i");
+      const wrapperRe = new RegExp(`data-page=["']${id}["'][\\s\\S]{0,8000}`, "i");
       const wm = wrapperRe.exec(html);
       if (wm) {
-        const textContent = wm[0].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-        if (textContent.length < 300) failures.push(`data-page="${id}" appears empty or very thin (${textContent.length} visible chars)`);
+        if (visualPages.has(id)) {
+          // For visual pages: raw HTML must be > 500 chars (one image tag is ~80 chars)
+          if (wm[0].length < 500) failures.push(`data-page="${id}" appears empty or very thin (${wm[0].length} raw chars)`);
+        } else {
+          const textContent = wm[0].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+          if (textContent.length < 300) failures.push(`data-page="${id}" appears empty or very thin (${textContent.length} visible chars)`);
+        }
       }
     }
 
@@ -583,12 +590,14 @@ const FALLBACK_PAGE_CONTENT: Record<string, (businessName: string, accentColor: 
         <div style="background:#1e293b;border-radius:16px;padding:36px;border:1px solid #334155;"><h3 style="color:#f1f5f9;font-weight:700;margin-bottom:8px;">Enterprise</h3><div style="color:${ac};font-size:2.5rem;font-weight:900;margin-bottom:16px;">Custom</div><p style="color:#94a3b8;">Tailored solutions for larger organisations.</p></div>
       </div>
     </div></div>`,
-  gallery: (_biz, _ac) => `
+  gallery: (biz, ac) => `
     <div style="padding:80px 24px;background:#0f172a;"><div style="max-width:1100px;margin:0 auto;">
-      <h2 style="color:#f1f5f9;font-size:2.5rem;font-weight:900;text-align:center;margin-bottom:48px;">Our Gallery</h2>
+      <h2 style="color:#f1f5f9;font-size:2.5rem;font-weight:900;text-align:center;margin-bottom:16px;">Our Work</h2>
+      <p style="color:#94a3b8;text-align:center;font-size:1.1rem;margin-bottom:48px;">A selection of recent projects from ${biz}. More photos coming soon.</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;">
-        ${[1,2,3,4,5,6].map(i => `<div style="border-radius:12px;overflow:hidden;aspect-ratio:4/3;"><img src="https://placehold.co/400x300/1e293b/94a3b8?text=Photo+${i}" alt="Gallery image ${i}" style="width:100%;height:100%;object-fit:cover;"/></div>`).join("")}
+        ${[1,2,3,4,5,6].map(i => `<div style="border-radius:12px;overflow:hidden;aspect-ratio:4/3;background:#1e293b;display:flex;align-items:center;justify-content:center;"><img src="https://placehold.co/400x300/1e293b/94a3b8?text=Project+${i}" alt="Project photo ${i}" style="width:100%;height:100%;object-fit:cover;"/></div>`).join("")}
       </div>
+      <p style="color:#64748b;text-align:center;font-size:0.9rem;margin-top:40px;">Contact us to discuss your project and see more examples of our work.</p>
     </div></div>`,
 };
 
