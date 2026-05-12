@@ -391,8 +391,7 @@ function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:
 
 // ── Client slide-over panel ────────────────────────────────────────────────────
 function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:string; onClose:()=>void; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
-  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"content"|"payments"|"actions"|"requests"|"checklist"|"todo">("perf");
-  const [todoCompleted, setTodoCompleted] = useState<Set<string>>(()=>{try{const s=localStorage.getItem("wg_todo_done_"+c.jobId);return s?new Set(JSON.parse(s)):new Set();}catch{return new Set();}});
+  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"content"|"payments"|"actions"|"requests"|"checklist">("perf");
   const [checklistDone, setChecklistDone] = useState<Record<string,boolean>>({});
   const [checklistLinks, setChecklistLinks] = useState<Record<string,string>>({});
   useEffect(()=>{
@@ -499,7 +498,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   }
 
   const pending = featureRequests.filter(r=>r.status==="pending"||r.status==="draft").length;
-  const tabs = ["perf","engagement","seo","site","assets","integrations","content","payments","actions","requests","checklist","todo"] as const;
+  const tabs = ["perf","engagement","seo","site","assets","integrations","content","payments","actions","requests","checklist"] as const;
 
   // ── Content helpers ────────────────────────────────────────────────────────
   async function loadContent() {
@@ -677,7 +676,6 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
           {tabBtn("actions","Actions")}
           {tabBtn("requests",`Requests${pending>0?" ("+pending+")":""}`)}
           {tabBtn("checklist","✅ Checklist")}
-          {tabBtn("todo","☰ To-Do")}
         </div>
 
         {/* Tab content */}
@@ -1623,7 +1621,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
             const _termlyTosUrl = `https://app.termly.io/dashboard/website/add-website`; // unused — Terms moved to freeprivacypolicy.com
 
             type CheckItem = { key:string; label:string; detail:string; link?:string; linkLabel?:string; linkInput?:{placeholder:string;label:string}; required?:boolean };
-            type Section = { title:string; color:string; icon:string; items:CheckItem[] };
+            type Section = { title:string; color:string; icon:string; items:CheckItem[]; postLaunch?:boolean };
 
             // Dynamic section numbering
             let secNum = 0;
@@ -1736,16 +1734,37 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               }] : []),
 
               {
-                title:`${n()}. Go-Live Checklist`,
+                title:`${n()}. Pre-Launch Checks`,
                 color:T.green,
                 icon:"🚀",
                 items:[
                   { key:"golive_preview", label:"Review the preview site end to end", detail:"Click every nav link, submit the contact form (check it sends to the client email), test on mobile by resizing browser. Check all images load, all text is correct, no placeholder content remains.", required:true },
                   { key:"golive_policies", label:"Confirm Privacy Policy and Terms pages work", detail:"Click the Privacy Policy and Terms of Service links in the footer. Both pages should load. If using Termly hosted URLs, confirm those links open the correct Termly documents.", required:true },
-                  { key:"golive_speed", label:"Run a PageSpeed test", detail:"Go to pagespeed.web.dev, enter the preview URL. Aim for 80+ on mobile. Flag anything under 60 to fix before launch.", link:"https://pagespeed.web.dev", linkLabel:"Open PageSpeed →" },
-                  { key:"golive_search_console", label:"Add site to Google Search Console", detail:`Go to search.google.com/search-console → Add Property → URL prefix → enter ${siteUrl||"(client domain after launch)"}.\n\nVerify ownership via HTML tag method — add the meta tag to the site <head>, then redeploy.\n\nOnce verified, submit the sitemap: ${siteUrl||"https://clientdomain.com.au"}/sitemap.xml`, link:"https://search.google.com/search-console", linkLabel:"Open Search Console →" },
-                  { key:"golive_email_client", label:"Send go-live email to client", detail:`Email ${email} with:\n• Link to their live site\n• Login details for any platforms (Stripe, SuperSaas, GA4)\n• Link to their Termly policies\n• Instructions for updating content via the client portal\n• Your support contact details`, required:true },
-                  { key:"golive_handoff", label:"Mark job as complete in admin", detail:"Update payment status, confirm domain is live, tick off this checklist. Archive the job notes.", required:true },
+                  { key:"golive_speed", label:"Run a PageSpeed test", detail:"Go to pagespeed.web.dev, enter the preview URL. Aim for 80+ on mobile. Flag anything under 60 to fix before launch.", link:"https://pagespeed.web.dev", linkLabel:"Open PageSpeed →", required:true },
+                  { key:"golive_search_console", label:"Add site to Google Search Console", detail:`Go to search.google.com/search-console → Add Property → URL prefix → enter ${siteUrl||"(client domain after launch)"}.
+
+Verify ownership via HTML tag method — add the meta tag to the site <head>, then redeploy.
+
+Once verified, submit the sitemap: ${siteUrl||"https://clientdomain.com.au"}/sitemap.xml`, link:"https://search.google.com/search-console", linkLabel:"Open Search Console →", required:true },
+                ],
+              },
+
+              {
+                title:`${n()}. Post-Launch`,
+                color:"#a78bfa",
+                icon:"🎉",
+                postLaunch:true,
+                items:[
+                  { key:"golive_email_client", label:"Send go-live email to client", detail:`Email ${email} with:
+• Link to their live site
+• Login details for any platforms (Stripe, SuperSaas, GA4)
+• Link to their Termly policies
+• Instructions for updating content via the client portal
+• Your support contact details` },
+                  { key:"golive_handoff", label:"Mark job as complete in admin", detail:"Update payment status, confirm domain is live, tick off this checklist. Archive the job notes." },
+                  { key:"post_monthly", label:"Confirm monthly subscription is active", detail:"Check that the client's ongoing monthly payment is set up in Stripe. Go to Payments tab → confirm Monthly Active is green." },
+                  { key:"post_monitor", label:"Monitor site performance for first 7 days", detail:"Check GA4 daily for the first week. Look for any drop-offs or errors. Run a Lighthouse test on the live domain. Confirm Google Search Console has no crawl errors." },
+                  { key:"post_review", label:"Request a Google review from the client", detail:"After handoff, send the client a friendly message asking them to leave a Google review for WebGecko. Happy clients at this point rarely say no." },
                 ],
               },
             ];
@@ -1753,6 +1772,22 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
             const totalItems = sections.flatMap(s=>s.items).length;
             const doneCount = sections.flatMap(s=>s.items).filter(i=>checklistDone[i.key]).length;
             const pct = Math.round((doneCount/totalItems)*100);
+
+            // Pre-launch = all sections except "Go-Live Checklist" post-launch items
+            // The Go-Live section itself is still pre-launch; after it's done = ready to ship
+            const preLaunchSections = sections.filter(s=>!s.postLaunch);
+            const preLaunchRequired = preLaunchSections.flatMap(s=>s.items).filter(i=>i.required);
+            const allRequiredDone = preLaunchRequired.length>0 && preLaunchRequired.every(i=>!!checklistDone[i.key]);
+            const alreadyReleased = !!c.metadata?.alreadyReleased;
+
+            function markSectionComplete(section: Section){
+              const completable = section.items.filter(i=>!(i.linkInput&&!checklistLinks[i.key]));
+              const keys = completable.map(i=>i.key);
+              const next={...checklistDone};
+              keys.forEach(k=>{next[k]=true;});
+              try{localStorage.setItem("wg_checklist_"+jid,JSON.stringify(next));}catch{}
+              setChecklistDone(next);
+            }
 
             return (
               <div>
@@ -1768,11 +1803,71 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                   {pct===100&&<div style={{marginTop:8,fontSize:12,color:T.green,fontWeight:600}}>✓ All steps complete — ready to hand off!</div>}
                 </div>
 
-                {sections.map(section=>(
-                  <div key={section.title} style={{marginBottom:28}}>
+                {/* 🚀 Final Submit — Go Live CTA (appears only when all required pre-launch items done) */}
+                {allRequiredDone&&!alreadyReleased&&(
+                  <div style={{marginBottom:28,padding:"24px 28px",background:`linear-gradient(135deg,${T.green}18,${T.green}08)`,border:`2px solid ${T.green}`,borderRadius:16,textAlign:"center" as const}}>
+                    <div style={{fontSize:24,marginBottom:8}}>🚀</div>
+                    <div style={{fontSize:16,fontWeight:800,color:T.green,marginBottom:6}}>All pre-launch steps complete!</div>
+                    <div style={{fontSize:13,color:T.textSec,marginBottom:20}}>Every required item is checked off. This site is ready to go live.</div>
+                    <button
+                      onClick={()=>{
+                        if(!confirm(`Push ${c.businessName} live? This will release the site to the client and cannot be undone.`))return;
+                        api(`/api/unlock/release?jobId=${jid}&secret=${sec}`)
+                          .then(()=>toast("Site released to client! 🚀","ok"))
+                          .catch((e:any)=>toast(e.message,"err"));
+                      }}
+                      style={{fontSize:16,fontWeight:800,color:"#000",background:T.green,border:"none",borderRadius:12,padding:"16px 48px",cursor:"pointer",letterSpacing:"0.02em",boxShadow:`0 4px 24px ${T.green}60`,transition:"transform 0.15s ease,box-shadow 0.15s ease"}}
+                      onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.transform="scale(1.03)";(e.currentTarget as HTMLElement).style.boxShadow=`0 6px 32px ${T.green}80`;}}
+                      onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.transform="scale(1)";(e.currentTarget as HTMLElement).style.boxShadow=`0 4px 24px ${T.green}60`;}}
+                    >
+                      Final Submit — Push Website Live
+                    </button>
+                  </div>
+                )}
+                {alreadyReleased&&(
+                  <div style={{marginBottom:24,padding:"14px 20px",background:`${T.green}10`,border:`1px solid ${T.green}40`,borderRadius:12,display:"flex",alignItems:"center",gap:12}}>
+                    <span style={{fontSize:20}}>✅</span>
+                    <div>
+                      <div style={{fontSize:13,fontWeight:700,color:T.green}}>Site is live</div>
+                      <div style={{fontSize:12,color:T.textMuted}}>This site has already been released to the client.</div>
+                    </div>
+                  </div>
+                )}
+
+                {sections.map((section,si)=>{
+                  const sectionDoneCount = section.items.filter(i=>!!checklistDone[i.key]).length;
+                  const sectionAllDone = sectionDoneCount===section.items.length;
+                  const sectionCompletable = section.items.filter(i=>!(i.linkInput&&!checklistLinks[i.key]));
+                  const sectionCanMarkAll = sectionCompletable.length>0 && sectionCompletable.some(i=>!checklistDone[i.key]);
+                  const isFirstPostLaunch = section.postLaunch && (si===0||!sections[si-1].postLaunch);
+                  return (
+                  <div key={section.title}>
+                  {isFirstPostLaunch&&(
+                    <div style={{marginBottom:24,marginTop:8,display:"flex",alignItems:"center",gap:12}}>
+                      <div style={{flex:1,height:1,background:"linear-gradient(90deg,transparent,#a78bfa40,transparent)"}}/>
+                      <div style={{fontSize:11,fontWeight:700,color:"#a78bfa",letterSpacing:"0.12em",textTransform:"uppercase" as const,padding:"4px 14px",background:"#a78bfa15",border:"1px solid #a78bfa30",borderRadius:20}}>Post-Launch</div>
+                      <div style={{flex:1,height:1,background:"linear-gradient(90deg,transparent,#a78bfa40,transparent)"}}/>
+                    </div>
+                  )}
+                  <div style={{marginBottom:28}}>
                     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,paddingBottom:8,borderBottom:`1px solid ${section.color}30`}}>
                       <span style={{fontSize:16}}>{section.icon}</span>
-                      <div style={{fontSize:12,fontWeight:800,color:section.color,textTransform:"uppercase" as const,letterSpacing:"0.08em"}}>{section.title}</div>
+                      <div style={{fontSize:12,fontWeight:800,color:section.color,textTransform:"uppercase" as const,letterSpacing:"0.08em",flex:1}}>{section.title}</div>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <span style={{fontSize:11,color:sectionAllDone?T.green:T.textMuted,fontWeight:600}}>{sectionDoneCount}/{section.items.length}</span>
+                        {sectionAllDone ? (
+                          <span style={{fontSize:11,fontWeight:700,color:T.green,background:`${T.green}18`,border:`1px solid ${T.green}40`,borderRadius:20,padding:"3px 12px"}}>✓ Done</span>
+                        ) : sectionCanMarkAll ? (
+                          <button
+                            onClick={()=>markSectionComplete(section)}
+                            style={{fontSize:11,fontWeight:700,color:section.color,background:`${section.color}15`,border:`1px solid ${section.color}50`,borderRadius:20,padding:"5px 14px",cursor:"pointer",transition:"all 0.15s ease",whiteSpace:"nowrap" as const}}
+                            onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.background=`${section.color}30`;}}
+                            onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.background=`${section.color}15`;}}
+                          >
+                            ✓ Mark section complete
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                     <div style={{display:"flex",flexDirection:"column" as const,gap:10}}>
                       {section.items.map(item=>{
@@ -1851,83 +1946,9 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                       })}
                     </div>
                   </div>
-                ))}
-              </div>
-            );
-          })()}
-
-
-
-          {/* To-Do Tab */}
-          {tab==="todo"&&(()=>{
-            const seoIssues: {id:string;source:string;label:string;detail:string;severity:"error"|"warn";action?:string}[] = [];
-            if (seo?.serpInsights) {
-              const siWc = seo.serpInsights.avgWordCount||800;
-              const siH2 = seo.serpInsights.avgH2Count||6;
-              if (siWc>1200||siWc<=600) seoIssues.push({id:"seo_content_length",source:"SEO",label:"Content length needs work",detail:`Competitors avg ${siWc} words. ${siWc>1200?"Add FAQs and detail sections to match.":"Concise site — ensure structure is strong."}`,severity:"warn",action:"fix-seo"});
-              if (!(siH2>=5&&siH2<=10)) seoIssues.push({id:"seo_h2s",source:"SEO",label:"Section headings (H2s) needs work",detail:`Competitors use ${siH2} headings. ${siH2<3?"Add more clear section headings.":"Ensure each H2 targets a keyword."}`,severity:"warn",action:"fix-seo"});
-            }
-            const payIssues: {id:string;source:string;label:string;detail:string;severity:"error"|"warn";action?:string}[] = [];
-            if (!c.paymentState?.depositPaid) payIssues.push({id:"pay_deposit",source:"Payments",label:"Deposit not yet paid",detail:"Client has not completed their deposit payment.",severity:"warn"});
-            if (c.paymentState?.depositPaid&&!c.paymentState?.finalPaid) payIssues.push({id:"pay_final",source:"Payments",label:"Final payment pending",detail:"Deposit paid but final payment not yet received.",severity:"warn"});
-            if (c.paymentState?.finalPaid&&!c.paymentState?.monthlyActive) payIssues.push({id:"pay_monthly",source:"Payments",label:"Monthly sub not active",detail:"Final paid but monthly subscription not set up yet.",severity:"warn"});
-            const buildIssues: {id:string;source:string;label:string;detail:string;severity:"error"|"warn";action?:string}[] = [];
-            if (c.buildStatus==="failed") buildIssues.push({id:"build_failed",source:"Build",label:"Build failed",detail:"Last build attempt failed. Check Pipeline tab for errors.",severity:"error"});
-            if (!c.previewUrl&&c.buildStatus!=="building") buildIssues.push({id:"build_no_url",source:"Build",label:"No preview URL",detail:"Site has no preview URL. Trigger a rebuild.",severity:"error"});
-            if (c.paymentState?.finalPaid&&!c.domain&&!c.liveDomain) buildIssues.push({id:"domain_missing",source:"Build",label:"No custom domain assigned",detail:"Final payment received but no custom domain set. Assign one in Integrations.",severity:"warn"});
-            const frIssues: {id:string;source:string;label:string;detail:string;severity:"error"|"warn";action?:string}[] = featureRequests.filter((r:any)=>r.status==="pending").map((r:any)=>({id:`fr_${r.id}`,source:"Requests",label:`Feature request: ${r.featureId}`,detail:r.message||"Client requested this feature.",severity:"warn" as const}));
-            const allIssues = [...buildIssues,...seoIssues,...payIssues,...frIssues];
-            const openIssues = allIssues.filter(i=>!todoCompleted.has(i.id));
-            const doneIssues = allIssues.filter(i=>todoCompleted.has(i.id));
-            function toggleTodo(id:string){setTodoCompleted((prev:Set<string>)=>{const n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);try{localStorage.setItem("wg_todo_done_"+jid,JSON.stringify([...n]));}catch{}return n;});}
-            const sevColor=(s:"error"|"warn")=>s==="error"?T.red:T.amber;
-            const srcColor=(s:string)=>s==="SEO"?T.blue:s==="Build"?T.red:s==="Payments"?T.green:s==="Requests"?"#a78bfa":T.textMuted;
-            return (
-              <div>
-                {allIssues.length===0&&(
-                  <div style={{textAlign:"center" as const,padding:"60px 0",color:T.textMuted}}>
-                    <div style={{fontSize:32,marginBottom:12}}>&#x2705;</div>
-                    <div style={{fontSize:15,fontWeight:600,color:T.textSec,marginBottom:6}}>All clear!</div>
-                    <div style={{fontSize:13}}>No outstanding issues for this client.</div>
                   </div>
-                )}
-                {openIssues.length>0&&(
-                  <div style={{marginBottom:24}}>
-                    <div style={{fontSize:11,fontWeight:800,letterSpacing:"0.1em",color:T.textMuted,textTransform:"uppercase" as const,marginBottom:12}}>To Do ({openIssues.length})</div>
-                    {openIssues.map(issue=>(
-                      <div key={issue.id} style={{background:T.raised,borderRadius:10,border:`1px solid ${sevColor(issue.severity)}30`,padding:"14px 16px",marginBottom:8,display:"flex",gap:12,alignItems:"flex-start"}}>
-                        <input type="checkbox" checked={false} onChange={()=>toggleTodo(issue.id)} style={{marginTop:2,accentColor:T.green,width:16,height:16,flexShrink:0,cursor:"pointer"}}/>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap" as const}}>
-                            <span style={{fontSize:13,fontWeight:600,color:T.text}}>{issue.label}</span>
-                            <span style={{fontSize:10,fontWeight:700,background:srcColor(issue.source)+"20",color:srcColor(issue.source),border:`1px solid ${srcColor(issue.source)}35`,borderRadius:4,padding:"2px 7px"}}>{issue.source}</span>
-                            {issue.severity==="error"&&<span style={{fontSize:10,fontWeight:700,background:T.red+"20",color:T.red,border:`1px solid ${T.red}35`,borderRadius:4,padding:"2px 7px"}}>Action needed</span>}
-                          </div>
-                          <div style={{fontSize:12,color:T.textMuted,lineHeight:1.6}}>{issue.detail}</div>
-                          {issue.action==="fix-seo"&&(
-                            <button onClick={()=>api(`/api/admin/fix-proxy?jobId=${jid}&secret=${sec}`).then(()=>{toast("SEO fix started","ok");toggleTodo(issue.id);}).catch((e:any)=>toast(e.message,"err"))} style={{marginTop:8,fontSize:11,background:T.amber+"20",color:T.amber,border:`1px solid ${T.amber}40`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontWeight:700}}>Fix automatically</button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {doneIssues.length>0&&(
-                  <div>
-                    <div style={{fontSize:11,fontWeight:800,letterSpacing:"0.1em",color:T.textMuted,textTransform:"uppercase" as const,marginBottom:12}}>Done ({doneIssues.length})</div>
-                    {doneIssues.map(issue=>(
-                      <div key={issue.id} style={{background:T.surface,borderRadius:10,border:`1px solid ${T.border}`,padding:"12px 16px",marginBottom:8,display:"flex",gap:12,alignItems:"center",opacity:0.5}}>
-                        <input type="checkbox" checked={true} onChange={()=>toggleTodo(issue.id)} style={{accentColor:T.green,width:16,height:16,flexShrink:0,cursor:"pointer"}}/>
-                        <div style={{flex:1}}>
-                          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap" as const}}>
-                            <span style={{fontSize:13,fontWeight:500,color:T.textMuted,textDecoration:"line-through"}}>{issue.label}</span>
-                            <span style={{fontSize:10,background:srcColor(issue.source)+"15",color:srcColor(issue.source),borderRadius:4,padding:"2px 7px"}}>{issue.source}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                );
+                })}
               </div>
             );
           })()}
