@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signatureHeader = req.headers.get("x-square-hmacsha256-signature") || "";
 
-  const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app"}/api/payment/webhook`;
+  const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app"}/api/payment/webhook`;
   const isValid = await verifySquareWebhook(rawBody, signatureHeader, webhookUrl);
 
   if (!isValid) {
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
         const job = await getJob(jobId);
         const features: string[] = Array.isArray(job?.userInput?.features) ? job.userInput.features : [];
         const hasBooking = features.includes("Booking System") || !!job?.hasBooking;
-        const base = (process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app");
+        const base = (process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app");
         const resend = new (await import("resend")).Resend(process.env.RESEND_API_KEY!);
 
         const clientEmail = job?.userInput?.email || "";
@@ -218,7 +218,7 @@ export async function POST(req: NextRequest) {
         const clientEmail = job?.userInput?.email || "";
         const businessName = job?.userInput?.businessName || "your website";
         const clientSlug = job?.clientSlug || "";
-        const base = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
+        const base = process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app";
         const liveUrl = job?.liveUrl || job?.previewUrl || `${base}/c/${clientSlug}`;
         const portalUrl = `${base}/c/${clientSlug}`;
 

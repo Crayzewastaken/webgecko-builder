@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
   // Exchange code for access token
   const clientId = process.env.SQUARE_APPLICATION_ID!;
   const clientSecret = process.env.SQUARE_APPLICATION_SECRET!;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app";
   const redirectUri = `${appUrl}/api/square/callback`;
 
   const isProduction = process.env.SQUARE_ENVIRONMENT === "production";

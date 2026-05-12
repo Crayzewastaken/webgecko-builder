@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     stateSecret,
   );
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app";
   const redirectUri = `${appUrl}/api/square/callback`;
 
   // Scopes needed: create catalogue items, payment links, process payments

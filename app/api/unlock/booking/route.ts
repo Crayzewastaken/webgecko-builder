@@ -1,6 +1,7 @@
 // app/api/unlock/booking/route.ts
 // Admin unlocks booking system for a client — and emails them.
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 import { Resend } from "resend";
 import { getServicesForIndustry } from "@/lib/pipeline-helpers";
 import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailability } from "@/lib/db";
@@ -10,10 +11,8 @@ const resend = new Resend(process.env.RESEND_API_KEY!);
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const jobId = searchParams.get("jobId");
-  const secret = searchParams.get("secret");
-
-  if (!jobId || !secret || secret !== process.env.PROCESS_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  if (!jobId || !isAdminAuthedLegacy(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {

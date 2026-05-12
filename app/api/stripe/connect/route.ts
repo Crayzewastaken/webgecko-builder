@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   if (!job) return new NextResponse("Job not found", { status: 404 });
 
   const stripe = getStripe();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app";
 
   try {
     let accountId = job.stripeAccountId || "";

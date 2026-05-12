@@ -1,19 +1,19 @@
 // app/api/versions/route.ts
 // GET /api/versions?jobId=xxx
-// Auth: x-process-secret header
+// Auth: isAdminAuthedLegacy (cookie or x-process-secret header)
 // Returns all snapshots for a job, newest first, without the full HTML body (for list view)
 
 // DELETE /api/versions?id=xxx
 // Deletes a single version by its UUID
 
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 import { supabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
-  const secret = req.headers.get("x-process-secret");
-  if (secret !== process.env.PROCESS_SECRET) {
+  if (!isAdminAuthedLegacy(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -34,8 +34,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const secret = req.headers.get("x-process-secret");
-  if (secret !== process.env.PROCESS_SECRET) {
+  if (!isAdminAuthedLegacy(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

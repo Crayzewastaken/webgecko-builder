@@ -1,6 +1,7 @@
 // app/api/payment/unlock/route.ts
 // Owner-only — unlocks the final 50% payment for a client, then emails them.
 import { NextRequest } from "next/server";
+import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 import { Resend } from "resend";
 import { getJob, getPaymentState, savePaymentState } from "@/lib/db";
 
@@ -9,10 +10,7 @@ const resend = new Resend(process.env.RESEND_API_KEY!);
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const jobId = searchParams.get("jobId");
-  const secret = searchParams.get("secret");
-
-  if (!jobId || !secret) return page("Missing params", "#ef4444", 400);
-  if (secret !== process.env.PROCESS_SECRET) return page("Forbidden", "#ef4444", 403);
+  if (!jobId || !isAdminAuthedLegacy(req)) return page("Unauthorized", "#ef4444", 403);
 
   const existing = await getPaymentState(jobId) || { deposit_paid: false, final_unlocked: false, payments: {} };
 
@@ -29,7 +27,7 @@ export async function GET(req: NextRequest) {
   const clientSlug = job?.clientSlug || "";
   const clientEmail = job?.userInput?.email || "";
   const businessName = job?.userInput?.businessName || "your website";
-  const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app"}/c/${clientSlug}`;
+  const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app"}/c/${clientSlug}`;
 
   if (clientEmail) {
     try {

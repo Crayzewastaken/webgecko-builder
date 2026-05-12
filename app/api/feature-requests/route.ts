@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
 
   // Notify admin of new feature request(s)
   try {
-    const base = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
+    const base = process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app";
     const featureLabels = newRequests.map((r: any) => {
       const feat = AVAILABLE_FEATURES.find(f => f.id === r.featureId);
       return feat ? feat.label : r.featureId;

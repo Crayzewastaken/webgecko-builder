@@ -1,6 +1,7 @@
 // app/api/analytics/monthly/route.ts
 import { Resend } from "resend";
 import { NextRequest } from "next/server";
+import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 import { getJob, getAnalyticsCount, getTopPages, getBookingsForJob } from "@/lib/db";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
@@ -84,10 +85,9 @@ function buildReportHtml(data: {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const jobId = searchParams.get("jobId");
-  const secret = searchParams.get("secret");
   const send = searchParams.get("send") === "true";
 
-  if (secret !== process.env.PROCESS_SECRET) return Response.json({ error: "Forbidden" }, { status: 403 });
+  if (!isAdminAuthedLegacy(req)) return Response.json({ error: "Forbidden" }, { status: 403 });
   if (!jobId) return Response.json({ error: "Missing jobId" }, { status: 400 });
 
   const job = await getJob(jobId);

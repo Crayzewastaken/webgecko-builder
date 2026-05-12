@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   if (client?.email && process.env.RESEND_API_KEY) {
     try {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app"}/client`;
+      const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app"}/client`;
       await resend.emails.send({
         from: "WebGecko <hello@webgecko.au>",
         to: client.email,

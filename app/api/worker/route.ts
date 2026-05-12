@@ -199,7 +199,7 @@ export async function POST(req: Request) {
     const clientSlug = safeFileName(userInput.businessName) + "-" + crypto.randomBytes(3).toString("hex");
     const clientPasswordPlain = crypto.randomBytes(5).toString("hex");
     const clientPassword = await hashClientPassword(clientPasswordPlain);
-    const clientPortalUrl = `https://webgecko-builder.vercel.app/c/${clientSlug}`;
+    const clientPortalUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app"}/c/${clientSlug}`;
 
     // Save job to Supabase
     await saveJob(jobId, {

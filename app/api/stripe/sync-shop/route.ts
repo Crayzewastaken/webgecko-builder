@@ -4,6 +4,7 @@
 // POST { jobId, products: ShopProduct[] }
 
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 import { getJob, saveJob } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { createStripeShopCatalogue, ShopProduct } from "@/lib/stripe-connect";
@@ -12,8 +13,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   // Verify admin secret
-  const secret = req.headers.get("x-process-secret") || "";
-  if (secret !== process.env.PROCESS_SECRET) {
+  if (!isAdminAuthedLegacy(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app";
   const redirectUrl = job.liveUrl || job.previewUrl || appUrl;
   const businessName = job.businessName || "Business";
 

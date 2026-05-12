@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
 
     console.log(`[Stripe Callback] account=${accountId} job=${jobId} details_submitted=${isReady}`);
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app";
     const status = isReady ? "connected" : "pending";
     // Don't expose jobId in redirect URL
     return NextResponse.redirect(`${appUrl}/admin?stripe=${status}`);

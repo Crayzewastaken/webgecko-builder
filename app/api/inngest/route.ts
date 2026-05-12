@@ -1729,7 +1729,7 @@ const buildWebsite = inngest.createFunction(
 
         // Auto-snapshot: save a version to page_versions so the Archive tab has a record of every build
         try {
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app";
           await fetch(`${appUrl}/api/versions/snapshot`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-process-secret": process.env.PROCESS_SECRET || "" },
@@ -1779,7 +1779,7 @@ const buildWebsite = inngest.createFunction(
 
       // ── STEP 10: Email owner ──────────────────────────────────────────────────
       await step.run("step10-email", async () => {
-        const base = (process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app");
+        const base = (process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app");
         const secret = encodeURIComponent(process.env.PROCESS_SECRET || "");
         const releaseUrl = `${base}/api/unlock/release?jobId=${jobId}&secret=${secret}`;
         const fixUrl = `${base}/api/admin/fix-proxy?jobId=${jobId}&secret=${secret}`;
@@ -1985,7 +1985,7 @@ const autoRelease = inngest.createFunction(
 
         console.log("[AutoRelease] Releasing job", job.id, "scheduled for", releaseAt);
         try {
-          const base = (process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app");
+          const base = (process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app");
           await fetch(`${base}/api/preview-unlock`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -2124,7 +2124,7 @@ const featureInject = inngest.createFunction(
 
       // Notify admin
       const secret = process.env.ADMIN_SESSION_SECRET?.slice(0, 16) || "";
-      const adminUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app") + `/admin?secret=${encodeURIComponent(secret)}`;
+      const adminUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app") + `/admin?secret=${encodeURIComponent(secret)}`;
       await resend.emails.send({
         from: "WebGecko <hello@webgecko.au>",
         to: process.env.RESULT_TO_EMAIL || "hello@webgecko.au",
