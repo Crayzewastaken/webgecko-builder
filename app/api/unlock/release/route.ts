@@ -3,15 +3,15 @@
 import { NextRequest } from "next/server";
 import { Resend } from "resend";
 import { getJob, saveJob, getPaymentState, savePaymentState } from "@/lib/db";
+import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const jobId = searchParams.get("jobId");
-  const secret = searchParams.get("secret");
 
-  if (!jobId || !secret || secret !== process.env.PROCESS_SECRET) {
+  if (!jobId || !isAdminAuthedLegacy(req)) {
     return page("Unauthorized", "#ef4444", 403);
   }
 

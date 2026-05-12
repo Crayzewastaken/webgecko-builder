@@ -797,7 +797,7 @@ export default function HomePage() {
                 <div className="space-y-2">
                   <Label>💰 Pricing Section <span className="text-red-400">*</span></Label>
                   <div className="space-y-2">
-                    <SelectCard selected={hasPricing === "Yes"} onClick={() => setHasPricing("Yes")} label="Yes - include pricing" desc="Show your prices, packages or menu on the site" icon="✅" />
+                    <SelectCard selected={hasPricing === "Yes"} onClick={() => setHasPricing("Yes")} label="Yes - include pricing" desc="Show your prices, packages or menu on the site" icon="💰" />
                     <SelectCard selected={hasPricing === "No"} onClick={() => setHasPricing("No")} label="No - clients contact me for a quote" desc="No prices shown - leads submit enquiries instead" icon="💬" />
                   </div>
                 </div>

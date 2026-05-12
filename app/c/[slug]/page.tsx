@@ -627,6 +627,10 @@ export default function ClientPortal() {
   const [contactSubmitting, setContactSubmitting] = useState(false);
   const [contactSubmitted, setContactSubmitted] = useState(false);
 
+  // Onboarding tour
+  const [tourVisible, setTourVisible] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+
   // ── Auth + data load ────────────────────────────────────────────────────────
   useEffect(() => {
     const wgAuthVal = localStorage.getItem(`wg_auth_${slug}`);
@@ -795,6 +799,12 @@ export default function ClientPortal() {
       const ui = (raw.user_input || raw.userInput || {}) as Record<string, string>;
       if (ui.preferredDomain) setPrePayDomain(ui.preferredDomain);
       if (normalised.ga4Id || ui.ga4Id) setPrePayGa4(normalised.ga4Id || ui.ga4Id || "");
+      // Show onboarding tour on first login
+      const tourKey = `wg_tour_done_${slug}`;
+      if (!localStorage.getItem(tourKey)) {
+        setTourVisible(true);
+        setTourStep(0);
+      }
     } catch { setError("Failed to load your project. Please refresh."); }
     finally { setLoading(false); }
   }
@@ -1203,9 +1213,77 @@ export default function ClientPortal() {
     input, textarea, select { font-family:inherit }
   `;
 
+  const tourSteps = [
+        { tab: "Overview", icon: "🏠", title: "Welcome to Your Client Portal", body: "This is your home base. Here you'll see your build status, payment progress, and quick actions. Everything you need in one place." },
+        { tab: "Quote & Pay", icon: "💳", title: "Pay Your Deposit to Get Started", body: "Nothing starts until the deposit is paid. Head to Quote & Pay, review your quote, and pay the deposit to kick off your website build." },
+        { tab: "Site Preview", icon: "👁", title: "Review Your Website", body: "Once your site is built, you'll get a preview here. Review it, leave feedback, and request revisions before it goes live." },
+        { tab: "Add Features", icon: "⚡", title: "Upgrade Your Site", body: "Want to add booking, a shop, newsletter, or more? Use Add Features to request upgrades at any time." },
+        { tab: "Contact Us", icon: "💬", title: "We're Here to Help", body: "Have a question or issue? Use the Contact Us tab to reach our team. We respond within one business day." },
+      ];
+
+  function closeTour() {
+    localStorage.setItem(`wg_tour_done_${slug}`, "1");
+    setTourVisible(false);
+  }
+
   return (
     <div style={S.page}>
       <style>{portalCss}</style>
+
+      {/* ── Onboarding Tour Overlay ─────────────────────────────────────────── */}
+      {tourVisible && (
+        <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.72)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background: dark?"#0f1623":"#fff", border:`1px solid ${C.border}`, borderRadius:20, maxWidth:480, width:"100%", padding:"32px 28px", position:"relative", boxShadow:"0 24px 64px rgba(0,0,0,0.5)" }}>
+            {/* Step dots */}
+            <div style={{ display:"flex", gap:6, marginBottom:24, justifyContent:"center" }}>
+              {tourSteps.map((_,i) => (
+                <div key={i} style={{ width: i===tourStep?20:7, height:7, borderRadius:4, background: i===tourStep?C.accent:C.border, transition:"all 0.25s" }}/>
+              ))}
+            </div>
+            {/* Icon */}
+            <div style={{ fontSize:40, textAlign:"center" as const, marginBottom:12 }}>{tourSteps[tourStep].icon}</div>
+            {/* Tab badge */}
+            <div style={{ textAlign:"center" as const, marginBottom:8 }}>
+              <span style={{ fontSize:11, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase" as const, color:C.accent, background:C.accent+"18", borderRadius:20, padding:"3px 10px" }}>{tourSteps[tourStep].tab}</span>
+            </div>
+            {/* Title */}
+            <div style={{ fontSize:18, fontWeight:800, color:C.text, textAlign:"center" as const, marginBottom:10, lineHeight:1.3 }}>{tourSteps[tourStep].title}</div>
+            {/* Body */}
+            <div style={{ fontSize:14, color:C.textSec, textAlign:"center" as const, lineHeight:1.65, marginBottom:28 }}>{tourSteps[tourStep].body}</div>
+            {/* Buttons */}
+            <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+              {tourStep > 0 && (
+                <button onClick={() => setTourStep(s=>s-1)} style={{ flex:1, background:C.raised, border:`1px solid ${C.border}`, color:C.textSec, borderRadius:10, padding:"11px 0", fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>← Back</button>
+              )}
+              {tourStep < tourSteps.length - 1 ? (
+                <button onClick={() => setTourStep(s=>s+1)} style={{ flex:2, background:C.accent, border:"none", color:"#000", borderRadius:10, padding:"11px 0", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Next →</button>
+              ) : (
+                <button onClick={closeTour} style={{ flex:2, background:C.accent, border:"none", color:"#000", borderRadius:10, padding:"11px 0", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Let's go →</button>
+              )}
+            </div>
+            {/* Exit */}
+            <button onClick={closeTour} style={{ position:"absolute", top:14, right:14, background:"transparent", border:"none", color:C.textMuted, fontSize:18, cursor:"pointer", lineHeight:1, padding:4 }}>✕</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Pay Now Banner (shown when deposit not paid) ──────────────────────── */}
+      {paymentStatus && !paymentStatus.depositPaid && (
+        <div style={{ background:"linear-gradient(135deg,#00c896,#0099ff)", padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" as const }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:20 }}>💳</span>
+            <div>
+              <div style={{ color:"#000", fontWeight:800, fontSize:14, lineHeight:1.2 }}>Pay your deposit to start your build</div>
+              <div style={{ color:"rgba(0,0,0,0.6)", fontSize:12, marginTop:2 }}>Nothing begins until the deposit is paid — it takes under a minute.</div>
+            </div>
+          </div>
+          <button
+            onClick={() => handlePay("deposit")}
+            disabled={payLoading === "deposit"}
+            style={{ background:"#000", color:"#fff", border:"none", borderRadius:10, padding:"10px 22px", fontSize:14, fontWeight:800, cursor:"pointer", whiteSpace:"nowrap" as const, fontFamily:"inherit", opacity: payLoading==="deposit"?0.6:1 }}
+          >{payLoading === "deposit" ? "Loading…" : "Pay Now →"}</button>
+        </div>
+      )}
 
       {/* Header */}
       <header style={S.header}>

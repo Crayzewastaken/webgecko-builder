@@ -195,8 +195,8 @@ export async function POST(req: Request) {
     await Promise.all(uploadPromises);
     console.log(`INTAKE: Uploads done — logo=${!!logoUrl}, hero=${!!heroUrl}, photos=${photoUrls.length}`);
 
-    const jobId = `job_${Date.now()}`;
-    const clientSlug = safeFileName(userInput.businessName);
+    const jobId = `job_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+    const clientSlug = safeFileName(userInput.businessName) + "-" + crypto.randomBytes(3).toString("hex");
     const clientPasswordPlain = crypto.randomBytes(5).toString("hex");
     const clientPassword = await hashClientPassword(clientPasswordPlain);
     const clientPortalUrl = `https://webgecko-builder.vercel.app/c/${clientSlug}`;
@@ -364,7 +364,7 @@ export async function POST(req: Request) {
 
   } catch (error) {
     const msg = error instanceof Error ? error.message : "An unexpected error occurred";
-    console.error("INTAKE FAILED:", msg);
-    return NextResponse.json({ success: false, message: msg });
+    console.error("INTAKE Error:", msg);
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }

@@ -48,6 +48,14 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "slug, type, title required" }, { status: 400 });
   }
 
+  // Auth: client cookie must match slug, OR admin secret header
+  const cookieSlug = req.cookies.get("wg_client_slug")?.value;
+  const adminSecret = req.headers.get("x-process-secret");
+  const isAdmin = adminSecret && adminSecret === process.env.PROCESS_SECRET;
+  if (!isAdmin && cookieSlug !== slug) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const job = await getLatestJobBySlug(slug);
   if (!job) return Response.json({ error: "Job not found" }, { status: 404 });
 

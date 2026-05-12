@@ -680,9 +680,9 @@ const buildWebsite = inngest.createFunction(
             if (/Map Loading|map-placeholder|lh3\.googleusercontent/i.test(m)) return '';
             return m;
           });
-          // Always inject map as a full-width block AFTER the contact section, never inside it.
-          // This prevents the map overlapping the two-column contact layout.
-          const mapBlock = `<div id="map-section" style="width:100%;padding:0 0 60px;background:inherit;">${mapsEmbed}</div>`;
+          // Inject map as a full-width block. Use display:block + clear:both + position:relative
+          // to always break out of any flex/grid context the contact section may use.
+          const mapBlock = `<div id="map-section" style="display:block;clear:both;position:relative;width:100%;padding:0 0 60px;background:inherit;flex:none;grid-column:1/-1;">${mapsEmbed}</div>`;
           let mapInjected = false;
 
           // 1. Replace explicit MAP PLACEHOLDER divs
