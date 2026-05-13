@@ -291,13 +291,13 @@ export async function auditAndFixSite(
       `</details>`
     ).join("");
     const faqSection = `<section id="faq" style="padding:80px 24px;background:${clrBg2};"><div style="max-width:800px;margin:0 auto;"><h2 style="color:${clrText};font-size:2rem;font-weight:900;margin:0 0 40px;">Frequently Asked Questions</h2>${faqHtml}</div></section>`;
-    fixed = addSectionIdSmart(fixed, "faq", [/faq|frequently|accordion|faqs/i], [/faq|frequently asked|common questions/i], faqSection);
+    fixed = addSectionIdSmart(fixed, "faq", [/faq|frequently|accordion|faqs/i], [/faq|frequently asked|common questions|common queries|questions answered|got questions|have questions/i], faqSection);
     mark(AuditErrorType.MISSING_FAQ);
   }
 
   // Fix 6: testimonials
   if (has(AuditErrorType.MISSING_TESTIMONIALS)) {
-    fixed = addSectionIdSmart(fixed, "testimonials", [/testimonial|review|clients-say|feedback/i], [/testimonial|what.*client|what.*customer|what people say/i],
+    fixed = addSectionIdSmart(fixed, "testimonials", [/testimonial|review|clients-say|feedback/i], [/testimonial|what.*client|what.*customer|what people say|trusted by|our clients|happy clients|client stories/i],
 (() => {
       const tCards = [
         { q: `"Absolutely fantastic — professional, friendly, and great value. Couldn't be happier with the results."`, a: `— Sarah M., Brisbane` },
@@ -539,7 +539,13 @@ function injectLegalPages(html: string, ctx: {
   let result = html;
 
   if (privacyHtml || termsHtml) {
-    result = result.replace("</body>", privacyHtml + termsHtml + "\n</body>");
+    // Inject legal pages BEFORE <footer> so footer stays at the bottom
+    const legalBlock = (privacyHtml || "") + (termsHtml || "");
+    if (result.includes("<footer")) {
+      result = result.replace(/<footer[\s>]/i, (m) => legalBlock + "\n<" + m.slice(1));
+    } else {
+      result = result.replace("</body>", legalBlock + "\n</body>");
+    }
     console.log("[Auditor] Injected legal pages: " + [!hasPrivacy && "privacy", !hasTerms && "terms"].filter(Boolean).join(", "));
   }
 
@@ -569,6 +575,8 @@ function addSectionIdSmart(html: string, id: string, classPatterns: RegExp[], he
       if (injected) return m;
       const cm = /class="([^"]*)"/.exec(m), im = /id="([^"]*)"/.exec(m);
       if (im) return m;
+      // Skip decorative/layout elements: orbs, absolute-positioned, z-index negative
+      if (cm && /\borb\b|position[\s:]*absolute|z-index[\s:]*-/i.test(cm[1])) return m;
       if (cm && cp.test(cm[1])) { injected = true; return m.replace(/>$/, ' id="' + id + '">'); }
       return m;
     });
@@ -593,19 +601,44 @@ function addSectionIdSmart(html: string, id: string, classPatterns: RegExp[], he
     }
   }
   console.log('[Auditor] id="' + id + '" via fallback injection');
-  // For multi-page sites: inject inside the home page wrapper so the section
-  // only appears on the home page, not on every page.
-  const homeWrapperRe = /(<[^>]+data-page=["']home["'][^>]*>)([\s\S]*?)(<\/(?:section|div)>(?=[\s\S]*?(?:data-page|<\/body>)))/i;
-  if (homeWrapperRe.test(html)) {
-    return html.replace(homeWrapperRe, (_m: string, open: string, inner: string, close: string) => {
-      if (inner.includes('id="' + id + '"')) return _m; // already injected
-      return open + inner + fallbackSection + "\n" + close;
-    });
+  // For multi-page sites: inject BEFORE the closing tag of the data-page="home" wrapper.
+  // Use a depth counter so we find the actual closing tag, not a nested div/section.
+  const homeOpenRe = /<([a-z]+)[^>]+data-page=["']home["'][^>]*>/i;
+  const homeOpenM = homeOpenRe.exec(html);
+  if (homeOpenM) {
+    const tagName = homeOpenM[1].toLowerCase();
+    let depth = 1;
+    let pos = homeOpenM.index + homeOpenM[0].length;
+    const openRe = new RegExp(`<${tagName}[\\s>]`, 'gi');
+    const closeRe = new RegExp(`<\\/${tagName}>`, 'gi');
+    let endIdx = -1;
+    while (depth > 0 && pos < html.length) {
+      openRe.lastIndex = pos;
+      closeRe.lastIndex = pos;
+      const nextOpen = openRe.exec(html);
+      const nextClose = closeRe.exec(html);
+      if (!nextClose) break;
+      if (nextOpen && nextOpen.index < nextClose.index) {
+        depth++;
+        pos = nextOpen.index + nextOpen[0].length;
+      } else {
+        depth--;
+        pos = nextClose.index + nextClose[0].length;
+        if (depth === 0) endIdx = nextClose.index;
+      }
+    }
+    if (endIdx > 0) {
+      // Check not already injected
+      const homeContent = html.slice(homeOpenM.index, endIdx);
+      if (!homeContent.includes('id="' + id + '"')) {
+        return html.slice(0, endIdx) + fallbackSection + "\n" + html.slice(endIdx);
+      }
+      return html;
+    }
   }
   // Single-page: inject before footer if one exists, otherwise before </body>
   if (/<footer[\s>]/i.test(html)) {
-    return html.replace(/<footer[\s>]/i, fallbackSection + '\n<footer ');
+    return html.replace(/<footer[\s>]/i, (m: string) => fallbackSection + "\n<" + m.slice(1));
   }
-  return html.replace('</body>', fallbackSection + '\n</body>');
+  return html.replace("</body>", fallbackSection + "\n</body>");
 }
-

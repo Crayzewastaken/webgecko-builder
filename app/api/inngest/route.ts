@@ -414,7 +414,12 @@ const buildWebsite = inngest.createFunction(
       </form>
     </div>
   </section>`;
-          html = html.replace(/<\/body>/i, contactSection + "\n</body>");
+          // Inject before <footer> (keeps footer at bottom); fall back to before </body>
+          if (/<footer[\s>]/i.test(html)) {
+            html = html.replace(/<footer[\s>]/i, (m) => contactSection + "\n<" + m.slice(1));
+          } else {
+            html = html.replace(/<\/body>/i, contactSection + "\n</body>");
+          }
         }
 
         // 4. Inject footer with copyright + legal links if missing; always pin to bottom via flex body
@@ -2168,13 +2173,9 @@ const featureGoLive = inngest.createFunction(
       const newFeatures = [...new Set([...existingFeatures, featureId])];
 
       // Persist the new feature into userInput
-      // Persist the new feature into userInput
-      await saveJob(jobId, { userInput: { ...userInput, features: newFeatures } });
+      await saveJob(jobId, { ...job, userInput: { ...userInput, features: newFeatures } });
     });
   }
 );
 
-export const { GET, POST, PUT } = serve({
-  client: inngest,
-  functions: [buildWebsite, monthlyReports, autoRelease, featureInject, featureGoLive],
-});
+export { featureGoLive };
