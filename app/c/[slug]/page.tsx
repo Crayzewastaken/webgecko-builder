@@ -629,6 +629,12 @@ export default function ClientPortal() {
   const [socialSubmitting, setSocialSubmitting] = useState(false);
   const [socialSubmitted, setSocialSubmitted] = useState(false);
   const [socialFile, setSocialFile] = useState<File|null>(null);
+  // Social upsell / plan selection
+  const [socialSelectedPlan, setSocialSelectedPlan] = useState<string|null>(null);
+  const [socialUpgradeState, setSocialUpgradeState] = useState<"idle"|"loading"|"done"|"err">("idle");
+  const [socialCustomNote, setSocialCustomNote] = useState("");
+  const [socialSetupStep, setSocialSetupStep] = useState<"choose"|"link"|"create"|null>(null);
+  const [socialActiveTab, setSocialActiveTab] = useState<"overview"|"calendar"|"brief"|"setup">("overview");
 
   // Contact / Support
   const [contactTopics, setContactTopics] = useState<string[]>([]);
@@ -2600,59 +2606,273 @@ export default function ClientPortal() {
             { id: "Google Business", icon: "📍", color: "#4285F4" },
           ];
 
-          /* ── NOT a social client: show locked upsell page ── */
-          if (!hasSocial) return (
-            <div style={{ maxWidth: 540, margin: "0 auto", padding: "40px 0" }}>
-              <div style={{ textAlign: "center", marginBottom: 32 }}>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>📱</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: dark ? "#d8eaff" : "#0d1020", letterSpacing: "-0.03em", marginBottom: 10 }}>Social Media Management</div>
-                <div style={{ fontSize: 14, color: dark ? "#5a7898" : "#606878", lineHeight: 1.7, maxWidth: 420, margin: "0 auto" }}>
-                  Let us handle your social presence — fully managed posting across Instagram, Facebook, TikTok, LinkedIn, YouTube and more.
-                </div>
-              </div>
-              {/* Feature grid */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 28 }}>
-                {[
-                  { icon: "📅", title: "Content Calendar", desc: "Scheduled posts planned weeks ahead, tailored to your brand" },
-                  { icon: "✍️", title: "AI Captions", desc: "Every post written in your brand voice with trending hashtags" },
-                  { icon: "📊", title: "Analytics Dashboard", desc: "Follower growth, reach & engagement tracked in real time" },
-                  { icon: "✅", title: "Approval Mode", desc: "Choose auto-post or approve each post before it goes live" },
-                  { icon: "📸", title: "Multi-Platform", desc: "Instagram, Facebook, TikTok, LinkedIn, Google Business & more" },
-                  { icon: "🚀", title: "Fast Setup", desc: "Accounts created and first posts live within 5 business days" },
-                ].map(f => (
-                  <div key={f.title} style={{ background: dark ? "rgba(80,40,120,0.1)" : "rgba(124,58,237,0.04)", border: `1px solid ${dark ? "rgba(120,60,200,0.2)" : "rgba(124,58,237,0.15)"}`, borderRadius: 12, padding: "14px 16px" }}>
-                    <div style={{ fontSize: 20, marginBottom: 8 }}>{f.icon}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: dark ? "#b080ff" : "#6d28d9", marginBottom: 4 }}>{f.title}</div>
-                    <div style={{ fontSize: 12, color: dark ? "#4a5870" : "#7080a0", lineHeight: 1.5 }}>{f.desc}</div>
-                  </div>
-                ))}
-              </div>
-              {/* Pricing tiers */}
-              <div style={{ background: dark ? "rgba(80,40,120,0.12)" : "rgba(124,58,237,0.05)", border: `1px solid ${dark ? "rgba(120,60,200,0.25)" : "rgba(124,58,237,0.2)"}`, borderRadius: 14, padding: "20px 22px", marginBottom: 24 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: dark ? "#8060b0" : "#7c3aed", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>Packages</div>
-                {[
-                  { name: "Starter",     price: "$349/mo", platforms: "2 platforms", posts: "8 posts/mo",  desc: "Perfect for getting started" },
-                  { name: "Growth",      price: "$549/mo", platforms: "4 platforms", posts: "16 posts/mo", desc: "Most popular for growing businesses" },
-                  { name: "Full Suite",  price: "$849/mo", platforms: "All platforms", posts: "30 posts/mo", desc: "Complete social domination" },
-                ].map((tier, i) => (
-                  <div key={tier.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: i < 2 ? `1px solid ${dark ? "rgba(120,60,200,0.15)" : "rgba(124,58,237,0.12)"}` : "none" }}>
+          /* ─────────────────────────────────────────────────────────────────
+             UPSELL PAGE — client does NOT have social media
+          ───────────────────────────────────────────────────────────────── */
+          if (!hasSocial) {
+            const plans = [
+              {
+                id: "starter",
+                name: "Starter",
+                price: 399,
+                period: "/mo",
+                badge: null,
+                platforms: 2,
+                posts: 12,
+                perPost: "~$33",
+                features: [
+                  "2 platforms (Instagram + Facebook)",
+                  "12 posts per month",
+                  "AI-written captions & hashtags",
+                  "Content calendar access",
+                  "Monthly performance report",
+                  "Manual approval mode available",
+                ],
+                color: "#4f9eff",
+              },
+              {
+                id: "growth",
+                name: "Growth",
+                price: 699,
+                period: "/mo",
+                badge: "Most Popular",
+                platforms: 4,
+                posts: 20,
+                perPost: "~$35",
+                features: [
+                  "4 platforms of your choice",
+                  "20 posts per month",
+                  "AI-written captions & hashtags",
+                  "Reel / short-video scripts included",
+                  "Competitor & trend monitoring",
+                  "Bi-weekly strategy calls",
+                  "Priority support",
+                ],
+                color: "#a855f7",
+              },
+              {
+                id: "suite",
+                name: "Full Suite",
+                price: 1099,
+                period: "/mo",
+                badge: "Best Value",
+                platforms: 99,
+                posts: 36,
+                perPost: "~$30",
+                features: [
+                  "All platforms (6+)",
+                  "36 posts per month",
+                  "Full creative direction & brand kit",
+                  "Paid ad management (Meta + TikTok)",
+                  "Weekly analytics dashboard",
+                  "Dedicated account manager",
+                  "Same-day priority support",
+                ],
+                color: "#10b981",
+              },
+              {
+                id: "custom",
+                name: "Custom",
+                price: null,
+                period: "",
+                badge: "Tailored",
+                platforms: 0,
+                posts: 0,
+                perPost: "",
+                features: [
+                  "Any platform mix you need",
+                  "Flexible posting frequency",
+                  "Add-ons: UGC, influencer outreach",
+                  "White-glove onboarding",
+                  "Custom reporting cadence",
+                  "Direct line to your strategist",
+                ],
+                color: "#f59e0b",
+              },
+            ];
+
+            const selectedPlanObj = plans.find(p => p.id === socialSelectedPlan);
+
+            return (
+              <div style={{ height: "calc(100vh - 120px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                {/* ── Header strip ── */}
+                <div style={{ flexShrink: 0, paddingBottom: 16, borderBottom: `1px solid ${C.border}`, marginBottom: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg,#7c3aed,#a855f7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>📱</div>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: dark ? "#c090ff" : "#6d28d9" }}>{tier.name}</div>
-                      <div style={{ fontSize: 11, color: dark ? "#4a5870" : "#8090a8" }}>{tier.platforms} · {tier.posts} · {tier.desc}</div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: C.text, letterSpacing: "-0.03em", lineHeight: 1.2 }}>Social Media Management</div>
+                      <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>Fully managed posting — from content creation to publishing. You focus on your business.</div>
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: dark ? "#a060ff" : "#7c3aed" }}>{tier.price}</div>
                   </div>
-                ))}
+                </div>
+
+                {/* ── Main content: plan cards + right panel ── */}
+                <div style={{ flex: 1, display: "flex", gap: 16, overflow: "hidden", minHeight: 0 }}>
+
+                  {/* Left: feature strip + plan cards */}
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", minWidth: 0 }}>
+                    {/* 6-feature strip */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flexShrink: 0 }}>
+                      {[
+                        { icon: "📅", title: "Content Calendar", desc: "Posts planned weeks ahead, tailored to your brand voice" },
+                        { icon: "✍️", title: "AI Captions", desc: "Every caption written in your tone with trending hashtags" },
+                        { icon: "📊", title: "Live Analytics", desc: "Follower growth & engagement tracked daily" },
+                        { icon: "✅", title: "Approval Mode", desc: "Auto-post or approve each post before it goes live" },
+                        { icon: "🌐", title: "Multi-Platform", desc: "Instagram, Facebook, TikTok, LinkedIn, YouTube & more" },
+                        { icon: "🚀", title: "5-Day Setup", desc: "Accounts live and first posts scheduled within 5 business days" },
+                      ].map(f => (
+                        <div key={f.title} style={{ background: dark ? "rgba(80,40,120,0.1)" : "rgba(124,58,237,0.04)", border: `1px solid ${dark ? "rgba(120,60,200,0.2)" : "rgba(124,58,237,0.14)"}`, borderRadius: 10, padding: "10px 12px", display: "flex", gap: 8 }}>
+                          <span style={{ fontSize: 16, flexShrink: 0 }}>{f.icon}</span>
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: dark ? "#b080ff" : "#6d28d9", marginBottom: 2 }}>{f.title}</div>
+                            <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.4 }}>{f.desc}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Plan cards */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, flexShrink: 0 }}>
+                      {plans.map(plan => {
+                        const sel = socialSelectedPlan === plan.id;
+                        return (
+                          <button key={plan.id} onClick={() => setSocialSelectedPlan(plan.id)}
+                            style={{ background: sel ? `${plan.color}12` : C.surface, border: `2px solid ${sel ? plan.color : C.border}`, borderRadius: 14, padding: "16px", cursor: "pointer", textAlign: "left", transition: "all 0.18s ease", position: "relative", boxShadow: sel ? `0 0 0 3px ${plan.color}22` : C.shadow, fontFamily: "inherit" }}>
+                            {plan.badge && (
+                              <div style={{ position: "absolute", top: 10, right: 10, fontSize: 9, fontWeight: 800, color: "#fff", background: plan.color, borderRadius: 5, padding: "3px 7px", letterSpacing: "0.05em", textTransform: "uppercase" }}>{plan.badge}</div>
+                            )}
+                            <div style={{ fontSize: 14, fontWeight: 800, color: sel ? plan.color : C.text, marginBottom: 4 }}>{plan.name}</div>
+                            <div style={{ fontSize: plan.price ? 22 : 16, fontWeight: 800, color: plan.color, letterSpacing: "-0.03em", marginBottom: 8 }}>
+                              {plan.price ? `$${plan.price}` : "Let's chat"}<span style={{ fontSize: 12, fontWeight: 500, color: C.textMuted }}>{plan.period}</span>
+                            </div>
+                            {plan.price && (
+                              <div style={{ fontSize: 10, color: C.textMuted, marginBottom: 10 }}>
+                                {plan.platforms === 99 ? "All platforms" : `${plan.platforms} platforms`} · {plan.posts} posts/mo · {plan.perPost}/post
+                              </div>
+                            )}
+                            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                              {plan.features.slice(0, 3).map(f => (
+                                <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 11, color: C.textSec, lineHeight: 1.4 }}>
+                                  <span style={{ color: plan.color, flexShrink: 0, fontWeight: 700 }}>✓</span>{f}
+                                </div>
+                              ))}
+                              {plan.features.length > 3 && <div style={{ fontSize: 10, color: C.textMuted, marginTop: 2 }}>+{plan.features.length - 3} more included</div>}
+                            </div>
+                            {sel && <div style={{ marginTop: 10, fontSize: 11, fontWeight: 700, color: plan.color }}>✓ Selected</div>}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Competitor context */}
+                    <div style={{ background: C.raised, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", fontSize: 11, color: C.textMuted, lineHeight: 1.6, flexShrink: 0 }}>
+                      💡 <strong style={{ color: C.textSec }}>Market context:</strong> Most Australian social media agencies charge $800–$2,500/mo for managed posting. Our rates include full content creation, scheduling, and reporting — no hidden fees.
+                    </div>
+                  </div>
+
+                  {/* Right: action panel */}
+                  <div style={{ width: 260, flexShrink: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+                    {/* Selected plan summary */}
+                    <div style={{ background: C.surface, border: `1px solid ${selectedPlanObj ? selectedPlanObj.color + "50" : C.border}`, borderRadius: 14, padding: "16px", flexShrink: 0, transition: "border-color 0.2s ease" }}>
+                      {selectedPlanObj ? (
+                        <>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: selectedPlanObj.color, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Selected Plan</div>
+                          <div style={{ fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 4 }}>{selectedPlanObj.name}</div>
+                          <div style={{ fontSize: 22, fontWeight: 800, color: selectedPlanObj.color, letterSpacing: "-0.03em", marginBottom: 12 }}>
+                            {selectedPlanObj.price ? `$${selectedPlanObj.price}/mo` : "Custom quote"}
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 16 }}>
+                            {selectedPlanObj.features.map(f => (
+                              <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 11, color: C.textSec, lineHeight: 1.4 }}>
+                                <span style={{ color: selectedPlanObj.color, flexShrink: 0 }}>✓</span>{f}
+                              </div>
+                            ))}
+                          </div>
+                          {selectedPlanObj.id === "custom" && (
+                            <textarea
+                              value={socialCustomNote} onChange={e => setSocialCustomNote(e.target.value)}
+                              rows={3} placeholder="Tell us what you need — platforms, post frequency, goals…"
+                              style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", color: C.text, fontSize: 12, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box", lineHeight: 1.5, marginBottom: 10 }}
+                            />
+                          )}
+                          {socialUpgradeState === "done" ? (
+                            <div style={{ textAlign: "center", background: `${selectedPlanObj.color}12`, border: `1px solid ${selectedPlanObj.color}30`, borderRadius: 10, padding: "14px" }}>
+                              <div style={{ fontSize: 20, marginBottom: 6 }}>✅</div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: selectedPlanObj.color }}>Request sent!</div>
+                              <div style={{ fontSize: 11, color: C.textMuted, marginTop: 4 }}>We'll review and reply within 1 business day.</div>
+                            </div>
+                          ) : (
+                            <button
+                              disabled={socialUpgradeState === "loading"}
+                              onClick={async () => {
+                                setSocialUpgradeState("loading");
+                                try {
+                                  await fetch("/api/client/upgrade-request", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      slug, businessName: client.businessName, email: client.email,
+                                      type: "social_bundle",
+                                      plan: selectedPlanObj.id,
+                                      planName: selectedPlanObj.name,
+                                      planPrice: selectedPlanObj.price,
+                                      note: socialCustomNote || undefined,
+                                    }),
+                                  });
+                                  setSocialUpgradeState("done");
+                                } catch { setSocialUpgradeState("err"); }
+                              }}
+                              style={{ display: "block", width: "100%", textAlign: "center", background: socialUpgradeState === "loading" ? `${selectedPlanObj.color}80` : selectedPlanObj.color, color: "#fff", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, border: "none", cursor: socialUpgradeState === "loading" ? "not-allowed" : "pointer", boxShadow: `0 4px 16px ${selectedPlanObj.color}40`, fontFamily: "inherit", transition: "all 0.18s ease" }}>
+                              {socialUpgradeState === "loading" ? "Sending…" : selectedPlanObj.id === "custom" ? "Request Custom Quote →" : `Get ${selectedPlanObj.name} Plan →`}
+                            </button>
+                          )}
+                          {socialUpgradeState === "err" && <div style={{ textAlign: "center", fontSize: 11, color: "#ff6060", marginTop: 8 }}>Error — email hello@webgecko.au</div>}
+                        </>
+                      ) : (
+                        <div style={{ textAlign: "center", padding: "20px 0" }}>
+                          <div style={{ fontSize: 28, marginBottom: 10 }}>👆</div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 6 }}>Select a plan to get started</div>
+                          <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.5 }}>Choose any plan on the left, or pick Custom for a tailored quote.</div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* FAQ mini */}
+                    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "14px 16px", overflow: "auto", flex: 1 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>Quick answers</div>
+                      {[
+                        { q: "Do I need to create accounts?", a: "No — we handle everything. We can create new accounts on your behalf or link your existing ones." },
+                        { q: "Can I approve posts first?", a: "Yes. Enable Approval Mode and every post comes to you for sign-off before it goes live." },
+                        { q: "What platforms do you support?", a: "Instagram, Facebook, TikTok, LinkedIn, YouTube, and Google Business. More available on request." },
+                        { q: "Can I change plans later?", a: "Absolutely. Upgrade, downgrade, or pause any time with 7 days notice." },
+                        { q: "No lock-in contracts?", a: "Month-to-month only. Cancel anytime." },
+                      ].map((item, i, arr) => (
+                        <div key={item.q} style={{ paddingBottom: i < arr.length - 1 ? 10 : 0, marginBottom: i < arr.length - 1 ? 10 : 0, borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: C.textSec, marginBottom: 3 }}>{item.q}</div>
+                          <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.5 }}>{item.a}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Mobile fallback (hidden on desktop via media query workaround) ── */}
+                <style>{`
+                  @media (max-width: 700px) {
+                    .wg-social-desktop { display: none !important; }
+                    .wg-social-mobile  { display: flex !important; }
+                  }
+                  @media (min-width: 701px) {
+                    .wg-social-mobile { display: none !important; }
+                  }
+                `}</style>
               </div>
-              <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Add Social Media — " + client.businessName)}&body=${encodeURIComponent("Hi WebGecko,\n\nI\'d like to add the Social Media bundle to my package.\n\nBusiness: " + client.businessName + "\n\nPlease send me the details and next steps.")}`}
-                style={{ display: "block", textAlign: "center", background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff", borderRadius: 12, padding: "14px 24px", fontSize: 14, fontWeight: 700, textDecoration: "none", boxShadow: "0 4px 20px rgba(124,58,237,0.35)" }}>
-                Add Social Media to My Package →
-              </a>
-              <div style={{ textAlign: "center", fontSize: 12, color: dark ? "#3a4860" : "#a0a8c0", marginTop: 10 }}>
-                We'll get back to you within 1 business day with a quote and setup plan.
-              </div>
-            </div>
-          );
+            );
+          }
+
+          /* ─────────────────────────────────────────────────────────────────
+             ACTIVE SOCIAL CLIENT — full management dashboard
+          ───────────────────────────────────────────────────────────────── */
           const mockPosts = [
             { id: "p1", platform: "Instagram",  caption: "Winter sale is ON — 20% off all services this week only. Book today and lock in your spot before we fill up!", scheduledAt: "2026-05-14T09:00:00", status: "scheduled"         as const },
             { id: "p2", platform: "Facebook",   caption: "We just wrapped up a big job in the CBD — check out these before and afters. Proud of the team today! 💪", scheduledAt: "2026-05-15T11:00:00", status: "pending_approval" as const },
@@ -2666,290 +2886,369 @@ export default function ClientPortal() {
           const pIcon = (p: string) => allPlatforms.find(x => x.id === p)?.icon || "📱";
           const pColor = (p: string) => allPlatforms.find(x => x.id === p)?.color || C.accentBlue;
 
-          const cardBase: React.CSSProperties = {
-            background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14,
-            padding: "20px 22px", marginBottom: 14, boxShadow: C.shadow,
-          };
+          const innerTabs = [
+            { id: "overview" as const, label: "Overview",  icon: "📊" },
+            { id: "calendar" as const, label: "Calendar",  icon: "📅" },
+            { id: "brief"    as const, label: "Post Brief", icon: "✍️" },
+            { id: "setup"    as const, label: "Setup",      icon: "⚙️" },
+          ];
 
           return (
-            <>
-              {/* Platform Status */}
-              <div style={cardBase}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>Connected Platforms</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {allPlatforms.map(p => {
-                    const connected = connectedPlatforms.includes(p.id);
-                    return (
-                      <div key={p.id} style={{
-                        display: "flex", alignItems: "center", gap: 7,
-                        background: connected ? `${p.color}14` : C.raised,
-                        border: `1px solid ${connected ? p.color + "40" : C.border}`,
-                        borderRadius: 20, padding: "6px 14px",
-                        fontSize: 12, fontWeight: 600,
-                        color: connected ? p.color : C.textMuted,
-                        transition: "all 0.2s ease",
-                      }}>
-                        <span style={{ fontSize: 15 }}>{p.icon}</span>
-                        {p.id}
-                        {connected && <span style={{ fontSize: 10, fontWeight: 800, color: p.color }}>✓</span>}
+            <div style={{ height: "calc(100vh - 120px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+              {/* ── Inner tab bar ── */}
+              <div style={{ display: "flex", gap: 4, marginBottom: 14, flexShrink: 0, borderBottom: `1px solid ${C.border}`, paddingBottom: 10 }}>
+                {innerTabs.map(t => (
+                  <button key={t.id} onClick={() => setSocialActiveTab(t.id)}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: socialActiveTab === t.id ? 700 : 500, cursor: "pointer",
+                      background: socialActiveTab === t.id ? (dark ? "rgba(168,85,247,0.15)" : "rgba(124,58,237,0.09)") : "transparent",
+                      color: socialActiveTab === t.id ? (dark ? "#c080ff" : "#7c3aed") : C.textMuted,
+                      border: `1px solid ${socialActiveTab === t.id ? (dark ? "rgba(168,85,247,0.35)" : "rgba(124,58,237,0.25)") : "transparent"}`,
+                      fontFamily: "inherit", transition: "all 0.15s ease",
+                    }}>
+                    <span>{t.icon}</span>{t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* ── Tab content area ── */}
+              <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
+
+                {/* ── OVERVIEW tab ── */}
+                {socialActiveTab === "overview" && (
+                  <div style={{ height: "100%", display: "flex", gap: 14, overflow: "hidden" }}>
+
+                    {/* Left column */}
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", minWidth: 0 }}>
+
+                      {/* Stats row */}
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, flexShrink: 0 }}>
+                        {[
+                          { label: "Total Followers", value: "1,240", icon: "👥", color: C.accentBlue },
+                          { label: "Posts This Month", value: "8",    icon: "📤", color: C.accent },
+                          { label: "Avg Engagement",  value: "4.2%",  icon: "📈", color: C.purple },
+                        ].map(stat => (
+                          <div key={stat.label} style={{ background: C.surface, border: `1px solid ${stat.color}25`, borderRadius: 12, padding: "14px 16px", borderTop: `3px solid ${stat.color}`, boxShadow: C.shadow }}>
+                            <div style={{ fontSize: 18, marginBottom: 6 }}>{stat.icon}</div>
+                            <div style={{ fontSize: 20, fontWeight: 800, color: stat.color, letterSpacing: "-0.04em", marginBottom: 2 }}>{stat.value}</div>
+                            <div style={{ fontSize: 10, color: C.textMuted, fontWeight: 600 }}>{stat.label}</div>
+                          </div>
+                        ))}
                       </div>
-                    );
-                  })}
-                </div>
-                {connectedPlatforms.length === 0 && (
-                  <div style={{ marginTop: 12, padding: "10px 14px", background: C.amberBg, border: `1px solid ${C.amber}30`, borderRadius: 8, fontSize: 12, color: C.amber, lineHeight: 1.6 }}>
-                    Your social accounts are being set up — we'll connect them and notify you when ready.
+
+                      {/* Connected platforms */}
+                      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 18px", flexShrink: 0, boxShadow: C.shadow }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>Connected Platforms</div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                          {allPlatforms.map(p => {
+                            const connected = connectedPlatforms.includes(p.id);
+                            return (
+                              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 7, background: connected ? `${p.color}14` : C.raised, border: `1px solid ${connected ? p.color + "40" : C.border}`, borderRadius: 20, padding: "6px 14px", fontSize: 12, fontWeight: 600, color: connected ? p.color : C.textMuted, transition: "all 0.2s ease" }}>
+                                <span style={{ fontSize: 14 }}>{p.icon}</span>{p.id}
+                                {connected && <span style={{ fontSize: 10, fontWeight: 800 }}>✓</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {connectedPlatforms.length === 0 && (
+                          <div style={{ marginTop: 10, padding: "9px 12px", background: C.amberBg, border: `1px solid ${C.amber}30`, borderRadius: 8, fontSize: 12, color: C.amber, lineHeight: 1.5 }}>
+                            Accounts are being set up — we'll connect them and notify you when ready.
+                          </div>
+                        )}
+                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ fontSize: 11, color: C.textMuted }}>Need another platform?</div>
+                          <button onClick={async () => {
+                            try { await fetch("/api/client/upgrade-request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, businessName: client.businessName, email: client.email, type: "add_platform" }) }); alert("Request sent! We'll be in touch within 1 business day."); }
+                            catch { alert("Please email hello@webgecko.au"); }
+                          }} style={{ fontSize: 11, fontWeight: 700, color: dark ? "#a060ff" : "#7c3aed", background: dark ? "rgba(120,60,200,0.12)" : "rgba(124,58,237,0.07)", border: `1px solid ${dark ? "rgba(120,60,200,0.25)" : "rgba(124,58,237,0.2)"}`, borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>＋ Add platform</button>
+                        </div>
+                      </div>
+
+                      {/* Posting preference */}
+                      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 18px", flexShrink: 0, boxShadow: C.shadow }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>Posting Preference</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                          {([
+                            { id: "auto"   as const, icon: "⚡", title: "Auto-post",       desc: "We review and publish on your behalf — no action needed from you." },
+                            { id: "manual" as const, icon: "✅", title: "Approve first",   desc: "Every post comes to you for approval before going live." },
+                          ] as const).map(opt => {
+                            const sel = postingMode === opt.id;
+                            return (
+                              <button key={opt.id} onClick={async () => { setPostingMode(opt.id); await fetch("/api/client/social-settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, postingMode: opt.id }) }).catch(() => {}); }}
+                                style={{ background: sel ? `${C.accentBlue}10` : C.raised, border: `2px solid ${sel ? C.accentBlue : C.border}`, borderRadius: 12, padding: "14px", cursor: "pointer", textAlign: "left", transition: "all 0.18s ease", fontFamily: "inherit" }}>
+                                <div style={{ fontSize: 20, marginBottom: 6 }}>{opt.icon}</div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 3 }}>{opt.title}</div>
+                                <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.5 }}>{opt.desc}</div>
+                                {sel && <div style={{ marginTop: 8, fontSize: 10, fontWeight: 700, color: C.accentBlue }}>✓ Active</div>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right column: recent posts preview */}
+                    <div style={{ width: 280, flexShrink: 0, overflowY: "auto" }}>
+                      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 18px", boxShadow: C.shadow }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Recent Posts</div>
+                          <button onClick={() => setSocialActiveTab("calendar")} style={{ fontSize: 11, color: dark ? "#a060ff" : "#7c3aed", background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: "inherit" }}>View all →</button>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          {mockPosts.slice(0, 3).map(post => (
+                            <div key={post.id} style={{ background: C.raised, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px", borderLeft: `3px solid ${post.status === "published" ? C.accent : post.status === "pending_approval" ? C.amber : C.accentBlue}` }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                                <span style={{ fontSize: 14 }}>{pIcon(post.platform)}</span>
+                                <span style={{ fontSize: 11, fontWeight: 600, color: C.textSec }}>{post.platform}</span>
+                                <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, fontWeight: 700,
+                                  background: post.status === "published" ? `${C.accent}18` : post.status === "pending_approval" ? `${C.amber}18` : `${C.accentBlue}18`,
+                                  color: post.status === "published" ? C.accent : post.status === "pending_approval" ? C.amber : C.accentBlue,
+                                }}>
+                                  {post.status === "published" ? "✓ Live" : post.status === "pending_approval" ? "⏳ Awaiting" : "🕐 Scheduled"}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: 12, color: C.textSec, lineHeight: 1.4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any }}>{post.caption}</div>
+                              <div style={{ fontSize: 10, color: C.textMuted, marginTop: 6 }}>{fmtDate(post.scheduledAt)}</div>
+                              {post.status === "pending_approval" && postingMode === "manual" && (
+                                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                                  <button style={{ flex: 1, background: `${C.accent}18`, color: C.accent, border: `1px solid ${C.accent}30`, borderRadius: 6, padding: "5px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>✓ Approve</button>
+                                  <button style={{ flex: 1, background: C.raised, color: C.textMuted, border: `1px solid ${C.border}`, borderRadius: 6, padding: "5px", fontSize: 11, cursor: "pointer" }}>✎ Edit</button>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ marginTop: 12, textAlign: "center", fontSize: 10, color: C.textMuted }}>Powered by Metricool · Updates daily</div>
+                      </div>
+                    </div>
                   </div>
                 )}
-                {/* Add more platforms */}
-                <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ fontSize: 12, color: C.textMuted }}>Want to add more platforms?</div>
-                    <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Add Social Platform — " + client.businessName)}&body=${encodeURIComponent("Hi WebGecko,\n\nI\'d like to add another social media platform to my package.\n\nBusiness: " + client.businessName + "\n\nPlatform I want to add: ")}`}
-                      style={{ fontSize: 12, fontWeight: 700, color: dark ? "#a060ff" : "#7c3aed", textDecoration: "none", background: dark ? "rgba(120,60,200,0.12)" : "rgba(124,58,237,0.07)", border: `1px solid ${dark ? "rgba(120,60,200,0.25)" : "rgba(124,58,237,0.2)"}`, borderRadius: 7, padding: "5px 12px" }}>
-                      ＋ Add platform
-                    </a>
-                  </div>
-                  <div style={{ fontSize: 11, color: C.textMuted, marginTop: 4 }}>Each additional platform is $50–$100/mo depending on posting frequency.</div>
-                </div>
-              </div>
 
-              {/* Posting Preference */}
-              <div style={cardBase}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Posting Preference</div>
-                <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 16, lineHeight: 1.5 }}>How would you like your posts handled?</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  {([
-                    { id: "auto"   as const, icon: "⚡", title: "Auto-post",        desc: "We review and publish on your behalf. Posts go live without you needing to do anything." },
-                    { id: "manual" as const, icon: "✅", title: "Manual approval", desc: "We prepare each post and send it to you for approval before it goes live." },
-                  ] as const).map(opt => {
-                    const sel = postingMode === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        onClick={async () => {
-                          setPostingMode(opt.id);
-                          await fetch("/api/client/social-settings", {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ slug, postingMode: opt.id }),
-                          }).catch(() => {});
-                        }}
-                        style={{
-                          background: sel ? `${C.accentBlue}10` : C.raised,
-                          border: `2px solid ${sel ? C.accentBlue : C.border}`,
-                          borderRadius: 12, padding: "16px", cursor: "pointer",
-                          textAlign: "left", transition: "all 0.18s ease",
-                        }}
-                      >
-                        <div style={{ fontSize: 22, marginBottom: 8 }}>{opt.icon}</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 4 }}>{opt.title}</div>
-                        <div style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.5 }}>{opt.desc}</div>
-                        {sel && <div style={{ marginTop: 10, fontSize: 11, fontWeight: 700, color: C.accentBlue }}>✓ Active</div>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Content Calendar */}
-              <div style={cardBase}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                  <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Content Calendar</div>
-                    <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>Upcoming & recent posts</div>
-                  </div>
-                  <div style={{ fontSize: 11, color: C.textMuted, background: C.raised, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px" }}>
-                    Powered by Metricool
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {mockPosts.map(post => (
-                    <div key={post.id} style={{
-                      background: C.raised, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px",
-                      borderLeft: `3px solid ${
-                        post.status === "published" ? C.accent :
-                        post.status === "pending_approval" ? C.amber : C.accentBlue
-                      }`,
-                    }}>
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-                        <div style={{
-                          width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-                          background: `${pColor(post.platform)}18`,
-                          border: `1px solid ${pColor(post.platform)}35`,
-                          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18,
-                        }}>{pIcon(post.platform)}</div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: C.textSec }}>{post.platform}</span>
-                            <span style={{ fontSize: 11, color: C.textMuted }}>· {fmtDate(post.scheduledAt)}</span>
-                            <span style={{
-                              fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 5,
-                              background: post.status === "published" ? `${C.accent}18` : post.status === "pending_approval" ? `${C.amber}18` : `${C.accentBlue}18`,
-                              color: post.status === "published" ? C.accent : post.status === "pending_approval" ? C.amber : C.accentBlue,
-                              border: `1px solid ${post.status === "published" ? C.accent : post.status === "pending_approval" ? C.amber : C.accentBlue}30`,
-                            }}>
-                              {post.status === "published" ? "✓ Published" : post.status === "pending_approval" ? "⏳ Awaiting approval" : "🕐 Scheduled"}
-                            </span>
-                          </div>
-                          <div style={{ fontSize: 13, color: C.textSec, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any }}>
-                            {post.caption}
-                          </div>
-                          {post.status === "pending_approval" && postingMode === "manual" && (
-                            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                              <button style={{ background: `${C.accent}18`, color: C.accent, border: `1px solid ${C.accent}30`, borderRadius: 7, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                                ✓ Approve
-                              </button>
-                              <button style={{ background: C.raised, color: C.textMuted, border: `1px solid ${C.border}`, borderRadius: 7, padding: "6px 14px", fontSize: 12, cursor: "pointer" }}>
-                                ✎ Request changes
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Upload & Brief */}
-              <div style={cardBase}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Submit a Post Idea</div>
-                <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 16, lineHeight: 1.5 }}>
-                  Upload photos or describe what you want — we'll write the caption, pick the right hashtags, and schedule it.
-                </div>
-                {socialSubmitted ? (
-                  <div style={{ textAlign: "center", padding: "28px 0" }}>
-                    <div style={{ fontSize: 36, marginBottom: 12 }}>🚀</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>Brief received!</div>
-                    <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 18, lineHeight: 1.6 }}>We'll have a draft ready within 24 hours for you to review.</div>
-                    <button onClick={() => { setSocialSubmitted(false); setSocialBrief(""); setSocialFile(null); }} style={{ background: C.raised, color: C.textSec, border: `1px solid ${C.border}`, borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-                      Submit another
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                    {/* Photo upload */}
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 8 }}>Photo / Image (optional)</label>
-                      <label style={{
-                        display: "flex", alignItems: "center", gap: 12, padding: "14px 18px",
-                        background: C.raised, border: `2px dashed ${socialFile ? C.accentBlue : C.border}`,
-                        borderRadius: 10, cursor: "pointer", transition: "border-color 0.2s ease",
-                      }}>
-                        <span style={{ fontSize: 22 }}>🖼️</span>
+                {/* ── CALENDAR tab ── */}
+                {socialActiveTab === "calendar" && (
+                  <div style={{ height: "100%", overflowY: "auto" }}>
+                    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "18px 20px", boxShadow: C.shadow }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                         <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{socialFile ? socialFile.name : "Click to upload"}</div>
-                          <div style={{ fontSize: 11, color: C.textMuted }}>PNG, JPG, HEIC up to 20MB</div>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Content Calendar</div>
+                          <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>All upcoming & recent posts</div>
                         </div>
-                        <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => setSocialFile(e.target.files?.[0] || null)} />
-                      </label>
-                    </div>
-
-                    {/* Brief */}
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 8 }}>What is this post about? *</label>
-                      <textarea
-                        value={socialBrief} onChange={e => setSocialBrief(e.target.value)}
-                        rows={3} placeholder="e.g. We just finished a big job in Surry Hills. Want to show off the before/after and promote our winter discount."
-                        style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 10, padding: "11px 14px", color: C.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box", lineHeight: 1.6, transition: "border-color 0.2s ease" }}
-                      />
-                    </div>
-
-                    {/* Tone */}
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 8 }}>Tone</label>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        {(["professional","friendly","casual","promotional"] as const).map(t => (
-                          <button key={t} onClick={() => setSocialTone(t)}
-                            style={{ padding: "7px 16px", borderRadius: 20, fontSize: 12, fontWeight: socialTone === t ? 700 : 400, cursor: "pointer",
-                              background: socialTone === t ? C.accentBlue : C.raised,
-                              color: socialTone === t ? "#fff" : C.textSec,
-                              border: `1px solid ${socialTone === t ? C.accentBlue : C.border}`,
-                              transition: "all 0.15s ease", textTransform: "capitalize",
-                            }}>
-                            {t}
-                          </button>
+                        <div style={{ fontSize: 11, color: C.textMuted, background: C.raised, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px" }}>Powered by Metricool</div>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {mockPosts.map(post => (
+                          <div key={post.id} style={{ background: C.raised, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px", borderLeft: `3px solid ${post.status === "published" ? C.accent : post.status === "pending_approval" ? C.amber : C.accentBlue}` }}>
+                            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                              <div style={{ width: 36, height: 36, borderRadius: 9, flexShrink: 0, background: `${pColor(post.platform)}18`, border: `1px solid ${pColor(post.platform)}35`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>{pIcon(post.platform)}</div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                                  <span style={{ fontSize: 12, fontWeight: 600, color: C.textSec }}>{post.platform}</span>
+                                  <span style={{ fontSize: 11, color: C.textMuted }}>· {fmtDate(post.scheduledAt)}</span>
+                                  <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 5,
+                                    background: post.status === "published" ? `${C.accent}18` : post.status === "pending_approval" ? `${C.amber}18` : `${C.accentBlue}18`,
+                                    color: post.status === "published" ? C.accent : post.status === "pending_approval" ? C.amber : C.accentBlue,
+                                    border: `1px solid ${post.status === "published" ? C.accent : post.status === "pending_approval" ? C.amber : C.accentBlue}30`,
+                                  }}>
+                                    {post.status === "published" ? "✓ Published" : post.status === "pending_approval" ? "⏳ Awaiting approval" : "🕐 Scheduled"}
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: 13, color: C.textSec, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any }}>{post.caption}</div>
+                                {post.status === "pending_approval" && postingMode === "manual" && (
+                                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                                    <button style={{ background: `${C.accent}18`, color: C.accent, border: `1px solid ${C.accent}30`, borderRadius: 7, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✓ Approve</button>
+                                    <button style={{ background: C.raised, color: C.textMuted, border: `1px solid ${C.border}`, borderRadius: 7, padding: "6px 14px", fontSize: 12, cursor: "pointer" }}>✎ Request changes</button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </div>
+                  </div>
+                )}
 
-                    {/* Platforms */}
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 8 }}>Post to</label>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        {(["Instagram","Facebook","TikTok","LinkedIn"] as const).map(p => {
-                          const sel = socialPlatforms.includes(p);
-                          const pc = allPlatforms.find(x => x.id === p)?.color || C.accentBlue;
-                          return (
-                            <button key={p} onClick={() => setSocialPlatforms(prev => sel ? prev.filter(x => x !== p) : [...prev, p])}
-                              style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 20, fontSize: 12, fontWeight: sel ? 700 : 400, cursor: "pointer",
-                                background: sel ? `${pc}18` : C.raised, color: sel ? pc : C.textMuted,
-                                border: `1px solid ${sel ? pc + "50" : C.border}`, transition: "all 0.15s ease",
-                              }}>
-                              {pIcon(p)} {p}
-                              {sel && <span style={{ fontWeight: 800 }}>✓</span>}
-                            </button>
-                          );
-                        })}
-                      </div>
+                {/* ── BRIEF tab ── */}
+                {socialActiveTab === "brief" && (
+                  <div style={{ height: "100%", overflowY: "auto" }}>
+                    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "18px 20px", boxShadow: C.shadow }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Submit a Post Idea</div>
+                      <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 18, lineHeight: 1.5 }}>Upload a photo or describe what you want — we'll write the caption, add hashtags, and schedule it.</div>
+                      {socialSubmitted ? (
+                        <div style={{ textAlign: "center", padding: "28px 0" }}>
+                          <div style={{ fontSize: 36, marginBottom: 12 }}>🚀</div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>Brief received!</div>
+                          <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 18, lineHeight: 1.6 }}>We'll have a draft ready within 24 hours for your review.</div>
+                          <button onClick={() => { setSocialSubmitted(false); setSocialBrief(""); setSocialFile(null); }} style={{ background: C.raised, color: C.textSec, border: `1px solid ${C.border}`, borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Submit another</button>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: C.raised, border: `2px dashed ${socialFile ? C.accentBlue : C.border}`, borderRadius: 10, cursor: "pointer" }}>
+                            <span style={{ fontSize: 22 }}>🖼️</span>
+                            <div><div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{socialFile ? socialFile.name : "Click to upload photo (optional)"}</div><div style={{ fontSize: 11, color: C.textMuted }}>PNG, JPG, HEIC up to 20MB</div></div>
+                            <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => setSocialFile(e.target.files?.[0] || null)} />
+                          </label>
+                          <div>
+                            <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 8 }}>What is this post about? *</label>
+                            <textarea value={socialBrief} onChange={e => setSocialBrief(e.target.value)} rows={4} placeholder="e.g. We just finished a big job in Surry Hills. Want to show off the before/after and promote our winter discount." style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 10, padding: "11px 14px", color: C.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box", lineHeight: 1.6 }} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 8 }}>Tone</label>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              {(["professional","friendly","casual","promotional"] as const).map(t => (
+                                <button key={t} onClick={() => setSocialTone(t)} style={{ padding: "7px 16px", borderRadius: 20, fontSize: 12, fontWeight: socialTone === t ? 700 : 400, cursor: "pointer", background: socialTone === t ? C.accentBlue : C.raised, color: socialTone === t ? "#fff" : C.textSec, border: `1px solid ${socialTone === t ? C.accentBlue : C.border}`, fontFamily: "inherit", textTransform: "capitalize" }}>{t}</button>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 8 }}>Post to</label>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              {(["Instagram","Facebook","TikTok","LinkedIn"] as const).map(p => {
+                                const sel = socialPlatforms.includes(p);
+                                const pc = allPlatforms.find(x => x.id === p)?.color || C.accentBlue;
+                                return <button key={p} onClick={() => setSocialPlatforms(prev => sel ? prev.filter(x => x !== p) : [...prev, p])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 20, fontSize: 12, fontWeight: sel ? 700 : 400, cursor: "pointer", background: sel ? `${pc}18` : C.raised, color: sel ? pc : C.textMuted, border: `1px solid ${sel ? pc + "50" : C.border}`, fontFamily: "inherit" }}>{pIcon(p)} {p}{sel && <span style={{ fontWeight: 800 }}>✓</span>}</button>;
+                              })}
+                            </div>
+                          </div>
+                          <button onClick={async () => { if (!socialBrief.trim()) return; setSocialSubmitting(true); try { const fd = new FormData(); if (socialFile) fd.append("photo", socialFile); fd.append("slug", slug); fd.append("brief", socialBrief); fd.append("tone", socialTone); fd.append("platforms", JSON.stringify(socialPlatforms)); await fetch("/api/client/social-upload", { method: "POST", body: fd }); setSocialSubmitted(true); } catch (e) { /* silent */ } finally { setSocialSubmitting(false); } }}
+                            disabled={socialSubmitting || !socialBrief.trim()} style={{ background: (!socialBrief.trim() || socialSubmitting) ? C.raised : `linear-gradient(135deg, ${C.accentBlue}, #7c3aed)`, color: (!socialBrief.trim() || socialSubmitting) ? C.textMuted : "#fff", border: "none", borderRadius: 10, padding: "12px 24px", fontSize: 14, fontWeight: 700, cursor: (!socialBrief.trim() || socialSubmitting) ? "not-allowed" : "pointer", width: "100%", fontFamily: "inherit" }}>
+                            {socialSubmitting ? "Submitting…" : "Request Post →"}
+                          </button>
+                        </div>
+                      )}
                     </div>
+                  </div>
+                )}
 
-                    <button
-                      onClick={async () => {
-                        if (!socialBrief.trim()) return;
-                        setSocialSubmitting(true);
-                        try {
-                          const fd = new FormData();
-                          if (socialFile) fd.append("photo", socialFile);
-                          fd.append("slug", slug);
-                          fd.append("brief", socialBrief);
-                          fd.append("tone", socialTone);
-                          fd.append("platforms", JSON.stringify(socialPlatforms));
-                          await fetch("/api/client/social-upload", { method: "POST", body: fd });
-                          setSocialSubmitted(true);
-                        } catch (e) { /* silent */ }
-                        finally { setSocialSubmitting(false); }
-                      }}
-                      disabled={socialSubmitting || !socialBrief.trim()}
-                      style={{
-                        background: (!socialBrief.trim() || socialSubmitting) ? C.raised : `linear-gradient(135deg, ${C.accentBlue}, #7c3aed)`,
-                        color: (!socialBrief.trim() || socialSubmitting) ? C.textMuted : "#fff",
-                        border: "none", borderRadius: 10, padding: "12px 24px",
-                        fontSize: 14, fontWeight: 700, cursor: (!socialBrief.trim() || socialSubmitting) ? "not-allowed" : "pointer",
-                        width: "100%", transition: "all 0.18s ease",
-                        boxShadow: (!socialBrief.trim() || socialSubmitting) ? "none" : "0 4px 16px rgba(79,158,255,0.35)",
-                      }}
-                    >
-                      {socialSubmitting ? "Submitting…" : "Request Post →"}
-                    </button>
+                {/* ── SETUP tab ── */}
+                {socialActiveTab === "setup" && (
+                  <div style={{ height: "100%", overflowY: "auto" }}>
+                    {!socialSetupStep ? (
+                      /* Choose path */
+                      <div style={{ maxWidth: 600, margin: "0 auto" }}>
+                        <div style={{ marginBottom: 20 }}>
+                          <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 6 }}>Account Setup</div>
+                          <div style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.6 }}>
+                            How would you like to get your social accounts connected? Choose the option that suits you best — we'll handle the rest.
+                          </div>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                          {/* Option A — They have accounts */}
+                          <button onClick={() => setSocialSetupStep("link")}
+                            style={{ background: C.surface, border: `2px solid ${C.border}`, borderRadius: 16, padding: "22px 20px", cursor: "pointer", textAlign: "left", transition: "all 0.18s ease", fontFamily: "inherit" }}
+                            onMouseEnter={e => (e.currentTarget.style.borderColor = C.accentBlue)} onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}>
+                            <div style={{ fontSize: 32, marginBottom: 12 }}>🔗</div>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: C.text, marginBottom: 8 }}>I already have accounts</div>
+                            <div style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.6, marginBottom: 14 }}>
+                              You already have Instagram, Facebook, etc. We just need to link your existing accounts to our publishing platform.
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                              {["We send you a secure access request", "You approve in-app (takes 2 minutes)", "We're connected — posting starts immediately"].map(s => (
+                                <div key={s} style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 11, color: C.textSec }}>
+                                  <span style={{ color: C.accentBlue, fontWeight: 700, flexShrink: 0 }}>→</span>{s}
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ marginTop: 14, fontSize: 12, fontWeight: 700, color: C.accentBlue }}>Choose this →</div>
+                          </button>
+
+                          {/* Option B — We create everything */}
+                          <button onClick={() => setSocialSetupStep("create")}
+                            style={{ background: C.surface, border: `2px solid ${C.border}`, borderRadius: 16, padding: "22px 20px", cursor: "pointer", textAlign: "left", transition: "all 0.18s ease", fontFamily: "inherit" }}
+                            onMouseEnter={e => (e.currentTarget.style.borderColor = "#a855f7")} onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}>
+                            <div style={{ fontSize: 32, marginBottom: 12 }}>🛠️</div>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: C.text, marginBottom: 8 }}>Start from scratch</div>
+                            <div style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.6, marginBottom: 14 }}>
+                              No accounts yet, or you want a fresh start. We create a Gmail in your business name, set up all platforms, and hand you full control.
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                              {["We create a Gmail (you're CC'd on every email)", "We set up all your social platforms", "Legal agreements & brand info added", "You reset the password — it's 100% yours"].map(s => (
+                                <div key={s} style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 11, color: C.textSec }}>
+                                  <span style={{ color: "#a855f7", fontWeight: 700, flexShrink: 0 }}>→</span>{s}
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ marginTop: 14, fontSize: 12, fontWeight: 700, color: "#a855f7" }}>Choose this →</div>
+                          </button>
+                        </div>
+                      </div>
+                    ) : socialSetupStep === "link" ? (
+                      /* Link existing accounts flow */
+                      <div style={{ maxWidth: 560, margin: "0 auto" }}>
+                        <button onClick={() => setSocialSetupStep(null)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.textMuted, background: "none", border: "none", cursor: "pointer", marginBottom: 16, fontFamily: "inherit", padding: 0 }}>← Back</button>
+                        <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 6 }}>🔗 Link Your Existing Accounts</div>
+                        <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 20, lineHeight: 1.6 }}>
+                          Tell us which platforms you have and we'll send you a secure connection request. You approve access directly inside each app — we never see your passwords.
+                        </div>
+                        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "18px 20px", marginBottom: 16, boxShadow: C.shadow }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>Which platforms do you have?</div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
+                            {allPlatforms.map(p => {
+                              const sel = socialPlatforms.includes(p.id);
+                              return (
+                                <button key={p.id} onClick={() => setSocialPlatforms(prev => sel ? prev.filter(x => x !== p.id) : [...prev, p.id])}
+                                  style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 20, fontSize: 12, fontWeight: sel ? 700 : 500, cursor: "pointer", background: sel ? `${p.color}14` : C.raised, color: sel ? p.color : C.textMuted, border: `2px solid ${sel ? p.color + "60" : C.border}`, transition: "all 0.15s ease", fontFamily: "inherit" }}>
+                                  <span style={{ fontSize: 15 }}>{p.icon}</span>{p.id}{sel && <span style={{ fontWeight: 800 }}>✓</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div style={{ background: C.raised, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: C.textSec, marginBottom: 6 }}>What happens next:</div>
+                            {["We send an access request via Meta Business Suite / TikTok Creator Portal / LinkedIn", "You click 'Approve' — takes about 2 minutes", "We confirm connection and start your content calendar"].map((s, i) => (
+                              <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 11, color: C.textMuted, lineHeight: 1.5, marginBottom: 4 }}>
+                                <span style={{ background: C.accentBlue, color: "#fff", borderRadius: "50%", width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, flexShrink: 0 }}>{i + 1}</span>{s}
+                              </div>
+                            ))}
+                          </div>
+                          <button onClick={async () => {
+                            try { await fetch("/api/client/upgrade-request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, businessName: client.businessName, email: client.email, type: "social_link_existing", platforms: socialPlatforms }) }); alert("Done! We'll send you the connection request within 1 business day."); } catch { alert("Please email hello@webgecko.au"); }
+                          }} style={{ display: "block", width: "100%", background: `linear-gradient(135deg, ${C.accentBlue}, #3b82f6)`, color: "#fff", borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: "inherit" }}>
+                            Send Me the Connection Request →
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* We create everything flow */
+                      <div style={{ maxWidth: 560, margin: "0 auto" }}>
+                        <button onClick={() => setSocialSetupStep(null)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.textMuted, background: "none", border: "none", cursor: "pointer", marginBottom: 16, fontFamily: "inherit", padding: 0 }}>← Back</button>
+                        <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 6 }}>🛠️ Full Account Creation</div>
+                        <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 20, lineHeight: 1.6 }}>
+                          We handle everything from scratch — accounts, setup, legal agreements, all linked and ready. You stay in full control the entire time.
+                        </div>
+                        {/* Steps */}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+                          {[
+                            { icon: "📧", step: "1", title: "We create a Gmail for your business", desc: "Format: yourbusiness@gmail.com — you're CC'd on every single email sent. Total transparency, always.", highlight: true },
+                            { icon: "⚖️", step: "2", title: "Legal agreements added", desc: "Terms of service, platform policies, and our management agreement are stored in the account." },
+                            { icon: "📱", step: "3", title: "All platforms created & branded", desc: "We create and brand your Instagram, Facebook, TikTok, LinkedIn (and others as per your plan) using your logo, colours, and bio." },
+                            { icon: "🔌", step: "4", title: "Linked to our publishing platform", desc: "All accounts are connected to Metricool for scheduling, analytics, and team management." },
+                            { icon: "🔑", step: "5", title: "You reset the password — it's 100% yours", desc: "We send you a password reset link. From that moment, only you control the accounts. We retain publishing access only." },
+                          ].map(s => (
+                            <div key={s.step} style={{ display: "flex", gap: 14, background: s.highlight ? (dark ? "rgba(168,85,247,0.08)" : "rgba(124,58,237,0.05)") : C.surface, border: `1px solid ${s.highlight ? "rgba(168,85,247,0.25)" : C.border}`, borderRadius: 12, padding: "14px 16px", boxShadow: C.shadow }}>
+                              <div style={{ width: 30, height: 30, borderRadius: 8, background: s.highlight ? "rgba(168,85,247,0.15)" : C.raised, border: `1px solid ${s.highlight ? "rgba(168,85,247,0.3)" : C.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>{s.icon}</div>
+                              <div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 3 }}>Step {s.step}: {s.title}</div>
+                                <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.5 }}>{s.desc}</div>
+                                {s.highlight && <div style={{ marginTop: 6, fontSize: 10, fontWeight: 700, color: "#a855f7", background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.2)", borderRadius: 5, padding: "3px 8px", display: "inline-block" }}>📧 You're CC'd on everything</div>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ background: C.amberBg, border: `1px solid ${C.amber}30`, borderRadius: 10, padding: "10px 14px", fontSize: 11, color: C.amber, lineHeight: 1.5, marginBottom: 16 }}>
+                          ⚡ Setup typically takes 2–3 business days. You'll receive a confirmation email once everything is live.
+                        </div>
+                        <button onClick={async () => {
+                          try { await fetch("/api/client/upgrade-request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, businessName: client.businessName, email: client.email, type: "social_create_accounts", platforms: socialPlatforms }) }); alert("Request submitted! We'll be in touch within 1 business day to kick things off."); } catch { alert("Please email hello@webgecko.au"); }
+                        }} style={{ display: "block", width: "100%", background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff", borderRadius: 10, padding: "13px", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 16px rgba(124,58,237,0.35)" }}>
+                          Start Full Setup →
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-
-              {/* Analytics Row */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 14 }}>
-                {[
-                  { label: "Total Followers", value: "1,240", icon: "👥", color: C.accentBlue },
-                  { label: "Posts This Month", value: "8",     icon: "📤", color: C.accent },
-                  { label: "Avg Engagement",  value: "4.2%",   icon: "📈", color: C.purple },
-                ].map(stat => (
-                  <div key={stat.label} style={{
-                    background: C.surface, border: `1px solid ${stat.color}25`,
-                    borderRadius: 14, padding: "16px 18px",
-                    borderTop: `3px solid ${stat.color}`,
-                    boxShadow: C.shadow,
-                  }}>
-                    <div style={{ fontSize: 20, marginBottom: 8 }}>{stat.icon}</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: stat.color, letterSpacing: "-0.04em", marginBottom: 4 }}>{stat.value}</div>
-                    <div style={{ fontSize: 11, color: C.textMuted, fontWeight: 600 }}>{stat.label}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ textAlign: "center", fontSize: 11, color: C.textMuted, marginBottom: 8 }}>
-                Analytics powered by Metricool · Updates daily
-              </div>
-            </>
+            </div>
           );
         })()}
 
