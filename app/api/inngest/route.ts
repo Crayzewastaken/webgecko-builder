@@ -2178,4 +2178,4 @@ const featureGoLive = inngest.createFunction(
   }
 );
 
-export { featureGoLive };
+// featureGoLive is registered internally via inngest.createFunction above
