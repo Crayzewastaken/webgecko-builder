@@ -2178,4 +2178,8 @@ const featureGoLive = inngest.createFunction(
   }
 );
 
-// featureGoLive is registered internally via inngest.createFunction above
+
+export const { GET, POST, PUT } = serve({
+  client: inngest,
+  functions: [buildWebsite, monthlyReports, autoRelease, featureInject, featureGoLive],
+});
