@@ -1352,51 +1352,151 @@ export default function ClientPortal() {
 
         {/* ── Sidebar (desktop only) ─────────────────────────────────────── */}
         <nav className="wg-sidebar-nav" style={{ background: sidebarBg, borderRightColor: sidebarBorder }}>
-          {/* Logo + business */}
+          {/* Business header — just name, no WebGecko branding */}
           <div style={{ padding: "20px 16px 16px", borderBottom: `1px solid ${sidebarBorder}` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg,#4f9eff,#a78bfa)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 900, color: "#fff", flexShrink: 0, boxShadow: "0 0 14px rgba(79,158,255,0.4)" }}>W</div>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "-0.03em", background: "linear-gradient(135deg,#e0ecff,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>WebGecko</div>
-                <div style={{ fontSize: 10, color: dark ? "#3a5080" : "#8090aa", fontWeight: 500 }}>{isSocialOnly ? "Social Media" : "Client Portal"}</div>
-              </div>
-            </div>
-            {/* Business avatar + name */}
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg,${C.accentBlue}30,${C.purple}20)`, border: `1px solid ${C.accentBlue}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: C.accentBlue, flexShrink: 0 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 11, background: `linear-gradient(135deg,${C.accentBlue}40,${C.purple}30)`, border: `1.5px solid ${C.accentBlue}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, color: dark ? "#a0c8ff" : C.accentBlue, flexShrink: 0, letterSpacing: "-0.02em" }}>
                 {client.businessName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase()}
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: dark ? "#c8d8f0" : "#0d1020", lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.businessName}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: dark ? "#d8eaff" : "#0d1020", lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.businessName}</div>
+                <div style={{ fontSize: 11, color: dark ? "#4a6898" : "#8090aa", fontWeight: 500, marginTop: 2 }}>Client Portal</div>
                 {client.launchReady && <div style={{ fontSize: 10, color: C.accent, fontWeight: 600, marginTop: 2 }}>● Live</div>}
               </div>
             </div>
           </div>
 
-          {/* Nav items */}
-          <div style={{ flex: 1, padding: "12px 8px", overflowY: "auto" }}>
-            {tabs.map(t => (
-              <button key={t.id} className="wg-nav-item" onClick={() => setTab(t.id)}
-                style={{
-                  background: tab === t.id ? (dark ? "rgba(79,158,255,0.12)" : "rgba(37,99,235,0.08)") : "transparent",
-                  color: tab === t.id ? C.accentBlue : (dark ? "#5a7aaa" : "#606880"),
-                  fontWeight: tab === t.id ? 700 : 500,
-                  borderLeft: `3px solid ${tab === t.id ? C.accentBlue : "transparent"}`,
-                  borderRadius: "0 8px 8px 0",
-                  marginBottom: 2,
-                }}>
-                <span style={{ fontSize: 15, lineHeight: 1 }}>{t.icon}</span>
-                <span style={{ fontSize: 13 }}>{t.label}</span>
-              </button>
-            ))}
+          {/* ── Website nav items ─────────────────────────────────────── */}
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            {/* Website section */}
+            {!isSocialOnly && (
+              <div style={{ padding: "10px 8px 4px" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: dark ? "#2a4060" : "#b0b8cc", textTransform: "uppercase", padding: "4px 10px 8px" }}>Website</div>
+                {tabs.filter(t => t.id !== "social").map(t => (
+                  <button key={t.id} className="wg-nav-item" onClick={() => setTab(t.id)}
+                    style={{
+                      background: tab === t.id ? (dark ? "rgba(79,158,255,0.15)" : "rgba(37,99,235,0.09)") : "transparent",
+                      color: tab === t.id ? (dark ? "#80bbff" : C.accentBlue) : (dark ? "#6a8aaa" : "#505870"),
+                      fontWeight: tab === t.id ? 700 : 500,
+                      borderLeft: `3px solid ${tab === t.id ? C.accentBlue : "transparent"}`,
+                      borderRadius: "0 8px 8px 0",
+                      marginBottom: 2,
+                    }}>
+                    <span style={{ fontSize: 15, lineHeight: 1 }}>{t.icon}</span>
+                    <span style={{ fontSize: 13 }}>{t.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {isSocialOnly && (
+              <div style={{ padding: "10px 8px 4px" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: dark ? "#2a4060" : "#b0b8cc", textTransform: "uppercase", padding: "4px 10px 8px" }}>General</div>
+                {tabs.filter(t => t.id !== "social").map(t => (
+                  <button key={t.id} className="wg-nav-item" onClick={() => setTab(t.id)}
+                    style={{
+                      background: tab === t.id ? (dark ? "rgba(79,158,255,0.15)" : "rgba(37,99,235,0.09)") : "transparent",
+                      color: tab === t.id ? (dark ? "#80bbff" : C.accentBlue) : (dark ? "#6a8aaa" : "#505870"),
+                      fontWeight: tab === t.id ? 700 : 500,
+                      borderLeft: `3px solid ${tab === t.id ? C.accentBlue : "transparent"}`,
+                      borderRadius: "0 8px 8px 0",
+                      marginBottom: 2,
+                    }}>
+                    <span style={{ fontSize: 15, lineHeight: 1 }}>{t.icon}</span>
+                    <span style={{ fontSize: 13 }}>{t.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* ── Social Media section ──────────────────────────────── */}
+            <div style={{ padding: "4px 8px 8px", borderTop: !isSocialOnly ? `1px solid ${sidebarBorder}` : "none", marginTop: !isSocialOnly ? 6 : 0 }}>
+              {/* Section heading */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px 6px" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: hasSocial ? (dark ? "#c060ff" : "#7c3aed") : (dark ? "#2a4060" : "#b0b8cc"), textTransform: "uppercase" }}>Social Media</div>
+                {!hasSocial && <span style={{ fontSize: 9, fontWeight: 700, color: dark ? "#3a3060" : "#c4b5fd", background: dark ? "rgba(120,60,200,0.15)" : "rgba(124,58,237,0.08)", border: `1px solid ${dark ? "rgba(120,60,200,0.3)" : "rgba(124,58,237,0.2)"}`, borderRadius: 4, padding: "2px 6px", letterSpacing: "0.05em" }}>UPGRADE</span>}
+              </div>
+
+              {hasSocial ? (
+                <>
+                  {/* Main social tab button */}
+                  <button className="wg-nav-item" onClick={() => setTab("social")}
+                    style={{
+                      background: tab === "social" ? (dark ? "rgba(180,80,255,0.15)" : "rgba(124,58,237,0.09)") : "transparent",
+                      color: tab === "social" ? (dark ? "#c080ff" : "#7c3aed") : (dark ? "#6a8aaa" : "#505870"),
+                      fontWeight: tab === "social" ? 700 : 500,
+                      borderLeft: `3px solid ${tab === "social" ? (dark ? "#c080ff" : "#7c3aed") : "transparent"}`,
+                      borderRadius: "0 8px 8px 0",
+                      marginBottom: 4,
+                    }}>
+                    <span style={{ fontSize: 15, lineHeight: 1 }}>📊</span>
+                    <span style={{ fontSize: 13 }}>Dashboard</span>
+                  </button>
+
+                  {/* Per-platform sub-items */}
+                  {(() => {
+                    const connectedPlatforms: string[] = (client.metadata as any)?.socialPlatforms || [];
+                    const platformDefs = [
+                      { id: "Instagram", icon: "📸", color: "#E1306C" },
+                      { id: "Facebook",  icon: "👍", color: "#1877F2" },
+                      { id: "TikTok",    icon: "🎵", color: "#010101" },
+                      { id: "LinkedIn",  icon: "💼", color: "#0A66C2" },
+                      { id: "YouTube",   icon: "▶️", color: "#FF0000" },
+                      { id: "Google Business", icon: "📍", color: "#4285F4" },
+                    ];
+                    const active = platformDefs.filter(p => connectedPlatforms.includes(p.id));
+                    if (active.length === 0) return (
+                      <div style={{ padding: "6px 12px", fontSize: 11, color: dark ? "#3a5070" : "#a0a8c0", lineHeight: 1.5 }}>
+                        Your accounts are being set up — check back soon.
+                      </div>
+                    );
+                    return (
+                      <>
+                        {active.map(p => (
+                          <button key={p.id} className="wg-nav-item" onClick={() => setTab("social")}
+                            style={{
+                              background: "transparent",
+                              color: dark ? "#5a7898" : "#606878",
+                              fontWeight: 500,
+                              borderLeft: `3px solid transparent`,
+                              borderRadius: "0 8px 8px 0",
+                              marginBottom: 1,
+                              paddingLeft: 22,
+                            }}>
+                            <span style={{ fontSize: 13, lineHeight: 1 }}>{p.icon}</span>
+                            <span style={{ fontSize: 12 }}>{p.id}</span>
+                          </button>
+                        ))}
+                        {/* Add more platforms upsell */}
+                        <button onClick={() => setTab("social")}
+                          style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 12px 6px 22px", width: "100%", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
+                          <span style={{ fontSize: 12, color: dark ? "#3a5070" : "#a0a8c0" }}>＋</span>
+                          <span style={{ fontSize: 11, color: dark ? "#3a5070" : "#a0a8c0", fontWeight: 500 }}>Add platform</span>
+                        </button>
+                      </>
+                    );
+                  })()}
+                </>
+              ) : (
+                /* Locked state — upsell */
+                <button onClick={() => setTab("social")}
+                  style={{ display: "flex", alignItems: "flex-start", gap: 10, width: "100%", background: dark ? "rgba(80,40,120,0.12)" : "rgba(124,58,237,0.05)", border: `1px dashed ${dark ? "rgba(120,60,200,0.25)" : "rgba(124,58,237,0.2)"}`, borderRadius: 9, padding: "12px", cursor: "pointer", fontFamily: "inherit", margin: "0 2px", textAlign: "left" }}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>🔒</span>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: dark ? "#8060c0" : "#7c3aed", marginBottom: 3 }}>Social Media Bundle</div>
+                    <div style={{ fontSize: 11, color: dark ? "#4a4870" : "#9080b0", lineHeight: 1.5 }}>Instagram, Facebook, TikTok & more — fully managed posting.</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: dark ? "#a080e0" : "#7c3aed", marginTop: 6 }}>Learn more →</div>
+                  </div>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Sidebar footer */}
           <div style={{ padding: "12px 16px", borderTop: `1px solid ${sidebarBorder}` }}>
-            <button onClick={toggleTheme} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", color: dark ? "#3a5080" : "#8090aa", fontSize: 12, cursor: "pointer", padding: "6px 0", width: "100%", fontFamily: "inherit" }}>
+            <button onClick={toggleTheme} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", color: dark ? "#4a6080" : "#8090aa", fontSize: 12, cursor: "pointer", padding: "6px 0", width: "100%", fontFamily: "inherit" }}>
               <span>{dark ? "☀" : "🌙"}</span> {dark ? "Light mode" : "Dark mode"}
             </button>
-            <button onClick={signOut} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", color: dark ? "#3a5080" : "#8090aa", fontSize: 12, cursor: "pointer", padding: "6px 0", width: "100%", fontFamily: "inherit" }}>
+            <button onClick={signOut} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", color: dark ? "#4a6080" : "#8090aa", fontSize: 12, cursor: "pointer", padding: "6px 0", width: "100%", fontFamily: "inherit" }}>
               <span>↩</span> Sign out
             </button>
           </div>
@@ -2499,6 +2599,60 @@ export default function ClientPortal() {
             { id: "YouTube",         icon: "▶️", color: "#FF0000" },
             { id: "Google Business", icon: "📍", color: "#4285F4" },
           ];
+
+          /* ── NOT a social client: show locked upsell page ── */
+          if (!hasSocial) return (
+            <div style={{ maxWidth: 540, margin: "0 auto", padding: "40px 0" }}>
+              <div style={{ textAlign: "center", marginBottom: 32 }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>📱</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: dark ? "#d8eaff" : "#0d1020", letterSpacing: "-0.03em", marginBottom: 10 }}>Social Media Management</div>
+                <div style={{ fontSize: 14, color: dark ? "#5a7898" : "#606878", lineHeight: 1.7, maxWidth: 420, margin: "0 auto" }}>
+                  Let us handle your social presence — fully managed posting across Instagram, Facebook, TikTok, LinkedIn, YouTube and more.
+                </div>
+              </div>
+              {/* Feature grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 28 }}>
+                {[
+                  { icon: "📅", title: "Content Calendar", desc: "Scheduled posts planned weeks ahead, tailored to your brand" },
+                  { icon: "✍️", title: "AI Captions", desc: "Every post written in your brand voice with trending hashtags" },
+                  { icon: "📊", title: "Analytics Dashboard", desc: "Follower growth, reach & engagement tracked in real time" },
+                  { icon: "✅", title: "Approval Mode", desc: "Choose auto-post or approve each post before it goes live" },
+                  { icon: "📸", title: "Multi-Platform", desc: "Instagram, Facebook, TikTok, LinkedIn, Google Business & more" },
+                  { icon: "🚀", title: "Fast Setup", desc: "Accounts created and first posts live within 5 business days" },
+                ].map(f => (
+                  <div key={f.title} style={{ background: dark ? "rgba(80,40,120,0.1)" : "rgba(124,58,237,0.04)", border: `1px solid ${dark ? "rgba(120,60,200,0.2)" : "rgba(124,58,237,0.15)"}`, borderRadius: 12, padding: "14px 16px" }}>
+                    <div style={{ fontSize: 20, marginBottom: 8 }}>{f.icon}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: dark ? "#b080ff" : "#6d28d9", marginBottom: 4 }}>{f.title}</div>
+                    <div style={{ fontSize: 12, color: dark ? "#4a5870" : "#7080a0", lineHeight: 1.5 }}>{f.desc}</div>
+                  </div>
+                ))}
+              </div>
+              {/* Pricing tiers */}
+              <div style={{ background: dark ? "rgba(80,40,120,0.12)" : "rgba(124,58,237,0.05)", border: `1px solid ${dark ? "rgba(120,60,200,0.25)" : "rgba(124,58,237,0.2)"}`, borderRadius: 14, padding: "20px 22px", marginBottom: 24 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: dark ? "#8060b0" : "#7c3aed", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>Packages</div>
+                {[
+                  { name: "Starter",     price: "$349/mo", platforms: "2 platforms", posts: "8 posts/mo",  desc: "Perfect for getting started" },
+                  { name: "Growth",      price: "$549/mo", platforms: "4 platforms", posts: "16 posts/mo", desc: "Most popular for growing businesses" },
+                  { name: "Full Suite",  price: "$849/mo", platforms: "All platforms", posts: "30 posts/mo", desc: "Complete social domination" },
+                ].map((tier, i) => (
+                  <div key={tier.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: i < 2 ? `1px solid ${dark ? "rgba(120,60,200,0.15)" : "rgba(124,58,237,0.12)"}` : "none" }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: dark ? "#c090ff" : "#6d28d9" }}>{tier.name}</div>
+                      <div style={{ fontSize: 11, color: dark ? "#4a5870" : "#8090a8" }}>{tier.platforms} · {tier.posts} · {tier.desc}</div>
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: dark ? "#a060ff" : "#7c3aed" }}>{tier.price}</div>
+                  </div>
+                ))}
+              </div>
+              <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Add Social Media — " + client.businessName)}&body=${encodeURIComponent("Hi WebGecko,\n\nI\'d like to add the Social Media bundle to my package.\n\nBusiness: " + client.businessName + "\n\nPlease send me the details and next steps.")}`}
+                style={{ display: "block", textAlign: "center", background: "linear-gradient(135deg,#7c3aed,#a855f7)", color: "#fff", borderRadius: 12, padding: "14px 24px", fontSize: 14, fontWeight: 700, textDecoration: "none", boxShadow: "0 4px 20px rgba(124,58,237,0.35)" }}>
+                Add Social Media to My Package →
+              </a>
+              <div style={{ textAlign: "center", fontSize: 12, color: dark ? "#3a4860" : "#a0a8c0", marginTop: 10 }}>
+                We'll get back to you within 1 business day with a quote and setup plan.
+              </div>
+            </div>
+          );
           const mockPosts = [
             { id: "p1", platform: "Instagram",  caption: "Winter sale is ON — 20% off all services this week only. Book today and lock in your spot before we fill up!", scheduledAt: "2026-05-14T09:00:00", status: "scheduled"         as const },
             { id: "p2", platform: "Facebook",   caption: "We just wrapped up a big job in the CBD — check out these before and afters. Proud of the team today! 💪", scheduledAt: "2026-05-15T11:00:00", status: "pending_approval" as const },
@@ -2547,6 +2701,17 @@ export default function ClientPortal() {
                     Your social accounts are being set up — we'll connect them and notify you when ready.
                   </div>
                 )}
+                {/* Add more platforms */}
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ fontSize: 12, color: C.textMuted }}>Want to add more platforms?</div>
+                    <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Add Social Platform — " + client.businessName)}&body=${encodeURIComponent("Hi WebGecko,\n\nI\'d like to add another social media platform to my package.\n\nBusiness: " + client.businessName + "\n\nPlatform I want to add: ")}`}
+                      style={{ fontSize: 12, fontWeight: 700, color: dark ? "#a060ff" : "#7c3aed", textDecoration: "none", background: dark ? "rgba(120,60,200,0.12)" : "rgba(124,58,237,0.07)", border: `1px solid ${dark ? "rgba(120,60,200,0.25)" : "rgba(124,58,237,0.2)"}`, borderRadius: 7, padding: "5px 12px" }}>
+                      ＋ Add platform
+                    </a>
+                  </div>
+                  <div style={{ fontSize: 11, color: C.textMuted, marginTop: 4 }}>Each additional platform is $50–$100/mo depending on posting frequency.</div>
+                </div>
               </div>
 
               {/* Posting Preference */}

@@ -2000,6 +2000,7 @@ function ClientCard({ c, secret, dark, toast }: { c:ClientAnalytics; secret:stri
         background:T.surface, border:`1px solid ${statusColor}25`, borderRadius:16,
         padding:"18px 20px 18px 24px", position:"relative", overflow:"hidden",
         boxShadow:`0 0 0 1px ${statusColor}12, 0 6px 28px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)`,
+        display:"flex", flexDirection:"column" as const, height:190,
       }}
       onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=statusColor+"55";el.style.boxShadow=`0 0 28px ${statusColor}25, 0 8px 40px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.06)`;}}
       onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=statusColor+"25";el.style.boxShadow=`0 0 0 1px ${statusColor}12, 0 6px 28px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)`;}}
@@ -2029,16 +2030,17 @@ function ClientCard({ c, secret, dark, toast }: { c:ClientAnalytics; secret:stri
           </div>
         </div>
 
-        <div style={{ display:"flex", gap:5, flexWrap:"wrap" as const, marginBottom:14 }}>
+        <div style={{ display:"flex", gap:5, flexWrap:"wrap" as const, flex:1, alignContent:"flex-start" as const }}>
           <Pill color={statusColor}>{c.buildStatus||"pending"}</Pill>
           {c.paymentState?.monthlyActive&&<Pill color={T.green}>Monthly</Pill>}
           {c.paymentState?.depositPaid&&!c.paymentState?.monthlyActive&&<Pill color={T.amber}>Deposit</Pill>}
           {!c.paymentState?.depositPaid&&<Pill color={T.textMuted}>Unpaid</Pill>}
           {c.hasBooking&&<Pill color={T.purple}>Booking</Pill>}
           {c.metadata?.alreadyReleased&&<Pill color={T.green}>Released</Pill>}
+          {((c as any).metadata?.serviceType==="social"||(c as any).metadata?.serviceType==="both")&&<Pill color={T.purple}>📱 Social</Pill>}
         </div>
 
-        <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:T.textMuted, borderTop:`1px solid ${T.border}`, paddingTop:12 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:T.textMuted, borderTop:`1px solid ${T.border}`, paddingTop:12, marginTop:"auto" }}>
           <div style={{ display:"flex", flexDirection:"column" as const, alignItems:"center" }}>
             <span style={{ fontSize:17, fontWeight:700, color:T.blue, letterSpacing:"-0.02em" }}>{a?.thisMonth.views??0}</span>
             <span style={{ fontSize:10, marginTop:2, letterSpacing:"0.04em" }}>VIEWS</span>
@@ -2051,8 +2053,27 @@ function ClientCard({ c, secret, dark, toast }: { c:ClientAnalytics; secret:stri
             <span style={{ fontSize:17, fontWeight:700, color:T.purple, letterSpacing:"-0.02em" }}>{c.bookingCount}</span>
             <span style={{ fontSize:10, marginTop:2, letterSpacing:"0.04em" }}>BOOKINGS</span>
           </div>
-          <div style={{ display:"flex", flexDirection:"column" as const, alignItems:"center" }}>
-            <div style={{ color:T.border, fontSize:20, lineHeight:1, marginTop:2 }}>›</div>
+          {/* Quick Links — stops propagation so it doesn't open the panel */}
+          <div style={{ display:"flex", flexDirection:"column" as const, alignItems:"center" }} onClick={e=>e.stopPropagation()}>
+            <button
+              title="Open all client URLs"
+              onClick={e=>{
+                e.stopPropagation();
+                const slug = c.jobId;
+                const links = [
+                  `https://webgeckofl.vercel.app/c/${slug}`,
+                  c.liveUrl || c.previewUrl,
+                  c.metadata?.domainUrl || "",
+                  c.hasBooking && (c.metadata as any)?.supersaasUrl ? (c.metadata as any).supersaasUrl : "",
+                ].filter(Boolean) as string[];
+                links.forEach(url => window.open(url, "_blank", "noopener"));
+                toast(`Opened ${links.length} link${links.length!==1?"s":""} for ${c.businessName}`,"info");
+              }}
+              style={{ background:"none", border:`1px solid ${T.border}`, borderRadius:7, color:T.textMuted, fontSize:13, cursor:"pointer", width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.15s ease" }}
+              onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.background=T.raised;(e.currentTarget as HTMLElement).style.color=T.blue;}}
+              onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.background="none";(e.currentTarget as HTMLElement).style.color=T.textMuted;}}
+            >⧉</button>
+            <span style={{ fontSize:9, marginTop:3, letterSpacing:"0.04em", color:T.textMuted }}>LINKS</span>
           </div>
         </div>
       </div>
@@ -2817,6 +2838,41 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
         ))}
       </div>
 
+      {/* ── Onboarding Checklist ── */}
+      <div style={{ ...cardStyle, marginBottom:16 }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+          <div>
+            <div style={{ fontSize:13, fontWeight:700, color:T.text }}>Client Onboarding — Social Media Package</div>
+            <div style={{ fontSize:11, color:T.textMuted, marginTop:2 }}>Follow this process for every new social client</div>
+          </div>
+          <span style={{ background:T.blue+"18", color:T.blue, border:`1px solid ${T.blue}30`, borderRadius:6, padding:"3px 10px", fontSize:11, fontWeight:700 }}>Process Guide</span>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))", gap:10 }}>
+          {([
+            { step:"1", icon:"📧", title:"Send welcome email", desc:"Confirm the social package, pricing, and what's included. Attach your Social Media Service Agreement for them to sign." },
+            { step:"2", icon:"📋", title:"Sign service agreement", desc:"Client signs the social media management clause — covers account ownership, posting authority, liability, and cancellation terms." },
+            { step:"3", icon:"📅", title:"Book setup call (15 min)", desc:"Schedule a Zoom or phone call. They'll need to be available with access to their phone for SMS verification codes during setup." },
+            { step:"4", icon:"📧", title:"Create Google account", desc:"During the call, create a Gmail (businessname.au@gmail.com) WITH the client present — they type their own password. Set up auto-forward to their primary business email." },
+            { step:"5", icon:"📘", title:"Set up Facebook + Instagram", desc:"Using the new Gmail: create Facebook Page and Instagram Business account. Add your Meta Business Manager as Partner. Client stays as account owner." },
+            { step:"6", icon:"🎵", title:"Set up TikTok Business", desc:"Create TikTok Business account using the same Gmail. Add your TikTok Business Center as team member for agency access." },
+            { step:"7", icon:"💼", title:"Set up LinkedIn company page", desc:"Use client's existing personal LinkedIn (or create one) to create their company page. Add yourself as Page Admin." },
+            { step:"8", icon:"📍", title:"Google Business + YouTube", desc:"Google Business Profile and YouTube channel are both tied to the Gmail account created in Step 4 — enable both from Google's dashboard." },
+            { step:"9", icon:"📌", title:"Connect to Metricool", desc:"Add client as a new Brand in your Metricool agency account. Connect all platforms via OAuth from your Metricool dashboard — no login sharing required." },
+            { step:"10", icon:"🗓️", title:"Set posting schedule", desc:"Agree on posting frequency (e.g. 3×/week), preferred platforms, and tone. Set this in their client portal Social tab. Confirm auto-post vs. manual approval." },
+            { step:"11", icon:"🤖", title:"Configure AI brand voice", desc:"Note their industry, tone preferences, and any content restrictions in their client record. This seeds the AI caption generator." },
+            { step:"12", icon:"🚀", title:"First post goes live", desc:"Prepare the first batch of 4–8 posts for review. Send preview to client if on manual approval. Schedule and confirm with Metricool." },
+          ] as const).map(s => (
+            <div key={s.step} style={{ display:"flex", gap:12, padding:"12px 14px", background:T.raised, border:`1px solid ${T.border}`, borderRadius:10 }}>
+              <div style={{ width:28, height:28, borderRadius:8, background:`linear-gradient(135deg,${T.blue}30,${T.purple}20)`, border:`1px solid ${T.blue}25`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, color:T.blue, flexShrink:0 }}>{s.step}</div>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:T.text, marginBottom:3 }}>{s.icon} {s.title}</div>
+                <div style={{ fontSize:11, color:T.textMuted, lineHeight:1.55 }}>{s.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, alignItems:"start" }}>
         {/* Post approval queue */}
         <div>
@@ -2926,6 +2982,7 @@ function AdminDashboard() {
   const [selectedClient, setSelectedClient] = useState<ClientAnalytics|null>(null);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [clientSubTab, setClientSubTab] = useState<"all"|"website"|"social"|"both">("all");
   const { toasts, add: toast } = useToast();
 
   function openClient(c: ClientAnalytics) {
@@ -3164,11 +3221,39 @@ function AdminDashboard() {
         {view==="social"&&<SocialView clients={clients}/>}
 
         {view==="clients"&&(<>
-        {/* Client grid header */}
-        <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:14 }}>
-          <div style={{ height:1,width:24,background:"rgba(79,158,255,0.4)" }}/>
-          <span style={{ fontSize:10,fontWeight:800,letterSpacing:"0.14em",color:"rgba(79,158,255,0.55)",textTransform:"uppercase" as const }}>Clients</span>
-        </div>
+        {/* Client grid header with service-type sub-tabs */}
+        {(()=>{
+          const websiteClients = filtered.filter((c:ClientAnalytics) => { const st=(c as any).metadata?.serviceType; return !st||st==="website"; });
+          const socialClients  = filtered.filter((c:ClientAnalytics) => (c as any).metadata?.serviceType==="social");
+          const bothClients    = filtered.filter((c:ClientAnalytics) => (c as any).metadata?.serviceType==="both");
+          const displayClients = clientSubTab==="website" ? websiteClients : clientSubTab==="social" ? socialClients : clientSubTab==="both" ? bothClients : filtered;
+          return (<>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16, flexWrap:"wrap" as const, gap:10 }}>
+            <div style={{ display:"flex", gap:3, background:T.raised, border:`1px solid ${T.border}`, borderRadius:10, padding:3 }}>
+              {([
+                { id:"all"     as const, label:"All Clients",    count:filtered.length },
+                { id:"website" as const, label:"🌐 Website",     count:websiteClients.length },
+                { id:"social"  as const, label:"📱 Social Only", count:socialClients.length },
+                { id:"both"    as const, label:"⚡ Website + Social", count:bothClients.length },
+              ]).map(t => (
+                <button key={t.id} onClick={()=>setClientSubTab(t.id)}
+                  className={clientSubTab===t.id?"wg-view-active":""}
+                  style={{ padding:"6px 14px", fontSize:12, fontWeight:clientSubTab===t.id?700:400,
+                    color:clientSubTab===t.id?T.text:T.textMuted, background:"transparent",
+                    border:"1px solid transparent", borderRadius:7, cursor:"pointer",
+                    transition:"all 0.15s", display:"flex", alignItems:"center", gap:6, whiteSpace:"nowrap" as const }}>
+                  {t.label}
+                  <span style={{ background:clientSubTab===t.id?T.blue+"30":T.raised, color:clientSubTab===t.id?T.blue:T.textMuted,
+                    borderRadius:10, padding:"1px 7px", fontSize:10, fontWeight:700 }}>{t.count}</span>
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize:11, color:T.textMuted }}>
+              {clientSubTab==="social" && "Clients with Social Media package only — no website"}
+              {clientSubTab==="both"   && "Clients with both Website + Social Media active"}
+              {clientSubTab==="website"&& "Clients with Website package only"}
+            </div>
+          </div>
 
         {/* Search + filters */}
         <div style={{ display:"flex",gap:10,marginBottom:12,flexWrap:"wrap" as const,alignItems:"center" }}>
@@ -3217,16 +3302,16 @@ function AdminDashboard() {
             {Array(6).fill(0).map((_,i)=><Skeleton key={i}/>)}
           </div>
         )}
-        {!loading&&filtered.length===0&&(
+        {!loading&&displayClients.length===0&&(
           <div style={{ textAlign:"center" as const,padding:"80px 0",color:T.textMuted }}>
             <div style={{ fontSize:36,marginBottom:12 }}>&#x1F50D;</div>
             <div style={{ fontSize:16,fontWeight:600,color:T.textSec,marginBottom:6 }}>No clients found</div>
             <div style={{ fontSize:13 }}>Try adjusting your search or filter.</div>
           </div>
         )}
-        {!loading&&filtered.length>0&&(
+        {!loading&&displayClients.length>0&&(
           <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12 }}>
-            {filtered.map((c:ClientAnalytics,i:number)=>{
+            {displayClients.map((c:ClientAnalytics,i:number)=>{
               const isSelected = bulkSelected.has(c.jobId);
               return (
                 <div key={c.slug} style={{ animationDelay:`${i*0.03}s`,position:"relative" as const }}>
@@ -3245,6 +3330,8 @@ function AdminDashboard() {
         )}
 
         {!loading&&<ExampleHtmlsPanel toast={toast}/>}
+          </>);
+        })()}
         </>)}
 
           </div>{/* end padding div */}
