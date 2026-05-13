@@ -20,6 +20,7 @@ import {
   validateForDeploy,
   ensureMultiPageStructure,
   getExampleHtmlsForIndustry,
+  fetchPexelsPhoto,
 } from "@/lib/pipeline-helpers";
 import { createSuperSaasSchedule } from "@/lib/supersaas";
 import { createClientShopCatalogue } from "@/lib/square";
@@ -398,7 +399,17 @@ const buildWebsite = inngest.createFunction(
           }
         }
 
-        // 3. Inject id="contact" section if missing
+        // 3. Inject id="contact" section if missing.
+        // First try to stamp id="contact" onto an existing Stitch contact section.
+        if (!html.includes('id="contact"')) {
+          const stitchContactRe = /<(section|div)([^>]*class="[^"]*(?:contact|get-in-touch)[^"]*"[^>]*)>/i;
+          const stitchM = stitchContactRe.exec(html);
+          if (stitchM) {
+            html = html.slice(0, stitchM.index) +
+              '<' + stitchM[1] + stitchM[2].replace(/>$/, '') + ' id="contact">' +
+              html.slice(stitchM.index + stitchM[0].length);
+          }
+        }
         if (!html.includes('id="contact"')) {
           const contactSection = `
   <section id="contact" style="padding:80px 24px;background:#0f172a;scroll-margin-top:80px;">
@@ -1140,7 +1151,40 @@ const buildWebsite = inngest.createFunction(
           }
         }
         let html = injectEssentials(navFixedHtml, clientEmail, clientPhone, jobId, ga4Id, tawktoPropertyId);
-        html = injectImages(html, logoUrl, heroUrl, photoUrls, productsWithPhotos);
+
+        // Fetch Pexels hero photo if client didn't upload one
+        let effectiveHeroUrl = heroUrl || null;
+        let effectivePhotoUrls = photoUrls || [];
+        if (!effectiveHeroUrl && process.env.PEXELS_API_KEY) {
+          const query = `${userInput.industry || userInput.businessName} professional`;
+          effectiveHeroUrl = await fetchPexelsPhoto(query, "landscape");
+          if (effectiveHeroUrl) console.log("[Step6] Pexels hero:", effectiveHeroUrl);
+        }
+        if (effectivePhotoUrls.length === 0 && process.env.PEXELS_API_KEY) {
+          const queries = [
+            userInput.industry || userInput.businessName,
+            `${userInput.industry || ""} team`,
+            `${userInput.industry || ""} service`,
+          ];
+          const fetched = await Promise.all(queries.map((q: string) => fetchPexelsPhoto(q, "landscape")));
+          effectivePhotoUrls = fetched.filter(Boolean) as string[];
+          if (effectivePhotoUrls.length) console.log("[Step6] Pexels photos:", effectivePhotoUrls.length);
+        }
+
+        // Wire "How It Works" button to scroll to features/services section
+        html = html.replace(
+          /<button([^>]*)>How It Works<\/button>/gi,
+          (m, attrs) => {
+            if (/onclick/i.test(attrs)) return m;
+            const target = html.includes('id="features"') ? 'features'
+              : html.includes('id="services"') ? 'services'
+              : html.includes('id="how-it-works"') ? 'how-it-works'
+              : 'contact';
+            return `<button${attrs} onclick="event.preventDefault();document.getElementById('${target}')?.scrollIntoView({behavior:'smooth'})">How It Works</button>`;
+          }
+        );
+
+        html = injectImages(html, logoUrl, effectiveHeroUrl, effectivePhotoUrls, productsWithPhotos);
         return html;
       });
 
@@ -2134,11 +2178,12 @@ const featureInject = inngest.createFunction(
         from: "WebGecko <hello@webgecko.au>",
         to: process.env.RESULT_TO_EMAIL || "hello@webgecko.au",
         subject: `🎨 Draft ready — ${featureId} for ${userInput.businessName || jobId}`,
-        html: `<div style="font-family:sans-serif;padding:32px;background:#0a0f1a;color:#e2e8f0;max-width:600px;border-radius:12px;">
-<h2 style="color:#00c896;">Draft Ready for Review</h2>
-<p><strong>${featureId}</strong> has been injected into a draft for <strong>${userInput.businessName || jobId}</strong>.</p>
-<p><a href="${draftSiteUrl}" style="background:#3b82f6;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;margin-bottom:12px;">View Draft →</a></p>
-<p>Once you're happy, go to <a href="${adminUrl}" style="color:#00c896;">Admin Dashboard</a> → Feature Requests → mark as <strong>Live</strong> to push to the client's real site.</p>
+        html: `<div style="font-family:sans-serif;padding:20px;background:#0f1623;color:#e2e8f0;border-radius:12px;">
+<h2 style="color:#00c896;">Feature Draft Ready</h2>
+<p>Feature: <strong>${featureId}</strong></p>
+<p>Business: <strong>${userInput.businessName || jobId}</strong></p>
+<p><a href="${draftSiteUrl}" style="background:#3b82f6;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;margin-bottom:12px;">View Draft &rarr;</a></p>
+<p>Once you&#39;re happy, go to <a href="${adminUrl}" style="color:#00c896;">Admin Dashboard</a> &rarr; Feature Requests &rarr; mark as <strong>Live</strong> to push to the client&#39;s real site.</p>
 </div>`,
       });
 
@@ -2149,10 +2194,6 @@ const featureInject = inngest.createFunction(
     return { ok: true, draftUrl };
   }
 );
-
-// ─── Feature Go Live ──────────────────────────────────────────────────────────
-// When admin marks a feature request as "live", we push the draft HTML
-// to the real site by triggering a rebuild with the new feature included.
 
 const featureGoLive = inngest.createFunction(
   {
@@ -2177,7 +2218,6 @@ const featureGoLive = inngest.createFunction(
     });
   }
 );
-
 
 export const { GET, POST, PUT } = serve({
   client: inngest,

@@ -1,354 +1,253 @@
 # WebGecko — Full Session Handoff Summary
 
-**Date:** 2026-05-12  
+**Last Updated:** 2026-05-13  
 **Repo:** `github.com/Crayzewastaken/webgecko-builder` (branch: `main`)  
 **Stack:** Next.js 16 App Router (TypeScript), Inngest background jobs, Supabase, Vercel, Stripe Connect, SuperSaas, Beehiiv, Tawk.to, Termly  
-**Workspace:** `C:\Users\zackr\webgecko`
+**Workspace:** `C:\Users\zackr\webgecko`  
+**Vercel project:** `webgeckofl.vercel.app`
 
 ---
 
 ## 1. What WebGecko Is
 
-WebGecko is a white-label website-as-a-service SaaS built for a single operator (Zack). Clients fill out an intake form, pay a deposit, and the system automatically builds and deploys a fully styled multi-page or single-page website using Claude/Gemini (via a "Stitch" prompt chain), then deploys it to Vercel under a stable alias URL. The operator manages all clients through a single admin dashboard.
+WebGecko is a white-label website-as-a-service SaaS (single operator: Zack). Clients fill an intake form, pay a deposit, the system builds and deploys a fully styled multi-page or single-page website via Claude/Gemini ("Stitch"), deployed to Vercel under a stable alias. Operator manages all clients via a single admin dashboard.
 
 ### Key flows
-
-1. **Intake form** (`app/page.tsx`) → client submits business details, feature choices, style preferences → submitted to `/api/secure-submit` → creates a job in Supabase → triggers Inngest pipeline
-2. **Inngest pipeline** (`app/api/inngest/route.ts`, ~2,200 lines) → 10+ steps: blueprint → Stitch HTML generation → feature injection (newsletter, FAQ, testimonials, booking, shop) → auditor fixes → deploy to Vercel → smoke test
-3. **Admin dashboard** (`app/admin/page.tsx`, ~3,000 lines) → operator views all clients, manages pipeline, checklist, integrations, content, payments, analytics
-4. **Client portal** (`app/c/[slug]/page.tsx`) → client sees build status, provides missing details (ABN, domain, address, GA4), manages bookings, requests features, views content
+1. Intake form (`app/page.tsx`) → `/api/secure-submit` → Supabase job → Inngest pipeline
+2. Inngest pipeline (`app/api/inngest/route.ts`, ~2,200 lines) → 10+ steps: blueprint → Stitch HTML → feature injection → auditor fixes → deploy → smoke test
+3. Admin dashboard (`app/admin/page.tsx`) → all clients, pipeline, checklist, integrations, payments
+4. Client portal (`app/c/[slug]/page.tsx`) → build status, submit details, manage bookings, request features
 
 ---
 
 ## 2. Architecture
 
-### Directories
-
 ```
 app/
-  page.tsx                  — Intake/signup form (multi-step wizard)
-  admin/
-    page.tsx                — Admin dashboard (3,000-line single component, ~40 useState hooks, 12 tab panels)
-    login/page.tsx          — Admin login
-    history/page.tsx        — Pipeline error/history log viewer
-  c/[slug]/page.tsx         — Client portal (authenticated via wg_client_slug cookie)
-  client/[slug]/page.tsx    — Alternate client portal path
+  page.tsx                  — Intake form (multi-step wizard)
+  admin/page.tsx            — Admin dashboard
+  c/[slug]/page.tsx         — Client portal
   api/
-    inngest/route.ts        — Inngest background job handler (the entire pipeline, Steps 0–10)
-    secure-submit/route.ts  — Intake form submission endpoint
-    admin/
-      clients/              — List all clients
-      redeploy/             — Force redeploy (returns stable alias URL)
-      fix-proxy/            — Fix/patch existing deploy (returns stable alias URL)
-      checklist-links/      — Store checklist URL inputs (Termly, ToS, GA4) per job
-      content/              — Blog/newsletter/review/deal/product CRUD
-      update-integration/   — Save GA4 ID, custom domain, booking URL, etc.
-      assign-domain/        — Wire custom domain to Vercel project
-      ... (20+ other admin routes)
-    client-login/route.ts   — Client auth GET (cookie) + PATCH (update ABN/domain/address/ga4Id)
-    stripe/
-      connect/route.ts      — Start Stripe Connect OAuth (includes HMAC CSRF state)
-      callback/route.ts     — Stripe Connect OAuth callback (verifies HMAC state)
-      webhook/route.ts      — Stripe payment webhooks
-    preview/proxy/route.ts  — Authenticated proxy for preview HTML
-    unlock/release/route.ts — Mark site as released to client
-    ... (60+ API routes total)
+    inngest/route.ts        — Full pipeline (Steps 0-10)
+    unlock/release/route.ts — Mark released + email client
+    ... (60+ routes)
 
 lib/
-  auditor.ts               — Post-generation HTML auditor: fixes phones, injects missing sections (FAQ, testimonials, legal), multi-page aware
-  pipeline-helpers.ts      — validateForDeploy, ensureMultiPageStructure, repairHtml, addSectionIdSmart, fallback page content templates
-  stitch.ts                — Stitch HTML generation (Claude/Gemini prompt chain)
-  blueprint.ts             — Step 1: generate colour palette, typography, design tokens
-  promptBuilder.ts         — Builds the massive Stitch system prompt from job data
-  db.ts                    — Supabase helpers, camelCase↔snake_case conversion
-  admin-auth.ts            — isAdminAuthedLegacy(): cookie session OR ?secret=PROCESS_SECRET
+  auditor.ts               — HTML auditor (fixes phones, injects missing sections, legal pages)
+  pipeline-helpers.ts      — validateForDeploy, injectImages, fetchPexelsPhoto, ensureMultiPageStructure
+  blueprint.ts             — Step 1: colour/font design tokens
+  admin-auth.ts            — isAdminAuthedLegacy(): cookie OR ?secret=PROCESS_SECRET
+  db.ts                    — Supabase camelCase<->snake_case helpers
   deploySite.ts            — Vercel deploy API wrapper
-  stripe-connect.ts        — Stripe Connect helpers
-  supersaas.ts             — SuperSaas booking API
-  beehiiv.ts               — Beehiiv newsletter API
-  tawkto.ts                — Tawk.to live chat API
-  inngest.ts               — Inngest client setup
 ```
-
-### Database (Supabase)
-
-Two main tables:
-- **`clients`** — slug, business_name, email, phone, abn, ga4_id, domain, preview_url, live_url, build_status, payment state, metadata (JSONB)
-- **`jobs`** — id, user_input (JSONB with all intake fields), metadata (JSONB), pipeline_log (JSONB array), build_status, html (full HTML output)
-
-`lib/db.ts` handles camelCase↔snake_case conversion. The `user_input` JSONB on jobs stores all intake form fields including abn, businessAddress, preferredDomain, ga4Id.
 
 ### Auth
-
-- **Admin:** HttpOnly cookie `wg_admin_session` (scrypt-hashed password) OR `?secret=PROCESS_SECRET` query param. `isAdminAuthedLegacy()` in `lib/admin-auth.ts` checks both.
-- **Client:** HttpOnly cookie `wg_client_slug` set on login. Client portal reads this to gate access.
+- **Admin:** `isAdminAuthedLegacy(req)` — HttpOnly cookie `wg_admin_session` first, then `?secret=PROCESS_SECRET`. ALL admin routes must use this function.
+- **Client:** HttpOnly cookie `wg_client_slug`
 
 ### Deployment
-
-- All client sites deploy to Vercel as separate projects named `wg-{slug}`
-- **Always use stable alias** `https://wg-{slug}.vercel.app` — NOT the per-deploy unique hash URL (those go stale after ~30 days and cause false smoke test failures)
-- `redeploy` and `fix-proxy` routes were fixed to always return and save the stable alias
+- Client sites: Vercel project `wg-{slug}`, stable alias `https://wg-{slug}.vercel.app`
+- NEVER use per-deploy hash URL (goes stale after ~30 days)
 
 ---
 
-## 3. Pipeline Steps (Inngest)
-
-Located in `app/api/inngest/route.ts`. Each step is a `step.run()` call:
-
-| Step | Name | Description |
-|------|------|-------------|
-| 0 | trigger | Receive job, validate, set building status |
-| 1 | blueprint | Generate colour palette, fonts, design tokens via Claude |
-| 2 | stitch | Generate full HTML via Claude/Gemini Stitch prompt |
-| 3 | (parse) | Extract HTML from Stitch response |
-| 4 | features | Inject features: newsletter, FAQ, testimonials, booking iframe, live chat |
-| 4b | ensurePages | Run ensureMultiPageStructure to guarantee all requested data-page wrappers exist |
-| 5 | auditor | Fix placeholder phones, inject missing section IDs, inject legal pages, strip markdown asterisks |
-| 6 | tawkto | Create Tawk.to property for live chat (skipped if API 404s) |
-| 7 | shop | Inject shop section if hasShop |
-| 7b | validate | validateForDeploy — structural checks, page content checks, then repair if needed |
-| 8 | deploy | Deploy HTML to Vercel, save stable alias URL |
-| 9 | smoketest | Fetch stable alias with 3s/6s/9s delays (3 attempts), check content |
-| 10 | notify | Send email to client, update build status |
-
-### Critical pipeline bugs fixed this session
-
-**Newsletter/FAQ/testimonials injection on every page (multi-page sites)**  
-Previously injected before `<footer>` globally — appeared on booking, about, contact pages too. Fixed in Step 4: now injects inside `<div data-page="home">` wrapper only. Single-page sites still use footer-based injection.
-
-**Smoke test false failures**  
-Was hitting per-deploy unique hash URL with 2s/4s/6s delays. Cold starts take 10–15s. Fixed to use stable alias URL with 3s/6s/9s delays.
-
-**Live domain showing stale content**  
-`redeploy` and `fix-proxy` were saving the unique hash URL as `previewUrl`. Fixed to always save `https://wg-{slug}.vercel.app`.
-
----
-
-## 4. Security Fixes (Restored from NTFS Truncation)
-
-Three files were truncated by the Edit tool's NTFS bug (large files get truncated mid-byte). All were restored via Python write-back:
-
-**`app/api/stripe/callback/route.ts`**  
-Full HMAC CSRF verification using `crypto.createHmac('sha256', PROCESS_SECRET)` and `timingSafeEqual`. Exports `generateStripeState(jobId)`. The connect route (`app/api/stripe/connect/route.ts`) was also fixed to include the state token in the return_url.
-
-**`app/api/preview/proxy/route.ts`**  
-Auth gate: requires admin session OR matching `wg_client_slug` cookie. Returns 401 otherwise.
-
-**`app/api/client-login/route.ts`** (PATCH)  
-Enhanced to accept: `shopPaymentUrl`, `abn`, `businessAddress`, `preferredDomain`, `ga4Id`. Each field is sanitised (ABN: digits/spaces only, 20 chars; address: 300 chars; domain: strip https://, 253 chars; ga4Id: 20 chars). Updates both `clients` table and `jobs.user_input` JSONB.
-
----
-
-## 5. Admin Dashboard Changes (`app/admin/page.tsx`)
-
-### Removed: To-Do tab
-The "To-Do" tab was a duplicate of the Checklist tab. Removed entirely:
-- `"todo"` removed from tab union type and tabs array
-- `todoCompleted: Set<string>` state and localStorage persistence removed
-- Entire To-Do tab content block (~7,700 chars) deleted
-
-### Enhanced: Checklist tab
-
-The checklist now has:
-
-1. **"✓ Mark section complete" button** on every section header — marks all completable items in that section done in one click. Items requiring a URL input (Termly, GA4, ToS) stay locked until the URL is pasted. Once all done, button swaps to a "✓ Done" badge with item count.
-
-2. **"Final Submit — Push Website Live" CTA** — large green button that appears only when all `required: true` pre-launch items are checked across all pre-launch sections. Calls `/api/unlock/release`. After release, swaps to a "Site is live ✅" banner.
-
-3. **Pre-launch / Post-launch split:**
-   - Pre-launch sections: Privacy Policy, Terms of Service, Legal Checks, Domain & Hosting, Newsletter (Beehiiv), Google Analytics (GA4), Stripe Shop Setup (conditional), Booking System (conditional), Pre-Launch Checks
-   - Post-launch section (purple "Post-Launch" divider): Send go-live email, Mark job complete, Confirm monthly sub active, Monitor first 7 days, Request Google review
-   - `Section` type updated to include optional `postLaunch?: boolean`
-   - Pre-launch required gate: `preLaunchRequired = preLaunchSections.flatMap(s=>s.items).filter(i=>i.required)` — all must be `checklistDone[key] === true` before Go Live button appears
-
-### Checklist section structure
+## 3. Environment Variables
 
 ```
-1. Privacy Policy         (Termly — sign up, add site, generate, embed URL, cookie banner)
-2. Terms of Service       (freeprivacypolicy.com — generate, embed URL)
-3. Legal Checks           (ABN visible, SSL, copyright, spam law)
-4. Domain & Hosting       (check domain, register VentraIP, DNS, Vercel, GSC)
-5. Newsletter — Beehiiv   (conditional on Newsletter feature)
-6. Google Analytics GA4   (conditional — create property, get G- ID, test)
-7. Stripe Shop Setup      (conditional — connect OAuth, sync products, test)
-8. Booking (SuperSaas)    (conditional — account, schedule, URL, notifications)
-9. Pre-Launch Checks      (review site, policies, PageSpeed, Search Console) ← gates Go Live
-── POST-LAUNCH divider ──
-10. Post-Launch            (email client, mark complete, monthly sub, monitor, Google review)
+PROCESS_SECRET=webgecko2026!
+ADMIN_SESSION_SECRET=<Vercel>
+ANTHROPIC_API_KEY=<see Vercel dashboard>
+STITCH_API_KEY=<see Vercel dashboard>
+NEXT_PUBLIC_APP_URL=https://webgeckofl.vercel.app
+PEXELS_API_KEY=<MUST ADD — Zack created Pexels account, get key from pexels.com/api/new>
+(+ SUPABASE, VERCEL_TOKEN, STRIPE, BEEHIIV, RESEND, TAWK, INNGEST, SQUARE, CLOUDFLARE_TURNSTILE)
 ```
+
+**PEXELS_API_KEY** is in `.env.local` as `YOUR_PEXELS_KEY_HERE` placeholder. Must replace locally AND add to Vercel dashboard → Settings → Environment Variables.
 
 ---
 
-## 6. Intake Form Changes (`app/page.tsx`)
+## 4. Critical Developer Notes
 
-### AI language removed
-- Testimonials: "we'll use these instead of AI-generated ones. Leave blank and we'll create realistic placeholders." → "we'll write them for you"
-- Blog topics: "Leave blank for AI-generated industry topics." → "we'll come up with relevant topics for your industry"
+### NTFS Edit Tool Truncation Bug
+**Most important issue.** Any Edit tool write to files >~100KB on Windows/NTFS risks truncating the file mid-byte. This has happened many times with inngest/route.ts, auditor.ts, and pipeline-helpers.ts.
 
-### ABN, domain, business address, GA4 made optional
-Previously all four were required fields with blocking validation. Now:
-- Removed from `validateStep()` — only checks ABN format if a value is provided
-- Labels updated to "(optional)" with hints pointing to client dashboard
-- Fields still appear in the form and are submitted if filled — they're just no longer blockers
+**Signs:** TSC errors like `TS1005: '}' expected` at last line, or `tail` shows file ends mid-statement.
 
-Rationale: clients were dropping off at the contact step because they didn't have their ABN handy just to see the price.
-
----
-
-## 7. Client Portal Changes (`app/c/[slug]/page.tsx`)
-
-### Business details card reworked
-Previously: shown only before deposit payment, blocked deposit button if ABN/domain/address missing.
-
-Now:
-- Shown whenever any of ABN, domain, or address is still missing — regardless of payment status
-- Hidden automatically once all three are filled AND deposit is paid
-- Deposit button no longer blocked — client can pay first, fill details later
-- **GA4 field added** — client can drop in their G- ID at any time
-- Missing fields highlighted in amber with "← needed" indicator
-- Card title changes: "Before You Pay — A Few Details" (pre-payment) vs "A Few Details We Still Need" (post-payment)
-- Save button always available, not disabled by missing fields
-
-### State additions
-```typescript
-const [prePayGa4, setPrePayGa4] = useState("");
-```
-Loaded from `normalised.ga4Id || ui.ga4Id`, saved via PATCH to `/api/client-login`.
-
-### ClientData interface
-Added `ga4Id?: string` to the `ClientData` interface (was missing, caused Vercel build failure).
-
----
-
-## 8. Pipeline Helpers / Validator Changes (`lib/pipeline-helpers.ts`)
-
-### validateForDeploy — thin-page check fix
-
-Old: strip all HTML tags from page wrapper, require ≥300 text chars. This fails for gallery pages which are image grids with almost no visible text.
-
-New: visual pages (`gallery`, `portfolio`, `our-work`, `team`) are checked by raw HTML length (≥500 chars) instead of stripped text. All other pages still use the 300-char text threshold.
-
-```typescript
-const visualPages = new Set(["gallery", "portfolio", "our-work", "team"]);
-// visual pages: raw HTML > 500 chars
-// other pages: stripped text > 300 chars
-```
-
-### Fallback gallery content fattened
-
-Two locations updated:
-1. `FALLBACK_PAGE_CONTENT.gallery` in `ensureMultiPageStructure` — now includes heading, subtitle, 6 image cards with alt text, footer contact line. Passes both old and new thresholds.
-2. Strategy D injection (`addSectionIdSmart`) — same treatment, includes full 6-card grid.
-
----
-
-## 9. Auditor Changes (`lib/auditor.ts`)
-
-### addSectionIdSmart — multi-page aware injection
-
-For multi-page sites, fallback section injection (FAQ, testimonials, etc.) now targets the `data-page="home"` wrapper specifically:
-
-```typescript
-const homeWrapperRe = /(<[^>]+data-page=["']home["'][^>]*>)([\s\S]*?)(<\/(?:section|div)>...)/i;
-// inject inside home wrapper, not globally before footer
-```
-
-For single-page sites: inject before `<footer>` or before `</body>` as before.
-
-This prevents FAQ/testimonial sections from appearing on booking, about, contact, gallery pages.
-
----
-
-## 10. Known Issues / Pending Items
-
-### Git index.lock
-The `.git/index.lock` file occasionally gets stuck (Linux sandbox leaves it behind). User must run in PowerShell before any git operation:
-```powershell
-Remove-Item -Force C:\Users\zackr\webgecko\.git\index.lock
-```
-
-### NTFS Edit tool truncation
-Any `Edit` tool write to a file >~100KB on Windows/NTFS risks truncating the file mid-byte. Always use Python write-back for large files:
+**Fix — always use Python write-back for large files:**
 ```python
-with open("path/to/file.ts", "r", encoding="utf-8") as f:
-    src = f.read()
+with open('/sessions/eager-lucid-knuth/mnt/webgecko/app/api/inngest/route.ts', 'rb') as f:
+    data = f.read()
+data = data.replace(b'\x00', b'')  # strip null bytes first
+src = data.decode('utf-8')
 src = src.replace(OLD, NEW)
-with open("path/to/file.ts", "w", encoding="utf-8") as f:
+with open('/sessions/eager-lucid-knuth/mnt/webgecko/app/api/inngest/route.ts', 'w', encoding='utf-8') as f:
     f.write(src)
 ```
-The main files at risk: `app/api/inngest/route.ts` (~2,200 lines), `app/admin/page.tsx` (~3,000 lines), `app/c/[slug]/page.tsx` (~2,000 lines), `lib/pipeline-helpers.ts`.
 
-### ui-history.json TSC error
-`lib/ui-history.json` is malformed JSON (missing `]`). Pre-existing. TSC reports it but it doesn't affect the build — Next.js doesn't import it directly. Can be safely ignored or the file deleted.
+After any edit, run: `tail -10 /sessions/eager-lucid-knuth/mnt/webgecko/app/api/inngest/route.ts` and check it ends with `});` not mid-string.
 
-### /api/client/content missing auth
-Identified in the security audit as a critical issue — this endpoint has no authentication. Any request with a valid jobId can read/write client content. Needs an auth gate added.
-
-### jobId collision risk
-If two clients submit simultaneously with the same slug-derived jobId, data can be overwritten. No UUID collision prevention currently in place.
-
----
-
-## 11. Audit Report
-
-A comprehensive 50-finding audit report was generated and saved to:
-`C:\Users\zackr\webgecko\WebGecko-Audit-Report.docx`
-
-Categories: Security (12), Bugs (11), Architecture (10), Scalability (6), Performance (5), Missing Systems (10), UX (8), Documentation (6), Business Logic (7). Top priorities identified:
-1. `/api/client/content` missing auth (Critical)
-2. jobId collision risk (High)
-3. Monolithic Inngest file (Architecture)
-4. 3,000-line admin component (Architecture)
-
----
-
-## 12. Environment Variables (Vercel)
-
-Key env vars the pipeline depends on:
-- `PROCESS_SECRET` — used for admin auth `?secret=` param and HMAC CSRF tokens
-- `ADMIN_SESSION_SECRET` — HttpOnly cookie signing
-- `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_KEY` — database
-- `ANTHROPIC_API_KEY` — Claude for Stitch/blueprint
-- `GOOGLE_API_KEY` — Gemini fallback
-- `VERCEL_TOKEN`, `VERCEL_TEAM_ID` — deploy API
-- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PLATFORM_CLIENT_ID` — Stripe Connect
-- `BEEHIIV_API_KEY`, `BEEHIIV_PUBLICATION_ID` — newsletter
-- `RESEND_API_KEY` — transactional email
-- `TAWK_API_KEY` — live chat property creation
-- `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` — Inngest background jobs
-- `CLOUDFLARE_TURNSTILE_SECRET` — intake form bot protection
-
----
-
-## 13. Commit History (This Session)
-
-```
-9e7c65a  fix: add ga4Id to ClientData interface
-c3556cd  fix: gallery thin-page validation — use raw HTML length for visual pages, fatten fallback gallery content
-55c74ec  checklist: remove todo tab, add section complete buttons + go-live CTA
-2fd9a33  fix: multi-page feature injection, smoke test URL, and stale live domain links
+### Git lock files
+Run before any git operation:
+```powershell
+Remove-Item -Force C:\Users\zackr\webgecko\.git\index.lock -ErrorAction SilentlyContinue
+Remove-Item -Force C:\Users\zackr\webgecko\.git\HEAD.lock -ErrorAction SilentlyContinue
 ```
 
-Plus earlier commits in the session:
+### Standard git push workflow
+```powershell
+Remove-Item -Force C:\Users\zackr\webgecko\.git\HEAD.lock -ErrorAction SilentlyContinue
+git -C C:\Users\zackr\webgecko add -A
+git -C C:\Users\zackr\webgecko commit -m "your message"
+git -C C:\Users\zackr\webgecko push
 ```
-dbb4a1f  fixed seo button, action needed, build/payment/feature request issues
-027da25  feat: simplified checklist - concise steps, GSC added to domain section
-d27abbd  fix: google SA key private_key safely to handle literal newlines
-f22f41e  feat: Google Indexing API - auto-submit custom domains on deploy
-3a76822  feat: pre-payment ABN/domain/address form in client portal
+
+### TSC check
+```bash
+cd /sessions/eager-lucid-knuth/mnt/webgecko && npx tsc --noEmit 2>&1 | grep -v "ui-history.json"
+```
+Ignore `ui-history.json` error (pre-existing malformed JSON, doesn't affect build).
+
+### Bash paths (Linux sandbox)
+```
+C:\Users\zackr\webgecko  →  /sessions/eager-lucid-knuth/mnt/webgecko/
+C:\...\outputs           →  /sessions/eager-lucid-knuth/mnt/outputs/
+C:\...\uploads           →  /sessions/eager-lucid-knuth/mnt/uploads/
 ```
 
 ---
 
-## 14. How to Continue
+## 5. Session 1 Changes (2026-05-12)
 
-When picking this up in a new session:
+- Pipeline: newsletter/FAQ/testimonials injection scoped to `data-page="home"` only
+- Smoke test: stable alias URL, 3s/6s/9s delays
+- Security: `stripe/callback` HMAC CSRF, `preview/proxy` auth gate, `client-login` PATCH sanitisation
+- Admin: removed To-Do tab, checklist "Mark section complete" + "Push Website Live" CTA
+- Intake form: made ABN/domain/address/GA4 optional; removed AI language
+- Client portal: business details card redesigned; GA4 field added; `ClientData` interface fixed
+- Validators: gallery thin-page uses raw HTML length not stripped text; fallback gallery content fattened
+- Audit report: `WebGecko-Audit-Report.docx` — 50 findings
 
-1. Read `CLAUDE.md` and `AGENTS.md` in the repo root — project-level instructions
-2. The main files to understand are: `app/api/inngest/route.ts` (pipeline), `app/admin/page.tsx` (admin UI), `app/c/[slug]/page.tsx` (client portal), `lib/pipeline-helpers.ts` (validators), `lib/auditor.ts` (HTML fixer)
-3. Always use Python write-back for files > 100KB (see section 10)
-4. TSC check: `cd C:\Users\zackr\webgecko && npx tsc --noEmit` — ignore `ui-history.json` error
-5. Git: clear index.lock first if needed, then `git add -A && git commit -m "..." && git push`
-6. Stable alias for deployed client sites: `https://wg-{slug}.vercel.app` — never use the hash URL
-7. Admin auth: cookie `wg_admin_session` OR `?secret=PROCESS_SECRET` query param
-8. Client auth: cookie `wg_client_slug` must match the slug in the URL
+---
+
+## 6. Session 2 Changes (2026-05-13)
+
+### Footer always at bottom (CRITICAL fix)
+**Problem:** Legal pages (privacy/terms) and fallback contact section were being injected via `replace("</body>", ...)` which put them AFTER the `<footer>` tag — ~38KB of content after footer.
+
+**Fixes:**
+- `lib/auditor.ts` `injectLegalPages()`: inject before `<footer` not `</body>`
+- `app/api/inngest/route.ts` contact fallback: inject before `<footer` not `</body>`
+
+### Admin auth 403 fixes
+All these routes had raw `secret !== process.env.PROCESS_SECRET` checks that failed because admin passes `secret=""`. Replaced all with `isAdminAuthedLegacy(req)`:
+- `app/api/unlock/release/route.ts`
+- `app/api/versions/route.ts`
+- `app/api/versions/html/route.ts`
+- `app/api/analytics/monthly/route.ts`
+- `app/api/payment/unlock/route.ts`
+- `app/api/unlock/booking/route.ts`
+- `app/api/stripe/sync-shop/route.ts`
+
+### Client portal: content API auth
+`app/api/client/content/route.ts` POST: added auth gate — `wg_client_slug` cookie OR `x-process-secret` admin header.
+
+### Inngest route: serve export restored
+File was truncated, losing the `serve()` export. Restored:
+```typescript
+export const { GET, POST, PUT } = serve({
+  client: inngest,
+  functions: [buildWebsite, monthlyReports, autoRelease, featureInject, featureGoLive],
+});
+```
+
+### Auditor: `addSectionIdSmart` depth-counter
+**Problem:** Old `homeWrapperRe` regex matched first `</div>` (orb element at depth=0), injecting FAQ inside hero.
+
+**Fix:** Depth-counter to find true closing tag of `data-page="home"` wrapper. Also skip orb/absolute elements:
+```typescript
+if (cm && /\borb\b|position[\s:]*absolute|z-index[\s:]*-/i.test(cm[1])) return m;
+```
+
+### Auditor: broadened heading patterns
+- FAQ: `faq|frequently asked|common questions|common queries|questions answered|got questions|have questions`
+- Testimonials: `testimonial|what.*client|what.*customer|what people say|trusted by|our clients|happy clients|client stories`
+
+### Auditor: duplicate contact section removal
+When two `id="contact"` exist (Stitch has one + pipeline injected fallback), auditor removes the injected fallback:
+```typescript
+fixed = fixed.replace(/<section id="contact" style="padding:80px 24px;background:#0f172a[^"]*"...>[\s\S]*?<\/section>/i, '');
+```
+
+### Inngest: contact section smart injection
+Before injecting fallback, tries to stamp `id="contact"` onto existing Stitch contact section:
+```typescript
+const stitchContactRe = /<(section|div)([^>]*class="[^"]*(?:contact|get-in-touch)[^"]*"[^>]*)>/i;
+```
+
+### "How It Works" button wiring
+All unwired `<button>How It Works</button>` now scroll to `#features`, `#services`, `#how-it-works`, or `#contact`:
+```typescript
+html = html.replace(/<button([^>]*)>How It Works<\/button>/gi, ...)
+```
+
+### Pexels photo integration (NEW)
+Added `fetchPexelsPhoto(query, orientation)` to `lib/pipeline-helpers.ts`. In Step 6:
+- If no `heroUrl`: fetch `"{industry} professional"` from Pexels
+- If no `photoUrls`: fetch 3 general photos for gallery
+- **Requires `PEXELS_API_KEY` in both `.env.local` and Vercel dashboard**
+
+### `injectImages`: Stitch hero fix
+Updated runtime script to inject `<img>` into empty relative hero div (Stitch right-column visual):
+```javascript
+var relDiv = heroSection.querySelector("div[class*='relative'][class*='h-']");
+// inject <img position:absolute;inset:0>
+```
+
+### Hardcoded URL fixes
+All `webgecko-builder.vercel.app` → `webgeckofl.vercel.app` throughout codebase.
+
+### jobId/slug collision fix (`app/api/worker/route.ts`)
+- `job_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`
+- `safeFileName(businessName) + "-" + crypto.randomBytes(3).toString("hex")`
+
+### Client portal: onboarding tour + Pay Now banner
+- 5-step onboarding tour on first login (detected via `localStorage.getItem(\`wg_tour_done_${slug}\`)`)
+- "Pay Now" gradient banner at top when deposit not paid
+
+### Intake form: pricing SelectCard icon
+Changed `icon="✅"` → `icon="💰"` (looked like a checkbox)
+
+---
+
+## 7. Pipeline HTML Debugging (Uploaded Files)
+
+Files uploaded: `ai-dartboard-scorer-STITCH-RAW (1/2).html` and `FINAL (2/3/4).html`
+
+Key findings that drove fixes:
+- Footer at 36968, body ends at 75428 → 38KB after footer (**fixed**)
+- Legal pages at indices 64863/70218 — outside multi-page wrapper (**fixed**)
+- FAQ at index 10071 — inside hero (orb div match) (**fixed**)
+- Contact at 38383 — after footer (**fixed**)
+- Hero right column: empty `div.relative.h-[400px]` with floating stat cards, no image (**Pexels fix**)
+- "Common Queries" not matched by old FAQ pattern (**heading pattern fix**)
+- Testimonials: `class="py-xl px-gutter bg-surface-container-highest"` not matched, "Trusted by QLD Legends" now caught (**fix**)
+
+---
+
+## 8. Known Issues / Pending
+
+1. **Pexels API key not set** — `.env.local` has placeholder, Vercel doesn't have it
+2. **ui-history.json** — malformed JSON, pre-existing, ignore
+3. **Inngest route truncation-prone** — check `tail` after every edit, always TSC before push
+4. **Contact dedup regex** — matches `background:#0f172a`; if client's theme uses same color, wrong section could be removed (low risk)
+5. **`.bak` files** — added to `.gitignore` but may be tracked; run `git rm --cached "*.bak"` if needed
+
+---
+
+## 9. Checklist for Next Session
+
+- [ ] Add real Pexels API key to `.env.local` and Vercel
+- [ ] Test a new full build after all fixes and verify footer position, FAQ/testimonials, contact, hero image
+- [ ] Check if `featureInject` and `featureGoLive` Inngest functions work end-to-end
+- [ ] Consider splitting `app/api/inngest/route.ts` into separate files (currently 2,200+ lines, constant truncation risk)

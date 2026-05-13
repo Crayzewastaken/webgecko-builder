@@ -1254,6 +1254,16 @@ export function injectImages(
     if (heroSection.style.backgroundImage) heroSection.style.backgroundImage = "url(" + heroUrl + ")";
     var heroImg = heroSection.querySelector("img");
     if (heroImg) { heroImg.src = heroUrl; heroImg.style.objectFit = "cover"; }
+    else {
+      var relDiv = heroSection.querySelector("div[class*=\'relative\'][class*=\'h-\']");
+      if (relDiv && !relDiv.querySelector("img")) {
+        var img = document.createElement("img");
+        img.src = heroUrl; img.alt = "Hero image";
+        img.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:12px;";
+        relDiv.style.position = "relative";
+        relDiv.insertBefore(img, relDiv.firstChild);
+      }
+    }
   }` : ""}
   ${products.filter(p => p.photoUrl).length > 0 ? `
   var productData = ${JSON.stringify(products.filter(p => p.photoUrl))};
@@ -1355,5 +1365,19 @@ export async function getExampleHtmlsForIndustry(
   } catch (e) {
     console.warn("[getExampleHtmls] Failed to fetch examples:", e);
     return [];
+  }
+}
+// ── Pexels photo search ────────────────────────────────────────────────────────
+export async function fetchPexelsPhoto(query: string, orientation: "landscape" | "portrait" | "square" = "landscape"): Promise<string | null> {
+  const key = process.env.PEXELS_API_KEY;
+  if (!key) return null;
+  try {
+    const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&orientation=${orientation}&per_page=5&page=1`;
+    const res = await fetch(url, { headers: { Authorization: key } });
+    if (!res.ok) return null;
+    const data = await res.json() as { photos?: { src: { large2x: string } }[] };
+    return data.photos?.[0]?.src?.large2x || null;
+  } catch {
+    return null;
   }
 }

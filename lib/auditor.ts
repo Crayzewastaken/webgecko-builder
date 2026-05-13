@@ -135,6 +135,17 @@ export async function auditAndFixSite(
 
   issues.forEach(i => console.log("  [Auditor][" + i.type + "] " + i.detail + " => " + ERROR_FIXES[i.type]));
   let fixed = html;
+
+  // De-duplicate contact sections: if there are 2+ id="contact" instances,
+  // remove the injected fallback (identified by our known inline style) and keep the Stitch one.
+  {
+    const contactMatches = [...fixed.matchAll(/id="contact"/gi)];
+    if (contactMatches.length > 1) {
+      // Remove the fallback section (has our known injected style signature)
+      fixed = fixed.replace(/<section id="contact" style="padding:80px 24px;background:#0f172a[^"]*"[^>]*>[\s\S]*?<\/section>/i, '');
+      console.log("[Auditor] Removed duplicate injected contact section");
+    }
+  }
   const yr = new Date().getFullYear();
   const dark = detectTheme(html) === "dark";
   const clrBg   = dark ? "#0f172a" : "#f8fafc";
@@ -628,7 +639,6 @@ function addSectionIdSmart(html: string, id: string, classPatterns: RegExp[], he
       }
     }
     if (endIdx > 0) {
-      // Check not already injected
       const homeContent = html.slice(homeOpenM.index, endIdx);
       if (!homeContent.includes('id="' + id + '"')) {
         return html.slice(0, endIdx) + fallbackSection + "\n" + html.slice(endIdx);
