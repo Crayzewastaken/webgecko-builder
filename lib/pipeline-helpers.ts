@@ -1009,6 +1009,36 @@ document.querySelectorAll("#close-drawer,#close-menu,#menu-close,#nav-close,[ari
     });
   }
 })();
+// ── Click-to-call phone wiring ───────────────────────────────────────────────
+// Finds phone number text nodes in the header and wraps them in tel: links.
+// Also ensures any bare phone text anywhere in the page is linkified.
+(function() {
+  var phoneRe = /\b(0[2-9]\d{8}|04\d{8}|1[38]00\s?\d{3}\s?\d{3}|\+61\s?[2-9]\s?\d{4}\s?\d{4})\b/g;
+  function linkifyPhone(el) {
+    if (!el || el.tagName === "A" || el.tagName === "SCRIPT" || el.tagName === "STYLE") return;
+    Array.from(el.childNodes).forEach(function(node) {
+      if (node.nodeType === 3) { // text node
+        var txt = node.textContent || "";
+        if (phoneRe.test(txt)) {
+          phoneRe.lastIndex = 0;
+          var span = document.createElement("span");
+          span.innerHTML = txt.replace(phoneRe, function(m) {
+            var digits = m.replace(/\s/g, "");
+            return '<a href="tel:' + digits + '" style="color:inherit;text-decoration:none;font-weight:inherit;">' + m + '</a>';
+          });
+          node.parentNode && node.parentNode.replaceChild(span, node);
+        }
+        phoneRe.lastIndex = 0;
+      } else if (node.nodeType === 1) {
+        linkifyPhone(node);
+      }
+    });
+  }
+  var header = document.querySelector("header,nav,[class*='navbar'],[class*='header']");
+  if (header) linkifyPhone(header);
+  var contact = document.getElementById("contact");
+  if (contact) linkifyPhone(contact);
+})();
 // Newsletter popup / modal close — catches any floating popup with a close button
 // Stitch generates these with no onclick — we wire them up here
 (function() {
@@ -1249,19 +1279,48 @@ export function injectImages(
   }` : ""}
   ${heroUrl ? `
   var heroUrl = "${heroUrl}";
-  var heroSection = document.querySelector("[class*='hero'],[id*='hero'],section:first-of-type");
+  // Strategy 1: find hero section by id/class
+  var heroSection = document.getElementById("hero") || document.querySelector("[class*='hero']") || document.querySelector("[data-page='home'] section:first-of-type") || document.querySelector("section:first-of-type");
   if (heroSection) {
-    if (heroSection.style.backgroundImage) heroSection.style.backgroundImage = "url(" + heroUrl + ")";
-    var heroImg = heroSection.querySelector("img");
-    if (heroImg) { heroImg.src = heroUrl; heroImg.style.objectFit = "cover"; }
-    else {
-      var relDiv = heroSection.querySelector("div[class*=\'relative\'][class*=\'h-\']");
+    // 1a. If already has a background-image style, update it
+    var bgStyle = heroSection.style.backgroundImage || getComputedStyle(heroSection).backgroundImage;
+    if (bgStyle && bgStyle !== "none") {
+      heroSection.style.backgroundImage = "url(" + heroUrl + ")";
+      heroSection.style.backgroundSize = "cover";
+      heroSection.style.backgroundPosition = "center";
+    }
+    // 1b. If there's an existing img tag, update src
+    var heroImg = heroSection.querySelector("img:not([src*='logo']):not([class*='logo'])");
+    if (heroImg) {
+      heroImg.src = heroUrl;
+      heroImg.style.objectFit = "cover";
+      heroImg.style.width = "100%";
+      heroImg.style.height = "100%";
+    } else {
+      // 1c. Find Stitch right-column visual div (relative + height class)
+      var relDiv = heroSection.querySelector("div[class*='relative'][class*='h-']") || heroSection.querySelector("div[class*='aspect-']") || heroSection.querySelector("div[class*='image']");
       if (relDiv && !relDiv.querySelector("img")) {
         var img = document.createElement("img");
-        img.src = heroUrl; img.alt = "Hero image";
-        img.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:12px;";
+        img.src = heroUrl;
+        img.alt = "Hero image";
+        img.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:12px;z-index:0;";
         relDiv.style.position = "relative";
+        relDiv.style.overflow = "hidden";
         relDiv.insertBefore(img, relDiv.firstChild);
+      } else if (!bgStyle || bgStyle === "none") {
+        // 1d. Last resort: set as background image on the hero section itself
+        heroSection.style.backgroundImage = "url(" + heroUrl + ")";
+        heroSection.style.backgroundSize = "cover";
+        heroSection.style.backgroundPosition = "center";
+        heroSection.style.backgroundRepeat = "no-repeat";
+        // Add a dark overlay via pseudo-element if not already present
+        if (!document.getElementById("wg-hero-overlay")) {
+          var overlay = document.createElement("div");
+          overlay.id = "wg-hero-overlay";
+          overlay.style.cssText = "position:absolute;inset:0;background:rgba(0,0,0,0.45);z-index:0;pointer-events:none;";
+          heroSection.style.position = "relative";
+          heroSection.insertBefore(overlay, heroSection.firstChild);
+        }
       }
     }
   }` : ""}
@@ -1283,8 +1342,23 @@ export function injectImages(
   productImgs.forEach(function(img, i) { if (photoList[i]) { img.src = photoList[i]; img.style.objectFit = "cover"; } });` : ""}
   ${photoUrls.length > 0 ? `
   var generalPhotos = ${JSON.stringify(photoUrls)};
-  var galleryImgs = document.querySelectorAll("[class*='gallery'] img, [id*='gallery'] img");
-  galleryImgs.forEach(function(img, i) { if (generalPhotos[i]) img.src = generalPhotos[i]; });` : ""}
+  // Target gallery images broadly — Stitch uses many class naming patterns
+  var galleryImgs = Array.from(document.querySelectorAll("[class*='gallery'] img,[id*='gallery'] img,[class*='portfolio'] img,[class*='work'] img,[class*='project'] img,[class*='grid'] img,[class*='photo'] img"));
+  // Exclude logo images
+  galleryImgs = galleryImgs.filter(function(img) { return !img.src.includes("logo") && !img.className.includes("logo"); });
+  if (galleryImgs.length === 0) {
+    // Fallback: any img tags that look like content images (not tiny icons)
+    galleryImgs = Array.from(document.querySelectorAll("img")).filter(function(img) {
+      return img.naturalWidth > 100 || parseInt(img.getAttribute("width") || "0") > 100 || img.className.includes("card") || img.closest("[class*='card']") || img.closest("[class*='service']");
+    }).slice(0, generalPhotos.length);
+  }
+  galleryImgs.forEach(function(img, i) {
+    if (generalPhotos[i]) {
+      img.src = generalPhotos[i];
+      img.style.objectFit = "cover";
+      img.loading = "lazy";
+    }
+  });` : ""}
 })();
 </script>`;
   if (processed.includes("</body>")) return processed.replace("</body>", script + "</body>");
@@ -1380,4 +1454,70 @@ export async function fetchPexelsPhoto(query: string, orientation: "landscape" |
   } catch {
     return null;
   }
+}
+
+// ── SEO meta tag injection ────────────────────────────────────────────────────
+// Injects <meta> description, Open Graph, Twitter Card, and canonical tags.
+// Called in Step 6 after injectEssentials, before injectImages.
+
+export function injectSeoMeta(html: string, opts: {
+  businessName: string;
+  industry: string;
+  description: string;   // heroSubheadline or custom
+  siteUrl: string;       // stable Vercel alias, e.g. https://wg-slug.vercel.app
+  heroImageUrl?: string; // Pexels or Cloudinary hero URL
+  location?: string;
+}): string {
+  const { businessName, industry, description, siteUrl, heroImageUrl, location } = opts;
+
+  // Escape for HTML attribute context
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  const title = `${businessName} | ${industry}${location ? " | " + location : ""}`;
+  const desc = esc(description.slice(0, 160));
+  const escapedTitle = esc(title);
+  const ogImage = heroImageUrl || `${siteUrl}/og-image.jpg`;
+  const canonical = siteUrl.replace(/\/$/, "");
+
+  const metaTags = `
+  <!-- WebGecko SEO -->
+  <meta name="description" content="${desc}">
+  <link rel="canonical" href="${canonical}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="${canonical}">
+  <meta property="og:title" content="${escapedTitle}">
+  <meta property="og:description" content="${desc}">
+  <meta property="og:image" content="${esc(ogImage)}">
+  <meta property="og:locale" content="en_AU">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escapedTitle}">
+  <meta name="twitter:description" content="${desc}">
+  <meta name="twitter:image" content="${esc(ogImage)}">
+  <meta name="robots" content="index, follow">
+  <meta name="geo.region" content="AU">`;
+
+  // Check if meta description already injected (e.g. by Stitch)
+  if (html.includes('name="description"') || html.includes("name='description'")) {
+    // Just add canonical + og if missing, avoid duplicating description
+    if (!html.includes("og:title")) {
+      const ogOnly = `
+  <!-- WebGecko OG -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="${canonical}">
+  <meta property="og:title" content="${escapedTitle}">
+  <meta property="og:description" content="${desc}">
+  <meta property="og:image" content="${esc(ogImage)}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escapedTitle}">
+  <meta name="twitter:image" content="${esc(ogImage)}">`;
+      return html.replace(/<\/head>/i, ogOnly + "\n</head>");
+    }
+    return html;
+  }
+
+  // Inject after <title> tag if present, else before </head>
+  if (/<title>/i.test(html)) {
+    return html.replace(/(<title>[^<]*<\/title>)/i, "$1" + metaTags);
+  }
+  return html.replace(/<\/head>/i, metaTags + "\n</head>");
 }

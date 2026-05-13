@@ -21,6 +21,7 @@ import {
   ensureMultiPageStructure,
   getExampleHtmlsForIndustry,
   fetchPexelsPhoto,
+  injectSeoMeta,
 } from "@/lib/pipeline-helpers";
 import { createSuperSaasSchedule } from "@/lib/supersaas";
 import { createClientShopCatalogue } from "@/lib/square";
@@ -416,13 +417,17 @@ const buildWebsite = inngest.createFunction(
     <div style="max-width:640px;margin:0 auto;">
       <h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin:0 0 8px;text-align:center;">Get In Touch</h2>
       <p style="color:#94a3b8;text-align:center;margin:0 0 32px;">${clientPhone} &nbsp;|&nbsp; ${clientEmail}</p>
-      <form onsubmit="window.location='mailto:${clientEmail}?subject=Website Enquiry&body=Name: '+encodeURIComponent(this.name.value)+'%0APhone: '+encodeURIComponent(this.phone.value)+'%0AMessage: '+encodeURIComponent(this.message.value);return false;" style="display:flex;flex-direction:column;gap:16px;">
+      <form id="contact-form" onsubmit="(function(f,e){e.preventDefault();var btn=f.querySelector('button[type=submit]');btn.disabled=true;btn.textContent='Sending...';fetch('https://webgeckofl.vercel.app/api/contact/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jobId:'${jobId}',name:f.name.value,email:f.email.value,phone:f.phone?f.phone.value:'',message:f.message.value})}).then(function(r){return r.json()}).then(function(r){if(r.ok){f.style.display='none';var s=document.getElementById('contact-success-fallback');if(s)s.style.display='block';}else{btn.disabled=false;btn.textContent='Send Message';}}).catch(function(){btn.disabled=false;btn.textContent='Send Message';})})(this,event)" style="display:flex;flex-direction:column;gap:16px;">
         <input name="name" placeholder="Your Name" required style="padding:12px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#f1f5f9;font-size:1rem;">
         <input name="email" type="email" placeholder="Your Email" required style="padding:12px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#f1f5f9;font-size:1rem;">
         <input name="phone" placeholder="Your Phone" style="padding:12px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#f1f5f9;font-size:1rem;">
         <textarea name="message" placeholder="Your Message" rows="4" required style="padding:12px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#f1f5f9;font-size:1rem;resize:vertical;"></textarea>
         <button type="submit" style="padding:14px;border-radius:8px;background:#22c55e;color:#fff;font-size:1rem;font-weight:700;border:none;cursor:pointer;">Send Message</button>
       </form>
+      <div id="contact-success-fallback" style="display:none;text-align:center;padding:40px 20px;color:#f1f5f9;">
+        <div style="font-size:2rem;margin-bottom:12px">✓</div>
+        <p style="font-size:1.1rem;font-weight:600;">Message sent! We'll be in touch shortly.</p>
+      </div>
     </div>
   </section>`;
           // Inject before <footer> (keeps footer at bottom); fall back to before </body>
@@ -512,6 +517,9 @@ const buildWebsite = inngest.createFunction(
         if (userInput.businessName) {
           html = html.replace(/<title>[^<]*<\/title>/i, `<title>${userInput.businessName}</title>`);
         }
+
+        // Wire contact form jobId — replaces JOB_ID_PLACEHOLDER baked in by blueprint scaffold
+        html = html.replace(/JOB_ID_PLACEHOLDER/g, jobId);
 
         const clientDomain = clientEmail.split("@")[1] || "";
         const businessSlugFix = (userInput.businessName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -1185,6 +1193,23 @@ const buildWebsite = inngest.createFunction(
         );
 
         html = injectImages(html, logoUrl, effectiveHeroUrl, effectivePhotoUrls, productsWithPhotos);
+
+        // ── SEO meta tags ──────────────────────────────────────────────────────
+        const stableAlias = `https://wg-${clientSlug || jobId}.vercel.app`;
+        html = injectSeoMeta(html, {
+          businessName: userInput.businessName || "",
+          industry: userInput.industry || "",
+          description: spec.heroSubheadline || `${userInput.businessName} — professional ${userInput.industry} services in Australia.`,
+          siteUrl: stableAlias,
+          heroImageUrl: effectiveHeroUrl || undefined,
+          location: (() => {
+            const addr = userInput.businessAddress || "";
+            if (!addr) return "";
+            const parts = addr.split(",");
+            return parts.length >= 2 ? parts.slice(-2).join(",").trim().replace(/\s*\d{4}\s*$/, "").trim() : addr.split(" ").slice(-2).join(" ");
+          })(),
+        });
+
         return html;
       });
 

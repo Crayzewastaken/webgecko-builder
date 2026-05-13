@@ -307,7 +307,7 @@ Primary keyword placement: weave "${industry} ${location.split(",")[0]?.trim()}"
     ? pages.map(p => `<a href='#' onclick='navigateTo(\"${p.toLowerCase().replace(/\s+/g,"-")}\")'>${p}</a>`).join(" ")
     : ["Home","Services","About","Testimonials","FAQ","Contact"].map(p => `<a href='#${p.toLowerCase()}'>${p}</a>`).join(" ");
 
-  const contactFormScaffold = `<form id='contact-form' onsubmit='event.preventDefault();this.style.display=\"none\";document.getElementById(\"contact-success\").style.display=\"block\"'>
+  const contactFormScaffold = `<form id='contact-form' onsubmit='(function(f,e){e.preventDefault();var btn=f.querySelector("button[type=submit]");btn.disabled=true;btn.textContent="Sending...";var d={jobId:"JOB_ID_PLACEHOLDER",name:f.name.value,email:f.email.value,phone:f.phone?f.phone.value:"",message:f.message.value};fetch("https://webgeckofl.vercel.app/api/contact/submit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)}).then(function(r){return r.json()}).then(function(r){if(r.ok){f.style.display="none";document.getElementById("contact-success").style.display="block";}else{btn.disabled=false;btn.textContent="Send Message";}}).catch(function(){btn.disabled=false;btn.textContent="Send Message";});})(this,event)'>
   <div style='display:grid;gap:14px'>
     <input type='text' name='name' placeholder='Full Name' required style='width:100%;padding:14px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:inherit;font-size:1rem;outline:none;box-sizing:border-box'>
     <input type='email' name='email' placeholder='Email Address' required style='width:100%;padding:14px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:inherit;font-size:1rem;outline:none;box-sizing:border-box'>
@@ -477,6 +477,23 @@ RULES:
   - Copyright © ${currentYear} ${businessName}
   - Social links: ${[facebookPage, instagramUrl, linkedinUrl].filter(Boolean).join(", ") || "none"}
 
+CONTENT DEPTH REQUIREMENTS (non-negotiable — every section must be substantive):
+- Hero: headline (max 8 words) + subheadline (2 sentences) + trust badges + dual CTA + 3-4 stats. DO NOT make this a blank or placeholder section.
+- About: 3 full paragraphs minimum. Include a "Why Choose Us" block with 3 icon+text items. Each paragraph: 3-5 sentences of genuine, industry-specific copy.
+- Services: minimum 4 service cards. Each card: bold title + 3-sentence description + ONE specific benefit stat (e.g. "98% client satisfaction"). NOT one-liners.
+- Testimonials: 3 testimonials, each with a FULL QUOTE of 2-3 sentences. Australian names + suburb. 5-star rating. NOT "Great service!" one-liners.
+- FAQ: 5 questions, each answer 2-4 sentences. Questions must be specific to "${industry}" — what real customers actually ask. Not generic.
+- Contact: full address + phone (clickable tel: link) + email. Real contact info layout, not a placeholder.
+- Each section heading must be a specific, benefit-driven H2 (not just "Services" or "About Us" — e.g. "Expert ${industry} Services in ${location || "Australia"}" or "Why ${businessName} Outperforms the Rest").
+- Total visible word count across all sections: minimum 800 words.
+- The site must NOT feel like a template — every sentence must be tailored to this exact business.
+
+HEADER REQUIREMENTS:
+- Logo/business name on the left
+- Nav links in the centre or right
+- On the far right: a click-to-call phone button styled as a pill: <a href='tel:${clientPhone}' style='...'>${clientPhone}</a>
+- Mobile: hamburger button (id=hamburger) replaces nav + phone link
+
 VISUAL DESIGN — STRICT COLOUR RULES (stitchPrompt MUST use these exact hex codes everywhere):
 - Decide on ONE coherent dark colour palette and use it consistently across ALL sections
 - Background (body, all sections): ONE dark base colour — either cool-dark navy (#0a0f1a) or warm-dark charcoal (#0f0f0f) — NEVER a brownish/warm colour unless explicitly requested in colour prefs
@@ -503,7 +520,7 @@ Return ONLY this JSON:
   "heroSubheadline": "1-2 sentences value prop only",
   "ctaText": "${ctaText || "Get Started"}",
   "uniqueDesignIdea": "one sentence visual theme",
-  "stitchPrompt": "DETAILED rendering instructions following the scaffold above — 1000-2000 words, describe every section, all hex colours, fonts, spacing, content. Single quotes inside only."
+  "stitchPrompt": "DETAILED rendering instructions following the scaffold above — 1500-2500 words minimum. Describe every section in full: exact hex colours, font names, spacing values, ALL copy text written out in full (not placeholders), icon names, animation names. Every section must have its full text content written out — not 'Lorem ipsum' or '[insert text]'. Single quotes inside only. No markdown."
 }${exampleHtmls.length > 0 ? `
 
 REFERENCE EXAMPLES (structure/depth inspiration — do NOT copy text):
