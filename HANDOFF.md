@@ -235,19 +235,60 @@ Key findings that drove fixes:
 
 ---
 
-## 8. Known Issues / Pending
+## 8. Session 3 Changes (2026-05-13)
 
-1. **Pexels API key not set** — `.env.local` has placeholder, Vercel doesn't have it
+### Social Media Tab — Full Redesign (`app/c/[slug]/page.tsx`)
+
+**Upsell page (non-social clients):**
+- **No-scroll desktop layout** — single viewport, two-column: features + plan cards on left, action panel on right
+- **4-plan pricing** (research-based, competitive vs AU agencies charging $800–$2,500/mo):
+  - Starter: $399/mo — 2 platforms, 12 posts
+  - Growth: $699/mo — 4 platforms, 20 posts (Most Popular)
+  - Full Suite: $1,099/mo — all platforms, 36 posts + ads (Best Value)
+  - Custom: "Let's chat" — sends custom quote request to admin dashboard
+- **Plan selection UI** — click to select, right panel shows full feature list + CTA button
+- **Custom plan** includes a free-text note field; admin receives plan name + note via `/api/client/upgrade-request`
+- **FAQ panel** — 5 quick answers (no lock-in, approval mode, platforms, etc.)
+- Market context blurb explaining pricing vs competitors
+
+**Active social client dashboard:**
+- **Inner tab bar**: Overview · Calendar · Post Brief · Setup
+- **Overview tab**: stats row (followers/posts/engagement), connected platforms card, posting preference (auto/approve), recent posts sidebar — all in two-column no-scroll layout
+- **Calendar tab**: full post list with platform icons, status badges, approve/edit buttons for manual mode
+- **Post Brief tab**: photo upload + brief + tone + platform selector → submits to `/api/client/social-upload`
+- **Setup tab** — new account setup flow with two clear paths:
+  1. **"I already have accounts"** (Link flow): select platforms → we send secure connection request via Meta Business Suite / TikTok Creator Portal / LinkedIn. No passwords shared.
+  2. **"Start from scratch"** (Create flow): 5-step process — we create Gmail (client CC'd on all emails for full transparency) → legal agreements → all platforms created & branded → linked to Metricool → client resets password and takes full ownership
+- Both setup paths submit via `/api/client/upgrade-request` with `type: "social_link_existing"` or `type: "social_create_accounts"`
+
+**New state vars added:**
+- `socialSelectedPlan`, `setSocialSelectedPlan` — which plan card is selected
+- `socialUpgradeState` — idle/loading/done/err for upgrade CTA
+- `socialCustomNote` — free text for custom plan requests
+- `socialSetupStep` — null | "choose" | "link" | "create"
+- `socialActiveTab` — overview | calendar | brief | setup
+
+**Commit:** `32a4b29` — needs `git push` from Windows terminal
+
+---
+
+## 9. Known Issues / Pending
+
+1. **Pexels API key not set** — `.env.local` has placeholder, Vercel doesn't have it (Zack confirmed added to Vercel dashboard — verify it's live)
 2. **ui-history.json** — malformed JSON, pre-existing, ignore
 3. **Inngest route truncation-prone** — check `tail` after every edit, always TSC before push
 4. **Contact dedup regex** — matches `background:#0f172a`; if client's theme uses same color, wrong section could be removed (low risk)
 5. **`.bak` files** — added to `.gitignore` but may be tracked; run `git rm --cached "*.bak"` if needed
+6. **Social setup flow** — currently sends to `/api/client/upgrade-request` which emails admin; consider a dedicated admin UI panel to manage setup steps and mark them complete
 
 ---
 
-## 9. Checklist for Next Session
+## 10. Checklist for Next Session
 
-- [ ] Add real Pexels API key to `.env.local` and Vercel
+- [ ] `git push` from Windows terminal (commit `32a4b29` is staged locally)
+- [ ] Add real Pexels API key to `.env.local` if not already (Vercel reportedly done)
 - [ ] Test a new full build after all fixes and verify footer position, FAQ/testimonials, contact, hero image
 - [ ] Check if `featureInject` and `featureGoLive` Inngest functions work end-to-end
 - [ ] Consider splitting `app/api/inngest/route.ts` into separate files (currently 2,200+ lines, constant truncation risk)
+- [ ] Admin dashboard: add social setup status tracking (which step each client is on)
+- [ ] Social pricing: revisit after first few social-only clients sign up (adjust if needed)

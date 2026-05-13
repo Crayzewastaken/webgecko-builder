@@ -2807,159 +2807,334 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
     { id:"sp3", client:"Bella's Café",       platform:"TikTok",    caption:"Our barista competition winner ☕ Tag someone who needs this in their life right now",   scheduled:"Thu 22 May · 7:30 AM",status:"pending" as const },
   ];
 
-  const pIcon = (p: string) => p==="Instagram"?"📸":p==="Facebook"?"👍":p==="TikTok"?"🎵":p==="LinkedIn"?"💼":"📱";
+  const pIcon = (p: string) => p==="Instagram"?"📸":p==="Facebook"?"👍":p==="TikTok"?"🎵":p==="LinkedIn"?"💼":p==="YouTube"?"▶️":p==="Google Business"?"📍":"📱";
+  const pColor = (p: string) => p==="Instagram"?"#E1306C":p==="Facebook"?"#1877F2":p==="TikTok"?"#69C9D0":p==="LinkedIn"?"#0A66C2":p==="YouTube"?"#FF0000":p==="Google Business"?"#4285F4":T.blue;
 
-  const cardStyle: React.CSSProperties = { background:T.surface, border:`1px solid ${T.border}`, borderRadius:14, padding:"20px 22px", marginBottom:14, boxShadow:T.shadow };
+  // Per-client checklist state (localStorage keyed by slug)
+  const [selectedClientSlug, setSelectedClientSlug] = useState<string|null>(null);
+  const [checks, setChecks] = useState<Record<string,boolean>>({});
+  const [openedUrls, setOpenedUrls] = useState<Record<string,boolean>>({});
+
+  const STEPS = [
+    { step:"1",  icon:"📧", title:"Send welcome email",       desc:"Confirm package, pricing, what's included. Attach Social Media Service Agreement.",
+      urls:[] },
+    { step:"2",  icon:"📋", title:"Sign service agreement",   desc:"Client signs management clause — ownership, posting authority, liability, cancellation.",
+      urls:[] },
+    { step:"3",  icon:"📅", title:"Book setup call (15 min)", desc:"Schedule Zoom or phone call. They need phone access for SMS verification during setup.",
+      urls:["https://calendly.com"] },
+    { step:"4",  icon:"📧", title:"Create Google account",    desc:"Create Gmail (businessname.au@gmail.com) WITH client present — they set their own password. Auto-forward to their main email.",
+      urls:["https://accounts.google.com/signup","https://mail.google.com"] },
+    { step:"5",  icon:"📘", title:"Set up Facebook + Instagram", desc:"New Gmail → create Facebook Page + Instagram Business. Add Meta Business Manager as Partner. Client stays as account owner.",
+      urls:["https://business.facebook.com","https://www.facebook.com/pages/create","https://www.instagram.com/accounts/emailsignup/"] },
+    { step:"6",  icon:"🎵", title:"Set up TikTok Business",   desc:"Create TikTok Business account with same Gmail. Add TikTok Business Center as team member.",
+      urls:["https://business.tiktok.com","https://ads.tiktok.com/business/en"] },
+    { step:"7",  icon:"💼", title:"Set up LinkedIn company",  desc:"Use client's personal LinkedIn (or create) to create company page. Add yourself as Page Admin.",
+      urls:["https://www.linkedin.com/company/setup/new/"] },
+    { step:"8",  icon:"📍", title:"Google Business + YouTube", desc:"Google Business Profile and YouTube channel tied to Step 4 Gmail. Enable both from Google dashboard.",
+      urls:["https://business.google.com","https://www.youtube.com/create_channel"] },
+    { step:"9",  icon:"📌", title:"Connect to Metricool",     desc:"Add client as new Brand in Metricool agency account. Connect all platforms via OAuth — no login sharing.",
+      urls:["https://metricool.com/app","https://app.metricool.com/login"] },
+    { step:"10", icon:"🗓️", title:"Set posting schedule",     desc:"Agree frequency (e.g. 3×/week), platforms, tone. Set in client portal Social tab. Confirm auto-post vs. manual approval.",
+      urls:[] },
+    { step:"11", icon:"🤖", title:"Configure AI brand voice", desc:"Note industry, tone preferences, content restrictions in client record. Seeds the caption generator.",
+      urls:[] },
+    { step:"12", icon:"🚀", title:"First post goes live",      desc:"Prepare 4–8 posts. Send preview to client if manual approval. Schedule and confirm in Metricool.",
+      urls:["https://metricool.com/app"] },
+  ] as const;
+
+  function loadChecks(slug: string) {
+    try {
+      const raw = localStorage.getItem(`wg_social_checks_${slug}`);
+      setChecks(raw ? JSON.parse(raw) : {});
+      const raw2 = localStorage.getItem(`wg_social_urls_${slug}`);
+      setOpenedUrls(raw2 ? JSON.parse(raw2) : {});
+    } catch { setChecks({}); setOpenedUrls({}); }
+  }
+
+  function saveChecks(slug: string, next: Record<string,boolean>) {
+    localStorage.setItem(`wg_social_checks_${slug}`, JSON.stringify(next));
+  }
+
+  function saveOpenedUrls(slug: string, next: Record<string,boolean>) {
+    localStorage.setItem(`wg_social_urls_${slug}`, JSON.stringify(next));
+  }
+
+  function toggleCheck(slug: string, stepKey: string) {
+    setChecks(prev => {
+      const next = { ...prev, [stepKey]: !prev[stepKey] };
+      saveChecks(slug, next);
+      return next;
+    });
+  }
+
+  function openStepUrls(slug: string, stepKey: string, urls: readonly string[]) {
+    urls.forEach(u => window.open(u, "_blank"));
+    setOpenedUrls(prev => {
+      const next = { ...prev, [stepKey]: true };
+      saveOpenedUrls(slug, next);
+      return next;
+    });
+  }
+
+  const selectedClient = selectedClientSlug
+    ? (socialClients.length > 0 ? socialClients : [
+        { businessName:"Tim's Plumbing",    slug:"tims-plumbing",   industry:"Plumbing",   email:"tim@example.com",   phone:"0412 345 678", metadata:{ serviceType:"social", socialPlatforms:["Instagram","Facebook"] } },
+        { businessName:"Gold Coast Lawn Co", slug:"gc-lawn",         industry:"Landscaping",email:"info@gclawn.com",  phone:"0421 987 654", metadata:{ serviceType:"social", socialPlatforms:["Facebook","TikTok"] } },
+        { businessName:"Bella's Café",       slug:"bellas-cafe",     industry:"Hospitality",email:"bella@cafe.com",   phone:"0434 111 222", metadata:{ serviceType:"both",   socialPlatforms:["Instagram"] } },
+      ] as any[]).find((c: any) => c.slug === selectedClientSlug)
+    : null;
+
+  const completedCount = STEPS.filter(s => checks[`step_${s.step}`]).length;
+  const progressPct = Math.round((completedCount / STEPS.length) * 100);
+
+  const cardStyle: React.CSSProperties = { background:T.surface, border:`1px solid ${T.border}`, borderRadius:14, padding:"18px 20px", boxShadow:T.shadow };
+
+  const displayClients: any[] = socialClients.length > 0 ? socialClients : [
+    { businessName:"Tim's Plumbing",    slug:"tims-plumbing",   industry:"Plumbing",   email:"tim@example.com",  metadata:{ serviceType:"social", socialPlatforms:["Instagram","Facebook"] } },
+    { businessName:"Gold Coast Lawn Co", slug:"gc-lawn",         industry:"Landscaping",email:"info@gclawn.com", metadata:{ serviceType:"social", socialPlatforms:["Facebook","TikTok"] } },
+    { businessName:"Bella's Café",       slug:"bellas-cafe",     industry:"Hospitality",email:"bella@cafe.com",  metadata:{ serviceType:"both",   socialPlatforms:["Instagram"] } },
+  ];
 
   return (
-    <div style={{ padding:"28px 32px", maxWidth:1100 }}>
-      {/* Header */}
-      <div style={{ marginBottom:24 }}>
-        <div style={{ fontSize:22, fontWeight:800, color:T.text, letterSpacing:"-0.04em", marginBottom:4 }}>Social Media</div>
-        <div style={{ fontSize:13, color:T.textMuted }}>Manage client social accounts, post queues, and analytics.</div>
-      </div>
+    <div style={{ padding:"24px 28px", maxWidth:1200, height:"calc(100vh - 60px)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
-      {/* Stats */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:24 }}>
-        {[
-          { label:"Social clients",      value:socialClients.length || 3, color:T.blue,   icon:"👥" },
-          { label:"Posts this month",    value:48,                         color:T.green,  icon:"📤" },
-          { label:"Avg engagement",      value:"4.8%",                     color:T.purple, icon:"📈" },
-          { label:"Queued posts",        value:MOCK_POSTS.length,          color:T.amber,  icon:"🕐" },
-        ].map(s => (
-          <div key={s.label} style={{ ...cardStyle, marginBottom:0, borderTop:`3px solid ${s.color}`, position:"relative", overflow:"hidden" }}>
-            <div style={{ position:"absolute", top:0, right:0, width:60, height:60, background:`radial-gradient(circle at top right,${s.color}20,transparent 70%)`, pointerEvents:"none" }}/>
-            <div style={{ fontSize:20, marginBottom:8 }}>{s.icon}</div>
-            <div style={{ fontSize:26, fontWeight:800, color:s.color, letterSpacing:"-0.04em", lineHeight:1, marginBottom:4 }}>
-              {typeof s.value==="number" ? <AnimNum value={s.value} color={s.color}/> : <span style={{color:s.color}}>{s.value}</span>}
-            </div>
-            <div style={{ fontSize:11, color:T.textMuted, fontWeight:600, textTransform:"uppercase" as const, letterSpacing:"0.06em" }}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Onboarding Checklist ── */}
-      <div style={{ ...cardStyle, marginBottom:16 }}>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+      {/* ── Header + stats ── */}
+      <div style={{ flexShrink:0, marginBottom:16 }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
           <div>
-            <div style={{ fontSize:13, fontWeight:700, color:T.text }}>Client Onboarding — Social Media Package</div>
-            <div style={{ fontSize:11, color:T.textMuted, marginTop:2 }}>Follow this process for every new social client</div>
+            <div style={{ fontSize:20, fontWeight:800, color:T.text, letterSpacing:"-0.04em", marginBottom:2 }}>Social Media</div>
+            <div style={{ fontSize:12, color:T.textMuted }}>Manage client accounts, onboarding checklists, and post queues.</div>
           </div>
-          <span style={{ background:T.blue+"18", color:T.blue, border:`1px solid ${T.blue}30`, borderRadius:6, padding:"3px 10px", fontSize:11, fontWeight:700 }}>Process Guide</span>
+          <a href="https://metricool.com/app" target="_blank" rel="noreferrer"
+            style={{ display:"flex", alignItems:"center", gap:7, background:T.blue+"18", color:T.blue, border:`1px solid ${T.blue}30`, borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:700, textDecoration:"none" }}>
+            Open Metricool ↗
+          </a>
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))", gap:10 }}>
-          {([
-            { step:"1", icon:"📧", title:"Send welcome email", desc:"Confirm the social package, pricing, and what's included. Attach your Social Media Service Agreement for them to sign." },
-            { step:"2", icon:"📋", title:"Sign service agreement", desc:"Client signs the social media management clause — covers account ownership, posting authority, liability, and cancellation terms." },
-            { step:"3", icon:"📅", title:"Book setup call (15 min)", desc:"Schedule a Zoom or phone call. They'll need to be available with access to their phone for SMS verification codes during setup." },
-            { step:"4", icon:"📧", title:"Create Google account", desc:"During the call, create a Gmail (businessname.au@gmail.com) WITH the client present — they type their own password. Set up auto-forward to their primary business email." },
-            { step:"5", icon:"📘", title:"Set up Facebook + Instagram", desc:"Using the new Gmail: create Facebook Page and Instagram Business account. Add your Meta Business Manager as Partner. Client stays as account owner." },
-            { step:"6", icon:"🎵", title:"Set up TikTok Business", desc:"Create TikTok Business account using the same Gmail. Add your TikTok Business Center as team member for agency access." },
-            { step:"7", icon:"💼", title:"Set up LinkedIn company page", desc:"Use client's existing personal LinkedIn (or create one) to create their company page. Add yourself as Page Admin." },
-            { step:"8", icon:"📍", title:"Google Business + YouTube", desc:"Google Business Profile and YouTube channel are both tied to the Gmail account created in Step 4 — enable both from Google's dashboard." },
-            { step:"9", icon:"📌", title:"Connect to Metricool", desc:"Add client as a new Brand in your Metricool agency account. Connect all platforms via OAuth from your Metricool dashboard — no login sharing required." },
-            { step:"10", icon:"🗓️", title:"Set posting schedule", desc:"Agree on posting frequency (e.g. 3×/week), preferred platforms, and tone. Set this in their client portal Social tab. Confirm auto-post vs. manual approval." },
-            { step:"11", icon:"🤖", title:"Configure AI brand voice", desc:"Note their industry, tone preferences, and any content restrictions in their client record. This seeds the AI caption generator." },
-            { step:"12", icon:"🚀", title:"First post goes live", desc:"Prepare the first batch of 4–8 posts for review. Send preview to client if on manual approval. Schedule and confirm with Metricool." },
-          ] as const).map(s => (
-            <div key={s.step} style={{ display:"flex", gap:12, padding:"12px 14px", background:T.raised, border:`1px solid ${T.border}`, borderRadius:10 }}>
-              <div style={{ width:28, height:28, borderRadius:8, background:`linear-gradient(135deg,${T.blue}30,${T.purple}20)`, border:`1px solid ${T.blue}25`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, color:T.blue, flexShrink:0 }}>{s.step}</div>
-              <div style={{ minWidth:0 }}>
-                <div style={{ fontSize:13, fontWeight:700, color:T.text, marginBottom:3 }}>{s.icon} {s.title}</div>
-                <div style={{ fontSize:11, color:T.textMuted, lineHeight:1.55 }}>{s.desc}</div>
+
+        {/* Stats strip */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10 }}>
+          {[
+            { label:"Social clients",   value:displayClients.length, color:T.blue,   icon:"👥" },
+            { label:"Posts this month", value:48,                     color:T.green,  icon:"📤" },
+            { label:"Avg engagement",   value:"4.8%",                 color:T.purple, icon:"📈" },
+            { label:"Queued posts",     value:MOCK_POSTS.length,      color:T.amber,  icon:"🕐" },
+          ].map(s => (
+            <div key={s.label} style={{ ...cardStyle, padding:"12px 16px", borderTop:`3px solid ${s.color}` }}>
+              <div style={{ fontSize:16, marginBottom:4 }}>{s.icon}</div>
+              <div style={{ fontSize:22, fontWeight:800, color:s.color, letterSpacing:"-0.04em", lineHeight:1, marginBottom:2 }}>
+                {typeof s.value==="number"?<AnimNum value={s.value} color={s.color}/>:<span style={{color:s.color}}>{s.value}</span>}
               </div>
+              <div style={{ fontSize:10, color:T.textMuted, fontWeight:600, textTransform:"uppercase" as const, letterSpacing:"0.06em" }}>{s.label}</div>
             </div>
           ))}
         </div>
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, alignItems:"start" }}>
-        {/* Post approval queue */}
-        <div>
-          <div style={{ ...cardStyle }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-              <div>
-                <div style={{ fontSize:13, fontWeight:700, color:T.text }}>Approval Queue</div>
-                <div style={{ fontSize:11, color:T.textMuted, marginTop:2 }}>Posts awaiting your review</div>
-              </div>
-              <span style={{ background:T.amber+"20", color:T.amber, border:`1px solid ${T.amber}35`, borderRadius:6, padding:"3px 9px", fontSize:11, fontWeight:700 }}>{MOCK_POSTS.length} pending</span>
+      {/* ── Main content: 3-column ── */}
+      <div style={{ flex:1, display:"grid", gridTemplateColumns:"220px 1fr 300px", gap:14, overflow:"hidden", minHeight:0 }}>
+
+        {/* ── Column 1: Client roster ── */}
+        <div style={{ display:"flex", flexDirection:"column", gap:0, overflowY:"auto" }}>
+          <div style={{ ...cardStyle, padding:"12px 14px", flex:1 }}>
+            <div style={{ fontSize:10, fontWeight:700, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:12 }}>Social Clients</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+              {displayClients.map((cl: any) => {
+                const platforms: string[] = (cl.metadata as any)?.socialPlatforms || [];
+                const slug = cl.slug || cl.jobId;
+                const checksForClient = (() => { try { const r = localStorage.getItem(`wg_social_checks_${slug}`); return r ? JSON.parse(r) : {}; } catch { return {}; } })();
+                const done = STEPS.filter(s => checksForClient[`step_${s.step}`]).length;
+                const isSelected = selectedClientSlug === slug;
+                return (
+                  <button key={slug} onClick={() => { setSelectedClientSlug(slug); loadChecks(slug); }}
+                    style={{ background: isSelected ? T.blue+"18" : T.raised, border:`1px solid ${isSelected ? T.blue+"50" : T.border}`, borderRadius:10, padding:"10px 12px", cursor:"pointer", textAlign:"left" as const, transition:"all 0.15s ease", fontFamily:"inherit", width:"100%" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+                      <div style={{ width:28, height:28, borderRadius:7, background:`linear-gradient(135deg,${T.blue}30,${T.purple}20)`, border:`1px solid ${T.blue}25`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, color:T.blue, flexShrink:0 }}>
+                        {cl.businessName.split(" ").map((w: string)=>w[0]).slice(0,2).join("").toUpperCase()}
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:12, fontWeight:700, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const }}>{cl.businessName}</div>
+                        <div style={{ fontSize:10, color:T.textMuted }}>{cl.industry || "—"}</div>
+                      </div>
+                    </div>
+                    {/* Platform icons */}
+                    <div style={{ display:"flex", gap:3, flexWrap:"wrap" as const, marginBottom:6 }}>
+                      {(platforms.length > 0 ? platforms : ["Instagram","Facebook"]).map((p: string) => (
+                        <span key={p} title={p} style={{ fontSize:13 }}>{pIcon(p)}</span>
+                      ))}
+                    </div>
+                    {/* Progress bar */}
+                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                      <div style={{ flex:1, height:4, background:T.border, borderRadius:2, overflow:"hidden" }}>
+                        <div style={{ height:"100%", width:`${Math.round((done/STEPS.length)*100)}%`, background:done===STEPS.length?T.green:T.blue, borderRadius:2, transition:"width 0.3s ease" }}/>
+                      </div>
+                      <span style={{ fontSize:9, color:T.textMuted, flexShrink:0 }}>{done}/{STEPS.length}</span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-            <div style={{ display:"flex", flexDirection:"column" as const, gap:10 }}>
-              {MOCK_POSTS.map(post => (
-                <div key={post.id} style={{ background:T.raised, border:`1px solid ${T.border}`, borderRadius:12, padding:"14px 16px", borderLeft:`3px solid ${T.amber}` }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
-                    <span style={{ fontSize:16 }}>{pIcon(post.platform)}</span>
-                    <span style={{ fontSize:12, fontWeight:600, color:T.text }}>{post.client}</span>
-                    <span style={{ fontSize:11, color:T.textMuted }}>· {post.platform}</span>
-                    <span style={{ marginLeft:"auto", fontSize:10, color:T.amber, fontWeight:600 }}>⏳ {post.scheduled}</span>
-                  </div>
-                  <div style={{ fontSize:12, color:T.textSec, lineHeight:1.5, marginBottom:12, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" as any }}>
-                    {post.caption}
-                  </div>
-                  <div style={{ display:"flex", gap:7 }}>
-                    <button style={{ flex:1, background:T.green+"18", color:T.green, border:`1px solid ${T.green}30`, borderRadius:7, padding:"6px 0", fontSize:11, fontWeight:700, cursor:"pointer" }}>✓ Approve</button>
-                    <button style={{ flex:1, background:T.blue+"18", color:T.blue, border:`1px solid ${T.blue}30`, borderRadius:7, padding:"6px 0", fontSize:11, fontWeight:600, cursor:"pointer" }}>✎ Edit</button>
-                    <button style={{ flex:1, background:T.red+"18", color:T.red, border:`1px solid ${T.red}30`, borderRadius:7, padding:"6px 0", fontSize:11, fontWeight:600, cursor:"pointer" }}>✕ Reject</button>
-                  </div>
-                </div>
-              ))}
+            <div style={{ marginTop:12, paddingTop:10, borderTop:`1px solid ${T.border}` }}>
+              <div style={{ fontSize:10, color:T.textMuted, textAlign:"center" as const }}>Click a client to manage their onboarding</div>
             </div>
           </div>
         </div>
 
-        {/* Right column: clients + Metricool */}
-        <div>
-          {/* Metricool status */}
-          <div style={{ ...cardStyle }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
-              <div style={{ fontSize:13, fontWeight:700, color:T.text }}>Metricool</div>
-              <div style={{ display:"flex", alignItems:"center", gap:6, background:T.green+"18", border:`1px solid ${T.green}30`, borderRadius:20, padding:"4px 12px" }}>
-                <div style={{ width:6, height:6, borderRadius:"50%", background:T.green }}/>
-                <span style={{ fontSize:11, color:T.green, fontWeight:600 }}>Connected</span>
-              </div>
+        {/* ── Column 2: Onboarding checklist ── */}
+        <div style={{ overflowY:"auto" }}>
+          {!selectedClientSlug ? (
+            <div style={{ ...cardStyle, height:"100%", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:12 }}>
+              <div style={{ fontSize:36 }}>👈</div>
+              <div style={{ fontSize:14, fontWeight:700, color:T.text }}>Select a client</div>
+              <div style={{ fontSize:12, color:T.textMuted, textAlign:"center" as const, maxWidth:220, lineHeight:1.6 }}>Click a client from the roster to view and manage their onboarding checklist.</div>
             </div>
-            <div style={{ display:"flex", flexDirection:"column" as const, gap:8, marginBottom:14 }}>
-              {[
-                { label:"Last sync",         val:"2 minutes ago" },
-                { label:"Total brands",      val:`${socialClients.length || 3} client accounts` },
-                { label:"Scheduled queue",   val:`${MOCK_POSTS.length} posts ready` },
-              ].map(r => (
-                <div key={r.label} style={{ display:"flex", justifyContent:"space-between", fontSize:12, padding:"6px 0", borderBottom:`1px solid ${T.border}` }}>
-                  <span style={{ color:T.textMuted }}>{r.label}</span>
-                  <span style={{ color:T.textSec, fontWeight:600 }}>{r.val}</span>
+          ) : (
+            <div style={{ ...cardStyle, padding:"16px 18px" }}>
+              {/* Client header */}
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div>
+                    <div style={{ fontSize:14, fontWeight:800, color:T.text }}>{selectedClient?.businessName || selectedClientSlug}</div>
+                    <div style={{ fontSize:11, color:T.textMuted, marginTop:1 }}>Onboarding checklist · {completedCount}/{STEPS.length} steps done</div>
+                  </div>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  {/* Progress pill */}
+                  <div style={{ background: progressPct===100 ? T.green+"20" : T.blue+"15", border:`1px solid ${progressPct===100?T.green:T.blue}30`, borderRadius:20, padding:"4px 10px", fontSize:11, fontWeight:700, color:progressPct===100?T.green:T.blue }}>
+                    {progressPct===100 ? "✓ Complete" : `${progressPct}%`}
+                  </div>
+                  <button onClick={() => { setSelectedClientSlug(null); setChecks({}); setOpenedUrls({}); }}
+                    style={{ background:"none", border:`1px solid ${T.border}`, borderRadius:7, padding:"4px 10px", fontSize:11, color:T.textMuted, cursor:"pointer", fontFamily:"inherit" }}>✕</button>
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div style={{ height:5, background:T.border, borderRadius:3, overflow:"hidden", marginBottom:16 }}>
+                <div style={{ height:"100%", width:`${progressPct}%`, background:`linear-gradient(90deg,${T.blue},${T.purple})`, borderRadius:3, transition:"width 0.35s ease" }}/>
+              </div>
+
+              {/* Steps */}
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                {STEPS.map((s) => {
+                  const key = `step_${s.step}`;
+                  const done = checks[key];
+                  const urlsOpened = openedUrls[key];
+                  const hasUrls = s.urls.length > 0;
+                  return (
+                    <div key={key} style={{ display:"flex", gap:10, padding:"10px 12px", background: done ? T.green+"0a" : T.raised, border:`1px solid ${done ? T.green+"30" : T.border}`, borderRadius:10, transition:"all 0.15s ease" }}>
+                      {/* Checkbox */}
+                      <button onClick={() => toggleCheck(selectedClientSlug!, key)}
+                        style={{ width:22, height:22, borderRadius:6, border:`2px solid ${done ? T.green : T.border}`, background: done ? T.green : "transparent", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0, marginTop:1, transition:"all 0.15s ease" }}>
+                        {done && <span style={{ color:"#fff", fontSize:11, fontWeight:900, lineHeight:1 }}>✓</span>}
+                      </button>
+                      {/* Content */}
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:3 }}>
+                          <span style={{ fontSize:10, fontWeight:800, color:done?T.green:T.blue, background:done?T.green+"18":T.blue+"15", border:`1px solid ${done?T.green:T.blue}25`, borderRadius:4, padding:"1px 5px" }}>{s.step}</span>
+                          <span style={{ fontSize:12, fontWeight:700, color: done ? T.textMuted : T.text, textDecoration: done ? "line-through" : "none" }}>{s.icon} {s.title}</span>
+                        </div>
+                        <div style={{ fontSize:11, color:T.textMuted, lineHeight:1.5, marginBottom: hasUrls ? 8 : 0 }}>{s.desc}</div>
+                        {/* URL launcher */}
+                        {hasUrls && !done && (
+                          <button onClick={() => openStepUrls(selectedClientSlug!, key, s.urls)}
+                            style={{ display:"inline-flex", alignItems:"center", gap:5, background: urlsOpened ? T.green+"18" : T.blue+"18", color: urlsOpened ? T.green : T.blue, border:`1px solid ${urlsOpened?T.green:T.blue}30`, borderRadius:6, padding:"4px 10px", fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                            {urlsOpened ? "↗ Reopened" : "↗ Open URLs"} ({s.urls.length})
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {progressPct === 100 && (
+                <div style={{ marginTop:14, background:T.green+"12", border:`1px solid ${T.green}30`, borderRadius:10, padding:"12px 16px", textAlign:"center" as const }}>
+                  <div style={{ fontSize:20, marginBottom:4 }}>🎉</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:T.green }}>Onboarding complete!</div>
+                  <div style={{ fontSize:11, color:T.textMuted, marginTop:3 }}>All 12 steps done for {selectedClient?.businessName}.</div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── Column 3: Approval queue + Metricool ── */}
+        <div style={{ display:"flex", flexDirection:"column", gap:12, overflowY:"auto" }}>
+
+          {/* Approval queue */}
+          <div style={{ ...cardStyle, padding:"14px 16px" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:T.text }}>Approval Queue</div>
+              <span style={{ background:T.amber+"20", color:T.amber, border:`1px solid ${T.amber}35`, borderRadius:6, padding:"2px 8px", fontSize:10, fontWeight:700 }}>{MOCK_POSTS.length} pending</span>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column" as const, gap:8 }}>
+              {MOCK_POSTS.map(post => (
+                <div key={post.id} style={{ background:T.raised, border:`1px solid ${T.border}`, borderRadius:10, padding:"10px 12px", borderLeft:`3px solid ${T.amber}` }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:6 }}>
+                    <span style={{ fontSize:13 }}>{pIcon(post.platform)}</span>
+                    <span style={{ fontSize:11, fontWeight:700, color:T.text }}>{post.client}</span>
+                    <span style={{ marginLeft:"auto", fontSize:10, color:T.amber, fontWeight:600 }}>{post.scheduled}</span>
+                  </div>
+                  <div style={{ fontSize:11, color:T.textSec, lineHeight:1.4, marginBottom:8, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" as any }}>{post.caption}</div>
+                  <div style={{ display:"flex", gap:5 }}>
+                    <button style={{ flex:1, background:T.green+"18", color:T.green, border:`1px solid ${T.green}30`, borderRadius:6, padding:"5px 0", fontSize:10, fontWeight:700, cursor:"pointer" }}>✓ Approve</button>
+                    <button style={{ flex:1, background:T.blue+"18", color:T.blue, border:`1px solid ${T.blue}30`, borderRadius:6, padding:"5px 0", fontSize:10, fontWeight:600, cursor:"pointer" }}>✎ Edit</button>
+                    <button style={{ flex:1, background:T.red+"18", color:T.red, border:`1px solid ${T.red}30`, borderRadius:6, padding:"5px 0", fontSize:10, fontWeight:600, cursor:"pointer" }}>✕ Reject</button>
+                  </div>
                 </div>
               ))}
             </div>
-            <button style={{ background:T.blue+"18", color:T.blue, border:`1px solid ${T.blue}30`, borderRadius:8, padding:"8px 16px", fontSize:12, fontWeight:600, cursor:"pointer", width:"100%" }}>
-              ↻ Sync Now
-            </button>
           </div>
 
-          {/* Client social roster */}
-          <div style={{ ...cardStyle }}>
-            <div style={{ fontSize:13, fontWeight:700, color:T.text, marginBottom:14 }}>Social Clients</div>
-            {(socialClients.length > 0 ? socialClients : [
-              { businessName:"Tim's Plumbing",    slug:"tims-plumbing",    industry:"Plumbing" },
-              { businessName:"Gold Coast Lawn Co", slug:"gc-lawn",          industry:"Landscaping" },
-              { businessName:"Bella's Café",       slug:"bellas-cafe",      industry:"Hospitality" },
-            ] as any[]).slice(0, 8).map((cl: any) => (
-              <div key={cl.slug} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderBottom:`1px solid ${T.border}` }}>
-                <div style={{ width:34, height:34, borderRadius:9, background:`linear-gradient(135deg,${T.blue}30,${T.purple}20)`, border:`1px solid ${T.blue}25`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, color:T.blue, flexShrink:0 }}>
-                  {cl.businessName.split(" ").map((w: string)=>w[0]).slice(0,2).join("").toUpperCase()}
-                </div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:13, fontWeight:600, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const }}>{cl.businessName}</div>
-                  <div style={{ display:"flex", gap:4, marginTop:3 }}>
-                    {["📸","👍","🎵"].map((ic,i) => <span key={i} style={{ fontSize:11 }}>{ic}</span>)}
-                    <span style={{ fontSize:10, background:T.green+"18", color:T.green, border:`1px solid ${T.green}25`, borderRadius:4, padding:"1px 6px", fontWeight:600 }}>Auto</span>
-                  </div>
-                </div>
-                <div style={{ fontSize:10, color:T.textMuted, textAlign:"right" as const, flexShrink:0 }}>
-                  <div>Next: <span style={{ color:T.blue }}>Tomorrow</span></div>
-                  <div style={{ marginTop:2 }}>Last: 3d ago</div>
-                </div>
+          {/* Metricool */}
+          <div style={{ ...cardStyle, padding:"14px 16px" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:T.text }}>Metricool</div>
+              <div style={{ display:"flex", alignItems:"center", gap:5, background:T.green+"18", border:`1px solid ${T.green}30`, borderRadius:20, padding:"3px 10px" }}>
+                <div style={{ width:5, height:5, borderRadius:"50%", background:T.green }}/>
+                <span style={{ fontSize:10, color:T.green, fontWeight:600 }}>Connected</span>
+              </div>
+            </div>
+            {[
+              { label:"Last sync",       val:"2 minutes ago" },
+              { label:"Total brands",    val:`${displayClients.length} accounts` },
+              { label:"Queue",           val:`${MOCK_POSTS.length} posts ready` },
+            ].map(r => (
+              <div key={r.label} style={{ display:"flex", justifyContent:"space-between", fontSize:11, padding:"5px 0", borderBottom:`1px solid ${T.border}` }}>
+                <span style={{ color:T.textMuted }}>{r.label}</span>
+                <span style={{ color:T.textSec, fontWeight:600 }}>{r.val}</span>
               </div>
             ))}
+            <div style={{ display:"flex", gap:7, marginTop:10 }}>
+              <a href="https://metricool.com/app" target="_blank" rel="noreferrer"
+                style={{ flex:1, background:T.blue+"18", color:T.blue, border:`1px solid ${T.blue}30`, borderRadius:7, padding:"7px 0", fontSize:11, fontWeight:700, cursor:"pointer", textDecoration:"none", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                Open ↗
+              </a>
+              <button style={{ flex:1, background:T.raised, color:T.textSec, border:`1px solid ${T.border}`, borderRadius:7, padding:"7px 0", fontSize:11, fontWeight:600, cursor:"pointer" }}>↻ Sync</button>
+            </div>
+          </div>
+
+          {/* Quick links */}
+          <div style={{ ...cardStyle, padding:"14px 16px" }}>
+            <div style={{ fontSize:11, fontWeight:700, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.08em", marginBottom:10 }}>Quick Setup Links</div>
+            <div style={{ display:"flex", flexDirection:"column" as const, gap:6 }}>
+              {[
+                { label:"Meta Business Suite",   url:"https://business.facebook.com",              icon:"📘" },
+                { label:"TikTok Business Center",url:"https://business.tiktok.com",                icon:"🎵" },
+                { label:"Google Workspace",       url:"https://accounts.google.com/signup",         icon:"📧" },
+                { label:"LinkedIn Pages",         url:"https://www.linkedin.com/company/setup/new/",icon:"💼" },
+                { label:"Google Business",        url:"https://business.google.com",                icon:"📍" },
+                { label:"YouTube Studio",         url:"https://studio.youtube.com",                 icon:"▶️" },
+                { label:"Metricool Dashboard",    url:"https://metricool.com/app",                  icon:"📊" },
+              ].map(link => (
+                <a key={link.label} href={link.url} target="_blank" rel="noreferrer"
+                  style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 8px", background:T.raised, border:`1px solid ${T.border}`, borderRadius:7, fontSize:11, color:T.textSec, textDecoration:"none", transition:"border-color 0.15s ease" }}
+                  onMouseEnter={e=>(e.currentTarget.style.borderColor=T.blue)} onMouseLeave={e=>(e.currentTarget.style.borderColor=T.border)}>
+                  <span style={{ fontSize:13 }}>{link.icon}</span>
+                  <span style={{ flex:1 }}>{link.label}</span>
+                  <span style={{ fontSize:10, color:T.textMuted }}>↗</span>
+                </a>
+              ))}
+            </div>
           </div>
         </div>
       </div>

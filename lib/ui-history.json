@@ -486,5 +486,13 @@
     "lines": 3345,
     "description": "\"Updated admin dashboard\"",
     "type": "feat"
+  },
+  {
+    "version": "v62",
+    "date": "2026-05-13",
+    "commit": "pending",
+    "lines": 3520,
+    "description": "Social tab: full redesign — no-scroll desktop layout, plan selection + custom quote, setup flow (link/create), competiti",
+    "type": "redesign"
   }
 ]
