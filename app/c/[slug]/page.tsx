@@ -1680,7 +1680,7 @@ export default function ClientPortal() {
         input:focus, textarea:focus, select:focus { outline: none; border-color: ${C.accent} !important; box-shadow: 0 0 0 3px ${C.accent}18 !important; }
         [data-tab-bar] button { outline: none; }
       `}</style>
-      <div key={tab} className="wg-tab" style={tab === "preview" ? { display: "none" } : S.body}>
+      <div key={tab} className="wg-tab" style={tab === "preview" ? { display: "none" } : tab === "social" ? { padding: "20px 24px", maxWidth: "none", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" } : S.body}>
 
         {/* ══════════════════════ OVERVIEW ══════════════════════ */}
         {tab === "overview" && (
@@ -2694,7 +2694,7 @@ export default function ClientPortal() {
             const selectedPlanObj = plans.find(p => p.id === socialSelectedPlan);
 
             return (
-              <div style={{ height: "calc(100vh - 120px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
                 {/* ── Header strip ── */}
                 <div style={{ flexShrink: 0, paddingBottom: 16, borderBottom: `1px solid ${C.border}`, marginBottom: 16 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -2894,7 +2894,7 @@ export default function ClientPortal() {
           ];
 
           return (
-            <div style={{ height: "calc(100vh - 120px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
 
               {/* ── Inner tab bar ── */}
               <div style={{ display: "flex", gap: 4, marginBottom: 14, flexShrink: 0, borderBottom: `1px solid ${C.border}`, paddingBottom: 10 }}>

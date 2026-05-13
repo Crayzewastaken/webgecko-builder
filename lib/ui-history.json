@@ -494,5 +494,13 @@
     "lines": 3520,
     "description": "Social tab: full redesign — no-scroll desktop layout, plan selection + custom quote, setup flow (link/create), competiti",
     "type": "redesign"
+  },
+  {
+    "version": "v63",
+    "date": "2026-05-13",
+    "commit": "pending",
+    "lines": 3520,
+    "description": "Admin social view: 3-col layout, per-client interactive checklist with URL launcher, quick links panel",
+    "type": "feat"
   }
 ]

@@ -2833,13 +2833,13 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
     { step:"8",  icon:"📍", title:"Google Business + YouTube", desc:"Google Business Profile and YouTube channel tied to Step 4 Gmail. Enable both from Google dashboard.",
       urls:["https://business.google.com","https://www.youtube.com/create_channel"] },
     { step:"9",  icon:"📌", title:"Connect to Metricool",     desc:"Add client as new Brand in Metricool agency account. Connect all platforms via OAuth — no login sharing.",
-      urls:["https://metricool.com/app","https://app.metricool.com/login"] },
+      urls:["https://metricool.com","https://metricool.com"] },
     { step:"10", icon:"🗓️", title:"Set posting schedule",     desc:"Agree frequency (e.g. 3×/week), platforms, tone. Set in client portal Social tab. Confirm auto-post vs. manual approval.",
       urls:[] },
     { step:"11", icon:"🤖", title:"Configure AI brand voice", desc:"Note industry, tone preferences, content restrictions in client record. Seeds the caption generator.",
       urls:[] },
     { step:"12", icon:"🚀", title:"First post goes live",      desc:"Prepare 4–8 posts. Send preview to client if manual approval. Schedule and confirm in Metricool.",
-      urls:["https://metricool.com/app"] },
+      urls:["https://metricool.com"] },
   ] as const;
 
   function loadChecks(slug: string) {
@@ -2905,7 +2905,7 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
             <div style={{ fontSize:20, fontWeight:800, color:T.text, letterSpacing:"-0.04em", marginBottom:2 }}>Social Media</div>
             <div style={{ fontSize:12, color:T.textMuted }}>Manage client accounts, onboarding checklists, and post queues.</div>
           </div>
-          <a href="https://metricool.com/app" target="_blank" rel="noreferrer"
+          <a href="https://metricool.com" target="_blank" rel="noreferrer"
             style={{ display:"flex", alignItems:"center", gap:7, background:T.blue+"18", color:T.blue, border:`1px solid ${T.blue}30`, borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:700, textDecoration:"none" }}>
             Open Metricool ↗
           </a>
@@ -3105,7 +3105,7 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
               </div>
             ))}
             <div style={{ display:"flex", gap:7, marginTop:10 }}>
-              <a href="https://metricool.com/app" target="_blank" rel="noreferrer"
+              <a href="https://metricool.com" target="_blank" rel="noreferrer"
                 style={{ flex:1, background:T.blue+"18", color:T.blue, border:`1px solid ${T.blue}30`, borderRadius:7, padding:"7px 0", fontSize:11, fontWeight:700, cursor:"pointer", textDecoration:"none", display:"flex", alignItems:"center", justifyContent:"center" }}>
                 Open ↗
               </a>
@@ -3124,7 +3124,7 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
                 { label:"LinkedIn Pages",         url:"https://www.linkedin.com/company/setup/new/",icon:"💼" },
                 { label:"Google Business",        url:"https://business.google.com",                icon:"📍" },
                 { label:"YouTube Studio",         url:"https://studio.youtube.com",                 icon:"▶️" },
-                { label:"Metricool Dashboard",    url:"https://metricool.com/app",                  icon:"📊" },
+                { label:"Metricool Dashboard",    url:"https://metricool.com",                  icon:"📊" },
               ].map(link => (
                 <a key={link.label} href={link.url} target="_blank" rel="noreferrer"
                   style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 8px", background:T.raised, border:`1px solid ${T.border}`, borderRadius:7, fontSize:11, color:T.textSec, textDecoration:"none", transition:"border-color 0.15s ease" }}
