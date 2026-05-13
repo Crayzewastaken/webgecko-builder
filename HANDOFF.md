@@ -268,7 +268,37 @@ Key findings that drove fixes:
 - `socialSetupStep` — null | "choose" | "link" | "create"
 - `socialActiveTab` — overview | calendar | brief | setup
 
-**Commit:** `32a4b29` — needs `git push` from Windows terminal
+**Commit:** `32a4b29`
+
+### Admin Social View — Full Redesign (`app/admin/page.tsx` → `SocialView`)
+
+**Layout:** 3-column no-scroll dashboard (stats strip + col1: client roster / col2: checklist / col3: queue+links)
+
+**Client roster (col 1):**
+- Real client cards from DB (falls back to mock data if none)
+- Platform icons, per-client onboarding progress bar (e.g. 7/12 steps)
+- Click a client to load their checklist — persisted in `localStorage` keyed by slug
+
+**Interactive onboarding checklist (col 2):**
+- 12-step checklist, checkable — state saved per client in localStorage (`wg_social_checks_{slug}`)
+- Each step with relevant URLs gets an **"↗ Open URLs (n)"** button — opens all setup tabs at once
+  - Step 3: Calendly
+  - Step 4: Google signup + Gmail
+  - Step 5: Meta Business Suite, Facebook Pages, Instagram signup
+  - Step 6: TikTok Business Center
+  - Step 7: LinkedIn company page creator
+  - Step 8: Google Business, YouTube Studio
+  - Step 9: Metricool app (×2)
+  - Step 12: Metricool app
+- Checked steps get strikethrough + green tick; "Reopened" label if URLs already opened
+- Progress bar + percentage pill at top; completion celebration card at 100%
+
+**Col 3:**
+- Approval queue (approve/edit/reject per post)
+- Metricool status card with Open + Sync buttons
+- Quick setup links panel — 7 direct links (Meta, TikTok, Google, LinkedIn, GBP, YouTube, Metricool)
+
+**Commits:** `32a4b29` (client portal), `9ad26e2` (admin) — both need `git push` from Windows terminal
 
 ---
 
