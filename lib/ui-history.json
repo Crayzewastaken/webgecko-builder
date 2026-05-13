@@ -462,5 +462,21 @@
     "lines": 3043,
     "description": "\"Updated admin dashboard\"",
     "type": "feat"
+  },
+  {
+    "version": "v59",
+    "date": "2026-05-13",
+    "commit": "pending",
+    "lines": 3258,
+    "description": "fix: dedup data-page in ensureMultiPage + Step7b smarter repair (no ensureMultiPage when only dupes); restore truncated ",
+    "type": "fix"
+  },
+  {
+    "version": "v60",
+    "date": "2026-05-13",
+    "commit": "pending",
+    "lines": 3258,
+    "description": "\"Updated admin dashboard\"",
+    "type": "feat"
   }
 ]

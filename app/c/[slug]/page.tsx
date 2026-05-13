@@ -162,7 +162,7 @@ interface PaymentStatus {
   quote: { total: number; monthly: number; deposit: number; final: number };
 }
 
-type Tab = "overview" | "preview" | "bookings" | "content" | "quote" | "plan" | "upgrade" | "contact";
+type Tab = "overview" | "preview" | "bookings" | "content" | "quote" | "plan" | "upgrade" | "contact" | "social";
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 function formatDate(dateStr: string) {
@@ -621,6 +621,15 @@ export default function ClientPortal() {
   const [myContentItems, setMyContentItems] = useState<any[]>([]);
   const [contentItemsLoading, setContentItemsLoading] = useState(false);
 
+  // ── Social Media state ───────────────────────────────────────────────────
+  const [postingMode, setPostingMode] = useState<"auto"|"manual">("auto");
+  const [socialBrief, setSocialBrief] = useState("");
+  const [socialTone, setSocialTone] = useState<"professional"|"friendly"|"casual"|"promotional">("friendly");
+  const [socialPlatforms, setSocialPlatforms] = useState<string[]>(["Instagram","Facebook"]);
+  const [socialSubmitting, setSocialSubmitting] = useState(false);
+  const [socialSubmitted, setSocialSubmitted] = useState(false);
+  const [socialFile, setSocialFile] = useState<File|null>(null);
+
   // Contact / Support
   const [contactTopics, setContactTopics] = useState<string[]>([]);
   const [contactDetails, setContactDetails] = useState("");
@@ -651,6 +660,13 @@ export default function ClientPortal() {
     if (tab === "upgrade") loadMyFeatureRequests();
     if (tab === "content") loadMyContent();
   }, [tab, client]);
+
+  // Init social posting mode from server metadata
+  useEffect(() => {
+    if (!client) return;
+    const pm = (client.metadata as any)?.socialPostingMode;
+    if (pm === "auto" || pm === "manual") setPostingMode(pm);
+  }, [client?.jobId]);
 
   async function loadMyContent() {
     setContentItemsLoading(true);
@@ -992,15 +1008,24 @@ export default function ClientPortal() {
 
   const hasContentFeature = hasBlog || hasGrowth || hasShop || features.includes("Deals & Promotions") || features.includes("Testimonials");
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "overview", label: "Overview" },
-    { id: "preview", label: "Site Preview" },
-    ...(hasBooking ? [{ id: "bookings" as Tab, label: "Bookings" }] : []),
-    ...(hasContentFeature ? [{ id: "content" as Tab, label: "Content" }] : []),
-    { id: "quote", label: "Quote & Pay" },
-    { id: "plan", label: "My Plan" },
-    { id: "upgrade", label: "Add Features" },
-    { id: "contact", label: "Contact Us" },
+  const serviceMode: "website"|"social"|"both" = (client?.metadata as any)?.serviceType || "website";
+  const isSocialOnly = serviceMode === "social";
+  const hasSocial = serviceMode === "social" || serviceMode === "both";
+
+  // Init postingMode from metadata on load
+  const savedPostingMode = (client?.metadata as any)?.socialPostingMode;
+  // (only run once after client loads — handled via separate effect below)
+
+  const tabs: { id: Tab; label: string; icon: string }[] = [
+    { id: "overview", label: "Overview", icon: "🏠" },
+    ...(!isSocialOnly ? [{ id: "preview" as Tab, label: "Site Preview", icon: "👁" }] : []),
+    ...(!isSocialOnly && hasBooking ? [{ id: "bookings" as Tab, label: "Bookings", icon: "📅" }] : []),
+    ...(!isSocialOnly && hasContentFeature ? [{ id: "content" as Tab, label: "Content", icon: "📰" }] : []),
+    ...(hasSocial ? [{ id: "social" as Tab, label: "Social Media", icon: "📱" }] : []),
+    { id: "quote", label: "Quote & Pay", icon: "💳" },
+    { id: "plan", label: "My Plan", icon: "📋" },
+    ...(!isSocialOnly ? [{ id: "upgrade" as Tab, label: "Add Features", icon: "⚡" }] : []),
+    { id: "contact", label: "Contact Us", icon: "💬" },
   ];
 
   const S = {
@@ -1199,18 +1224,67 @@ export default function ClientPortal() {
 
   // ─────────────────────────────────────────────────────────────────────────────
   const portalCss = `
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
     *, *::before, *::after { box-sizing: border-box; }
-    @keyframes wg-ping  { 0%{transform:scale(1);opacity:.9} 100%{transform:scale(2.4);opacity:0} }
-    @keyframes wg-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-    @keyframes wg-fade  { from{opacity:0} to{opacity:1} }
-    @keyframes wg-up    { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes wg-ping    { 0%{transform:scale(1);opacity:.9} 100%{transform:scale(2.4);opacity:0} }
+    @keyframes wg-float   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    @keyframes wg-fade    { from{opacity:0} to{opacity:1} }
+    @keyframes wg-up      { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes wg-tab-in  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes wg-shimmer { 0%{background-position:-600px 0} 100%{background-position:600px 0} }
+
     ::-webkit-scrollbar { width:4px; height:4px }
     ::-webkit-scrollbar-track { background:transparent }
     ::-webkit-scrollbar-thumb { background:rgba(79,158,255,0.25); border-radius:99px }
+
     button { font-family:inherit; transition:opacity 0.15s, transform 0.12s, box-shadow 0.15s !important }
     button:active:not(:disabled) { transform:scale(0.96) !important }
     input, textarea, select { font-family:inherit }
+    input:focus, textarea:focus, select:focus { outline:none !important }
+
+    .wg-tab { animation: wg-tab-in 0.22s cubic-bezier(0.22,1,0.36,1) both }
+
+    /* Tab bar — hide scrollbar */
+    [data-tab-bar] { -ms-overflow-style:none; scrollbar-width:none; }
+    [data-tab-bar]::-webkit-scrollbar { display:none; }
+
+    /* Tab icon — show on mobile, hide label; show label on desktop */
+    .wg-tab-icon  { display:inline; margin-right:5px; }
+    .wg-tab-label { display:inline; }
+
+    /* ── Sidebar layout ─────────────────────────────────────────── */
+    .wg-layout        { display:flex; min-height:100vh; }
+    .wg-sidebar-nav   { width:220px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto;
+                        display:flex; flex-direction:column; border-right-width:1px; border-right-style:solid; }
+    .wg-main-wrap     { flex:1; min-width:0; display:flex; flex-direction:column; }
+    .wg-mobile-topbar { display:none; }
+    .wg-bottom-nav    { display:none; }
+
+    /* Sidebar nav item */
+    .wg-nav-item { display:flex; align-items:center; gap:10px; padding:9px 16px; border-radius:9px;
+                   cursor:pointer; font-size:13px; font-weight:500; transition:all 0.15s ease;
+                   border:none; width:100%; text-align:left; background:none; }
+    .wg-nav-item:hover { opacity:0.85; }
+
+    /* ── Mobile ── */
+    @media (max-width: 768px) {
+      .wg-sidebar-nav  { display:none !important; }
+      .wg-mobile-topbar{ display:flex !important; align-items:center; justify-content:space-between;
+                         padding:0 16px; height:56px; position:sticky; top:0; z-index:50;
+                         border-bottom-width:1px; border-bottom-style:solid; }
+      .wg-bottom-nav   { display:flex !important; position:fixed; bottom:0; left:0; right:0; z-index:100;
+                         border-top-width:1px; border-top-style:solid; padding:6px 4px 8px;
+                         padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+      .wg-main-wrap    { padding-bottom:80px; }
+      .wg-tab-icon     { display:block; font-size:20px; margin:0 auto 2px; }
+      .wg-tab-label    { display:block; font-size:9px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; }
+      [data-tab-bar]   { display:none !important; }
+      .wg-desktop-tabs { display:none !important; }
+    }
+    @media (min-width: 769px) {
+      [data-tab-bar] { display:flex; }
+      .wg-desktop-tabs { display:flex; }
+    }
   `;
 
   const tourSteps = [
@@ -1225,6 +1299,12 @@ export default function ClientPortal() {
     localStorage.setItem(`wg_tour_done_${slug}`, "1");
     setTourVisible(false);
   }
+
+  // Bottom nav tabs — only show 5 most important on mobile
+  const bottomNavTabs = tabs.slice(0, 5);
+
+  const sidebarBg = dark ? "rgba(6,12,24,0.98)" : "#ffffff";
+  const sidebarBorder = dark ? "#1a2e50" : "#e2e5f0";
 
   return (
     <div style={S.page}>
@@ -1267,58 +1347,102 @@ export default function ClientPortal() {
         </div>
       )}
 
-      {/* ── Pay Now Banner (shown when deposit not paid) ──────────────────────── */}
-      {paymentStatus && !paymentStatus.depositPaid && (
-        <div style={{ background:"linear-gradient(135deg,#00c896,#0099ff)", padding:"14px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" as const }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <span style={{ fontSize:20 }}>💳</span>
-            <div>
-              <div style={{ color:"#000", fontWeight:800, fontSize:14, lineHeight:1.2 }}>Pay your deposit to start your build</div>
-              <div style={{ color:"rgba(0,0,0,0.6)", fontSize:12, marginTop:2 }}>Nothing begins until the deposit is paid — it takes under a minute.</div>
+      {/* ── Layout: Sidebar (desktop) + Main ─────────────────────────────── */}
+      <div className="wg-layout">
+
+        {/* ── Sidebar (desktop only) ─────────────────────────────────────── */}
+        <nav className="wg-sidebar-nav" style={{ background: sidebarBg, borderRightColor: sidebarBorder }}>
+          {/* Logo + business */}
+          <div style={{ padding: "20px 16px 16px", borderBottom: `1px solid ${sidebarBorder}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg,#4f9eff,#a78bfa)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 900, color: "#fff", flexShrink: 0, boxShadow: "0 0 14px rgba(79,158,255,0.4)" }}>W</div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "-0.03em", background: "linear-gradient(135deg,#e0ecff,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>WebGecko</div>
+                <div style={{ fontSize: 10, color: dark ? "#3a5080" : "#8090aa", fontWeight: 500 }}>{isSocialOnly ? "Social Media" : "Client Portal"}</div>
+              </div>
+            </div>
+            {/* Business avatar + name */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg,${C.accentBlue}30,${C.purple}20)`, border: `1px solid ${C.accentBlue}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: C.accentBlue, flexShrink: 0 }}>
+                {client.businessName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase()}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: dark ? "#c8d8f0" : "#0d1020", lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.businessName}</div>
+                {client.launchReady && <div style={{ fontSize: 10, color: C.accent, fontWeight: 600, marginTop: 2 }}>● Live</div>}
+              </div>
             </div>
           </div>
-          <button
-            onClick={() => handlePay("deposit")}
-            disabled={payLoading === "deposit"}
-            style={{ background:"#000", color:"#fff", border:"none", borderRadius:10, padding:"10px 22px", fontSize:14, fontWeight:800, cursor:"pointer", whiteSpace:"nowrap" as const, fontFamily:"inherit", opacity: payLoading==="deposit"?0.6:1 }}
-          >{payLoading === "deposit" ? "Loading…" : "Pay Now →"}</button>
-        </div>
-      )}
 
-      {/* Header */}
-      <header style={S.header}>
-        {/* Rainbow gradient top line */}
-        <div style={{ position:"absolute", top:0, left:0, right:0, height:2, background:"linear-gradient(90deg,#4f9eff,#a78bfa,#00e87a,transparent)", opacity:0.85, pointerEvents:"none" }}/>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={S.logoMark}>W</div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 1, background:"linear-gradient(135deg,#e0ecff 30%,#a78bfa 100%)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" }}>WebGecko</div>
-            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{client.businessName}</div>
+          {/* Nav items */}
+          <div style={{ flex: 1, padding: "12px 8px", overflowY: "auto" }}>
+            {tabs.map(t => (
+              <button key={t.id} className="wg-nav-item" onClick={() => setTab(t.id)}
+                style={{
+                  background: tab === t.id ? (dark ? "rgba(79,158,255,0.12)" : "rgba(37,99,235,0.08)") : "transparent",
+                  color: tab === t.id ? C.accentBlue : (dark ? "#5a7aaa" : "#606880"),
+                  fontWeight: tab === t.id ? 700 : 500,
+                  borderLeft: `3px solid ${tab === t.id ? C.accentBlue : "transparent"}`,
+                  borderRadius: "0 8px 8px 0",
+                  marginBottom: 2,
+                }}>
+                <span style={{ fontSize: 15, lineHeight: 1 }}>{t.icon}</span>
+                <span style={{ fontSize: 13 }}>{t.label}</span>
+              </button>
+            ))}
           </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {client.launchReady && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, background: C.accent + "15", border: `1px solid ${C.accent}30`, borderRadius: 20, padding: "4px 12px" }}>
-              <div style={{ position:"relative", width:7, height:7 }}>
-                <div style={{ position:"absolute", inset:0, borderRadius:"50%", background:C.accent, animation:"wg-ping 1.6s ease-in-out infinite", opacity:0.7 }}/>
-                <div style={{ position:"absolute", inset:0, borderRadius:"50%", background:C.accent }}/>
+
+          {/* Sidebar footer */}
+          <div style={{ padding: "12px 16px", borderTop: `1px solid ${sidebarBorder}` }}>
+            <button onClick={toggleTheme} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", color: dark ? "#3a5080" : "#8090aa", fontSize: 12, cursor: "pointer", padding: "6px 0", width: "100%", fontFamily: "inherit" }}>
+              <span>{dark ? "☀" : "🌙"}</span> {dark ? "Light mode" : "Dark mode"}
+            </button>
+            <button onClick={signOut} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", color: dark ? "#3a5080" : "#8090aa", fontSize: 12, cursor: "pointer", padding: "6px 0", width: "100%", fontFamily: "inherit" }}>
+              <span>↩</span> Sign out
+            </button>
+          </div>
+        </nav>
+
+        {/* ── Main content area ──────────────────────────────────────────── */}
+        <div className="wg-main-wrap">
+
+          {/* Mobile top bar */}
+          <div className="wg-mobile-topbar" style={{ background: C.navBg, borderBottomColor: C.navBorder }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg,#4f9eff,#a78bfa)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 900, color: "#fff" }}>W</div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: dark ? "#c8d8f0" : "#0d1020" }}>{client.businessName}</span>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={toggleTheme} style={{ background: C.raised, border: `1px solid ${C.border}`, borderRadius: 7, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 13 }}>{dark ? "☀" : "🌙"}</button>
+              <button onClick={signOut} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 7, padding: "5px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Out</button>
+            </div>
+          </div>
+
+          {/* Desktop tab bar (still shown inside main area on desktop) */}
+          <div data-tab-bar style={{ ...S.tabBar, display: "none" }} className="wg-desktop-tabs">
+            {tabs.map(t => (
+              <button key={t.id} style={S.tabBtn(tab === t.id)} onClick={() => setTab(t.id)}>
+                <span className="wg-tab-icon">{t.icon}</span>
+                <span className="wg-tab-label">{t.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* ── Pay Now Banner ─────────────────────────────────────────── */}
+          {paymentStatus && !paymentStatus.depositPaid && (
+            <div style={{ background: "linear-gradient(135deg,#00c896,#0099ff)", padding: "13px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" as const }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 18 }}>💳</span>
+                <div>
+                  <div style={{ color: "#000", fontWeight: 800, fontSize: 13, lineHeight: 1.2 }}>Pay your deposit to start your build</div>
+                  <div style={{ color: "rgba(0,0,0,0.6)", fontSize: 11, marginTop: 1 }}>Nothing begins until the deposit is paid.</div>
+                </div>
               </div>
-              <span style={{ fontSize: 11, color: C.accent, fontWeight: 700 }}>Live</span>
+              <button onClick={() => handlePay("deposit")} disabled={payLoading === "deposit"}
+                style={{ background: "#000", color: "#fff", border: "none", borderRadius: 9, padding: "9px 20px", fontSize: 13, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" as const, fontFamily: "inherit", opacity: payLoading === "deposit" ? 0.6 : 1 }}>
+                {payLoading === "deposit" ? "Loading…" : "Pay Now →"}
+              </button>
             </div>
           )}
-          <button
-            onClick={toggleTheme}
-            title={dark ? "Light mode" : "Dark mode"}
-            style={{ background: C.raised, border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 8, width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 14 }}
-          >{dark ? "☀" : "🌙"}</button>
-          <button style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.textMuted, borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }} onClick={signOut}>Sign out</button>
-        </div>
-      </header>
-
-      {/* Tab bar */}
-      <div data-tab-bar style={S.tabBar}>
-        {tabs.map(t => <button key={t.id} style={S.tabBtn(tab === t.id)} onClick={() => setTab(t.id)}>{t.label}</button>)}
-      </div>
 
       {/* ══════════════════════ SITE PREVIEW (full-width, outside padded body) ══════════════════════ */}
       {tab === "preview" && (
@@ -2364,6 +2488,306 @@ export default function ClientPortal() {
           </>
         )}
 
+        {/* ══════════════════════ SOCIAL MEDIA TAB ══════════════════════ */}
+        {tab === "social" && (() => {
+          const connectedPlatforms: string[] = (client.metadata as any)?.socialPlatforms || [];
+          const allPlatforms = [
+            { id: "Instagram",       icon: "📸", color: "#E1306C" },
+            { id: "Facebook",        icon: "👍", color: "#1877F2" },
+            { id: "TikTok",          icon: "🎵", color: "#010101" },
+            { id: "LinkedIn",        icon: "💼", color: "#0A66C2" },
+            { id: "YouTube",         icon: "▶️", color: "#FF0000" },
+            { id: "Google Business", icon: "📍", color: "#4285F4" },
+          ];
+          const mockPosts = [
+            { id: "p1", platform: "Instagram",  caption: "Winter sale is ON — 20% off all services this week only. Book today and lock in your spot before we fill up!", scheduledAt: "2026-05-14T09:00:00", status: "scheduled"         as const },
+            { id: "p2", platform: "Facebook",   caption: "We just wrapped up a big job in the CBD — check out these before and afters. Proud of the team today! 💪", scheduledAt: "2026-05-15T11:00:00", status: "pending_approval" as const },
+            { id: "p3", platform: "TikTok",     caption: "Quick tip: always check your gutters before the storm season hits. Here's what we found at a recent job...", scheduledAt: "2026-05-17T16:00:00", status: "scheduled"         as const },
+            { id: "p4", platform: "Instagram",  caption: "5 ⭐ review from Sarah T. — 'Absolute legends. On time, clean, professional. Would recommend to anyone!'",      scheduledAt: "2026-05-12T09:00:00", status: "published"         as const },
+          ];
+          const fmtDate = (iso: string) => {
+            const d = new Date(iso);
+            return d.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" }) + " · " + d.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" });
+          };
+          const pIcon = (p: string) => allPlatforms.find(x => x.id === p)?.icon || "📱";
+          const pColor = (p: string) => allPlatforms.find(x => x.id === p)?.color || C.accentBlue;
+
+          const cardBase: React.CSSProperties = {
+            background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14,
+            padding: "20px 22px", marginBottom: 14, boxShadow: C.shadow,
+          };
+
+          return (
+            <>
+              {/* Platform Status */}
+              <div style={cardBase}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>Connected Platforms</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {allPlatforms.map(p => {
+                    const connected = connectedPlatforms.includes(p.id);
+                    return (
+                      <div key={p.id} style={{
+                        display: "flex", alignItems: "center", gap: 7,
+                        background: connected ? `${p.color}14` : C.raised,
+                        border: `1px solid ${connected ? p.color + "40" : C.border}`,
+                        borderRadius: 20, padding: "6px 14px",
+                        fontSize: 12, fontWeight: 600,
+                        color: connected ? p.color : C.textMuted,
+                        transition: "all 0.2s ease",
+                      }}>
+                        <span style={{ fontSize: 15 }}>{p.icon}</span>
+                        {p.id}
+                        {connected && <span style={{ fontSize: 10, fontWeight: 800, color: p.color }}>✓</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+                {connectedPlatforms.length === 0 && (
+                  <div style={{ marginTop: 12, padding: "10px 14px", background: C.amberBg, border: `1px solid ${C.amber}30`, borderRadius: 8, fontSize: 12, color: C.amber, lineHeight: 1.6 }}>
+                    Your social accounts are being set up — we'll connect them and notify you when ready.
+                  </div>
+                )}
+              </div>
+
+              {/* Posting Preference */}
+              <div style={cardBase}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Posting Preference</div>
+                <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 16, lineHeight: 1.5 }}>How would you like your posts handled?</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  {([
+                    { id: "auto"   as const, icon: "⚡", title: "Auto-post",        desc: "We review and publish on your behalf. Posts go live without you needing to do anything." },
+                    { id: "manual" as const, icon: "✅", title: "Manual approval", desc: "We prepare each post and send it to you for approval before it goes live." },
+                  ] as const).map(opt => {
+                    const sel = postingMode === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        onClick={async () => {
+                          setPostingMode(opt.id);
+                          await fetch("/api/client/social-settings", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ slug, postingMode: opt.id }),
+                          }).catch(() => {});
+                        }}
+                        style={{
+                          background: sel ? `${C.accentBlue}10` : C.raised,
+                          border: `2px solid ${sel ? C.accentBlue : C.border}`,
+                          borderRadius: 12, padding: "16px", cursor: "pointer",
+                          textAlign: "left", transition: "all 0.18s ease",
+                        }}
+                      >
+                        <div style={{ fontSize: 22, marginBottom: 8 }}>{opt.icon}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 4 }}>{opt.title}</div>
+                        <div style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.5 }}>{opt.desc}</div>
+                        {sel && <div style={{ marginTop: 10, fontSize: 11, fontWeight: 700, color: C.accentBlue }}>✓ Active</div>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Content Calendar */}
+              <div style={cardBase}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Content Calendar</div>
+                    <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>Upcoming & recent posts</div>
+                  </div>
+                  <div style={{ fontSize: 11, color: C.textMuted, background: C.raised, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px" }}>
+                    Powered by Metricool
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {mockPosts.map(post => (
+                    <div key={post.id} style={{
+                      background: C.raised, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px",
+                      borderLeft: `3px solid ${
+                        post.status === "published" ? C.accent :
+                        post.status === "pending_approval" ? C.amber : C.accentBlue
+                      }`,
+                    }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                        <div style={{
+                          width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+                          background: `${pColor(post.platform)}18`,
+                          border: `1px solid ${pColor(post.platform)}35`,
+                          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18,
+                        }}>{pIcon(post.platform)}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: C.textSec }}>{post.platform}</span>
+                            <span style={{ fontSize: 11, color: C.textMuted }}>· {fmtDate(post.scheduledAt)}</span>
+                            <span style={{
+                              fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 5,
+                              background: post.status === "published" ? `${C.accent}18` : post.status === "pending_approval" ? `${C.amber}18` : `${C.accentBlue}18`,
+                              color: post.status === "published" ? C.accent : post.status === "pending_approval" ? C.amber : C.accentBlue,
+                              border: `1px solid ${post.status === "published" ? C.accent : post.status === "pending_approval" ? C.amber : C.accentBlue}30`,
+                            }}>
+                              {post.status === "published" ? "✓ Published" : post.status === "pending_approval" ? "⏳ Awaiting approval" : "🕐 Scheduled"}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 13, color: C.textSec, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any }}>
+                            {post.caption}
+                          </div>
+                          {post.status === "pending_approval" && postingMode === "manual" && (
+                            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                              <button style={{ background: `${C.accent}18`, color: C.accent, border: `1px solid ${C.accent}30`, borderRadius: 7, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                                ✓ Approve
+                              </button>
+                              <button style={{ background: C.raised, color: C.textMuted, border: `1px solid ${C.border}`, borderRadius: 7, padding: "6px 14px", fontSize: 12, cursor: "pointer" }}>
+                                ✎ Request changes
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Upload & Brief */}
+              <div style={cardBase}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Submit a Post Idea</div>
+                <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 16, lineHeight: 1.5 }}>
+                  Upload photos or describe what you want — we'll write the caption, pick the right hashtags, and schedule it.
+                </div>
+                {socialSubmitted ? (
+                  <div style={{ textAlign: "center", padding: "28px 0" }}>
+                    <div style={{ fontSize: 36, marginBottom: 12 }}>🚀</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>Brief received!</div>
+                    <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 18, lineHeight: 1.6 }}>We'll have a draft ready within 24 hours for you to review.</div>
+                    <button onClick={() => { setSocialSubmitted(false); setSocialBrief(""); setSocialFile(null); }} style={{ background: C.raised, color: C.textSec, border: `1px solid ${C.border}`, borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                      Submit another
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    {/* Photo upload */}
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 8 }}>Photo / Image (optional)</label>
+                      <label style={{
+                        display: "flex", alignItems: "center", gap: 12, padding: "14px 18px",
+                        background: C.raised, border: `2px dashed ${socialFile ? C.accentBlue : C.border}`,
+                        borderRadius: 10, cursor: "pointer", transition: "border-color 0.2s ease",
+                      }}>
+                        <span style={{ fontSize: 22 }}>🖼️</span>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{socialFile ? socialFile.name : "Click to upload"}</div>
+                          <div style={{ fontSize: 11, color: C.textMuted }}>PNG, JPG, HEIC up to 20MB</div>
+                        </div>
+                        <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => setSocialFile(e.target.files?.[0] || null)} />
+                      </label>
+                    </div>
+
+                    {/* Brief */}
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 8 }}>What is this post about? *</label>
+                      <textarea
+                        value={socialBrief} onChange={e => setSocialBrief(e.target.value)}
+                        rows={3} placeholder="e.g. We just finished a big job in Surry Hills. Want to show off the before/after and promote our winter discount."
+                        style={{ width: "100%", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 10, padding: "11px 14px", color: C.text, fontSize: 13, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box", lineHeight: 1.6, transition: "border-color 0.2s ease" }}
+                      />
+                    </div>
+
+                    {/* Tone */}
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 8 }}>Tone</label>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {(["professional","friendly","casual","promotional"] as const).map(t => (
+                          <button key={t} onClick={() => setSocialTone(t)}
+                            style={{ padding: "7px 16px", borderRadius: 20, fontSize: 12, fontWeight: socialTone === t ? 700 : 400, cursor: "pointer",
+                              background: socialTone === t ? C.accentBlue : C.raised,
+                              color: socialTone === t ? "#fff" : C.textSec,
+                              border: `1px solid ${socialTone === t ? C.accentBlue : C.border}`,
+                              transition: "all 0.15s ease", textTransform: "capitalize",
+                            }}>
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Platforms */}
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 8 }}>Post to</label>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {(["Instagram","Facebook","TikTok","LinkedIn"] as const).map(p => {
+                          const sel = socialPlatforms.includes(p);
+                          const pc = allPlatforms.find(x => x.id === p)?.color || C.accentBlue;
+                          return (
+                            <button key={p} onClick={() => setSocialPlatforms(prev => sel ? prev.filter(x => x !== p) : [...prev, p])}
+                              style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 20, fontSize: 12, fontWeight: sel ? 700 : 400, cursor: "pointer",
+                                background: sel ? `${pc}18` : C.raised, color: sel ? pc : C.textMuted,
+                                border: `1px solid ${sel ? pc + "50" : C.border}`, transition: "all 0.15s ease",
+                              }}>
+                              {pIcon(p)} {p}
+                              {sel && <span style={{ fontWeight: 800 }}>✓</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={async () => {
+                        if (!socialBrief.trim()) return;
+                        setSocialSubmitting(true);
+                        try {
+                          const fd = new FormData();
+                          if (socialFile) fd.append("photo", socialFile);
+                          fd.append("slug", slug);
+                          fd.append("brief", socialBrief);
+                          fd.append("tone", socialTone);
+                          fd.append("platforms", JSON.stringify(socialPlatforms));
+                          await fetch("/api/client/social-upload", { method: "POST", body: fd });
+                          setSocialSubmitted(true);
+                        } catch (e) { /* silent */ }
+                        finally { setSocialSubmitting(false); }
+                      }}
+                      disabled={socialSubmitting || !socialBrief.trim()}
+                      style={{
+                        background: (!socialBrief.trim() || socialSubmitting) ? C.raised : `linear-gradient(135deg, ${C.accentBlue}, #7c3aed)`,
+                        color: (!socialBrief.trim() || socialSubmitting) ? C.textMuted : "#fff",
+                        border: "none", borderRadius: 10, padding: "12px 24px",
+                        fontSize: 14, fontWeight: 700, cursor: (!socialBrief.trim() || socialSubmitting) ? "not-allowed" : "pointer",
+                        width: "100%", transition: "all 0.18s ease",
+                        boxShadow: (!socialBrief.trim() || socialSubmitting) ? "none" : "0 4px 16px rgba(79,158,255,0.35)",
+                      }}
+                    >
+                      {socialSubmitting ? "Submitting…" : "Request Post →"}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Analytics Row */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 14 }}>
+                {[
+                  { label: "Total Followers", value: "1,240", icon: "👥", color: C.accentBlue },
+                  { label: "Posts This Month", value: "8",     icon: "📤", color: C.accent },
+                  { label: "Avg Engagement",  value: "4.2%",   icon: "📈", color: C.purple },
+                ].map(stat => (
+                  <div key={stat.label} style={{
+                    background: C.surface, border: `1px solid ${stat.color}25`,
+                    borderRadius: 14, padding: "16px 18px",
+                    borderTop: `3px solid ${stat.color}`,
+                    boxShadow: C.shadow,
+                  }}>
+                    <div style={{ fontSize: 20, marginBottom: 8 }}>{stat.icon}</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: stat.color, letterSpacing: "-0.04em", marginBottom: 4 }}>{stat.value}</div>
+                    <div style={{ fontSize: 11, color: C.textMuted, fontWeight: 600 }}>{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ textAlign: "center", fontSize: 11, color: C.textMuted, marginBottom: 8 }}>
+                Analytics powered by Metricool · Updates daily
+              </div>
+            </>
+          );
+        })()}
+
         {tab === "contact" && (
           <>
             <div style={S.card}>
@@ -2440,6 +2864,22 @@ export default function ClientPortal() {
           </>
         )}
       </div>
+          {/* Mobile bottom navigation */}
+          <nav className="wg-bottom-nav" style={{ background: C.navBg, borderTopColor: C.navBorder, gap: 0 }}>
+            {bottomNavTabs.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "6px 4px", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit",
+                  color: tab === t.id ? C.accentBlue : (dark ? "#3a5080" : "#8090aa"),
+                  borderTop: `2px solid ${tab === t.id ? C.accentBlue : "transparent"}`,
+                }}>
+                <span className="wg-tab-icon">{t.icon}</span>
+                <span className="wg-tab-label">{t.label}</span>
+              </button>
+            ))}
+          </nav>
+
+        </div>{/* end wg-main-wrap */}
+      </div>{/* end wg-layout */}
     </div>
   );
 }

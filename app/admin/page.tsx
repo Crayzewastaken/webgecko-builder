@@ -131,6 +131,32 @@ const CSS = `
     background: linear-gradient(90deg, rgba(255,255,255,.03) 25%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.03) 75%);
     background-size: 800px 100%; animation: wg-shimmer 1.8s infinite;
   }
+
+  /* ── Admin sidebar layout ── */
+  .wg-admin-layout    { display:flex; min-height:100vh; }
+  .wg-admin-sidebar   { width:240px; flex-shrink:0; position:sticky; top:0; height:100vh;
+                        overflow-y:auto; display:flex; flex-direction:column;
+                        border-right:1px solid rgba(79,158,255,0.12); z-index:50; }
+  .wg-admin-main      { flex:1; min-width:0; }
+  .wg-admin-topnav    { display:none; }
+  .wg-sidebar-item    { display:flex; align-items:center; gap:10px; padding:9px 14px; margin:1px 8px;
+                        border-radius:9px; cursor:pointer; font-size:13px; font-weight:500;
+                        transition:all 0.15s ease; border:none; width:calc(100% - 16px);
+                        text-align:left; background:none; font-family:inherit; }
+  .wg-sidebar-item:hover { background: rgba(79,158,255,0.08) !important; }
+  .wg-sidebar-item.active { background: rgba(79,158,255,0.14) !important; color:#4f9eff !important; font-weight:700 !important; }
+
+  @media (max-width: 900px) {
+    .wg-admin-sidebar  { display:none !important; }
+    .wg-admin-topnav   { display:flex !important; align-items:center; justify-content:space-between;
+                         padding:0 20px; height:58px; position:sticky; top:0; z-index:100;
+                         border-bottom:1px solid rgba(79,158,255,0.15);
+                         backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); }
+    .wg-admin-main     { padding-top:0; }
+  }
+  @media (min-width: 901px) {
+    .wg-admin-topnav   { display:none !important; }
+  }
 `;
 
 // ── Toast ──────────────────────────────────────────────────────────────────────
@@ -2746,6 +2772,145 @@ function AnalyticsView({ clients, onOpenClient }: { clients: ClientAnalytics[]; 
 }
 
 // ── Admin dashboard ────────────────────────────────────────────────────────────
+
+// ── Social View ────────────────────────────────────────────────────────────────
+function SocialView({ clients }: { clients: ClientAnalytics[] }) {
+  const socialClients = clients.filter(c => {
+    const st = (c as any).metadata?.serviceType;
+    return st === "social" || st === "both";
+  });
+
+  const MOCK_POSTS = [
+    { id:"sp1", client:"Tim's Plumbing",    platform:"Instagram", caption:"Winter sale is ON — 20% off all services this week only. Book today before we fill up!", scheduled:"Tomorrow · 9:00 AM",  status:"pending" as const },
+    { id:"sp2", client:"Gold Coast Lawn Co", platform:"Facebook",  caption:"We just wrapped up a huge job on the Goldie — before and afters in the comments 👇",   scheduled:"Wed 21 May · 11AM",  status:"pending" as const },
+    { id:"sp3", client:"Bella's Café",       platform:"TikTok",    caption:"Our barista competition winner ☕ Tag someone who needs this in their life right now",   scheduled:"Thu 22 May · 7:30 AM",status:"pending" as const },
+  ];
+
+  const pIcon = (p: string) => p==="Instagram"?"📸":p==="Facebook"?"👍":p==="TikTok"?"🎵":p==="LinkedIn"?"💼":"📱";
+
+  const cardStyle: React.CSSProperties = { background:T.surface, border:`1px solid ${T.border}`, borderRadius:14, padding:"20px 22px", marginBottom:14, boxShadow:T.shadow };
+
+  return (
+    <div style={{ padding:"28px 32px", maxWidth:1100 }}>
+      {/* Header */}
+      <div style={{ marginBottom:24 }}>
+        <div style={{ fontSize:22, fontWeight:800, color:T.text, letterSpacing:"-0.04em", marginBottom:4 }}>Social Media</div>
+        <div style={{ fontSize:13, color:T.textMuted }}>Manage client social accounts, post queues, and analytics.</div>
+      </div>
+
+      {/* Stats */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:24 }}>
+        {[
+          { label:"Social clients",      value:socialClients.length || 3, color:T.blue,   icon:"👥" },
+          { label:"Posts this month",    value:48,                         color:T.green,  icon:"📤" },
+          { label:"Avg engagement",      value:"4.8%",                     color:T.purple, icon:"📈" },
+          { label:"Queued posts",        value:MOCK_POSTS.length,          color:T.amber,  icon:"🕐" },
+        ].map(s => (
+          <div key={s.label} style={{ ...cardStyle, marginBottom:0, borderTop:`3px solid ${s.color}`, position:"relative", overflow:"hidden" }}>
+            <div style={{ position:"absolute", top:0, right:0, width:60, height:60, background:`radial-gradient(circle at top right,${s.color}20,transparent 70%)`, pointerEvents:"none" }}/>
+            <div style={{ fontSize:20, marginBottom:8 }}>{s.icon}</div>
+            <div style={{ fontSize:26, fontWeight:800, color:s.color, letterSpacing:"-0.04em", lineHeight:1, marginBottom:4 }}>
+              {typeof s.value==="number" ? <AnimNum value={s.value} color={s.color}/> : <span style={{color:s.color}}>{s.value}</span>}
+            </div>
+            <div style={{ fontSize:11, color:T.textMuted, fontWeight:600, textTransform:"uppercase" as const, letterSpacing:"0.06em" }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, alignItems:"start" }}>
+        {/* Post approval queue */}
+        <div>
+          <div style={{ ...cardStyle }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+              <div>
+                <div style={{ fontSize:13, fontWeight:700, color:T.text }}>Approval Queue</div>
+                <div style={{ fontSize:11, color:T.textMuted, marginTop:2 }}>Posts awaiting your review</div>
+              </div>
+              <span style={{ background:T.amber+"20", color:T.amber, border:`1px solid ${T.amber}35`, borderRadius:6, padding:"3px 9px", fontSize:11, fontWeight:700 }}>{MOCK_POSTS.length} pending</span>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column" as const, gap:10 }}>
+              {MOCK_POSTS.map(post => (
+                <div key={post.id} style={{ background:T.raised, border:`1px solid ${T.border}`, borderRadius:12, padding:"14px 16px", borderLeft:`3px solid ${T.amber}` }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                    <span style={{ fontSize:16 }}>{pIcon(post.platform)}</span>
+                    <span style={{ fontSize:12, fontWeight:600, color:T.text }}>{post.client}</span>
+                    <span style={{ fontSize:11, color:T.textMuted }}>· {post.platform}</span>
+                    <span style={{ marginLeft:"auto", fontSize:10, color:T.amber, fontWeight:600 }}>⏳ {post.scheduled}</span>
+                  </div>
+                  <div style={{ fontSize:12, color:T.textSec, lineHeight:1.5, marginBottom:12, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" as any }}>
+                    {post.caption}
+                  </div>
+                  <div style={{ display:"flex", gap:7 }}>
+                    <button style={{ flex:1, background:T.green+"18", color:T.green, border:`1px solid ${T.green}30`, borderRadius:7, padding:"6px 0", fontSize:11, fontWeight:700, cursor:"pointer" }}>✓ Approve</button>
+                    <button style={{ flex:1, background:T.blue+"18", color:T.blue, border:`1px solid ${T.blue}30`, borderRadius:7, padding:"6px 0", fontSize:11, fontWeight:600, cursor:"pointer" }}>✎ Edit</button>
+                    <button style={{ flex:1, background:T.red+"18", color:T.red, border:`1px solid ${T.red}30`, borderRadius:7, padding:"6px 0", fontSize:11, fontWeight:600, cursor:"pointer" }}>✕ Reject</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right column: clients + Metricool */}
+        <div>
+          {/* Metricool status */}
+          <div style={{ ...cardStyle }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+              <div style={{ fontSize:13, fontWeight:700, color:T.text }}>Metricool</div>
+              <div style={{ display:"flex", alignItems:"center", gap:6, background:T.green+"18", border:`1px solid ${T.green}30`, borderRadius:20, padding:"4px 12px" }}>
+                <div style={{ width:6, height:6, borderRadius:"50%", background:T.green }}/>
+                <span style={{ fontSize:11, color:T.green, fontWeight:600 }}>Connected</span>
+              </div>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column" as const, gap:8, marginBottom:14 }}>
+              {[
+                { label:"Last sync",         val:"2 minutes ago" },
+                { label:"Total brands",      val:`${socialClients.length || 3} client accounts` },
+                { label:"Scheduled queue",   val:`${MOCK_POSTS.length} posts ready` },
+              ].map(r => (
+                <div key={r.label} style={{ display:"flex", justifyContent:"space-between", fontSize:12, padding:"6px 0", borderBottom:`1px solid ${T.border}` }}>
+                  <span style={{ color:T.textMuted }}>{r.label}</span>
+                  <span style={{ color:T.textSec, fontWeight:600 }}>{r.val}</span>
+                </div>
+              ))}
+            </div>
+            <button style={{ background:T.blue+"18", color:T.blue, border:`1px solid ${T.blue}30`, borderRadius:8, padding:"8px 16px", fontSize:12, fontWeight:600, cursor:"pointer", width:"100%" }}>
+              ↻ Sync Now
+            </button>
+          </div>
+
+          {/* Client social roster */}
+          <div style={{ ...cardStyle }}>
+            <div style={{ fontSize:13, fontWeight:700, color:T.text, marginBottom:14 }}>Social Clients</div>
+            {(socialClients.length > 0 ? socialClients : [
+              { businessName:"Tim's Plumbing",    slug:"tims-plumbing",    industry:"Plumbing" },
+              { businessName:"Gold Coast Lawn Co", slug:"gc-lawn",          industry:"Landscaping" },
+              { businessName:"Bella's Café",       slug:"bellas-cafe",      industry:"Hospitality" },
+            ] as any[]).slice(0, 8).map((cl: any) => (
+              <div key={cl.slug} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderBottom:`1px solid ${T.border}` }}>
+                <div style={{ width:34, height:34, borderRadius:9, background:`linear-gradient(135deg,${T.blue}30,${T.purple}20)`, border:`1px solid ${T.blue}25`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, color:T.blue, flexShrink:0 }}>
+                  {cl.businessName.split(" ").map((w: string)=>w[0]).slice(0,2).join("").toUpperCase()}
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:600, color:T.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const }}>{cl.businessName}</div>
+                  <div style={{ display:"flex", gap:4, marginTop:3 }}>
+                    {["📸","👍","🎵"].map((ic,i) => <span key={i} style={{ fontSize:11 }}>{ic}</span>)}
+                    <span style={{ fontSize:10, background:T.green+"18", color:T.green, border:`1px solid ${T.green}25`, borderRadius:4, padding:"1px 6px", fontWeight:600 }}>Auto</span>
+                  </div>
+                </div>
+                <div style={{ fontSize:10, color:T.textMuted, textAlign:"right" as const, flexShrink:0 }}>
+                  <div>Next: <span style={{ color:T.blue }}>Tomorrow</span></div>
+                  <div style={{ marginTop:2 }}>Last: 3d ago</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AdminDashboard() {
   const [dark, setDark] = useState(true);
   useEffect(()=>{ const s=localStorage.getItem("wg_admin_theme"); setDark(s!=="light"); },[]);
@@ -2754,7 +2919,7 @@ function AdminDashboard() {
   const [clients, setClients] = useState<ClientAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [view, setView] = useState<"analytics"|"clients"|"logs">("analytics");
+  const [view, setView] = useState<"analytics"|"clients"|"logs"|"social">("analytics");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all"|"active"|"building"|"unpaid">("all");
   const [sort, setSort] = useState<"views"|"name"|"status">("views");
@@ -2858,39 +3023,99 @@ function AdminDashboard() {
       <style>{CSS}</style>
       <Toasts toasts={toasts}/>
 
-      {/* Top nav */}
-      <div className="wg-glass" style={{ background: dark ? "rgba(4,8,15,0.88)" : "rgba(255,255,255,0.92)", borderBottom:`1px solid rgba(79,158,255,0.15)`, padding:"0 28px", display:"flex", alignItems:"center", justifyContent:"space-between", height:62, position:"sticky" as const, top:0, zIndex:100, transition:"background 0.25s, border-color 0.25s", boxShadow:"0 1px 0 rgba(79,158,255,0.08), 0 4px 24px rgba(0,0,0,0.5)" }}>
-        {/* Gradient line at very top */}
-        <div style={{ position:"absolute", top:0, left:0, right:0, height:2, background:"linear-gradient(90deg, #4f9eff 0%, #b085ff 40%, #00f080 70%, transparent 100%)", pointerEvents:"none" }}/>
-        <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-          {/* Logo mark */}
-          <div style={{ width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#4f9eff,#9d6fff)",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 24px rgba(79,158,255,0.55), 0 0 48px rgba(79,158,255,0.2)",fontSize:16,fontWeight:900,color:"#fff" }}>W</div>
-          <span className="wg-brand-text" style={{ fontSize:17,fontWeight:800,letterSpacing:"-0.04em" }}>WebGecko</span>
-          <span style={{ fontSize:9,color:"#4f9eff",background:"rgba(79,158,255,0.15)",border:"1px solid rgba(79,158,255,0.3)",borderRadius:5,padding:"3px 9px",fontWeight:800,letterSpacing:"0.12em",boxShadow:"0 0 10px rgba(79,158,255,0.15)" }}>ADMIN</span>
-          {clients.some(c=>c.buildStatus==="building")&&(
-            <div style={{ display:"flex",alignItems:"center",gap:6,background:T.amber+"14",border:`1px solid ${T.amber}35`,borderRadius:20,padding:"4px 12px" }}>
-              <div style={{ position:"relative",width:7,height:7 }}>
-                <div style={{ position:"absolute",inset:0,borderRadius:"50%",background:T.amber,animation:"wg-ping 1.2s infinite" }}/>
-                <div style={{ position:"absolute",inset:0,borderRadius:"50%",background:T.amber }}/>
-              </div>
-              <span style={{ fontSize:11,color:T.amber,fontWeight:700 }}>{clients.filter(c=>c.buildStatus==="building").length} building</span>
-            </div>
-          )}
-        </div>
-        <div style={{ display:"flex",gap:8,alignItems:"center" }}>
-          <button onClick={loadDashboard} style={{ background:T.raised,border:`1px solid ${T.border}`,color:T.textSec,borderRadius:8,padding:"7px 16px",fontSize:12,fontWeight:500,cursor:"pointer" }}>↻ Refresh</button>
-          <a href="/admin/history" style={{ background:T.raised,border:`1px solid ${T.border}`,color:T.textMuted,borderRadius:8,padding:"7px 16px",fontSize:12,cursor:"pointer",textDecoration:"none",display:"flex",alignItems:"center",gap:4 }}>🕐 UI History</a>
-          <button onClick={toggleTheme} title={dark?"Light mode":"Dark mode"} style={{ background:T.raised,border:`1px solid ${T.border}`,color:T.textMuted,borderRadius:8,padding:"7px 10px",fontSize:14,cursor:"pointer",width:36,height:34,display:"flex",alignItems:"center",justifyContent:"center" }}>
-            {dark?"☀":"🌙"}
-          </button>
-          <button onClick={handleLogout} style={{ background:"transparent",color:T.textMuted,border:`1px solid ${T.border}`,borderRadius:8,padding:"7px 16px",fontSize:12,cursor:"pointer" }}>Sign out</button>
-        </div>
-      </div>
+      {/* ── Layout: sidebar + main ─────────────────────────────────────────── */}
+      <div className="wg-admin-layout">
 
-      <div style={{ maxWidth:"100%",padding:"28px 32px" }}>
+        {/* ── Sidebar (desktop) ─────────────────────────────────────────────── */}
+        <aside className="wg-admin-sidebar" style={{ background: dark?"rgba(4,8,15,0.98)":"#ffffff" }}>
+          {/* Top gradient line */}
+          <div style={{ height:2, background:"linear-gradient(90deg,#4f9eff,#b085ff,#00f080)", flexShrink:0 }}/>
+          {/* Logo */}
+          <div style={{ padding:"18px 16px 16px", borderBottom:`1px solid ${T.border}`, flexShrink:0 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+              <div style={{ width:34,height:34,borderRadius:10,background:"linear-gradient(135deg,#4f9eff,#9d6fff)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 18px rgba(79,158,255,0.5)",fontSize:15,fontWeight:900,color:"#fff",flexShrink:0 }}>W</div>
+              <div>
+                <div className="wg-brand-text" style={{ fontSize:15,fontWeight:800,letterSpacing:"-0.04em" }}>WebGecko</div>
+                <div style={{ fontSize:9,color:"#4f9eff",fontWeight:800,letterSpacing:"0.1em",textTransform:"uppercase" as const }}>Admin</div>
+              </div>
+            </div>
+            {clients.some(c=>c.buildStatus==="building")&&(
+              <div style={{ display:"flex",alignItems:"center",gap:6,background:T.amber+"14",border:`1px solid ${T.amber}35`,borderRadius:20,padding:"5px 12px" }}>
+                <div style={{ position:"relative",width:6,height:6,flexShrink:0 }}>
+                  <div style={{ position:"absolute",inset:0,borderRadius:"50%",background:T.amber,animation:"wg-ping 1.2s infinite" }}/>
+                  <div style={{ position:"absolute",inset:0,borderRadius:"50%",background:T.amber }}/>
+                </div>
+                <span style={{ fontSize:11,color:T.amber,fontWeight:600 }}>{clients.filter(c=>c.buildStatus==="building").length} building</span>
+              </div>
+            )}
+          </div>
+
+          {/* Nav items */}
+          <div style={{ flex:1, padding:"10px 0", overflowY:"auto" as const }}>
+            {([
+              { v:"analytics" as const, icon:"◈", label:"Analytics" },
+              { v:"clients"   as const, icon:"⬡", label:"Clients" },
+              { v:"social"    as const, icon:"📱", label:"Social Media" },
+              { v:"logs"      as const, icon:"⧉", label:"Pipeline" },
+            ]).map(({v,icon,label}) => (
+              <button key={v} onClick={()=>setView(v)} className={`wg-sidebar-item${view===v?" active":""}`}
+                style={{ color: view===v ? T.blue : T.textMuted }}>
+                <span style={{ fontSize:14,width:18,textAlign:"center" as const }}>{icon}</span>
+                <span>{label}</span>
+              </button>
+            ))}
+
+            <div style={{ height:1, background:T.border, margin:"12px 16px" }}/>
+            <button onClick={loadDashboard} className="wg-sidebar-item" style={{ color:T.textMuted }}>
+              <span style={{ fontSize:14,width:18,textAlign:"center" as const }}>↻</span>
+              <span>Refresh</span>
+            </button>
+            <a href="/admin/history" className="wg-sidebar-item" style={{ color:T.textMuted, textDecoration:"none", display:"flex" }}>
+              <span style={{ fontSize:14,width:18,textAlign:"center" as const }}>🕐</span>
+              <span>UI History</span>
+            </a>
+          </div>
+
+          {/* Sidebar footer */}
+          <div style={{ padding:"12px 16px", borderTop:`1px solid ${T.border}`, flexShrink:0 }}>
+            <button onClick={toggleTheme} className="wg-sidebar-item" style={{ color:T.textMuted, marginBottom:2 }}>
+              <span style={{ fontSize:14,width:18,textAlign:"center" as const }}>{dark?"☀":"🌙"}</span>
+              <span>{dark?"Light mode":"Dark mode"}</span>
+            </button>
+            <button onClick={handleLogout} className="wg-sidebar-item" style={{ color:T.red }}>
+              <span style={{ fontSize:14,width:18,textAlign:"center" as const }}>↩</span>
+              <span>Sign out</span>
+            </button>
+          </div>
+        </aside>
+
+        {/* ── Mobile top nav ──────────────────────────────────────────────────── */}
+        <div className="wg-admin-topnav wg-glass" style={{ background: dark?"rgba(4,8,15,0.92)":"rgba(255,255,255,0.95)" }}>
+          <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+            <div style={{ width:30,height:30,borderRadius:9,background:"linear-gradient(135deg,#4f9eff,#9d6fff)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:900,color:"#fff" }}>W</div>
+            <span className="wg-brand-text" style={{ fontSize:15,fontWeight:800 }}>WebGecko</span>
+            <span style={{ fontSize:9,color:"#4f9eff",background:"rgba(79,158,255,0.15)",border:"1px solid rgba(79,158,255,0.25)",borderRadius:4,padding:"2px 7px",fontWeight:800,letterSpacing:"0.1em" }}>ADMIN</span>
+          </div>
+          <div style={{ display:"flex",gap:6,alignItems:"center" }}>
+            {([
+              { v:"analytics" as const, icon:"◈" },
+              { v:"clients"   as const, icon:"⬡" },
+              { v:"social"    as const, icon:"📱" },
+              { v:"logs"      as const, icon:"⧉" },
+            ]).map(({v,icon}) => (
+              <button key={v} onClick={()=>setView(v)} style={{ background:view===v?T.raised:"transparent", border:`1px solid ${view===v?T.border:"transparent"}`, borderRadius:7, width:32,height:30, display:"flex",alignItems:"center",justifyContent:"center", fontSize:13, cursor:"pointer", color:view===v?T.text:T.textMuted }}>{icon}</button>
+            ))}
+            <button onClick={toggleTheme} style={{ background:T.raised,border:`1px solid ${T.border}`,color:T.textMuted,borderRadius:7,width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:13 }}>{dark?"☀":"🌙"}</button>
+            <button onClick={handleLogout} style={{ background:"transparent",color:T.textMuted,border:`1px solid ${T.border}`,borderRadius:7,padding:"5px 10px",fontSize:11,cursor:"pointer" }}>Out</button>
+          </div>
+        </div>
+
+        {/* ── Main content ────────────────────────────────────────────────────── */}
+        <div className="wg-admin-main">
+          <div style={{ maxWidth:"100%",padding:"28px 32px" }}>
 
         {/* Section label */}
-        {!loading&&!error&&(
+        {!loading&&!error&&view==="analytics"&&(
           <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:18 }}>
             <div style={{ height:1,flex:1,background:"linear-gradient(90deg,rgba(79,158,255,0.3),transparent)" }}/>
             <span style={{ fontSize:10,fontWeight:800,letterSpacing:"0.14em",color:"rgba(79,158,255,0.6)",textTransform:"uppercase" as const }}>Platform Overview</span>
@@ -2928,19 +3153,6 @@ function AdminDashboard() {
         {/* Error */}
         {error&&<div style={{ background:T.red+"0a",border:`1px solid ${T.red}25`,borderRadius:10,padding:"14px 18px",color:T.red,marginBottom:20,fontSize:13 }}>{error}</div>}
 
-        {/* View toggle */}
-        <div style={{ display:"flex",gap:3,background:T.raised,border:`1px solid ${T.border}`,borderRadius:10,padding:4,marginBottom:20,width:"fit-content",boxShadow:T.shadow }}>
-          {([
-            {v:"analytics" as const,label:"◈ Analytics"},
-            {v:"clients" as const,label:"⬡ Clients"},
-            {v:"logs" as const,label:"⧉ Pipeline"},
-          ]).map(({v,label})=>(
-            <button key={v} onClick={()=>setView(v)} className={view===v?"wg-view-active":""} style={{ padding:"7px 22px",fontSize:12,fontWeight:view===v?700:400,color:view===v?T.text:T.textMuted,background:"transparent",border:"1px solid transparent",borderRadius:7,cursor:"pointer",transition:"all 0.18s",letterSpacing:"0.01em" }}>
-              {label}
-            </button>
-          ))}
-        </div>
-
         {/* Global selected-client panel (from Analytics view) */}
         {selectedClient&&<ClientPanel c={selectedClient} secret="" onClose={()=>setSelectedClient(null)} toast={toast}/>}
 
@@ -2949,6 +3161,7 @@ function AdminDashboard() {
         )}
 
         {view==="logs"&&<PipelineLogsPanel/>}
+        {view==="social"&&<SocialView clients={clients}/>}
 
         {view==="clients"&&(<>
         {/* Client grid header */}
@@ -3034,7 +3247,9 @@ function AdminDashboard() {
         {!loading&&<ExampleHtmlsPanel toast={toast}/>}
         </>)}
 
-      </div>
+          </div>{/* end padding div */}
+        </div>{/* end wg-admin-main */}
+      </div>{/* end wg-admin-layout */}
     </div>
   );
 }
