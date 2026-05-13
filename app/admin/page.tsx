@@ -570,7 +570,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
       const d = await r.json();
       if (!r.ok) throw new Error(d.error||"Generation failed");
       setContentForm((prev: any) => ({ ...prev, ...(d.generated||{}), type }));
-      setContentMsg("✓ AI draft generated — review and save");
+      setContentMsg("✓ Draft generated — review and save");
       toast("Draft generated","ok");
     } catch(e) { setContentMsg((e as Error).message); toast("Generation failed","err"); }
     finally { setGenLoading(false); }
@@ -2815,6 +2815,31 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
   const [checks, setChecks] = useState<Record<string,boolean>>({});
   const [openedUrls, setOpenedUrls] = useState<Record<string,boolean>>({});
 
+  // Postiz connection test
+  const [postizTestState, setPostizTestState] = useState<"idle"|"loading"|"ok"|"err">("idle");
+  const [postizChannels, setPostizChannels] = useState<{id:string;name:string;platform:string;disabled:boolean}[]>([]);
+  const [postizError, setPostizError] = useState("");
+
+  async function testPostizConnection() {
+    setPostizTestState("loading");
+    setPostizChannels([]);
+    setPostizError("");
+    try {
+      const res = await fetch("/api/admin/postiz-test", { credentials:"include" });
+      const data = await res.json();
+      if (data.ok) {
+        setPostizChannels(data.channels || []);
+        setPostizTestState("ok");
+      } else {
+        setPostizError(data.error || "Unknown error");
+        setPostizTestState("err");
+      }
+    } catch (e) {
+      setPostizError(e instanceof Error ? e.message : String(e));
+      setPostizTestState("err");
+    }
+  }
+
   const STEPS = [
     { step:"1",  icon:"📧", title:"Send welcome email",       desc:"Confirm package, pricing, what's included. Attach Social Media Service Agreement.",
       urls:[] },
@@ -2832,14 +2857,14 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
       urls:["https://www.linkedin.com/company/setup/new/"] },
     { step:"8",  icon:"📍", title:"Google Business + YouTube", desc:"Google Business Profile and YouTube channel tied to Step 4 Gmail. Enable both from Google dashboard.",
       urls:["https://business.google.com","https://www.youtube.com/create_channel"] },
-    { step:"9",  icon:"📌", title:"Connect to Metricool",     desc:"Add client as new Brand in Metricool agency account. Connect all platforms via OAuth — no login sharing.",
-      urls:["https://metricool.com","https://metricool.com"] },
+    { step:"9",  icon:"📌", title:"Connect to Postiz",          desc:"Add client as a new Brand in Postiz. Connect all platforms via OAuth — no login sharing. All posts route through here.",
+      urls:["https://app.postiz.com","https://app.postiz.com"] },
     { step:"10", icon:"🗓️", title:"Set posting schedule",     desc:"Agree frequency (e.g. 3×/week), platforms, tone. Set in client portal Social tab. Confirm auto-post vs. manual approval.",
       urls:[] },
     { step:"11", icon:"🤖", title:"Configure AI brand voice", desc:"Note industry, tone preferences, content restrictions in client record. Seeds the caption generator.",
       urls:[] },
-    { step:"12", icon:"🚀", title:"First post goes live",      desc:"Prepare 4–8 posts. Send preview to client if manual approval. Schedule and confirm in Metricool.",
-      urls:["https://metricool.com"] },
+    { step:"12", icon:"🚀", title:"First post goes live",      desc:"Prepare 4–8 posts. Send preview to client if manual approval. Schedule and confirm in Postiz.",
+      urls:["https://app.postiz.com"] },
   ] as const;
 
   function loadChecks(slug: string) {
@@ -2905,9 +2930,9 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
             <div style={{ fontSize:20, fontWeight:800, color:T.text, letterSpacing:"-0.04em", marginBottom:2 }}>Social Media</div>
             <div style={{ fontSize:12, color:T.textMuted }}>Manage client accounts, onboarding checklists, and post queues.</div>
           </div>
-          <a href="https://metricool.com" target="_blank" rel="noreferrer"
+          <a href="https://app.postiz.com" target="_blank" rel="noreferrer"
             style={{ display:"flex", alignItems:"center", gap:7, background:T.blue+"18", color:T.blue, border:`1px solid ${T.blue}30`, borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:700, textDecoration:"none" }}>
-            Open Metricool ↗
+            Open Postiz ↗
           </a>
         </div>
 
@@ -3057,7 +3082,7 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
           )}
         </div>
 
-        {/* ── Column 3: Approval queue + Metricool ── */}
+        {/* ── Column 3: Approval queue + Postiz ── */}
         <div style={{ display:"flex", flexDirection:"column", gap:12, overflowY:"auto" }}>
 
           {/* Approval queue */}
@@ -3085,31 +3110,72 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
             </div>
           </div>
 
-          {/* Metricool */}
+          {/* Postiz Connection */}
           <div style={{ ...cardStyle, padding:"14px 16px" }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
-              <div style={{ fontSize:12, fontWeight:700, color:T.text }}>Metricool</div>
-              <div style={{ display:"flex", alignItems:"center", gap:5, background:T.green+"18", border:`1px solid ${T.green}30`, borderRadius:20, padding:"3px 10px" }}>
-                <div style={{ width:5, height:5, borderRadius:"50%", background:T.green }}/>
-                <span style={{ fontSize:10, color:T.green, fontWeight:600 }}>Connected</span>
-              </div>
+              <div style={{ fontSize:12, fontWeight:700, color:T.text }}>Postiz Scheduler</div>
+              {postizTestState === "ok" && (
+                <div style={{ display:"flex", alignItems:"center", gap:5, background:T.green+"18", border:`1px solid ${T.green}30`, borderRadius:20, padding:"3px 10px" }}>
+                  <div style={{ width:5, height:5, borderRadius:"50%", background:T.green }}/>
+                  <span style={{ fontSize:10, color:T.green, fontWeight:600 }}>Connected</span>
+                </div>
+              )}
+              {postizTestState === "err" && (
+                <div style={{ display:"flex", alignItems:"center", gap:5, background:"#ef444418", border:"1px solid #ef444430", borderRadius:20, padding:"3px 10px" }}>
+                  <div style={{ width:5, height:5, borderRadius:"50%", background:"#ef4444" }}/>
+                  <span style={{ fontSize:10, color:"#ef4444", fontWeight:600 }}>Error</span>
+                </div>
+              )}
+              {(postizTestState === "idle" || postizTestState === "loading") && (
+                <div style={{ display:"flex", alignItems:"center", gap:5, background:T.raised, border:`1px solid ${T.border}`, borderRadius:20, padding:"3px 10px" }}>
+                  <div style={{ width:5, height:5, borderRadius:"50%", background:T.textMuted }}/>
+                  <span style={{ fontSize:10, color:T.textMuted, fontWeight:600 }}>{postizTestState === "loading" ? "Testing…" : "Not tested"}</span>
+                </div>
+              )}
             </div>
-            {[
-              { label:"Last sync",       val:"2 minutes ago" },
-              { label:"Total brands",    val:`${displayClients.length} accounts` },
-              { label:"Queue",           val:`${MOCK_POSTS.length} posts ready` },
-            ].map(r => (
-              <div key={r.label} style={{ display:"flex", justifyContent:"space-between", fontSize:11, padding:"5px 0", borderBottom:`1px solid ${T.border}` }}>
-                <span style={{ color:T.textMuted }}>{r.label}</span>
-                <span style={{ color:T.textSec, fontWeight:600 }}>{r.val}</span>
+
+            {postizTestState === "ok" && postizChannels.length > 0 && (
+              <div style={{ marginBottom:10 }}>
+                <div style={{ fontSize:10, fontWeight:700, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.07em", marginBottom:6 }}>
+                  {postizChannels.length} channel{postizChannels.length !== 1 ? "s" : ""} connected
+                </div>
+                <div style={{ display:"flex", flexDirection:"column" as const, gap:4, maxHeight:120, overflowY:"auto" as const }}>
+                  {postizChannels.map(ch => (
+                    <div key={ch.id} style={{ display:"flex", alignItems:"center", gap:7, padding:"4px 7px", background:T.raised, borderRadius:6, border:`1px solid ${T.border}` }}>
+                      <span style={{ fontSize:12 }}>
+                        {ch.platform==="instagram"?"📸":ch.platform==="facebook"?"👍":ch.platform==="tiktok"?"🎵":ch.platform==="linkedin"||ch.platform==="linkedin-page"?"💼":ch.platform==="youtube"?"▶️":ch.platform==="x"?"𝕏":"📱"}
+                      </span>
+                      <span style={{ fontSize:10, color:T.text, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" as const }}>{ch.name}</span>
+                      {ch.disabled && <span style={{ fontSize:9, color:"#ef4444", fontWeight:600 }}>DISABLED</span>}
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
-            <div style={{ display:"flex", gap:7, marginTop:10 }}>
-              <a href="https://metricool.com" target="_blank" rel="noreferrer"
-                style={{ flex:1, background:T.blue+"18", color:T.blue, border:`1px solid ${T.blue}30`, borderRadius:7, padding:"7px 0", fontSize:11, fontWeight:700, cursor:"pointer", textDecoration:"none", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            )}
+
+            {postizTestState === "ok" && postizChannels.length === 0 && (
+              <div style={{ fontSize:11, color:T.textMuted, marginBottom:10, padding:"8px", background:T.raised, borderRadius:6 }}>
+                ⚠️ API connected but no channels found. Connect client accounts in Postiz first.
+              </div>
+            )}
+
+            {postizTestState === "err" && (
+              <div style={{ fontSize:11, color:"#ef4444", marginBottom:10, padding:"8px", background:"#ef444410", borderRadius:6, wordBreak:"break-all" as const }}>
+                {postizError}
+              </div>
+            )}
+
+            <div style={{ display:"flex", gap:7, marginTop:4 }}>
+              <button
+                onClick={testPostizConnection}
+                disabled={postizTestState === "loading"}
+                style={{ flex:1, background:postizTestState==="loading"?T.raised:T.blue+"18", color:postizTestState==="loading"?T.textMuted:T.blue, border:`1px solid ${postizTestState==="loading"?T.border:T.blue+"40"}`, borderRadius:7, padding:"7px 0", fontSize:11, fontWeight:700, cursor:postizTestState==="loading"?"default":"pointer" }}>
+                {postizTestState === "loading" ? "Testing…" : postizTestState === "ok" ? "↻ Retest" : "Test Connection"}
+              </button>
+              <a href="https://app.postiz.com" target="_blank" rel="noreferrer"
+                style={{ flex:1, background:T.raised, color:T.textSec, border:`1px solid ${T.border}`, borderRadius:7, padding:"7px 0", fontSize:11, fontWeight:600, cursor:"pointer", textDecoration:"none", display:"flex", alignItems:"center", justifyContent:"center" }}>
                 Open ↗
               </a>
-              <button style={{ flex:1, background:T.raised, color:T.textSec, border:`1px solid ${T.border}`, borderRadius:7, padding:"7px 0", fontSize:11, fontWeight:600, cursor:"pointer" }}>↻ Sync</button>
             </div>
           </div>
 
@@ -3124,7 +3190,7 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
                 { label:"LinkedIn Pages",         url:"https://www.linkedin.com/company/setup/new/",icon:"💼" },
                 { label:"Google Business",        url:"https://business.google.com",                icon:"📍" },
                 { label:"YouTube Studio",         url:"https://studio.youtube.com",                 icon:"▶️" },
-                { label:"Metricool Dashboard",    url:"https://metricool.com",                  icon:"📊" },
+                { label:"Postiz Scheduler",        url:"https://app.postiz.com",                  icon:"📅" },
               ].map(link => (
                 <a key={link.label} href={link.url} target="_blank" rel="noreferrer"
                   style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 8px", background:T.raised, border:`1px solid ${T.border}`, borderRadius:7, fontSize:11, color:T.textSec, textDecoration:"none", transition:"border-color 0.15s ease" }}

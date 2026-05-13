@@ -502,5 +502,13 @@
     "lines": 3520,
     "description": "Admin social view: 3-col layout, per-client interactive checklist with URL launcher, quick links panel",
     "type": "feat"
+  },
+  {
+    "version": "v64",
+    "date": "2026-05-13",
+    "commit": "pending",
+    "lines": 3586,
+    "description": "\"Updated admin dashboard\"",
+    "type": "feat"
   }
 ]

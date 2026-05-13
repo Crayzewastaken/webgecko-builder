@@ -2623,7 +2623,7 @@ export default function ClientPortal() {
                 features: [
                   "2 platforms (Instagram + Facebook)",
                   "12 posts per month",
-                  "AI-written captions & hashtags",
+                  "Expert captions & hashtags",
                   "Content calendar access",
                   "Monthly performance report",
                   "Manual approval mode available",
@@ -2642,7 +2642,7 @@ export default function ClientPortal() {
                 features: [
                   "4 platforms of your choice",
                   "20 posts per month",
-                  "AI-written captions & hashtags",
+                  "Expert captions & hashtags",
                   "Reel / short-video scripts included",
                   "Competitor & trend monitoring",
                   "Bi-weekly strategy calls",
@@ -2715,7 +2715,7 @@ export default function ClientPortal() {
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flexShrink: 0 }}>
                       {[
                         { icon: "📅", title: "Content Calendar", desc: "Posts planned weeks ahead, tailored to your brand voice" },
-                        { icon: "✍️", title: "AI Captions", desc: "Every caption written in your tone with trending hashtags" },
+                        { icon: "✍️", title: "Creative Captions", desc: "Every caption crafted in your brand voice with trending hashtags" },
                         { icon: "📊", title: "Live Analytics", desc: "Follower growth & engagement tracked daily" },
                         { icon: "✅", title: "Approval Mode", desc: "Auto-post or approve each post before it goes live" },
                         { icon: "🌐", title: "Multi-Platform", desc: "Instagram, Facebook, TikTok, LinkedIn, YouTube & more" },
@@ -3018,7 +3018,7 @@ export default function ClientPortal() {
                             </div>
                           ))}
                         </div>
-                        <div style={{ marginTop: 12, textAlign: "center", fontSize: 10, color: C.textMuted }}>Powered by Metricool · Updates daily</div>
+                        
                       </div>
                     </div>
                   </div>
@@ -3033,7 +3033,7 @@ export default function ClientPortal() {
                           <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em" }}>Content Calendar</div>
                           <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>All upcoming & recent posts</div>
                         </div>
-                        <div style={{ fontSize: 11, color: C.textMuted, background: C.raised, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px" }}>Powered by Metricool</div>
+                        
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         {mockPosts.map(post => (
@@ -3222,7 +3222,7 @@ export default function ClientPortal() {
                             { icon: "📧", step: "1", title: "We create a Gmail for your business", desc: "Format: yourbusiness@gmail.com — you're CC'd on every single email sent. Total transparency, always.", highlight: true },
                             { icon: "⚖️", step: "2", title: "Legal agreements added", desc: "Terms of service, platform policies, and our management agreement are stored in the account." },
                             { icon: "📱", step: "3", title: "All platforms created & branded", desc: "We create and brand your Instagram, Facebook, TikTok, LinkedIn (and others as per your plan) using your logo, colours, and bio." },
-                            { icon: "🔌", step: "4", title: "Linked to our publishing platform", desc: "All accounts are connected to Metricool for scheduling, analytics, and team management." },
+                            { icon: "🔌", step: "4", title: "Linked to our publishing platform", desc: "All accounts are connected to our scheduling system for posting, analytics, and team management." },
                             { icon: "🔑", step: "5", title: "You reset the password — it's 100% yours", desc: "We send you a password reset link. From that moment, only you control the accounts. We retain publishing access only." },
                           ].map(s => (
                             <div key={s.step} style={{ display: "flex", gap: 14, background: s.highlight ? (dark ? "rgba(168,85,247,0.08)" : "rgba(124,58,237,0.05)") : C.surface, border: `1px solid ${s.highlight ? "rgba(168,85,247,0.25)" : C.border}`, borderRadius: 12, padding: "14px 16px", boxShadow: C.shadow }}>
