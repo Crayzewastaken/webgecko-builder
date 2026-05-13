@@ -806,6 +806,25 @@ export function ensureMultiPageStructure(
     }
   }
 
+  // 9. Deduplication guard — if any data-page value appears more than once, strip the attribute
+  //    from all but the FIRST (outermost) occurrence. This prevents the validator crashing on
+  //    Stitch-built pages where a section inside home already carries data-page="home".
+  for (const pageId of requestedPageIds) {
+    const dpRe = new RegExp(`\\bdata-page=["']${pageId}["']`, 'g');
+    const matches = [...out.matchAll(dpRe)];
+    if (matches.length > 1) {
+      // Keep the first occurrence, strip all subsequent ones
+      let skipFirst = true;
+      out = out.replace(dpRe, (m) => {
+        if (skipFirst) { skipFirst = false; return m; }
+        return ''; // strip duplicate attribute
+      });
+      report.repairs.push(`Removed ${matches.length - 1} duplicate data-page="${pageId}" attribute(s)`);
+      console.log(`[ensureMultiPage] Deduped ${matches.length - 1} extra data-page="${pageId}"`);
+      report.duplicatesRemoved.push(pageId);
+    }
+  }
+
   console.log(`[ensureMultiPage] Done. Repairs: ${report.repairs.length}, Added pages: [${report.missingPagesAdded.join(',')}], Nav fixes: ${report.navTargetsFixed.length}`);
   return { html: out, report };
 }
@@ -1495,6 +1514,7 @@ export function injectSeoMeta(html: string, opts: {
   <meta name="twitter:image" content="${esc(ogImage)}">
   <meta name="robots" content="index, follow">
   <meta name="geo.region" content="AU">`;
+
 
   // Check if meta description already injected (e.g. by Stitch)
   if (html.includes('name="description"') || html.includes("name='description'")) {

@@ -1479,14 +1479,33 @@ const buildWebsite = inngest.createFunction(
             }
           }
           // Pass 2: for multi-page, run ensureMultiPageStructure to guarantee all page wrappers
+          // BUT only if there are structurally missing pages — NOT if the only failures are duplicates.
+          // Running ensureMultiPage on an already-structured page promotes inner elements and creates MORE duplicates.
           if (isMultiPage) {
-            const { html: ensuredHtml, report } = ensureMultiPageStructure(repaired, requestedPageIds, {
-              businessName: userInput.businessName,
-            });
-            if (report.repairs.length > 0) {
-              console.warn("[Step7b] ensureMultiPageStructure applied " + report.repairs.length + " emergency repairs. Added: [" + report.missingPagesAdded.join(",") + "]");
+            const hasMissingPages = failures.some(f => f.startsWith("Missing data-page="));
+            if (hasMissingPages) {
+              const { html: ensuredHtml, report } = ensureMultiPageStructure(repaired, requestedPageIds, {
+                businessName: userInput.businessName,
+              });
+              if (report.repairs.length > 0) {
+                console.warn("[Step7b] ensureMultiPageStructure applied " + report.repairs.length + " emergency repairs. Added: [" + report.missingPagesAdded.join(",") + "]");
+              }
+              repaired = ensuredHtml;
+            } else {
+              // Only duplicates or other non-structural issues — just deduplicate in place
+              for (const pageId of requestedPageIds) {
+                const dpRe = new RegExp(`\\bdata-page=["']${pageId}["']`, 'g');
+                const hits = [...repaired.matchAll(dpRe)];
+                if (hits.length > 1) {
+                  let skipFirst = true;
+                  repaired = repaired.replace(dpRe, (m) => {
+                    if (skipFirst) { skipFirst = false; return m; }
+                    return '';
+                  });
+                  console.warn(`[Step7b] Deduped ${hits.length - 1} extra data-page="${pageId}"`);
+                }
+              }
             }
-            repaired = ensuredHtml;
           }
 
           const failuresAfterRepair = validateForDeploy(repaired, requestedPageIds, isMultiPage, hasBookingFeature);
