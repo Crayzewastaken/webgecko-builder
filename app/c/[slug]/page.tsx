@@ -11,8 +11,8 @@ const LIGHT = {
   border:     "#dde0ee",
   borderHov:  "#b8bcd8",
   text:       "#0d0f1c",
-  textSec:    "#363c58",
-  textMuted:  "#8090aa",
+  textSec:    "#2a3a6a",
+  textMuted:  "#4a5a8a",
   accent:     "#009960",
   accentBg:   "#f0fdf4",
   accentBlue: "#2563eb",
@@ -34,8 +34,8 @@ const DARK = {
   border:     "#1e3560",
   borderHov:  "#3060a0",
   text:       "#e0eaff",
-  textSec:    "#7a9ad4",
-  textMuted:  "#3a5080",
+  textSec:    "#b0cce8",
+  textMuted:  "#8aaac8",
   accent:     "#00f080",
   accentBg:   "#001a10",
   accentBlue: "#4f9eff",
@@ -1953,46 +1953,53 @@ export default function ClientPortal() {
         {/* ══════════════════════ QUOTE & PAY ══════════════════════ */}
         {tab === "quote" && (
           <>
-            {client.quote && (
-              <div style={S.card}>
-                <div style={S.label}>{client.quote.package} Package</div>
-                <div style={{ fontSize: 32, fontWeight: 800, color: C.text, marginBottom: 4 }}>${client.quote.price.toLocaleString()}</div>
-                <div style={{ color: C.textMuted, fontSize: 13, marginBottom: 14 }}>+ $109/month for 3 months, then $119/month hosting & maintenance</div>
-                <div style={{ background: "#00c89610", border: "1px solid #00c89625", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: C.accent, marginBottom: 12 }}>
-                  🎉 Saving ${client.quote.savings.toLocaleString()} vs the industry average of ${client.quote.competitorPrice.toLocaleString()}
-                </div>
-                {client.quote.breakdown.map(line => (
-                  <div key={line} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderTop: "1px solid #1a2233", fontSize: 13, color: C.textMuted }}>
-                    <span>{line.split(":")[0]}</span><span style={{ color: C.textMuted }}>{line.split(":")[1]}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {!paymentStatus ? (
-              <div style={{ ...S.card, textAlign: "center", padding: 32 }}><div style={{ color: C.textMuted, fontSize: 14 }}>Loading payment details…</div></div>
-            ) : (
-              <>
+            {/* ── Social-only billing ── */}
+            {isSocialOnly ? (
+              <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
                 <div style={S.card}>
-                  <div style={S.label}>Payment Progress</div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                    {[{ label: "Deposit", done: paymentStatus.depositPaid, icon: "💳" }, { label: "Final", done: paymentStatus.finalPaid, icon: "🚀" }, { label: "Monthly", done: paymentStatus.monthlyActive, icon: "🔄" }].map(s => (
-                      <div key={s.label} style={{ flex: 1, textAlign: "center", padding: "14px 8px", borderRadius: 10, background: s.done ? "#00c89612" : C.surface, border: `1px solid ${s.done ? "#00c89630" : C.border}` }}>
-                        <div style={{ fontSize: 18, marginBottom: 4 }}>{s.done ? "✅" : s.icon}</div>
-                        <div style={{ fontSize: 11, color: s.done ? C.accent : C.textMuted, fontWeight: 600 }}>{s.label}</div>
+                  <div style={S.label}>Your Social Media Plan</div>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:10 }}>
+                    <div>
+                      <div style={{ fontSize:20, fontWeight:800, color:C.text }}>
+                        {((client?.metadata as any)?.socialPlan) || "Growth"} Plan
                       </div>
-                    ))}
+                      <div style={{ fontSize:13, color:C.textMuted, marginTop:4 }}>
+                        Managed social media content & scheduling
+                      </div>
+                    </div>
+                    <div style={{ textAlign:"right" }}>
+                      <div style={{ fontSize:26, fontWeight:800, color:C.accent }}>
+                        ${((client?.metadata as any)?.socialPrice) || "499"}
+                      </div>
+                      <div style={{ fontSize:12, color:C.textMuted }}>/month</div>
+                    </div>
                   </div>
                 </div>
-
-                {/* Business details — shown whenever any required field is missing */}
+                <div style={{ ...S.card, background:C.accentBg, borderColor:`${C.accent}30` }}>
+                  <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
+                    <span style={{ fontSize:24 }}>📱</span>
+                    <div>
+                      <div style={{ fontSize:14, fontWeight:700, color:C.text, marginBottom:4 }}>Set up billing — we&apos;ll be in touch</div>
+                      <div style={{ fontSize:13, color:C.textMuted, lineHeight:1.6 }}>
+                        Social media billing is handled directly with your account manager. We&apos;ll contact you via email to set up your monthly subscription and confirm your plan details.
+                      </div>
+                      <div style={{ fontSize:12, color:C.textMuted, marginTop:10 }}>
+                        Questions? Email us at <a href="mailto:hello@webgecko.au" style={{ color:C.accent }}>hello@webgecko.au</a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* ── Website billing — two-column stepper layout ── */
+              <>
+                {/* Business details collapsible — collapsed when all filled */}
                 {(()=>{
                   const missingAbn = !prePayAbn.trim();
                   const missingDomain = !prePayDomain.trim();
                   const missingAddress = !prePayAddress.trim();
                   const anyMissing = missingAbn || missingDomain || missingAddress;
-                  const allFilled = !anyMissing;
-                  if (!anyMissing && paymentStatus.depositPaid) return null;
+                  if (!anyMissing && paymentStatus?.depositPaid) return null;
                   const fields = [
                     { key:"abn", label:"ABN", placeholder:"e.g. 12 345 678 901", value:prePayAbn, onChange:setPrePayAbn, hint:"Required to register your .com.au domain.", missing:missingAbn },
                     { key:"domain", label:"Preferred Domain Name", placeholder:"e.g. mysalonbrisbane.com.au", value:prePayDomain, onChange:setPrePayDomain, hint:"Already have one? Enter it here. Don't have one? We'll register it for you.", missing:missingDomain },
@@ -2000,12 +2007,12 @@ export default function ClientPortal() {
                     { key:"ga4", label:"Google Analytics ID (optional)", placeholder:"G-XXXXXXXXXX", value:prePayGa4, onChange:setPrePayGa4, hint:"Don't have one yet? No problem — leave blank and add it anytime.", missing:false },
                   ];
                   return (
-                    <div style={{ ...S.card, borderColor: anyMissing ? "#f59e0b60" : "#00c89630" }}>
+                    <div style={{ ...S.card, borderColor: anyMissing ? "#f59e0b60" : "#00c89630", marginBottom:4 }}>
                       <div style={{ fontWeight: 700, fontSize: 14, color: C.text, marginBottom: 4 }}>
-                        {paymentStatus.depositPaid ? "📋 A Few Details We Still Need" : "📋 Before You Pay — A Few Details"}
+                        {paymentStatus?.depositPaid ? "📋 A Few Details We Still Need" : "📋 Before You Pay — A Few Details"}
                       </div>
                       <div style={{ color: C.textMuted, fontSize: 12, marginBottom: 16 }}>
-                        {paymentStatus.depositPaid
+                        {paymentStatus?.depositPaid
                           ? "No rush — fill these in when you have them handy. We need them before we can register your domain and finalise your site."
                           : "These help us register your domain and set everything up correctly. Not ready? Fill them in after payment — no stress."}
                       </div>
@@ -2035,58 +2042,107 @@ export default function ClientPortal() {
                   );
                 })()}
 
-                {/* Deposit */}
-                <div style={{ ...S.card, borderColor: paymentStatus.depositPaid ? "#00c89630" : C.border }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div><div style={{ fontWeight: 700, fontSize: 16, color: C.text, marginBottom: 4 }}>50% Deposit</div><div style={{ color: C.textMuted, fontSize: 13 }}>Pay now to begin your website build</div></div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: C.text }}>${paymentStatus.quote.deposit.toLocaleString()}</div>
-                  </div>
-                  {paymentStatus.depositPaid
-                    ? <div style={{ color: C.accent, fontSize: 13, fontWeight: 600, marginTop: 12 }}>✓ Paid — build in progress</div>
-                    : <button onClick={() => handlePay("deposit")} disabled={payLoading === "deposit"} style={{ ...S.payBtn(true) }}>{payLoading === "deposit" ? "Loading…" : "Pay Deposit →"}</button>
-                  }
-                </div>
+                {/* Two-column layout: stepper left, active action right */}
+                {!paymentStatus ? (
+                  <div style={{ ...S.card, textAlign: "center", padding: 32 }}><div style={{ color: C.textMuted, fontSize: 14 }}>Loading payment details…</div></div>
+                ) : (
+                  <div style={{ display:"flex", gap:16, flexWrap:"wrap" as const }}>
+                    {/* ── Left: Quote summary + payment stepper ── */}
+                    <div style={{ flex:"1 1 260px", display:"flex", flexDirection:"column", gap:12 }}>
+                      {/* Quote summary */}
+                      {client.quote && (
+                        <div style={S.card}>
+                          <div style={S.label}>{client.quote.package} Package</div>
+                          <div style={{ fontSize: 28, fontWeight: 800, color: C.text, marginBottom: 4 }}>${client.quote.price.toLocaleString()}</div>
+                          <div style={{ color: C.textMuted, fontSize: 12, marginBottom: 10 }}>+ $109/month for 3 months, then $119/month</div>
+                          <div style={{ background: "#00c89610", border: "1px solid #00c89625", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: C.accent, marginBottom: 10 }}>
+                            🎉 Saving ${client.quote.savings.toLocaleString()} vs industry avg
+                          </div>
+                          {client.quote.breakdown.map(line => (
+                            <div key={line} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.textMuted }}>
+                              <span>{line.split(":")[0]}</span><span>{line.split(":")[1]}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
 
-                {/* Final */}
-                <div style={{ ...S.card, opacity: !paymentStatus.depositPaid ? 0.45 : 1, borderColor: paymentStatus.finalPaid ? "#00c89630" : C.border }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div><div style={{ fontWeight: 700, fontSize: 16, color: C.text, marginBottom: 4 }}>50% Final Payment</div>
-                      <div style={{ color: C.textMuted, fontSize: 13 }}>{!paymentStatus.depositPaid ? "Pay deposit first" : !paymentStatus.finalUnlocked ? "Unlocked after your revision is approved" : "Pay to launch your website"}</div></div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: C.text }}>${paymentStatus.quote.final.toLocaleString()}</div>
-                  </div>
-                  {paymentStatus.finalPaid
-                    ? <div style={{ color: C.accent, fontSize: 13, fontWeight: 600, marginTop: 12 }}>✓ Paid — site is live</div>
-                    : paymentStatus.finalUnlocked && paymentStatus.depositPaid
-                    ? <button onClick={() => handlePay("final")} disabled={payLoading === "final"} style={{ ...S.payBtn(true), opacity: payLoading === "final" ? 0.6 : 1 }}>{payLoading === "final" ? "Loading…" : "Pay Final & Launch →"}</button>
-                    : <div style={S.lockBox}>🔒 Locked</div>
-                  }
-                </div>
-
-                {/* Monthly — included in final payment, just needs activation */}
-                <div style={{ ...S.card, opacity: !paymentStatus.finalPaid ? 0.45 : 1, borderColor: paymentStatus.monthlyActive ? "#00c89630" : C.border }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div><div style={{ fontWeight: 700, fontSize: 16, color: C.text, marginBottom: 4 }}>Monthly Hosting & Maintenance</div>
-                      <div style={{ color: C.textMuted, fontSize: 13 }}>
-                        {!paymentStatus.finalPaid
-                          ? "First month included in your final payment"
-                          : "Intro: $109/mo for 3 months, then $119/mo ongoing"}
+                      {/* Payment stepper */}
+                      <div style={S.card}>
+                        <div style={S.label}>Payment Timeline</div>
+                        <div style={{ display:"flex", flexDirection:"column", gap:0, marginTop:12 }}>
+                          {[
+                            { key:"deposit", label:"50% Deposit", icon:"💳", amount:`$${paymentStatus.quote.deposit.toLocaleString()}`, done:paymentStatus.depositPaid, active:!paymentStatus.depositPaid },
+                            { key:"final", label:"50% Final", icon:"🚀", amount:`$${paymentStatus.quote.final.toLocaleString()}`, done:paymentStatus.finalPaid, active:paymentStatus.depositPaid&&!paymentStatus.finalPaid },
+                            { key:"monthly", label:"Monthly Hosting", icon:"🔄", amount:"$109/mo", done:paymentStatus.monthlyActive, active:paymentStatus.finalPaid&&!paymentStatus.monthlyActive },
+                          ].map((step, i, arr) => (
+                            <div key={step.key} style={{ display:"flex", gap:12 }}>
+                              <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
+                                <div style={{ width:32, height:32, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, background: step.done ? C.accentBg : step.active ? C.accentBlue+"22" : C.raised, border:`2px solid ${step.done ? C.accent : step.active ? C.accentBlue : C.border}`, flexShrink:0 }}>
+                                  {step.done ? <span style={{ color:C.accent, fontWeight:800, fontSize:13 }}>✓</span> : step.icon}
+                                </div>
+                                {i < arr.length - 1 && <div style={{ width:2, flex:1, minHeight:16, background: step.done ? C.accent+"40" : C.border, margin:"4px 0" }}/>}
+                              </div>
+                              <div style={{ paddingBottom: i < arr.length - 1 ? 20 : 0, paddingTop:4 }}>
+                                <div style={{ fontSize:13, fontWeight:600, color: step.done ? C.accent : step.active ? C.text : C.textMuted }}>{step.label}</div>
+                                <div style={{ fontSize:12, color: step.done ? C.accent : C.textMuted, marginTop:1 }}>
+                                  {step.done ? "Paid" : step.active ? step.amount : step.key==="monthly" ? "Included in final payment" : "Locked"}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <span style={{ fontSize: 22, fontWeight: 800, color: C.text }}>$109</span>
-                      <span style={{ fontSize: 13, color: C.textMuted }}>/mo</span>
-                      <div style={{ fontSize: 10, color: C.textMuted, marginTop: 2 }}>then $119/mo</div>
+
+                    {/* ── Right: Active payment action panel ── */}
+                    <div style={{ flex:"1 1 260px" }}>
+                      {paymentStatus.monthlyActive ? (
+                        <div style={{ ...S.card, background:C.accentBg, borderColor:`${C.accent}30`, textAlign:"center", padding:"32px 24px" }}>
+                          <div style={{ fontSize:36, marginBottom:12 }}>🎉</div>
+                          <div style={{ fontSize:18, fontWeight:800, color:C.accent, marginBottom:8 }}>You&apos;re all set!</div>
+                          <div style={{ fontSize:13, color:C.textMuted, lineHeight:1.6 }}>All payments complete. Your site is live and monthly hosting is active.</div>
+                        </div>
+                      ) : !paymentStatus.depositPaid ? (
+                        <div style={{ ...S.card, borderColor:`${C.accentBlue}40` }}>
+                          <div style={{ fontSize:13, fontWeight:700, color:C.textSec, marginBottom:4, textTransform:"uppercase" as const, letterSpacing:"0.05em" }}>Step 1 of 3</div>
+                          <div style={{ fontSize:20, fontWeight:800, color:C.text, marginBottom:4 }}>50% Deposit</div>
+                          <div style={{ fontSize:13, color:C.textMuted, marginBottom:16 }}>Pay now to kick off your website build. Nothing starts until this is paid.</div>
+                          <div style={{ fontSize:32, fontWeight:900, color:C.text, marginBottom:20 }}>${paymentStatus.quote.deposit.toLocaleString()}</div>
+                          <button onClick={() => handlePay("deposit")} disabled={payLoading === "deposit"}
+                            style={{ ...S.payBtn(true), width:"100%", fontSize:15 }}>
+                            {payLoading === "deposit" ? "Loading…" : "Pay Deposit →"}
+                          </button>
+                        </div>
+                      ) : !paymentStatus.finalPaid ? (
+                        <div style={{ ...S.card, borderColor: paymentStatus.finalUnlocked ? `${C.accentBlue}40` : C.border, opacity: paymentStatus.finalUnlocked ? 1 : 0.7 }}>
+                          <div style={{ fontSize:13, fontWeight:700, color:C.textSec, marginBottom:4, textTransform:"uppercase" as const, letterSpacing:"0.05em" }}>Step 2 of 3</div>
+                          <div style={{ fontSize:20, fontWeight:800, color:C.text, marginBottom:4 }}>50% Final Payment</div>
+                          <div style={{ fontSize:13, color:C.textMuted, marginBottom:16 }}>
+                            {paymentStatus.finalUnlocked ? "Your revision is approved — pay to launch your site live." : "Unlocked after your revision is approved."}
+                          </div>
+                          <div style={{ fontSize:32, fontWeight:900, color:C.text, marginBottom:20 }}>${paymentStatus.quote.final.toLocaleString()}</div>
+                          {paymentStatus.finalUnlocked ? (
+                            <button onClick={() => handlePay("final")} disabled={payLoading === "final"}
+                              style={{ ...S.payBtn(true), width:"100%", fontSize:15, opacity: payLoading === "final" ? 0.6 : 1 }}>
+                              {payLoading === "final" ? "Loading…" : "Pay Final & Launch →"}
+                            </button>
+                          ) : (
+                            <div style={S.lockBox}>🔒 Locked — awaiting revision approval</div>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ ...S.card, borderColor:`${C.accent}30` }}>
+                          <div style={{ fontSize:13, fontWeight:700, color:C.textSec, marginBottom:4, textTransform:"uppercase" as const, letterSpacing:"0.05em" }}>Step 3 of 3</div>
+                          <div style={{ fontSize:20, fontWeight:800, color:C.text, marginBottom:4 }}>Monthly Hosting</div>
+                          <div style={{ fontSize:13, color:C.textMuted, marginBottom:16 }}>First month included in your final payment — activates on launch.</div>
+                          <div style={{ fontSize:13, color:C.accent, fontWeight:600 }}>✓ First month included — active on launch</div>
+                          <div style={{ fontSize:12, color:C.textMuted, marginTop:8 }}>Intro: $109/mo for 3 months, then $119/mo ongoing.</div>
+                        </div>
+                      )}
+                      <div style={{ color: C.textMuted, fontSize: 11, textAlign: "center", marginTop: 12 }}>Payments processed securely by Square · WebGecko never stores card details</div>
                     </div>
                   </div>
-                  {paymentStatus.monthlyActive
-                    ? <div style={{ color: C.accent, fontSize: 13, fontWeight: 600, marginTop: 12 }}>✓ Active</div>
-                    : paymentStatus.finalPaid
-                    ? <div style={{ color: C.accent, fontSize: 13, fontWeight: 600, marginTop: 12 }}>✓ First month included in final payment — active on launch</div>
-                    : <div style={S.lockBox}>🔒 Included in your final payment</div>
-                  }
-                </div>
-
-                <div style={{ color: C.border, fontSize: 12, textAlign: "center", marginTop: 4 }}>Payments processed securely by Square · WebGecko never stores card details</div>
+                )}
               </>
             )}
           </>
@@ -2481,19 +2537,25 @@ export default function ClientPortal() {
                       { id: "FAQ", icon: "❓", label: "FAQ Section", desc: "Answer common questions to reduce inbound enquiries." },
                       { id: "Portfolio", icon: "🎨", label: "Portfolio", desc: "Visual portfolio of your past work or case studies." },
                       { id: "Video Background", icon: "🎬", label: "Video Background", desc: "Full-screen video background hero section." },
-                    ].filter(f => !features.includes(f.id)).map(f => {
+                    ].map(f => {
+                      const owned = features.includes(f.id);
                       const sel = upgradeSelected.includes(f.id);
                       return (
-                        <button key={f.id} onClick={() => setUpgradeSelected(prev => sel ? prev.filter(x => x !== f.id) : [...prev, f.id])}
-                          style={{ display: "flex", alignItems: "center", gap: 12, background: sel ? "#00c89612" : C.bg, border: `1px solid ${sel ? "#00c89640" : C.border}`, borderRadius: 10, padding: "12px 14px", cursor: "pointer", textAlign: "left", width: "100%" }}>
+                        <button key={f.id}
+                          onClick={() => { if (!owned) setUpgradeSelected(prev => sel ? prev.filter(x => x !== f.id) : [...prev, f.id]); }}
+                          style={{ display: "flex", alignItems: "center", gap: 12, background: owned ? C.raised : sel ? "#00c89612" : C.bg, border: `1px solid ${owned ? C.border : sel ? "#00c89640" : C.border}`, borderRadius: 10, padding: "12px 14px", cursor: owned ? "default" : "pointer", textAlign: "left", width: "100%", opacity: owned ? 0.5 : 1 }}>
                           <span style={{ fontSize: 22, flexShrink: 0 }}>{f.icon}</span>
                           <div style={{ flex: 1 }}>
                             <div style={{ fontSize: 13, fontWeight: 600, color: sel ? C.accent : C.text, marginBottom: 2 }}>{f.label}</div>
                             <div style={{ fontSize: 12, color: C.textMuted }}>{f.desc}</div>
                           </div>
-                          <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${sel ? C.accent : C.border}`, background: sel ? C.accent : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            {sel && <span style={{ color: "#000", fontSize: 11, fontWeight: 800 }}>✓</span>}
-                          </div>
+                          {owned ? (
+                            <span style={{ fontSize: 11, fontWeight: 700, color: C.accent, background: C.accentBg, border: `1px solid ${C.accent}40`, borderRadius: 99, padding: "2px 10px", whiteSpace: "nowrap" as const }}>✓ On your site</span>
+                          ) : (
+                            <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${sel ? C.accent : C.border}`, background: sel ? C.accent : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                              {sel && <span style={{ color: "#000", fontSize: 11, fontWeight: 800 }}>✓</span>}
+                            </div>
+                          )}
                         </button>
                       );
                     })}

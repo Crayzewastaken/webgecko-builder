@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Suspense } from "react";
+import uiHistory from "@/lib/ui-history.json";
 
 // ── Interfaces ─────────────────────────────────────────────────────────────────
 interface SeoData {
@@ -29,13 +30,13 @@ interface ClientAnalytics {
 // ── Themes ─────────────────────────────────────────────────────────────────────
 const DARK = {
   bg:"#04080f", surface:"#0a1628", raised:"#102240", border:"#1e3560", borderHov:"#3060a0",
-  text:"#e0eaff", textSec:"#7a9ad4", textMuted:"#3a5080",
+  text:"#e0eaff", textSec:"#b0cce8", textMuted:"#8aaac8",
   green:"#00f080", blue:"#4f9eff", amber:"#ffa830", red:"#ff4060", purple:"#b085ff", cyan:"#00e5ff",
   overlay:"rgba(4,8,15,0.92)", shadow:"0 4px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)", shadowLg:"0 12px 40px rgba(0,0,0,0.85)", shadowXl:"-4px 0 60px rgba(0,0,0,0.95)",
 };
 const LIGHT = {
   bg:"#f0f2fa", surface:"#ffffff", raised:"#eaecf8", border:"#d4d8f0", borderHov:"#a0acdc",
-  text:"#080d22", textSec:"#2a3460", textMuted:"#7080aa",
+  text:"#080d22", textSec:"#2a3a6a", textMuted:"#4a5a8a",
   green:"#059669", blue:"#2563eb", amber:"#d97706", red:"#dc2626", purple:"#7c3aed", cyan:"#0284c7",
   overlay:"rgba(0,0,0,0.55)", shadow:"0 1px 4px rgba(0,0,0,0.08)", shadowLg:"0 8px 28px rgba(0,0,0,0.12)", shadowXl:"0 20px 52px rgba(0,0,0,0.18)",
 };
@@ -417,7 +418,7 @@ function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:
 
 // ── Client slide-over panel ────────────────────────────────────────────────────
 function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:string; onClose:()=>void; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
-  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"content"|"payments"|"actions"|"requests"|"checklist">("perf");
+  const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"content"|"payments"|"actions"|"requests"|"checklist"|"social">("perf");
   const [checklistDone, setChecklistDone] = useState<Record<string,boolean>>({});
   const [checklistLinks, setChecklistLinks] = useState<Record<string,string>>({});
   useEffect(()=>{
@@ -524,7 +525,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   }
 
   const pending = featureRequests.filter(r=>r.status==="pending"||r.status==="draft").length;
-  const tabs = ["perf","engagement","seo","site","assets","integrations","content","payments","actions","requests","checklist"] as const;
+  const tabs = ["perf","engagement","seo","site","assets","integrations","content","payments","actions","requests","checklist","social"] as const;
 
   // ── Content helpers ────────────────────────────────────────────────────────
   async function loadContent() {
@@ -644,7 +645,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
 
   const tabBtn = (id:typeof tabs[number], label:string) => (
     <button key={id} onClick={()=>{setTab(id);if(id==="requests"&&featureRequests.length===0)loadFeatureRequests();if(id==="content"&&contentItems.length===0)loadContent();}}
-      style={{ padding:"8px 14px", fontSize:12, fontWeight:tab===id?600:400, color:tab===id?T.text:T.textMuted, background:tab===id?T.raised:"transparent", border:tab===id?`1px solid ${T.border}`:"1px solid transparent", borderRadius:7, cursor:"pointer", transition:"all 0.15s ease", whiteSpace:"nowrap" as const }}>
+      style={{ display:"flex", alignItems:"center", gap:8, padding:"9px 12px", fontSize:12, fontWeight:tab===id?700:400, color:tab===id?T.blue:T.textMuted, background:tab===id?T.raised:"transparent", border:"none", borderRadius:7, cursor:"pointer", transition:"all 0.15s ease", textAlign:"left" as const, width:"100%", fontFamily:"inherit" }}>
       {label}
     </button>
   );
@@ -689,23 +690,26 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
           </div>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display:"flex", gap:4, padding:"8px 24px", borderBottom:`1px solid ${T.border}`, background:T.bg, flexWrap:"wrap" as const, flexShrink:0 }}>
-          {tabBtn("perf","Perf")}
-          {tabBtn("engagement","Engage")}
-          {tabBtn("seo","SEO")}
-          {tabBtn("site","Site")}
-          {tabBtn("assets","Assets")}
-          {tabBtn("integrations","Integrations")}
-          {tabBtn("content","Content")}
-          {tabBtn("payments","Payments")}
-          {tabBtn("actions","Actions")}
-          {tabBtn("requests",`Requests${pending>0?" ("+pending+")":""}`)}
-          {tabBtn("checklist","✅ Checklist")}
-        </div>
+        {/* Body: vertical sidebar + content */}
+        <div style={{ flex:1, display:"flex", overflow:"hidden" }}>
+          {/* Vertical tab sidebar */}
+          <div style={{ width:130, flexShrink:0, borderRight:`1px solid ${T.border}`, background:T.surface, overflowY:"auto" as const, display:"flex", flexDirection:"column" as const, padding:"8px 0" }}>
+            {tabBtn("perf","📊 Perf")}
+            {tabBtn("engagement","🔥 Engage")}
+            {tabBtn("seo","🔍 SEO")}
+            {tabBtn("site","🌐 Site")}
+            {tabBtn("assets","🖼️ Assets")}
+            {tabBtn("integrations","🔌 Integr.")}
+            {tabBtn("content","📝 Content")}
+            {tabBtn("payments","💳 Payments")}
+            {tabBtn("actions","⚡ Actions")}
+            {tabBtn("requests",`📬 Req${pending>0?" ("+pending+")":""}`)}
+            {tabBtn("checklist","✅ Checklist")}
+            {((c as any).metadata?.serviceType==="social"||(c as any).metadata?.serviceType==="both")&&tabBtn("social","📱 Social")}
+          </div>
 
-        {/* Tab content */}
-        <div key={tab} className="wg-tab" style={{ flex:1, overflowY:"auto" as const, padding:"24px" }}>
+          {/* Tab content */}
+          <div key={tab} className="wg-tab" style={{ flex:1, overflowY:"auto" as const, padding:"24px" }}>
 
           {/* Tab info banner */}
           {(()=>{
@@ -1979,7 +1983,56 @@ Once verified, submit the sitemap: ${siteUrl||"https://clientdomain.com.au"}/sit
             );
           })()}
 
-        </div>
+
+          {/* SOCIAL TAB */}
+          {tab==="social"&&(()=>{
+            const st = (c as any).metadata?.serviceType;
+            const sp = (c as any).metadata?.socialPlan || "Growth";
+            const platforms: string[] = (c as any).metadata?.socialPlatforms || [];
+            const pIcon = (p: string) => p==="Instagram"?"📸":p==="Facebook"?"👍":p==="TikTok"?"🎵":p==="LinkedIn"?"💼":p==="YouTube"?"▶️":p==="Google Business"?"📍":"📱";
+            const pColor = (p: string) => p==="Instagram"?"#E1306C":p==="Facebook"?"#1877F2":p==="TikTok"?"#69C9D0":p==="LinkedIn"?"#0A66C2":p==="YouTube"?"#FF0000":p==="Google Business"?"#4285F4":T.blue;
+            return (
+              <div style={{ display:"flex", flexDirection:"column" as const, gap:16 }}>
+                <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:12, padding:"18px 20px" }}>
+                  <div style={{ fontSize:10, fontWeight:700, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:10 }}>Social Plan</div>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <div>
+                      <div style={{ fontSize:18, fontWeight:800, color:T.text }}>{sp} Plan</div>
+                      <div style={{ fontSize:12, color:T.textMuted, marginTop:3 }}>
+                        {st==="both" ? "Website + Social Media" : "Social Media Only"}
+                      </div>
+                    </div>
+                    <span style={{ fontSize:11, fontWeight:700, color:T.purple, background:`${T.purple}18`, border:`1px solid ${T.purple}30`, borderRadius:99, padding:"3px 12px" }}>📱 {sp}</span>
+                  </div>
+                </div>
+
+                {platforms.length > 0 && (
+                  <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:12, padding:"18px 20px" }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:12 }}>Connected Platforms</div>
+                    <div style={{ display:"flex", flexWrap:"wrap" as const, gap:8 }}>
+                      {platforms.map((p:string) => (
+                        <div key={p} style={{ display:"flex", alignItems:"center", gap:6, background:`${pColor(p)}18`, border:`1px solid ${pColor(p)}35`, borderRadius:99, padding:"5px 12px", fontSize:12, fontWeight:600, color:pColor(p) }}>
+                          <span>{pIcon(p)}</span>{p}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:12, padding:"18px 20px" }}>
+                  <div style={{ fontSize:10, fontWeight:700, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:12 }}>Manage in Postiz</div>
+                  <a href="https://app.postiz.com" target="_blank" rel="noreferrer"
+                    style={{ display:"inline-flex", alignItems:"center", gap:8, background:T.blue+"18", border:`1px solid ${T.blue}40`, color:T.blue, borderRadius:8, padding:"8px 16px", fontSize:13, fontWeight:600, textDecoration:"none" }}>
+                    📅 Open Postiz →
+                  </a>
+                  <div style={{ fontSize:11, color:T.textMuted, marginTop:8 }}>Schedule and manage posts for {c.businessName}</div>
+                </div>
+              </div>
+            );
+          })()}
+
+          </div>{/* end tab content */}
+        </div>{/* end body flex row */}
       </div>
     </>
   );
@@ -2794,6 +2847,152 @@ function AnalyticsView({ clients, onOpenClient }: { clients: ClientAnalytics[]; 
 
 // ── Admin dashboard ────────────────────────────────────────────────────────────
 
+
+// ── History View ────────────────────────────────────────────────────────────────
+const UI_HISTORY_TYPE_COLOR: Record<string, string> = {
+  feat: "#3b82f6", redesign: "#a855f7", fix: "#f59e0b", chore: "#8888aa",
+};
+interface PipelineError {
+  id: string; job_id: string; step: string; type: string;
+  message: string; fixed: boolean; created_at: string;
+}
+function HistoryView() {
+  const [tab, setTab] = useState<"history"|"errors">("history");
+  const [selected, setSelected] = useState<number | null>(uiHistory.length - 1);
+  const [errors, setErrors] = useState<PipelineError[]>([]);
+  const [loadingErrors, setLoadingErrors] = useState(false);
+  const versions = [...uiHistory].reverse();
+
+  useEffect(() => {
+    if (tab === "errors") {
+      setLoadingErrors(true);
+      fetch("/api/admin/error-log", { headers: { "x-process-secret": "" } })
+        .then(r => r.json())
+        .then(d => { setErrors(Array.isArray(d) ? d : []); })
+        .catch(() => {})
+        .finally(() => setLoadingErrors(false));
+    }
+  }, [tab]);
+
+  const unfixed = errors.filter(e => !e.fixed).length;
+
+  const markFixed = async (id: string) => {
+    await fetch("/api/admin/error-log", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-process-secret": "" },
+      body: JSON.stringify({ id }),
+    });
+    setErrors(prev => prev.map(e => e.id === id ? { ...e, fixed: true } : e));
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom:20 }}>
+        <h2 style={{ margin:0, fontSize:20, fontWeight:800, letterSpacing:"-0.03em", color:T.text }}>WebGecko History</h2>
+        <div style={{ fontSize:12, color:T.textMuted, marginTop:3 }}>Auto-updated on each push</div>
+      </div>
+
+      <div style={{ display:"flex", gap:8, marginBottom:24 }}>
+        {(["history","errors"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            background: tab===t ? T.raised : T.surface,
+            border: `1px solid ${tab===t ? T.blue+"80" : T.border}`,
+            color: tab===t ? T.text : T.textMuted,
+            borderRadius:8, padding:"8px 18px", fontSize:13, fontWeight:600, cursor:"pointer",
+            display:"flex", alignItems:"center", gap:8
+          }}>
+            {t === "history" ? `🗂 UI History (${uiHistory.length})` : `🔴 Pipeline Errors`}
+            {t === "errors" && unfixed > 0 && (
+              <span style={{ background:T.red, color:"#fff", borderRadius:99, fontSize:10, fontWeight:800, padding:"1px 7px" }}>{unfixed} open</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {tab === "history" && (
+        <div style={{ display:"grid", gridTemplateColumns:"280px 1fr", gap:20 }}>
+          <div style={{ display:"flex", flexDirection:"column" as const, gap:8 }}>
+            {versions.map((v, i) => {
+              const idx = uiHistory.length - 1 - i;
+              const isSelected = selected === idx;
+              const col = UI_HISTORY_TYPE_COLOR[v.type] || T.blue;
+              return (
+                <div key={v.version} onClick={() => setSelected(idx)}
+                  style={{ background: isSelected ? T.raised : T.surface, border:`1px solid ${isSelected ? col+"80" : T.border}`, borderRadius:10, padding:"12px 14px", cursor:"pointer", transition:"all 0.15s", borderLeft:`3px solid ${col}` }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+                    <span style={{ fontSize:13, fontWeight:700, color:T.text }}>{v.version}</span>
+                    <span style={{ fontSize:9, fontWeight:700, color:col, background:`${col}18`, border:`1px solid ${col}30`, borderRadius:10, padding:"1px 7px" }}>{v.type}</span>
+                  </div>
+                  <div style={{ fontSize:11, color:T.textMuted }}>{v.date}</div>
+                  <div style={{ fontSize:11, color:T.textSec, marginTop:4, lineHeight:1.4, overflow:"hidden", textOverflow:"ellipsis", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" as const }}>{v.description}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {selected !== null && (() => {
+            const v = uiHistory[selected];
+            const col = UI_HISTORY_TYPE_COLOR[v.type] || T.blue;
+            return (
+              <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:14, padding:"28px 32px" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
+                  <span style={{ fontSize:28, fontWeight:900, color:col }}>{v.version}</span>
+                  <div>
+                    <div style={{ fontSize:14, fontWeight:700, color:T.text }}>{v.date}</div>
+                    <div style={{ fontSize:11, color:T.textMuted, fontFamily:"monospace" }}>commit {v.commit} · {v.lines} lines</div>
+                  </div>
+                </div>
+                <p style={{ fontSize:14, color:T.textSec, lineHeight:1.7, marginBottom:24 }}>{v.description}</p>
+                <div style={{ background:T.raised, border:`1px solid ${T.border}`, borderRadius:10, padding:"18px 20px" }}>
+                  <div style={{ fontSize:10, fontWeight:700, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:12 }}>Stats</div>
+                  <div style={{ display:"flex", gap:24 }}>
+                    <div><div style={{ fontSize:22, fontWeight:800, color:col }}>{v.lines}</div><div style={{ fontSize:11, color:T.textMuted }}>Lines</div></div>
+                    <div><div style={{ fontSize:22, fontWeight:800, color:T.text }}>{v.version}</div><div style={{ fontSize:11, color:T.textMuted }}>Version</div></div>
+                    <div><div style={{ fontSize:22, fontWeight:800, color:T.green }}>{v.type}</div><div style={{ fontSize:11, color:T.textMuted }}>Type</div></div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {tab === "errors" && (
+        <div style={{ display:"flex", flexDirection:"column" as const, gap:12 }}>
+          {loadingErrors && <div style={{ color:T.textMuted, fontSize:13 }}>Loading...</div>}
+          {!loadingErrors && errors.length === 0 && <div style={{ color:T.green, fontSize:13 }}>No pipeline errors logged.</div>}
+          {errors.map((e) => {
+            const col = e.fixed ? T.green : T.red;
+            return (
+              <div key={e.id} style={{ background:T.surface, border:`1px solid ${T.border}`, borderLeft:`3px solid ${col}`, borderRadius:10, padding:"16px 20px" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" as const }}>
+                    <span style={{ fontSize:11, fontWeight:700, color:col, background:`${col}18`, border:`1px solid ${col}30`, borderRadius:99, padding:"2px 10px" }}>
+                      {e.fixed ? "✓ FIXED" : "● OPEN"}
+                    </span>
+                    <span style={{ fontSize:12, fontWeight:700, color:T.amber, fontFamily:"monospace" }}>{e.type}</span>
+                    <span style={{ fontSize:12, color:T.textMuted, fontFamily:"monospace" }}>{e.step}</span>
+                    <span style={{ fontSize:12, color:T.purple, fontFamily:"monospace" }}>{e.job_id}</span>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <div style={{ fontSize:11, color:T.textMuted }}>{e.created_at?.slice(0,10)}</div>
+                    {!e.fixed && (
+                      <button onClick={() => markFixed(e.id)} style={{ background:T.green+"18", border:`1px solid ${T.green}30`, color:T.green, borderRadius:6, padding:"3px 10px", fontSize:11, cursor:"pointer", fontWeight:600 }}>
+                        Mark Fixed
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p style={{ margin:0, fontSize:13, color:T.textSec, lineHeight:1.6 }}>{e.message}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Social View ────────────────────────────────────────────────────────────────
 function SocialView({ clients }: { clients: ClientAnalytics[] }) {
   const socialClients = clients.filter(c => {
@@ -3210,7 +3409,7 @@ function AdminDashboard() {
   const [clients, setClients] = useState<ClientAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [view, setView] = useState<"analytics"|"clients"|"logs"|"social">("analytics");
+  const [view, setView] = useState<"analytics"|"clients"|"logs"|"social"|"history">("analytics");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all"|"active"|"building"|"unpaid">("all");
   const [sort, setSort] = useState<"views"|"name"|"status">("views");
@@ -3349,6 +3548,7 @@ function AdminDashboard() {
               { v:"clients"   as const, icon:"⬡", label:"Clients" },
               { v:"social"    as const, icon:"📱", label:"Social Media" },
               { v:"logs"      as const, icon:"⧉", label:"Pipeline" },
+              { v:"history"   as const, icon:"📜", label:"History" },
             ]).map(({v,icon,label}) => (
               <button key={v} onClick={()=>setView(v)} className={`wg-sidebar-item${view===v?" active":""}`}
                 style={{ color: view===v ? T.blue : T.textMuted }}>
@@ -3362,10 +3562,7 @@ function AdminDashboard() {
               <span style={{ fontSize:14,width:18,textAlign:"center" as const }}>↻</span>
               <span>Refresh</span>
             </button>
-            <a href="/admin/history" className="wg-sidebar-item" style={{ color:T.textMuted, textDecoration:"none", display:"flex" }}>
-              <span style={{ fontSize:14,width:18,textAlign:"center" as const }}>🕐</span>
-              <span>UI History</span>
-            </a>
+
           </div>
 
           {/* Sidebar footer */}
@@ -3394,6 +3591,7 @@ function AdminDashboard() {
               { v:"clients"   as const, icon:"⬡" },
               { v:"social"    as const, icon:"📱" },
               { v:"logs"      as const, icon:"⧉" },
+              { v:"history"   as const, icon:"📜" },
             ]).map(({v,icon}) => (
               <button key={v} onClick={()=>setView(v)} style={{ background:view===v?T.raised:"transparent", border:`1px solid ${view===v?T.border:"transparent"}`, borderRadius:7, width:32,height:30, display:"flex",alignItems:"center",justifyContent:"center", fontSize:13, cursor:"pointer", color:view===v?T.text:T.textMuted }}>{icon}</button>
             ))}
@@ -3454,6 +3652,7 @@ function AdminDashboard() {
 
         {view==="logs"&&<PipelineLogsPanel/>}
         {view==="social"&&<SocialView clients={clients}/>}
+        {view==="history"&&<HistoryView/>}
 
         {view==="clients"&&(<>
         {/* Client grid header with service-type sub-tabs */}
