@@ -488,6 +488,16 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   const [archivePreviewLoading, setArchivePreviewLoading] = useState(false);
   const [archiveSubTab, setArchiveSubTab] = useState<"config"|"logs"|"preview">("preview");
   // ─────────────────────────────────────────────────────────────────────────────
+  // ── Social offboarding state ──────────────────────────────────────────────────
+  const [offboardType, setOffboardType] = useState<"full"|"remove">("full");
+  const [offboardGmail, setOffboardGmail] = useState<string>((c as any).metadata?.socialGmail || "");
+  const [offboardPassword, setOffboardPassword] = useState("");
+  const [offboardNote, setOffboardNote] = useState("");
+  const [offboardSending, setOffboardSending] = useState(false);
+  const [offboardDone, setOffboardDone] = useState(false);
+  const [offboardErr, setOffboardErr] = useState("");
+  const [offboardConfirmed, setOffboardConfirmed] = useState(false);
+  // ─────────────────────────────────────────────────────────────────────────────
   const a = c.analytics;
   const seo = c.metadata?.seo;
   const ui = c.userInput||{};
@@ -2026,6 +2036,106 @@ Once verified, submit the sitemap: ${siteUrl||"https://clientdomain.com.au"}/sit
                     📅 Open Postiz →
                   </a>
                   <div style={{ fontSize:11, color:T.textMuted, marginTop:8 }}>Schedule and manage posts for {c.businessName}</div>
+                </div>
+
+                {/* ── Offboarding ── */}
+                <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:12, padding:"18px 20px" }}>
+                  <div style={{ fontSize:10, fontWeight:700, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:12 }}>Client Offboarding</div>
+                  {offboardDone ? (
+                    <div style={{ textAlign:"center" as const, padding:"12px 0" }}>
+                      <div style={{ fontSize:24, marginBottom:8 }}>✅</div>
+                      <div style={{ fontSize:14, fontWeight:700, color:T.green, marginBottom:4 }}>Offboarding email sent</div>
+                      <div style={{ fontSize:12, color:T.textMuted }}>Client has been emailed confirmation and credentials.</div>
+                      <button onClick={()=>{setOffboardDone(false);setOffboardConfirmed(false);setOffboardPassword("");setOffboardErr("");}} style={{ marginTop:12, background:"none", border:`1px solid ${T.border}`, borderRadius:7, color:T.textMuted, fontSize:12, cursor:"pointer", padding:"6px 14px" }}>Reset</button>
+                    </div>
+                  ) : (
+                    <div style={{ display:"flex", flexDirection:"column" as const, gap:12 }}>
+                      <div style={{ fontSize:12, color:T.textMuted, lineHeight:1.6 }}>
+                        Formally offboard this client from social media management. An email is sent with legal confirmation, sign-out proof, and (if full handover) their Gmail credentials.
+                      </div>
+
+                      <div style={{ display:"flex", gap:8 }}>
+                        {(["full","remove"] as const).map(v => (
+                          <button key={v} onClick={()=>setOffboardType(v)}
+                            style={{ flex:1, padding:"8px 10px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", border:`1px solid ${offboardType===v ? T.purple : T.border}`, background:offboardType===v ? T.purple+"18" : T.raised, color:offboardType===v ? T.purple : T.textMuted, transition:"all 0.15s", fontFamily:"inherit" }}>
+                            {v==="full" ? "📱 Full Handover ($299)" : "🗑️ Stop Management (Free)"}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Gmail Address (created for this client)</div>
+                        <input value={offboardGmail} onChange={e=>setOffboardGmail(e.target.value)} placeholder="e.g. timsplumbing@gmail.com"
+                          style={{ width:"100%", background:T.raised, border:`1px solid ${T.border}`, borderRadius:7, padding:"8px 12px", color:T.text, fontSize:13, outline:"none", boxSizing:"border-box" as const, fontFamily:"inherit" }}/>
+                      </div>
+
+                      {offboardType === "full" && (
+                        <div>
+                          <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>New Gmail Password (set this before sending)</div>
+                          <input value={offboardPassword} onChange={e=>setOffboardPassword(e.target.value)} placeholder="Temporary password to send client"
+                            style={{ width:"100%", background:T.raised, border:`1px solid ${T.border}`, borderRadius:7, padding:"8px 12px", color:T.text, fontSize:13, outline:"none", boxSizing:"border-box" as const, fontFamily:"inherit" }}/>
+                          <div style={{ fontSize:11, color:T.amber, marginTop:4 }}>Reset the Gmail password BEFORE clicking send.</div>
+                        </div>
+                      )}
+
+                      <div>
+                        <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Note to client (optional)</div>
+                        <textarea value={offboardNote} onChange={e=>setOffboardNote(e.target.value)} rows={2} placeholder="Any personal message to include..."
+                          style={{ width:"100%", background:T.raised, border:`1px solid ${T.border}`, borderRadius:7, padding:"8px 12px", color:T.text, fontSize:13, outline:"none", resize:"vertical" as const, fontFamily:"inherit", boxSizing:"border-box" as const }}/>
+                      </div>
+
+                      <div style={{ background:T.raised, border:`1px solid ${offboardConfirmed ? T.green+"40" : T.border}`, borderRadius:8, padding:"12px 14px" }}>
+                        <div style={{ fontSize:11, fontWeight:700, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.07em", marginBottom:8 }}>Before sending, confirm you have:</div>
+                        {(offboardType === "full"
+                          ? ["Signed out of all social platforms in Postiz","Signed out of the Gmail account on all devices","Reset the Gmail password to the one entered above"]
+                          : ["Stopped all scheduled posts in Postiz","Confirmed no future posts are queued","Noted accounts remain dormant — no further access"]
+                        ).map((item, i) => (
+                          <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:8, fontSize:12, color:T.textSec, marginBottom:i<2?6:0, lineHeight:1.5 }}>
+                            <span style={{ color:T.green, fontWeight:700, flexShrink:0 }}>✓</span>{item}
+                          </div>
+                        ))}
+                        <label style={{ display:"flex", alignItems:"center", gap:8, marginTop:10, cursor:"pointer" }}>
+                          <input type="checkbox" checked={offboardConfirmed} onChange={e=>setOffboardConfirmed(e.target.checked)} style={{ accentColor:T.green, width:14, height:14 }}/>
+                          <span style={{ fontSize:12, fontWeight:600, color:T.text }}>I confirm all steps above are done</span>
+                        </label>
+                      </div>
+
+                      {offboardErr && <div style={{ fontSize:12, color:T.red }}>{offboardErr}</div>}
+
+                      <button
+                        disabled={offboardSending || !offboardConfirmed || !offboardGmail || (offboardType==="full" && !offboardPassword)}
+                        onClick={async () => {
+                          setOffboardSending(true); setOffboardErr("");
+                          try {
+                            const platforms: string[] = (c as any).metadata?.socialPlatforms || [];
+                            const r = await fetch("/api/admin/offboard-social", {
+                              method:"POST",
+                              headers:{"Content-Type":"application/json","x-process-secret":secret},
+                              body:JSON.stringify({
+                                businessName: c.businessName,
+                                clientEmail: c.clientEmail || "",
+                                slug: c.jobId,
+                                gmailAddress: offboardGmail,
+                                gmailPassword: offboardType==="full" ? offboardPassword : undefined,
+                                platforms,
+                                handoverType: offboardType,
+                                adminNote: offboardNote || undefined,
+                              }),
+                            });
+                            const d = await r.json();
+                            if (!r.ok) throw new Error(d.error || "Failed");
+                            setOffboardDone(true);
+                            toast("Offboarding email sent to " + c.businessName, "ok");
+                          } catch(e) {
+                            setOffboardErr((e as Error).message);
+                            toast("Failed to send offboarding email", "err");
+                          } finally { setOffboardSending(false); }
+                        }}
+                        style={{ width:"100%", padding:"11px", borderRadius:9, fontSize:13, fontWeight:700, cursor: offboardConfirmed && offboardGmail && (offboardType==="remove"||offboardPassword) ? "pointer" : "not-allowed", border:"none", background: offboardConfirmed && offboardGmail && (offboardType==="remove"||offboardPassword) ? (offboardType==="full" ? T.purple : T.blue) : T.raised, color: offboardConfirmed && offboardGmail && (offboardType==="remove"||offboardPassword) ? "#fff" : T.textMuted, opacity: offboardSending ? 0.6 : 1, transition:"all 0.15s", fontFamily:"inherit" }}>
+                        {offboardSending ? "Sending…" : offboardType==="full" ? "Send Handover Email + Credentials →" : "Send Offboarding Confirmation →"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );

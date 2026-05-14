@@ -179,27 +179,47 @@ function formatDate(dateStr: string) {
 const CANCEL_OPTIONS = [
   {
     id: "transfer",
-    label: "Full offboarding package",
-    desc: "We transfer your domain, export a clean HTML file, do a final fix pass, and help you migrate to a new host. You leave with everything ready to go.",
-    priceLabel: (buildPrice: number) => `$${Math.round(buildPrice * 0.5).toLocaleString()} one-off exit fee`,
+    label: "Full handover package",
+    desc: "We transfer your domain, export a clean standalone HTML file, do a final fix pass, and guide you through setting up with your new provider. You leave with everything ready to hand over.",
+    priceLabel: (buildPrice: number) => `$${Math.round(buildPrice * 0.5).toLocaleString()} one-off handover fee`,
     priceCalc: (buildPrice: number) => Math.round(buildPrice * 0.5),
     icon: "📦",
   },
   {
     id: "html",
-    label: "HTML file export only",
-    desc: "We send you the clean HTML file for your site. No domain transfer, no support. You handle everything else.",
+    label: "HTML export only",
+    desc: "We send you a clean, standalone HTML file of your site. No domain transfer or support — you handle the rest with your new provider.",
     priceLabel: (buildPrice: number) => `$${Math.round(buildPrice * 0.2).toLocaleString()} export fee`,
     priceCalc: (buildPrice: number) => Math.round(buildPrice * 0.2),
     icon: "📄",
   },
   {
-    id: "stop",
-    label: "Just cancel — no assets",
-    desc: "We stop billing at end of your current period. Your site goes offline within 30 days. No files, no transfer.",
-    priceLabel: () => "Free — 30 days notice required",
+    id: "remove",
+    label: "Remove from our system — no assets",
+    desc: "We remove you from our dashboards at no charge. Your site goes offline within 30 days and you take nothing with you. Free, no questions asked.",
+    priceLabel: () => "Free — 30 days notice",
     priceCalc: () => 0,
-    icon: "🚫",
+    icon: "🗑️",
+  },
+];
+
+// ─── Social media offboarding options ─────────────────────────────────────────
+const SOCIAL_CANCEL_OPTIONS = [
+  {
+    id: "social_handover",
+    label: "Full social account handover",
+    desc: "We transfer the Gmail address, reset all platform passwords, and email you a signed confirmation with screenshots of sign-out from each platform. You own everything.",
+    priceLabel: () => "$299 one-off handover fee",
+    priceCalc: () => 299,
+    icon: "📱",
+  },
+  {
+    id: "social_remove",
+    label: "Remove management — no handover",
+    desc: "We stop posting and managing your accounts. The Gmail and social profiles remain under our management and go dormant. No charge.",
+    priceLabel: () => "Free",
+    priceCalc: () => 0,
+    icon: "🗑️",
   },
 ];
 
@@ -596,7 +616,7 @@ export default function ClientPortal() {
   const [showSubModal, setShowSubModal] = useState(false);
   const [subStep, setSubStep] = useState<"reason" | "option" | "confirm">("reason");
   const [cancelReason, setCancelReason] = useState("");
-  const [cancelOption, setCancelOption] = useState<typeof CANCEL_OPTIONS[0] | null>(null);
+  const [cancelOption, setCancelOption] = useState<{id:string;label:string;desc:string;priceLabel:(n:number)=>string;priceCalc:(n:number)=>number;icon:string} | null>(null);
 
   // Upgrade / Feature Requests
   const [myFeatureRequests, setMyFeatureRequests] = useState<any[]>([]);
@@ -2268,8 +2288,33 @@ export default function ClientPortal() {
                       {cancelReason === "too-expensive" ? "We can pause your plan or reduce your tier. Email us — we'd rather work something out than lose you." :
                        cancelReason === "not-using" ? "You can pause for up to 2 months at no cost. Your site stays live, billing resumes after." :
                        cancelReason === "unhappy" ? "We'll fix it at no extra cost — use the Site Preview tab to submit changes. If you're still not happy after, we'll sort it out." :
-                       "Choose how you'd like to leave. Each option has a different exit fee."}
+                       cancelReason === "switching" ? "No problem — we'll make it easy. Choose a handover option below." :
+                       cancelReason === "closing" ? "Sorry to hear that. We'll remove everything at no charge." :
+                       "Choose how you'd like to leave."}
                     </div>
+
+                    {/* Switching provider — show full info panel */}
+                    {cancelReason === "switching" && (
+                      <div style={{ background: dark ? "rgba(79,158,255,0.06)" : "rgba(37,99,235,0.04)", border: `1px solid ${C.accentBlue}30`, borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: C.accentBlue, marginBottom: 8 }}>What happens when you leave</div>
+                        <div style={{ display: "flex", flexDirection: "column" as const, gap: 8, fontSize: 12, color: C.textSec }}>
+                          <div style={{ display: "flex", gap: 8 }}><span>✅</span><span><strong>Stopping our management is completely free</strong> — no charge to close out your account.</span></div>
+                          {isSocialOnly
+                            ? <div style={{ display: "flex", gap: 8 }}><span>📱</span><span>For a one-off fee of <strong>$299</strong>, we transfer your Gmail, reset all platform passwords, and send you signed proof of sign-out — all accounts and followers are yours.</span></div>
+                            : <div style={{ display: "flex", gap: 8 }}><span>📦</span><span>If you want your files or domain transferred, we offer handover packages (see below).</span></div>
+                          }
+                          <div style={{ display: "flex", gap: 8 }}><span>🔄</span><span><strong>Want to come back later?</strong> You're welcome to — but rejoining means starting fresh: the same setup process, the same rate, and a new build fee. There are no shortcuts back in.</span></div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Closing business — just remove for free */}
+                    {cancelReason === "closing" && (
+                      <div style={{ background: dark ? "rgba(239,68,68,0.06)" : "rgba(239,68,68,0.04)", border: `1px solid #ef444430`, borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#ef4444", marginBottom: 6 }}>We're sorry to hear that</div>
+                        <div style={{ fontSize: 12, color: C.textSec }}>We'll remove your site and close your account at no charge. If you ever start a new venture, we'd love to help you again.</div>
+                      </div>
+                    )}
 
                     {(cancelReason === "too-expensive" || cancelReason === "not-using" || cancelReason === "unhappy") && (
                       <div style={{ marginBottom: 16 }}>
@@ -2285,8 +2330,8 @@ export default function ClientPortal() {
                       </div>
                     )}
 
-                    <div style={{ ...S.label, marginTop: 8 }}>Or choose a cancellation option</div>
-                    {CANCEL_OPTIONS.map(opt => (
+                    <div style={{ ...S.label, marginTop: 8 }}>Choose an option</div>
+                    {(isSocialOnly ? SOCIAL_CANCEL_OPTIONS : CANCEL_OPTIONS).map(opt => (
                       <button key={opt.id} onClick={() => { setCancelOption(opt); setSubStep("confirm"); }}
                         style={{ display: "block", width: "100%", textAlign: "left", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 16px", fontSize: 13, color: C.textSec, cursor: "pointer", marginBottom: 10 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
@@ -2298,7 +2343,7 @@ export default function ClientPortal() {
                             </div>
                           </div>
                           <div style={{ flexShrink: 0, textAlign: "right" }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: opt.id === "stop" ? C.textSec : "#ffcc55", whiteSpace: "nowrap" }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: opt.id === "remove" ? C.accent : "#ffcc55", whiteSpace: "nowrap" }}>
                               {opt.priceLabel(buildPrice)}
                             </div>
                           </div>
@@ -2321,18 +2366,50 @@ export default function ClientPortal() {
                       <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 8 }}>{cancelOption.desc}</div>
                       <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
                         <span style={{ fontSize: 13, color: C.textMuted }}>Exit fee</span>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: cancelOption.id === "stop" ? C.textSec : "#ffcc55" }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: cancelOption.id === "remove" ? C.accent : "#ffcc55" }}>
                           {cancelOption.priceCalc(buildPrice) === 0 ? "Free" : `$${cancelOption.priceCalc(buildPrice).toLocaleString()}`}
                         </span>
                       </div>
                     </div>
-                    <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 16 }}>
-                      Clicking below sends a cancellation request to our team. We'll confirm within 1 business day.
+                    {cancelOption.id === "remove" && (
+                      <div style={{ background: dark ? "rgba(0,200,150,0.06)" : "rgba(0,200,150,0.04)", border: `1px solid #00c89630`, borderRadius: 10, padding: "12px 14px", marginBottom: 14, fontSize: 12, color: C.textSec }}>
+                        <strong style={{ color: C.accent }}>No charge for removal.</strong> We'll close your account and take the site offline within 30 days. If you ever come back, you'll go through the full setup process at the standard rate.
+                      </div>
+                    )}
+                    {cancelOption.id === "social_handover" && (
+                      <div style={{ background: dark ? "rgba(168,85,247,0.06)" : "rgba(124,58,237,0.04)", border: `1px solid #a855f730`, borderRadius: 10, padding: "12px 14px", marginBottom: 14, fontSize: 12, color: C.textSec }}>
+                        <strong style={{ color: "#a855f7" }}>What happens next:</strong>
+                        <div style={{ marginTop: 8, display: "flex", flexDirection: "column" as const, gap: 6 }}>
+                          <div style={{ display: "flex", gap: 8 }}><span>1.</span><span>We sign out of all connected social platforms and the Gmail account.</span></div>
+                          <div style={{ display: "flex", gap: 8 }}><span>2.</span><span>We reset the Gmail password and send it to your registered email address.</span></div>
+                          <div style={{ display: "flex", gap: 8 }}><span>3.</span><span>We email you a signed confirmation with screenshots as proof of sign-out.</span></div>
+                          <div style={{ display: "flex", gap: 8 }}><span>4.</span><span>All accounts, content, and followers are yours — we retain no access.</span></div>
+                        </div>
+                      </div>
+                    )}
+                    {cancelOption.id === "social_remove" && (
+                      <div style={{ background: dark ? "rgba(0,200,150,0.06)" : "rgba(0,200,150,0.04)", border: `1px solid #00c89630`, borderRadius: 10, padding: "12px 14px", marginBottom: 14, fontSize: 12, color: C.textSec }}>
+                        <strong style={{ color: C.accent }}>No charge.</strong> We stop all posting and management immediately. The accounts remain under our Gmail and go dormant — we will not post or access them. You can request a full handover at any time for $299.
+                      </div>
+                    )}
+                    {/* Legal notice */}
+                    <div style={{ background: dark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 11, color: C.textMuted, lineHeight: 1.6 }}>
+                      <strong style={{ color: C.textSec }}>Terms & conditions:</strong> By submitting this request you acknowledge that: (a) cancellation takes effect at the end of your current billing period; (b) no refunds are issued for partial months; (c) WebGecko retains no liability for any loss of followers, engagement, or account standing after handover; (d) re-engagement with WebGecko services requires a new agreement at prevailing rates; (e) this request is not legally binding until confirmed in writing by WebGecko.
                     </div>
+                    {cancelOption.id !== "remove" && cancelOption.id !== "social_remove" && (
+                      <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 16 }}>
+                        Clicking below sends a request to our team. We'll confirm and invoice within 1 business day.
+                      </div>
+                    )}
+                    {(cancelOption.id === "remove" || cancelOption.id === "social_remove") && (
+                      <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 16 }}>
+                        Clicking below sends your removal request. We'll confirm within 1 business day and begin offboarding.
+                      </div>
+                    )}
                     <a
-                      href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Cancellation — " + client.businessName + " — " + cancelOption.label)}&body=${encodeURIComponent("Hi WebGecko,\n\nI'd like to cancel.\n\nBusiness: " + client.businessName + "\nOption: " + cancelOption.label + "\nReason: " + cancelReason)}`}
-                      style={{ ...S.btn("danger"), textDecoration: "none", width: "100%", display: "flex", fontSize: 13, marginBottom: 10 }}>
-                      Send Cancellation Request
+                      href={`mailto:hello@webgecko.au?subject=${encodeURIComponent((cancelOption.id === "remove" || cancelOption.id === "social_remove" ? "Removal request" : cancelOption.id === "social_handover" ? "Social handover request" : "Cancellation") + " — " + client.businessName + " — " + cancelOption.label)}&body=${encodeURIComponent("Hi WebGecko,\n\n" + (cancelOption.id === "social_handover" ? "I would like to proceed with the full social account handover." : cancelOption.id === "social_remove" ? "I would like to stop social media management. No handover required." : cancelOption.id === "remove" ? "I'd like to be removed from the system." : "I'd like to cancel.") + "\n\nBusiness: " + client.businessName + "\nOption: " + cancelOption.label + "\nReason: " + cancelReason + (cancelOption.priceCalc(buildPrice) > 0 ? "\nFee: $" + cancelOption.priceCalc(buildPrice).toLocaleString() : "") + "\n\nI acknowledge the terms and conditions outlined in the cancellation flow.")}`}
+                      style={{ ...S.btn(cancelOption.id === "remove" || cancelOption.id === "social_remove" ? "secondary" : cancelOption.id === "social_handover" ? "primary" : "danger"), textDecoration: "none", width: "100%", display: "flex", fontSize: 13, marginBottom: 10 }}>
+                      {cancelOption.id === "remove" ? "Send Removal Request" : cancelOption.id === "social_remove" ? "Stop Social Management" : cancelOption.id === "social_handover" ? "Request Account Handover →" : "Send Cancellation Request"}
                     </a>
                     <button onClick={() => setShowSubModal(false)} style={{ ...S.btn("secondary"), width: "100%", fontSize: 13 }}>Keep my plan</button>
                     <button onClick={() => setSubStep("option")} style={{ ...S.btn("ghost"), width: "100%", fontSize: 13 }}>← Back</button>
@@ -2676,38 +2753,38 @@ export default function ClientPortal() {
               {
                 id: "starter",
                 name: "Starter",
-                price: 399,
+                price: 499,
                 period: "/mo",
                 badge: null,
                 platforms: 2,
                 posts: 12,
-                perPost: "~$33",
+                perPost: "~$42",
                 features: [
                   "2 platforms (Instagram + Facebook)",
                   "12 posts per month",
+                  "We create & manage your accounts",
+                  "Comment & DM responses included",
                   "Expert captions & hashtags",
-                  "Content calendar access",
                   "Monthly performance report",
-                  "Manual approval mode available",
                 ],
                 color: "#4f9eff",
               },
               {
                 id: "growth",
                 name: "Growth",
-                price: 699,
+                price: 799,
                 period: "/mo",
                 badge: "Most Popular",
                 platforms: 4,
                 posts: 20,
-                perPost: "~$35",
+                perPost: "~$40",
                 features: [
                   "4 platforms of your choice",
                   "20 posts per month",
-                  "Expert captions & hashtags",
+                  "We create & manage your accounts",
+                  "Comment, DM & review responses",
                   "Reel / short-video scripts included",
                   "Competitor & trend monitoring",
-                  "Bi-weekly strategy calls",
                   "Priority support",
                 ],
                 color: "#a855f7",
@@ -2715,20 +2792,20 @@ export default function ClientPortal() {
               {
                 id: "suite",
                 name: "Full Suite",
-                price: 1099,
+                price: 1299,
                 period: "/mo",
                 badge: "Best Value",
                 platforms: 99,
                 posts: 36,
-                perPost: "~$30",
+                perPost: "~$36",
                 features: [
                   "All platforms (6+)",
                   "36 posts per month",
+                  "We create & manage your accounts",
+                  "Full community management (comments, DMs, reviews)",
                   "Full creative direction & brand kit",
                   "Paid ad management (Meta + TikTok)",
-                  "Weekly analytics dashboard",
                   "Dedicated account manager",
-                  "Same-day priority support",
                 ],
                 color: "#10b981",
               },
@@ -2763,7 +2840,7 @@ export default function ClientPortal() {
                     <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg,#7c3aed,#a855f7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>📱</div>
                     <div>
                       <div style={{ fontSize: 20, fontWeight: 800, color: C.text, letterSpacing: "-0.03em", lineHeight: 1.2 }}>Social Media Management</div>
-                      <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>Fully managed posting — from content creation to publishing. You focus on your business.</div>
+                      <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>We create your accounts, craft your content, post on schedule, and respond to every comment and DM. You just focus on your business.</div>
                     </div>
                   </div>
                 </div>
@@ -2779,9 +2856,9 @@ export default function ClientPortal() {
                         { icon: "📅", title: "Content Calendar", desc: "Posts planned weeks ahead, tailored to your brand voice" },
                         { icon: "✍️", title: "Creative Captions", desc: "Every caption crafted in your brand voice with trending hashtags" },
                         { icon: "📊", title: "Live Analytics", desc: "Follower growth & engagement tracked daily" },
-                        { icon: "✅", title: "Approval Mode", desc: "Auto-post or approve each post before it goes live" },
+                        { icon: "💬", title: "Community Management", desc: "We respond to comments, DMs and reviews on your behalf" },
                         { icon: "🌐", title: "Multi-Platform", desc: "Instagram, Facebook, TikTok, LinkedIn, YouTube & more" },
-                        { icon: "🚀", title: "5-Day Setup", desc: "Accounts live and first posts scheduled within 5 business days" },
+                        { icon: "🚀", title: "5-Day Setup", desc: "Accounts created and first posts live within 5 business days — zero effort from you" },
                       ].map(f => (
                         <div key={f.title} style={{ background: dark ? "rgba(80,40,120,0.1)" : "rgba(124,58,237,0.04)", border: `1px solid ${dark ? "rgba(120,60,200,0.2)" : "rgba(124,58,237,0.14)"}`, borderRadius: 10, padding: "10px 12px", display: "flex", gap: 8 }}>
                           <span style={{ fontSize: 16, flexShrink: 0 }}>{f.icon}</span>
@@ -2828,7 +2905,7 @@ export default function ClientPortal() {
 
                     {/* Competitor context */}
                     <div style={{ background: C.raised, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", fontSize: 11, color: C.textMuted, lineHeight: 1.6, flexShrink: 0 }}>
-                      💡 <strong style={{ color: C.textSec }}>Market context:</strong> Most Australian social media agencies charge $800–$2,500/mo for managed posting. Our rates include full content creation, scheduling, and reporting — no hidden fees.
+                      💡 <strong style={{ color: C.textSec }}>Market context:</strong> Hiring a social media manager in Australia costs $6,700–$8,300/mo in salary alone. Most agencies charge $1,500–$5,000/mo. Our plans include full account creation, posting, and community management — no lock-in, no hidden fees.
                     </div>
                   </div>
 
@@ -2903,11 +2980,11 @@ export default function ClientPortal() {
                     <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "14px 16px", overflow: "auto", flex: 1 }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>Quick answers</div>
                       {[
-                        { q: "Do I need to create accounts?", a: "No — we handle everything. We can create new accounts on your behalf or link your existing ones." },
+                        { q: "Do I need to create accounts?", a: "No — we create a dedicated email address and register all your social accounts. You never need to touch it." },
                         { q: "Can I approve posts first?", a: "Yes. Enable Approval Mode and every post comes to you for sign-off before it goes live." },
-                        { q: "What platforms do you support?", a: "Instagram, Facebook, TikTok, LinkedIn, YouTube, and Google Business. More available on request." },
+                        { q: "What platforms do you support?", a: "Instagram, Facebook, TikTok, LinkedIn, YouTube, and Google Business. All accounts are created and owned by us on your behalf." },
                         { q: "Can I change plans later?", a: "Absolutely. Upgrade, downgrade, or pause any time with 7 days notice." },
-                        { q: "No lock-in contracts?", a: "Month-to-month only. Cancel anytime." },
+                        { q: "What happens if I cancel?", a: "We reset the account password and email you proof — the accounts and all content stay yours. Month-to-month, no lock-in." },
                       ].map((item, i, arr) => (
                         <div key={item.q} style={{ paddingBottom: i < arr.length - 1 ? 10 : 0, marginBottom: i < arr.length - 1 ? 10 : 0, borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
                           <div style={{ fontSize: 11, fontWeight: 700, color: C.textSec, marginBottom: 3 }}>{item.q}</div>

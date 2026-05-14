@@ -11,6 +11,8 @@ const TYPE_LABELS: Record<string, string> = {
   add_platform:           "Add Platform",
   social_link_existing:   "Link Existing Accounts",
   social_create_accounts: "Full Account Creation Request",
+  social_handover:        "Social Account Handover Request",
+  social_remove:          "Stop Social Management Request",
 };
 
 function buildRow(label: string, value: string, highlight = false): string {
@@ -48,7 +50,9 @@ export async function POST(req: NextRequest) {
     const subjectIcon =
       type === "add_platform"           ? "Add Platform" :
       type === "social_create_accounts" ? "Account Setup" :
-      type === "social_link_existing"   ? "Link Accounts" : "New Bundle";
+      type === "social_link_existing"   ? "Link Accounts" :
+      type === "social_handover"        ? "Handover Request" :
+      type === "social_remove"          ? "Stop Management" : "New Bundle";
 
     const subject = planLabel
       ? "[WebGecko] " + subjectIcon + ": " + planLabel + " -- " + businessName
@@ -58,6 +62,8 @@ export async function POST(req: NextRequest) {
       type === "social_create_accounts" ? "Account Creation Request" :
       type === "social_link_existing"   ? "Link Existing Accounts" :
       type === "add_platform"           ? "Add Platform Request" :
+      type === "social_handover"        ? "Social Account Handover Request" :
+      type === "social_remove"          ? "Stop Social Management Request" :
                                           "Social Media Bundle Request";
 
     const platformStr = Array.isArray(platforms) ? platforms.join(", ") : (platforms || "");
