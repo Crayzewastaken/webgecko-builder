@@ -1353,7 +1353,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               {/* Newsletter unsubscribe compliance notice */}
               {contentSubTab==="newsletter"&&(ui.features||[]).includes("Newsletter Signup")&&(
                 <div style={{background:T.amber+"12",border:`1px solid ${T.amber}30`,borderRadius:10,padding:"12px 16px",marginBottom:16,display:"flex",gap:12,alignItems:"flex-start"}}>
-                  <span style={{fontSize:18,flexShrink:0}}>⚖️</span>
+                  <span style={{fontSize:18,flexShrink:0}}>{"\u2696\ufe0f"}</span>
                   <div>
                     <div style={{fontSize:12,fontWeight:700,color:T.amber,marginBottom:4}}>Spam Act 2003 — Legal Requirement</div>
                     <div style={{fontSize:12,color:T.textMuted,lineHeight:1.7}}>
@@ -3947,7 +3947,7 @@ function AdminDashboard() {
             <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:16, overflow:"hidden", marginTop:32, boxShadow:T.shadow }}>
               <button onClick={()=>setLegalOpen(o=>!o)} style={{ width:"100%", background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 24px", color:T.text, fontFamily:"inherit" }}>
                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <div style={{ width:34,height:34,borderRadius:8,background:T.purple+"20",border:`1px solid ${T.purple}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16 }}>⚖️</div>
+                  <div style={{ width:34,height:34,borderRadius:8,background:T.purple+"20",border:`1px solid ${T.purple}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16 }}>{"\u2696\ufe0f"}</div>
                   <div style={{ textAlign:"left" as const }}>
                     <div style={{ fontSize:14, fontWeight:700, color:T.text }}>Legal Documents</div>
                     <div style={{ fontSize:12, color:T.textMuted, marginTop:2 }}>{DOCS.length} documents · Queensland, Australia · ABN 32 300 992 377</div>
@@ -3982,4 +3982,23 @@ function AdminDashboard() {
                     ))}
                   </div>
                   <div style={{ marginTop:14, background:T.raised, border:`1px solid ${T.border}`, borderRadius:8, padding:"10px 14px", fontSize:11, color:T.textMuted, lineHeight:1.6 }}>
-                    ⚠️ These documents wer
+                    {"⚠️"} These documents were generated on {new Date().toLocaleDateString("en-AU")}. If you update pricing, plans, or service terms, regenerate the PDFs and redeploy. Clients who accepted prior versions are bound to those terms — notify them of material changes via email.
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+        {!loading&&<ExampleHtmlsPanel toast={toast}/>}
+          </>);
+        })()}
+        </>)}
+
+          </div>{/* end padding div */}
+        </div>{/* end wg-admin-main */}
+      </div>{/* end wg-admin-layout */}
+    </div>
+  );
+}
+
+export default AdminDashboard;
