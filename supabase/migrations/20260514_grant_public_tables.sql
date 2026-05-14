@@ -14,6 +14,8 @@ ALTER TABLE IF EXISTS public.payments        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.feedback        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.pipeline_errors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.page_versions   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.payment_state   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.analytics       ENABLE ROW LEVEL SECURITY;
 
 -- ── service_role — full access to everything (server-side operations) ──
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.jobs            TO service_role;
@@ -24,6 +26,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.payments        TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.feedback        TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.pipeline_errors TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.page_versions   TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.payment_state   TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.analytics       TO service_role;
 
 -- ── authenticated — full access for logged-in users (RLS policies apply) ──
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.jobs            TO authenticated;
@@ -34,6 +38,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.payments        TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.feedback        TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.pipeline_errors TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.page_versions   TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.payment_state   TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.analytics       TO authenticated;
 
 -- ── anon — read-only access to public-facing tables only ──
 GRANT SELECT ON public.clients TO anon;
