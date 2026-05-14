@@ -596,6 +596,7 @@ export default function ClientPortal() {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [revisionSent, setRevisionSent] = useState(false);
+  const [previewTs, setPreviewTs] = useState(() => Date.now());
 
   // Report an Issue
   const [reportText, setReportText] = useState("");
@@ -1593,13 +1594,26 @@ export default function ClientPortal() {
               <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 112px)" }}>
                 {/* iframe toolbar */}
                 <div style={{ flex: 1, position: "relative", background: C.bg, borderBottom: `1px solid ${C.border}`, minHeight: 0 }}>
-                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", height: 42, background: C.surface, borderBottom: `1px solid ${C.border}`, zIndex: 10 }}>
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 12px", height: 42, background: C.surface, borderBottom: `1px solid ${C.border}`, zIndex: 10, gap: 8 }}>
                     <span style={{ color: C.textSec, fontWeight: 500, fontSize: 13 }}>Live preview — Round {feedbackRound}</span>
-                    {client.previewUrl && <a href={client.previewUrl} target="_blank" rel="noopener noreferrer" style={{ color: C.accentBlue, fontSize: 12, textDecoration: "none" }}>Open in new tab ↗</a>}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <button
+                        onClick={() => setPreviewTs(Date.now())}
+                        title="Reload preview"
+                        style={{ background: C.raised, border: `1px solid ${C.border}`, color: C.textSec, borderRadius: 7, padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5 }}>
+                        ↻ Reload
+                      </button>
+                      {client.previewUrl && (
+                        <a href={client.previewUrl} target="_blank" rel="noopener noreferrer"
+                          style={{ color: C.accentBlue, fontSize: 12, textDecoration: "none", fontWeight: 600 }}>
+                          Open in new tab ↗
+                        </a>
+                      )}
+                    </div>
                   </div>
                   <iframe
-                    key={`preview-${client.jobId}`}
-                    src={`/api/preview/proxy?slug=${slug}&v=${client.jobId?.slice(-6) || Date.now()}`}
+                    key={`preview-${client.jobId}-${previewTs}`}
+                    src={`/api/preview/proxy?slug=${slug}&v=${previewTs}`}
                     style={{ position: "absolute", top: 42, left: 0, width: "100%", height: "calc(100% - 42px)", border: "none" }}
                     title="Site Preview"
                   />
@@ -2021,9 +2035,9 @@ export default function ClientPortal() {
                 </div>
               </div>
             ) : (
-              /* ── Website billing — two-column stepper layout ── */
+              /* ── Website billing — clean single-column layout ── */
               <>
-                {/* Business details collapsible — collapsed when all filled */}
+                {/* Pre-pay details form */}
                 {(()=>{
                   const missingAbn = !prePayAbn.trim();
                   const missingDomain = !prePayDomain.trim();
@@ -2037,140 +2051,115 @@ export default function ClientPortal() {
                     { key:"ga4", label:"Google Analytics ID (optional)", placeholder:"G-XXXXXXXXXX", value:prePayGa4, onChange:setPrePayGa4, hint:"Don't have one yet? No problem — leave blank and add it anytime.", missing:false },
                   ];
                   return (
-                    <div style={{ ...S.card, borderColor: anyMissing ? "#f59e0b60" : "#00c89630", marginBottom:4 }}>
-                      <div style={{ fontWeight: 700, fontSize: 14, color: C.text, marginBottom: 4 }}>
-                        {paymentStatus?.depositPaid ? "📋 A Few Details We Still Need" : "📋 Before You Pay — A Few Details"}
-                      </div>
-                      <div style={{ color: C.textMuted, fontSize: 12, marginBottom: 16 }}>
-                        {paymentStatus?.depositPaid
-                          ? "No rush — fill these in when you have them handy. We need them before we can register your domain and finalise your site."
-                          : "These help us register your domain and set everything up correctly. Not ready? Fill them in after payment — no stress."}
+                    <div style={{ ...S.card, borderColor: anyMissing ? C.amber+"50" : C.accent+"30", marginBottom:0 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+                        <div style={{ width:32,height:32,borderRadius:8,background:anyMissing?C.amber+"18":C.accentBg,border:`1px solid ${anyMissing?C.amber+"40":C.accent+"30"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0 }}>
+                          {anyMissing ? "📋" : "✓"}
+                        </div>
+                        <div>
+                          <div style={{ fontSize:14, fontWeight:700, color:C.text }}>
+                            {paymentStatus?.depositPaid ? "Business Details" : "Before You Pay"}
+                          </div>
+                          <div style={{ fontSize:12, color:C.textMuted, marginTop:1 }}>
+                            {anyMissing ? "Fill in these details so we can register your domain." : "All details saved."}
+                          </div>
+                        </div>
                       </div>
                       {fields.map(f => (
-                        <div key={f.key} style={{ marginBottom: 12 }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: f.missing ? C.amber : C.textSec, marginBottom: 4 }}>
-                            {f.label}{f.missing && <span style={{ color: C.amber, marginLeft: 4 }}>← needed</span>}
+                        <div key={f.key} style={{ marginBottom:12 }}>
+                          <div style={{ fontSize:11, fontWeight:600, color:f.missing?C.amber:C.textSec, marginBottom:4, display:"flex", alignItems:"center", gap:4 }}>
+                            {f.label}
+                            {f.missing && <span style={{ fontSize:10, color:C.amber, background:C.amber+"18", borderRadius:4, padding:"1px 6px" }}>needed</span>}
                           </div>
-                          <input
-                            type="text"
-                            placeholder={f.placeholder}
-                            value={f.value}
-                            onChange={e => f.onChange(e.target.value)}
-                            style={{ width: "100%", background: C.raised, border: `1px solid ${f.missing ? C.amber+"60" : C.border}`, borderRadius: 8, padding: "8px 12px", color: C.text, fontSize: 13, outline: "none", boxSizing: "border-box" as const }}
-                          />
-                          <div style={{ fontSize: 11, color: C.textMuted, marginTop: 3 }}>{f.hint}</div>
+                          <input type="text" placeholder={f.placeholder} value={f.value} onChange={e => f.onChange(e.target.value)}
+                            style={{ width:"100%", background:C.raised, border:`1px solid ${f.missing?C.amber+"50":C.border}`, borderRadius:8, padding:"9px 12px", color:C.text, fontSize:13, outline:"none", boxSizing:"border-box" as const, fontFamily:"inherit" }}/>
+                          <div style={{ fontSize:11, color:C.textMuted, marginTop:3 }}>{f.hint}</div>
                         </div>
                       ))}
-                      <button
-                        onClick={savePrePayDetails}
-                        disabled={prePaySaving}
-                        style={{ background: prePaySaved ? "#00c896" : C.accentBlue, color: "#fff", fontWeight: 700, fontSize: 13, padding: "9px 18px", borderRadius: 8, border: "none", cursor: "pointer", width: "100%", marginTop: 4 }}
-                      >
-                        {prePaySaving ? "Saving..." : prePaySaved ? "✓ Saved!" : "Save Details"}
+                      <button onClick={savePrePayDetails} disabled={prePaySaving}
+                        style={{ background:prePaySaved?C.accent:C.accentBlue, color:prePaySaved?"#000":"#fff", fontWeight:700, fontSize:13, padding:"10px 18px", borderRadius:9, border:"none", cursor:"pointer", width:"100%", marginTop:4, fontFamily:"inherit" }}>
+                        {prePaySaving ? "Saving…" : prePaySaved ? "✓ Details Saved" : "Save Details"}
                       </button>
                     </div>
                   );
                 })()}
 
-                {/* Two-column layout: stepper left, active action right */}
+                {/* Payment section */}
                 {!paymentStatus ? (
-                  <div style={{ ...S.card, textAlign: "center", padding: 32 }}><div style={{ color: C.textMuted, fontSize: 14 }}>Loading payment details…</div></div>
+                  <div style={{ ...S.card, textAlign:"center", padding:32 }}><div style={{ color:C.textMuted, fontSize:14 }}>Loading…</div></div>
+                ) : paymentStatus.monthlyActive ? (
+                  <div style={{ ...S.card, background:C.accentBg, borderColor:`${C.accent}30`, textAlign:"center", padding:"36px 24px" }}>
+                    <div style={{ width:56,height:56,borderRadius:"50%",background:C.accent+"22",border:`2px solid ${C.accent}40`,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",fontSize:26 }}>{"✓"}</div>
+                    <div style={{ fontSize:18, fontWeight:800, color:C.accent, marginBottom:8 }}>All payments complete</div>
+                    <div style={{ fontSize:13, color:C.textMuted, lineHeight:1.6 }}>Your site is live and monthly hosting is active.</div>
+                  </div>
                 ) : (
-                  <div style={{ display:"flex", gap:16, flexWrap:"wrap" as const }}>
-                    {/* ── Left: Quote summary + payment stepper ── */}
-                    <div style={{ flex:"1 1 260px", display:"flex", flexDirection:"column", gap:12 }}>
-                      {/* Quote summary */}
-                      {client.quote && (
-                        <div style={S.card}>
-                          <div style={S.label}>{client.quote.package} Package</div>
-                          <div style={{ fontSize: 28, fontWeight: 800, color: C.text, marginBottom: 4 }}>${client.quote.price.toLocaleString()}</div>
-                          <div style={{ color: C.textMuted, fontSize: 12, marginBottom: 10 }}>+ $109/month for 3 months, then $119/month</div>
-                          <div style={{ background: "#00c89610", border: "1px solid #00c89625", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: C.accent, marginBottom: 10 }}>
-                            🎉 Saving ${client.quote.savings.toLocaleString()} vs industry avg
+                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                    {/* Quote summary row */}
+                    {client.quote && (
+                      <div style={{ ...S.card, padding:"18px 20px" }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
+                          <div>
+                            <div style={{ fontSize:12, fontWeight:700, color:C.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.08em", marginBottom:4 }}>{client.quote.package} Package</div>
+                            <div style={{ fontSize:30, fontWeight:800, color:C.text, letterSpacing:"-0.03em" }}>${client.quote.price.toLocaleString()}</div>
+                            <div style={{ fontSize:12, color:C.textMuted, marginTop:2 }}>+ $109/mo for 3 months, then $119/mo</div>
                           </div>
-                          {client.quote.breakdown.map(line => (
-                            <div key={line} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.textMuted }}>
-                              <span>{line.split(":")[0]}</span><span>{line.split(":")[1]}</span>
-                            </div>
-                          ))}
+                          <div style={{ background:C.accent+"15", border:`1px solid ${C.accent}30`, borderRadius:8, padding:"6px 12px", fontSize:12, color:C.accent, fontWeight:600, textAlign:"right", flexShrink:0 }}>
+                            Saving ${client.quote.savings.toLocaleString()}
+                          </div>
                         </div>
-                      )}
-
-                      {/* Payment stepper */}
-                      <div style={S.card}>
-                        <div style={S.label}>Payment Timeline</div>
-                        <div style={{ display:"flex", flexDirection:"column", gap:0, marginTop:12 }}>
-                          {[
-                            { key:"deposit", label:"50% Deposit", icon:"💳", amount:`$${paymentStatus.quote.deposit.toLocaleString()}`, done:paymentStatus.depositPaid, active:!paymentStatus.depositPaid },
-                            { key:"final", label:"50% Final", icon:"🚀", amount:`$${paymentStatus.quote.final.toLocaleString()}`, done:paymentStatus.finalPaid, active:paymentStatus.depositPaid&&!paymentStatus.finalPaid },
-                            { key:"monthly", label:"Monthly Hosting", icon:"🔄", amount:"$109/mo", done:paymentStatus.monthlyActive, active:paymentStatus.finalPaid&&!paymentStatus.monthlyActive },
-                          ].map((step, i, arr) => (
-                            <div key={step.key} style={{ display:"flex", gap:12 }}>
-                              <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
-                                <div style={{ width:32, height:32, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, background: step.done ? C.accentBg : step.active ? C.accentBlue+"22" : C.raised, border:`2px solid ${step.done ? C.accent : step.active ? C.accentBlue : C.border}`, flexShrink:0 }}>
-                                  {step.done ? <span style={{ color:C.accent, fontWeight:800, fontSize:13 }}>✓</span> : step.icon}
-                                </div>
-                                {i < arr.length - 1 && <div style={{ width:2, flex:1, minHeight:16, background: step.done ? C.accent+"40" : C.border, margin:"4px 0" }}/>}
-                              </div>
-                              <div style={{ paddingBottom: i < arr.length - 1 ? 20 : 0, paddingTop:4 }}>
-                                <div style={{ fontSize:13, fontWeight:600, color: step.done ? C.accent : step.active ? C.text : C.textMuted }}>{step.label}</div>
-                                <div style={{ fontSize:12, color: step.done ? C.accent : C.textMuted, marginTop:1 }}>
-                                  {step.done ? "Paid" : step.active ? step.amount : step.key==="monthly" ? "Included in final payment" : "Locked"}
-                                </div>
-                              </div>
+                        <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:10 }}>
+                          {client.quote.breakdown.map((line:string) => (
+                            <div key={line} style={{ display:"flex", justifyContent:"space-between", padding:"4px 0", fontSize:12, color:C.textMuted }}>
+                              <span>{line.split(":")[0]}</span><span style={{ fontWeight:600, color:C.textSec }}>{line.split(":")[1]}</span>
                             </div>
                           ))}
                         </div>
                       </div>
-                    </div>
+                    )}
 
-                    {/* ── Right: Active payment action panel ── */}
-                    <div style={{ flex:"1 1 260px" }}>
-                      {paymentStatus.monthlyActive ? (
-                        <div style={{ ...S.card, background:C.accentBg, borderColor:`${C.accent}30`, textAlign:"center", padding:"32px 24px" }}>
-                          <div style={{ fontSize:36, marginBottom:12 }}>🎉</div>
-                          <div style={{ fontSize:18, fontWeight:800, color:C.accent, marginBottom:8 }}>You&apos;re all set!</div>
-                          <div style={{ fontSize:13, color:C.textMuted, lineHeight:1.6 }}>All payments complete. Your site is live and monthly hosting is active.</div>
-                        </div>
-                      ) : !paymentStatus.depositPaid ? (
-                        <div style={{ ...S.card, borderColor:`${C.accentBlue}40` }}>
-                          <div style={{ fontSize:13, fontWeight:700, color:C.textSec, marginBottom:4, textTransform:"uppercase" as const, letterSpacing:"0.05em" }}>Step 1 of 3</div>
-                          <div style={{ fontSize:20, fontWeight:800, color:C.text, marginBottom:4 }}>50% Deposit</div>
-                          <div style={{ fontSize:13, color:C.textMuted, marginBottom:16 }}>Pay now to kick off your website build. Nothing starts until this is paid.</div>
-                          <div style={{ fontSize:32, fontWeight:900, color:C.text, marginBottom:20 }}>${paymentStatus.quote.deposit.toLocaleString()}</div>
-                          <button onClick={() => handlePay("deposit")} disabled={payLoading === "deposit"}
-                            style={{ ...S.payBtn(true), width:"100%", fontSize:15 }}>
-                            {payLoading === "deposit" ? "Loading…" : "Pay Deposit →"}
-                          </button>
-                        </div>
-                      ) : !paymentStatus.finalPaid ? (
-                        <div style={{ ...S.card, borderColor: paymentStatus.finalUnlocked ? `${C.accentBlue}40` : C.border, opacity: paymentStatus.finalUnlocked ? 1 : 0.7 }}>
-                          <div style={{ fontSize:13, fontWeight:700, color:C.textSec, marginBottom:4, textTransform:"uppercase" as const, letterSpacing:"0.05em" }}>Step 2 of 3</div>
-                          <div style={{ fontSize:20, fontWeight:800, color:C.text, marginBottom:4 }}>50% Final Payment</div>
-                          <div style={{ fontSize:13, color:C.textMuted, marginBottom:16 }}>
-                            {paymentStatus.finalUnlocked ? "Your revision is approved — pay to launch your site live." : "Unlocked after your revision is approved."}
+                    {/* Payment steps */}
+                    {[
+                      { key:"deposit" as const, step:1, label:"50% Deposit", sub:"Kicks off your website build", amount:paymentStatus.quote.deposit, done:paymentStatus.depositPaid, active:!paymentStatus.depositPaid, btnLabel:"Pay Deposit", locked:false },
+                      { key:"final" as const,   step:2, label:"50% Final Payment", sub:paymentStatus.finalUnlocked?"Your revision is approved — pay to go live":"Unlocked after revision approval", amount:paymentStatus.quote.final, done:paymentStatus.finalPaid, active:paymentStatus.depositPaid&&!paymentStatus.finalPaid, btnLabel:"Pay Final & Go Live", locked:paymentStatus.depositPaid&&!paymentStatus.finalPaid&&!paymentStatus.finalUnlocked },
+                      { key:"monthly" as const, step:3, label:"Monthly Hosting", sub:"First month included · $109/mo for 3 months, then $119/mo", amount:null, done:paymentStatus.monthlyActive, active:paymentStatus.finalPaid&&!paymentStatus.monthlyActive, btnLabel:"", locked:false },
+                    ].map((step) => (
+                      <div key={step.key} style={{ ...S.card, padding:"18px 20px",
+                        borderColor: step.done ? `${C.accent}40` : step.active && !step.locked ? `${C.accentBlue}40` : C.border,
+                        opacity: !step.done && !step.active ? 0.55 : 1,
+                        transition:"opacity 0.2s, border-color 0.2s" }}>
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: (step.active && !step.locked && step.key !== "monthly") ? 16 : 0 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                            <div style={{ width:36,height:36,borderRadius:"50%",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",
+                              background: step.done ? C.accent+"22" : step.active && !step.locked ? C.accentBlue+"20" : C.raised,
+                              border:`2px solid ${step.done ? C.accent : step.active && !step.locked ? C.accentBlue : C.border}` }}>
+                              {step.done
+                                ? <span style={{ color:C.accent, fontWeight:800, fontSize:14 }}>{"✓"}</span>
+                                : <span style={{ fontSize:13, fontWeight:700, color: step.active && !step.locked ? C.accentBlue : C.textMuted }}>{step.step}</span>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize:14, fontWeight:700, color: step.done ? C.accent : step.active ? C.text : C.textMuted }}>{step.label}</div>
+                              <div style={{ fontSize:12, color:C.textMuted, marginTop:1 }}>{step.sub}</div>
+                            </div>
                           </div>
-                          <div style={{ fontSize:32, fontWeight:900, color:C.text, marginBottom:20 }}>${paymentStatus.quote.final.toLocaleString()}</div>
-                          {paymentStatus.finalUnlocked ? (
-                            <button onClick={() => handlePay("final")} disabled={payLoading === "final"}
-                              style={{ ...S.payBtn(true), width:"100%", fontSize:15, opacity: payLoading === "final" ? 0.6 : 1 }}>
-                              {payLoading === "final" ? "Loading…" : "Pay Final & Launch →"}
-                            </button>
-                          ) : (
-                            <div style={S.lockBox}>🔒 Locked — awaiting revision approval</div>
+                          {step.amount !== null && (
+                            <div style={{ fontSize:20, fontWeight:800, color: step.done ? C.accent : step.active ? C.text : C.textMuted, letterSpacing:"-0.02em", flexShrink:0 }}>
+                              ${step.amount.toLocaleString()}
+                            </div>
                           )}
                         </div>
-                      ) : (
-                        <div style={{ ...S.card, borderColor:`${C.accent}30` }}>
-                          <div style={{ fontSize:13, fontWeight:700, color:C.textSec, marginBottom:4, textTransform:"uppercase" as const, letterSpacing:"0.05em" }}>Step 3 of 3</div>
-                          <div style={{ fontSize:20, fontWeight:800, color:C.text, marginBottom:4 }}>Monthly Hosting</div>
-                          <div style={{ fontSize:13, color:C.textMuted, marginBottom:16 }}>First month included in your final payment — activates on launch.</div>
-                          <div style={{ fontSize:13, color:C.accent, fontWeight:600 }}>✓ First month included — active on launch</div>
-                          <div style={{ fontSize:12, color:C.textMuted, marginTop:8 }}>Intro: $109/mo for 3 months, then $119/mo ongoing.</div>
-                        </div>
-                      )}
-                      <div style={{ color: C.textMuted, fontSize: 11, textAlign: "center", marginTop: 12 }}>Payments processed securely by Square · WebGecko never stores card details</div>
-                    </div>
+                        {step.active && !step.locked && step.key !== "monthly" && (
+                          <button onClick={() => handlePay(step.key)} disabled={payLoading === step.key}
+                            style={{ ...S.payBtn(true), width:"100%", fontSize:14, fontWeight:700, padding:"13px" }}>
+                            {payLoading === step.key ? "Loading…" : step.btnLabel + " →"}
+                          </button>
+                        )}
+                        {step.locked && (
+                          <div style={{ ...S.lockBox, marginTop:12 }}>{"🔒"} Locked — awaiting revision approval</div>
+                        )}
+                      </div>
+                    ))}
+                    <div style={{ color:C.textMuted, fontSize:11, textAlign:"center" as const }}>Payments processed securely by Square · WebGecko never stores card details</div>
                   </div>
                 )}
               </>
@@ -2602,6 +2591,16 @@ export default function ClientPortal() {
                 Select the features you'd like added. We'll build a draft for you to review before anything goes live.
               </div>
 
+              {/* Already-on-site chips */}
+              {features.length > 0 && !upgradeSubmitted && (
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14, flexWrap:"wrap" as const }}>
+                  <span style={{ fontSize:11, fontWeight:700, color:C.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.08em", flexShrink:0 }}>Already on your site:</span>
+                  {features.map((feat:string) => (
+                    <span key={feat} style={{ fontSize:11, fontWeight:600, color:C.accent, background:C.accent+"12", border:`1px solid ${C.accent}30`, borderRadius:99, padding:"3px 10px", whiteSpace:"nowrap" as const }}>{"✓"} {feat}</span>
+                  ))}
+                </div>
+              )}
+
               {upgradeSubmitted ? (
                 <div style={{ background: "#00c89610", border: "1px solid #00c89625", borderRadius: 10, padding: "20px 18px", textAlign: "center" }}>
                   <div style={{ fontSize: 20, marginBottom: 8 }}>🎉</div>
@@ -2628,22 +2627,39 @@ export default function ClientPortal() {
                       const owned = features.includes(f.id);
                       const sel = upgradeSelected.includes(f.id);
                       return (
-                        <button key={f.id}
+                        <div key={f.id}
                           onClick={() => { if (!owned) setUpgradeSelected(prev => sel ? prev.filter(x => x !== f.id) : [...prev, f.id]); }}
-                          style={{ display: "flex", alignItems: "center", gap: 12, background: owned ? C.raised : sel ? "#00c89612" : C.bg, border: `1px solid ${owned ? C.border : sel ? "#00c89640" : C.border}`, borderRadius: 10, padding: "12px 14px", cursor: owned ? "default" : "pointer", textAlign: "left", width: "100%", opacity: owned ? 0.5 : 1 }}>
-                          <span style={{ fontSize: 22, flexShrink: 0 }}>{f.icon}</span>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: sel ? C.accent : C.text, marginBottom: 2 }}>{f.label}</div>
-                            <div style={{ fontSize: 12, color: C.textMuted }}>{f.desc}</div>
+                          style={{ display:"flex", alignItems:"center", gap:12,
+                            background: owned ? C.surface : sel ? C.accent+"0e" : C.bg,
+                            border:`1px solid ${owned ? C.accent+"35" : sel ? C.accent+"40" : C.border}`,
+                            borderRadius:10, padding:"12px 14px",
+                            cursor: owned ? "default" : "pointer",
+                            opacity: owned ? 1 : 1,
+                            transition:"border-color 0.15s, background 0.15s" }}>
+                          <div style={{ width:40, height:40, borderRadius:10, flexShrink:0,
+                            background: owned ? C.accent+"15" : sel ? C.accent+"15" : C.raised,
+                            border:`1px solid ${owned ? C.accent+"30" : sel ? C.accent+"30" : C.border}`,
+                            display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>
+                            {f.icon}
+                          </div>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:13, fontWeight:600, color: owned ? C.textSec : sel ? C.accent : C.text, marginBottom:2 }}>{f.label}</div>
+                            <div style={{ fontSize:12, color:C.textMuted, lineHeight:1.4 }}>{f.desc}</div>
                           </div>
                           {owned ? (
-                            <span style={{ fontSize: 11, fontWeight: 700, color: C.accent, background: C.accentBg, border: `1px solid ${C.accent}40`, borderRadius: 99, padding: "2px 10px", whiteSpace: "nowrap" as const }}>✓ On your site</span>
+                            <div style={{ display:"flex", flexDirection:"column" as const, alignItems:"flex-end", gap:4, flexShrink:0 }}>
+                              <span style={{ fontSize:10, fontWeight:700, color:C.accent, background:C.accent+"15", border:`1px solid ${C.accent}35`, borderRadius:99, padding:"3px 10px", whiteSpace:"nowrap" as const }}>{"✓"} Active</span>
+                              <span style={{ fontSize:10, color:C.textMuted }}>Already on your site</span>
+                            </div>
                           ) : (
-                            <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${sel ? C.accent : C.border}`, background: sel ? C.accent : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                              {sel && <span style={{ color: "#000", fontSize: 11, fontWeight: 800 }}>✓</span>}
+                            <div style={{ width:22, height:22, borderRadius:"50%", flexShrink:0,
+                              border:`2px solid ${sel ? C.accent : C.border}`,
+                              background: sel ? C.accent : "transparent",
+                              display:"flex", alignItems:"center", justifyContent:"center" }}>
+                              {sel && <span style={{ color:"#000", fontSize:11, fontWeight:800, lineHeight:1 }}>{"✓"}</span>}
                             </div>
                           )}
-                        </button>
+                        </div>
                       );
                     })}
                   </div>
