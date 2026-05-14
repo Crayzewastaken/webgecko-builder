@@ -3516,7 +3516,7 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
 
             {postizTestState === "ok" && postizChannels.length === 0 && (
               <div style={{ fontSize:11, color:T.textMuted, marginBottom:10, padding:"8px", background:T.raised, borderRadius:6 }}>
-                ⚠️ API connected but no channels found. Connect client accounts in Postiz first.
+                {"⚠️"} API connected but no channels found. Connect client accounts in Postiz first.
               </div>
             )}
 
@@ -3692,7 +3692,7 @@ function AdminDashboard() {
           {/* Logo */}
           <div style={{ padding:"18px 16px 16px", borderBottom:`1px solid ${T.border}`, flexShrink:0 }}>
             <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
-              <GeckoLogo size={34} color="#00d4a0"/>
+              <div style={{ width:34,height:34,borderRadius:10,background:"linear-gradient(135deg,#4f9eff,#9d6fff)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 18px rgba(79,158,255,0.5)",fontSize:15,fontWeight:900,color:"#fff",flexShrink:0 }}>W</div>
               <div>
                 <div className="wg-brand-text" style={{ fontSize:15,fontWeight:800,letterSpacing:"-0.04em" }}>WebGecko</div>
                 <div style={{ fontSize:9,color:"#4f9eff",fontWeight:800,letterSpacing:"0.1em",textTransform:"uppercase" as const }}>Admin</div>
@@ -3749,7 +3749,7 @@ function AdminDashboard() {
         {/* ── Mobile top nav ──────────────────────────────────────────────────── */}
         <div className="wg-admin-topnav wg-glass" style={{ background: dark?"rgba(4,8,15,0.92)":"rgba(255,255,255,0.95)" }}>
           <div style={{ display:"flex",alignItems:"center",gap:10 }}>
-            <GeckoLogo size={30} color="#00d4a0"/>
+            <div style={{ width:30,height:30,borderRadius:9,background:"linear-gradient(135deg,#4f9eff,#9d6fff)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:900,color:"#fff",flexShrink:0 }}>W</div>
             <span className="wg-brand-text" style={{ fontSize:15,fontWeight:800 }}>WebGecko</span>
             <span style={{ fontSize:9,color:"#4f9eff",background:"rgba(79,158,255,0.15)",border:"1px solid rgba(79,158,255,0.25)",borderRadius:4,padding:"2px 7px",fontWeight:800,letterSpacing:"0.1em" }}>ADMIN</span>
           </div>
