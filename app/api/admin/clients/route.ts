@@ -156,7 +156,7 @@ export async function GET(req: NextRequest) {
       logoUrl: job.logo_url || "",
       heroUrl: job.hero_url || "",
       photoUrls: job.photo_urls || [],
-      squareAccessToken: job.square_access_token || "",
+      // squareAccessToken omitted — never expose OAuth tokens to browser
       squareLocationId: job.square_location_id || "",
       ga4Id: job.ga4_id || job.ga4Id || "",
     };

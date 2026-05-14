@@ -51,8 +51,11 @@ export async function GET(req: NextRequest) {
     return Response.json({ requests: all });
   }
 
-  // Client: get requests for their own job
+  // Client: get requests for their own job — require session cookie
   if (!slug) return Response.json({ error: "Missing slug" }, { status: 400 });
+
+  const cookieSlug = req.cookies.get("wg_client_slug")?.value;
+  if (!cookieSlug || cookieSlug !== slug) return Response.json({ error: "Forbidden" }, { status: 403 });
 
   const { data: clientRow } = await supabase.from("clients").select("job_id").eq("slug", slug).single();
   if (!clientRow?.job_id) return Response.json({ requests: [] });

@@ -7,11 +7,10 @@ import { inngest } from "@/lib/inngest";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { jobId, action, secret } = body;
+  const { jobId, action } = body;
 
   // Accept cookie-based session OR legacy secret in body
-  const authed = isAdminAuthed(req) || (secret && secret === process.env.PROCESS_SECRET);
-  if (!authed) return Response.json({ error: "Forbidden" }, { status: 403 });
+  if (!isAdminAuthed(req)) return Response.json({ error: "Forbidden" }, { status: 403 });
 
   if (!jobId || !action) {
     return Response.json({ error: "Missing jobId or action" }, { status: 400 });

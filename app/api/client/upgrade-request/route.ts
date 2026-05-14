@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
       (note         ? buildRow("Note", note) : "") +
       (extra        ? buildRow("Details", extra) : "");
 
-    const adminUrl = "https://webgeckofl.vercel.app/admin?secret=" + (process.env.PROCESS_SECRET || "");
+    const adminUrl = "https://webgeckofl.vercel.app/admin";
     const portalUrl = "https://webgeckofl.vercel.app/c/" + slug;
     const timestamp = new Date().toLocaleString("en-AU", { timeZone: "Australia/Brisbane" });
 
@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
     await resend.emails.send({
       from: "WebGecko <noreply@webgecko.au>",
       to: "hello@webgecko.au",
+      cc: ["zackrmcsweeney@gmail.com"],
       replyTo: email || undefined,
       subject,
       html,

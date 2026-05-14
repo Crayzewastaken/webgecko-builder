@@ -1873,11 +1873,10 @@ const buildWebsite = inngest.createFunction(
       // ── STEP 10: Email owner ──────────────────────────────────────────────────
       await step.run("step10-email", async () => {
         const base = (process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app");
-        const secret = encodeURIComponent(process.env.PROCESS_SECRET || "");
-        const releaseUrl = `${base}/api/unlock/release?jobId=${jobId}&secret=${secret}`;
-        const fixUrl = `${base}/api/admin/fix-proxy?jobId=${jobId}&secret=${secret}`;
-        const unlockBookingUrl = `${base}/api/unlock/booking?jobId=${jobId}&secret=${secret}`;
-        const adminUrl = `${base}/admin?secret=${secret}`;
+        const releaseUrl = `${base}/api/unlock/release?jobId=${jobId}&secret=${encodeURIComponent(process.env.PROCESS_SECRET || "")}`;
+        const fixUrl = `${base}/api/admin/fix-proxy?jobId=${jobId}&secret=${encodeURIComponent(process.env.PROCESS_SECRET || "")}`;
+        const unlockBookingUrl = `${base}/api/unlock/booking?jobId=${jobId}&secret=${encodeURIComponent(process.env.PROCESS_SECRET || "")}`;
+        const adminUrl = `${base}/admin`;
         const cssContent = extractCSS(deployedHtml);
 
         // Smoke test results table for email
@@ -1946,7 +1945,7 @@ const buildWebsite = inngest.createFunction(
           <li>Configure hours, slot duration, notifications to <strong>${clientEmail}</strong></li>
           ${userInput.bookingServices ? "<li>Add a <strong>Drop-down list</strong> field named &quot;Service&quot; with options: <strong>" + userInput.bookingServices + "</strong></li>" : ""}
           <li>Save — the booking iframe on the site will automatically use this schedule</li>
-          <li>Once done, click <a href="${base}/api/pipeline/run?jobId=${jobId}&secret=${secret}" style="color:#fbbf24;font-weight:700;">🔄 Rebuild Site</a> to go live</li>
+          <li>Once done, click <a href="${base}/api/pipeline/run?jobId=${jobId}&secret=${encodeURIComponent(process.env.PROCESS_SECRET||"")}" style="color:#fbbf24;font-weight:700;">🔄 Rebuild Site</a> to go live</li>
         </ol>
         <p style="color:#475569;font-size:12px;margin:0;">Schedule URL will be: <span style="color:#94a3b8;font-family:monospace;">supersaas.com/schedule/webgecko/${fileName}</span></p>
       </div>` : ""}
@@ -1957,7 +1956,7 @@ const buildWebsite = inngest.createFunction(
       <table cellpadding="0" cellspacing="0"><tr>
         <td style="padding-right:8px;padding-bottom:8px;"><a href="${releaseUrl}" style="background:#00c896;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📤 Release to Client</a></td>
         <td style="padding-right:8px;padding-bottom:8px;"><a href="${fixUrl}" style="background:#3b82f6;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">🔧 Fix This Site</a></td>
-        ${hasBookingFeature ? `<td style="padding-right:8px;padding-bottom:8px;"><a href="${unlockBookingUrl}" style="background:#f59e0b;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📅 Unlock Booking</a></td><td style="padding-right:8px;padding-bottom:8px;"><a href="${base}/api/pipeline/run?jobId=${jobId}&secret=${secret}" style="background:#fbbf24;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">🔄 Rebuild Site</a></td>` : ""}
+        ${hasBookingFeature ? `<td style="padding-right:8px;padding-bottom:8px;"><a href="${unlockBookingUrl}" style="background:#f59e0b;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">📅 Unlock Booking</a></td><td style="padding-right:8px;padding-bottom:8px;"><a href="${base}/api/pipeline/run?jobId=${jobId}&secret=${encodeURIComponent(process.env.PROCESS_SECRET||"")}" style="background:#fbbf24;color:#000;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;display:inline-block;">🔄 Rebuild Site</a></td>` : ""}
       </tr></table>
       <p style="margin:16px 0 0;"><a href="${adminUrl}" style="color:#475569;font-size:12px;">📊 Admin Dashboard</a></p>
     </td></tr>
@@ -2216,8 +2215,7 @@ const featureInject = inngest.createFunction(
       }
 
       // Notify admin
-      const secret = process.env.ADMIN_SESSION_SECRET?.slice(0, 16) || "";
-      const adminUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app") + `/admin?secret=${encodeURIComponent(secret)}`;
+      const adminUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app") + "/admin";
       await resend.emails.send({
         from: "WebGecko <hello@webgecko.au>",
         to: process.env.RESULT_TO_EMAIL || "hello@webgecko.au",

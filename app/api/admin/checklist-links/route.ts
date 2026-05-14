@@ -4,13 +4,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 
-function auth(req: NextRequest) {
-  const secret = req.headers.get("x-process-secret") || "";
-  return secret === process.env.PROCESS_SECRET;
-}
+function auth(req: NextRequest) { return isAdminAuthedLegacy(req); }
 
 export async function GET(req: NextRequest) {
   if (!auth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

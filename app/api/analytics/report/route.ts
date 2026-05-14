@@ -2,14 +2,13 @@
 // Returns analytics data for a given jobId. Used by client portal and admin dashboard.
 import { NextRequest } from "next/server";
 import { getClient, getAnalyticsCount, getTopPages, getBookingsForJob } from "@/lib/db";
+import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const jobId = searchParams.get("jobId");
   const slug = searchParams.get("slug");
-  const secret = searchParams.get("secret");
-
-  const isAdmin = secret === process.env.PROCESS_SECRET;
+  const isAdmin = isAdminAuthedLegacy(req);
   if (!jobId) return Response.json({ error: "Missing jobId" }, { status: 400 });
   if (!isAdmin && !slug) return Response.json({ error: "Forbidden" }, { status: 403 });
 

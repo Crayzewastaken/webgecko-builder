@@ -2801,11 +2801,8 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
     return st === "social" || st === "both";
   });
 
-  const MOCK_POSTS = [
-    { id:"sp1", client:"Tim's Plumbing",    platform:"Instagram", caption:"Winter sale is ON — 20% off all services this week only. Book today before we fill up!", scheduled:"Tomorrow · 9:00 AM",  status:"pending" as const },
-    { id:"sp2", client:"Gold Coast Lawn Co", platform:"Facebook",  caption:"We just wrapped up a huge job on the Goldie — before and afters in the comments 👇",   scheduled:"Wed 21 May · 11AM",  status:"pending" as const },
-    { id:"sp3", client:"Bella's Café",       platform:"TikTok",    caption:"Our barista competition winner ☕ Tag someone who needs this in their life right now",   scheduled:"Thu 22 May · 7:30 AM",status:"pending" as const },
-  ];
+  // Posts come from Postiz via the approval queue — no mock data
+  const MOCK_POSTS: any[] = [];
 
   const pIcon = (p: string) => p==="Instagram"?"📸":p==="Facebook"?"👍":p==="TikTok"?"🎵":p==="LinkedIn"?"💼":p==="YouTube"?"▶️":p==="Google Business"?"📍":"📱";
   const pColor = (p: string) => p==="Instagram"?"#E1306C":p==="Facebook"?"#1877F2":p==="TikTok"?"#69C9D0":p==="LinkedIn"?"#0A66C2":p==="YouTube"?"#FF0000":p==="Google Business"?"#4285F4":T.blue;
@@ -2902,11 +2899,7 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
   }
 
   const selectedClient = selectedClientSlug
-    ? (socialClients.length > 0 ? socialClients : [
-        { businessName:"Tim's Plumbing",    slug:"tims-plumbing",   industry:"Plumbing",   email:"tim@example.com",   phone:"0412 345 678", metadata:{ serviceType:"social", socialPlatforms:["Instagram","Facebook"] } },
-        { businessName:"Gold Coast Lawn Co", slug:"gc-lawn",         industry:"Landscaping",email:"info@gclawn.com",  phone:"0421 987 654", metadata:{ serviceType:"social", socialPlatforms:["Facebook","TikTok"] } },
-        { businessName:"Bella's Café",       slug:"bellas-cafe",     industry:"Hospitality",email:"bella@cafe.com",   phone:"0434 111 222", metadata:{ serviceType:"both",   socialPlatforms:["Instagram"] } },
-      ] as any[]).find((c: any) => c.slug === selectedClientSlug)
+    ? socialClients.find((c: any) => c.slug === selectedClientSlug)
     : null;
 
   const completedCount = STEPS.filter(s => checks[`step_${s.step}`]).length;
@@ -2914,11 +2907,7 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
 
   const cardStyle: React.CSSProperties = { background:T.surface, border:`1px solid ${T.border}`, borderRadius:14, padding:"18px 20px", boxShadow:T.shadow };
 
-  const displayClients: any[] = socialClients.length > 0 ? socialClients : [
-    { businessName:"Tim's Plumbing",    slug:"tims-plumbing",   industry:"Plumbing",   email:"tim@example.com",  metadata:{ serviceType:"social", socialPlatforms:["Instagram","Facebook"] } },
-    { businessName:"Gold Coast Lawn Co", slug:"gc-lawn",         industry:"Landscaping",email:"info@gclawn.com", metadata:{ serviceType:"social", socialPlatforms:["Facebook","TikTok"] } },
-    { businessName:"Bella's Café",       slug:"bellas-cafe",     industry:"Hospitality",email:"bella@cafe.com",  metadata:{ serviceType:"both",   socialPlatforms:["Instagram"] } },
-  ];
+  const displayClients: any[] = socialClients;;
 
   return (
     <div style={{ padding:"24px 28px", maxWidth:1200, height:"calc(100vh - 60px)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
@@ -2937,12 +2926,10 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
         </div>
 
         {/* Stats strip */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10 }}>
           {[
-            { label:"Social clients",   value:displayClients.length, color:T.blue,   icon:"👥" },
-            { label:"Posts this month", value:48,                     color:T.green,  icon:"📤" },
-            { label:"Avg engagement",   value:"4.8%",                 color:T.purple, icon:"📈" },
-            { label:"Queued posts",     value:MOCK_POSTS.length,      color:T.amber,  icon:"🕐" },
+            { label:"Social clients",    value:displayClients.length, color:T.blue,  icon:"👥" },
+            { label:"Pending approvals", value:MOCK_POSTS.length,     color:T.amber, icon:"🕐" },
           ].map(s => (
             <div key={s.label} style={{ ...cardStyle, padding:"12px 16px", borderTop:`3px solid ${s.color}` }}>
               <div style={{ fontSize:16, marginBottom:4 }}>{s.icon}</div>
@@ -2963,6 +2950,13 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
           <div style={{ ...cardStyle, padding:"12px 14px", flex:1 }}>
             <div style={{ fontSize:10, fontWeight:700, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:12 }}>Social Clients</div>
             <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+              {displayClients.length === 0 && (
+                <div style={{ padding:"20px 16px", textAlign:"center" as const }}>
+                  <div style={{ fontSize:28, marginBottom:8 }}>👥</div>
+                  <div style={{ fontSize:12, fontWeight:600, color:T.textSec, marginBottom:4 }}>No social clients yet</div>
+                  <div style={{ fontSize:11, color:T.textMuted, lineHeight:1.5 }}>Clients with a social media plan will appear here.</div>
+                </div>
+              )}
               {displayClients.map((cl: any) => {
                 const platforms: string[] = (cl.metadata as any)?.socialPlatforms || [];
                 const slug = cl.slug || cl.jobId;

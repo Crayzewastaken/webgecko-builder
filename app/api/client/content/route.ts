@@ -28,6 +28,9 @@ export async function GET(req: NextRequest) {
 
   if (!slug) return Response.json({ error: "slug required" }, { status: 400 });
 
+  const cookieSlug = req.cookies.get("wg_client_slug")?.value;
+  if (!cookieSlug || cookieSlug !== slug) return Response.json({ error: "Forbidden" }, { status: 403 });
+
   const job = await getLatestJobBySlug(slug);
   if (!job) return Response.json({ items: [] });
 

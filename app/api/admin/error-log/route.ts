@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -7,8 +8,7 @@ const supabase = createClient(
 );
 
 export async function POST(req: NextRequest) {
-  const secret = req.headers.get("x-process-secret");
-  if (secret !== process.env.PROCESS_SECRET) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isAdminAuthedLegacy(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
   const { jobId, step, type, message, fixed = false } = body;
@@ -30,8 +30,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const secret = req.headers.get("x-process-secret");
-  if (secret !== process.env.PROCESS_SECRET) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isAdminAuthedLegacy(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { data, error } = await supabase
     .from("pipeline_errors")
@@ -44,8 +43,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const secret = req.headers.get("x-process-secret");
-  if (secret !== process.env.PROCESS_SECRET) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isAdminAuthedLegacy(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await req.json();
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });

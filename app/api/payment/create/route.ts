@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
     const businessName = clientData.business_name || "";
     const email = clientData.email || "";
 
-    const job = await getJob(jobId);
+    const [job, rawPs] = await Promise.all([getJob(jobId), getPaymentState(jobId)]);
     if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
     const { totalPrice, monthlyPrice, monthlyOngoing } = calculatePrice(job.userInput);
@@ -65,8 +65,6 @@ export async function GET(req: NextRequest) {
     const finalAmount = Math.round((remainingBalance + monthlyPrice) * 100) / 100;
 
     const redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app"}/c/${slug}?payment=done`;
-
-    const rawPs = await getPaymentState(jobId);
     const ps = {
       depositPaid: rawPs?.deposit_paid ?? false,
       finalUnlocked: rawPs?.final_unlocked ?? false,

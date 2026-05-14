@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   let totalPrice = 0;
   let monthlyPrice = 109;
 
-  const job = await getJob(jobId);
+  const [job, ps] = await Promise.all([getJob(jobId), getPaymentState(jobId)]);
   if (job?.userInput) {
     const calc = calculatePrice(job.userInput);
     totalPrice = calc.totalPrice;
@@ -46,8 +46,6 @@ export async function GET(req: NextRequest) {
 
   const deposit = Math.round(totalPrice * 0.5);
   const final = totalPrice - deposit;
-
-  const ps = await getPaymentState(jobId);
 
   return NextResponse.json({
     depositPaid: ps?.deposit_paid ?? false,

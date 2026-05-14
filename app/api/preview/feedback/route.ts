@@ -81,7 +81,7 @@ export async function DELETE(req: NextRequest) {
   const processSecret = process.env.PROCESS_SECRET || "";
   const releaseUrl = `${base}/api/unlock/release?jobId=${jobId}&secret=${encodeURIComponent(processSecret)}`;
   const fixUrl = `${base}/api/admin/fix-proxy?jobId=${jobId}&secret=${encodeURIComponent(processSecret)}`;
-  const adminUrl = `${base}/admin?secret=${encodeURIComponent(processSecret)}`;
+  const adminUrl = `${base}/admin`;
 
   const feedbackHtml = feedback
     .map((f: any, i: number) => `<tr><td style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);color:#94a3b8;font-size:13px;vertical-align:top;width:24px;font-weight:700;">${i + 1}.</td><td style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);color:#e2e8f0;font-size:14px;">${f.message}</td></tr>`)

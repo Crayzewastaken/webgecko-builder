@@ -75,11 +75,13 @@ export async function POST(req: NextRequest) {
 
   for (const jobId of jobIds) {
     try {
-      await supabase.from("bookings").delete().eq("job_id", jobId);
-      await supabase.from("availability").delete().eq("job_id", jobId);
-      await supabase.from("payments").delete().eq("job_id", jobId);
-      await supabase.from("feedback").delete().eq("job_id", jobId);
-      await supabase.from("clients").delete().eq("job_id", jobId);
+      await Promise.all([
+        supabase.from("bookings").delete().eq("job_id", jobId),
+        supabase.from("availability").delete().eq("job_id", jobId),
+        supabase.from("payments").delete().eq("job_id", jobId),
+        supabase.from("feedback").delete().eq("job_id", jobId),
+        supabase.from("clients").delete().eq("job_id", jobId),
+      ]);
       await supabase.from("jobs").delete().eq("id", jobId);
       results.push({ jobId, ok: true });
     } catch (e) {
