@@ -289,8 +289,8 @@ function ActionBtn({ label, color, confirm, onConfirm, fill=false, toast }: {
   const [st, setSt] = useState<"idle"|"confirming"|"loading"|"ok"|"err">("idle");
   const [msg, setMsg] = useState("");
 
-  if (st==="ok") return <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:T.green, fontWeight:500 }}>✓ {msg||"Done"}</div>;
-  if (st==="err") return <div style={{ fontSize:12, color:T.red }}>✗ {msg}</div>;
+  if (st==="ok") return <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:T.green, fontWeight:500 }}>{"✓"} {msg||"Done"}</div>;
+  if (st==="err") return <div style={{ fontSize:12, color:T.red }}>{"✗"} {msg}</div>;
 
   if (st==="confirming") return (
     <div style={{ background:T.raised, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 16px", animation:"wg-up 0.15s ease" }}>
@@ -329,10 +329,10 @@ function InfoBtn({ text }: { text: string }) {
         onClick={e=>{e.stopPropagation();setOpen(o=>!o);}}
         style={{ background:"none", border:`1px solid ${T.border}`, borderRadius:"50%", width:16, height:16, fontSize:9, fontWeight:700, color:T.textMuted, cursor:"pointer", lineHeight:"14px", padding:0, flexShrink:0, verticalAlign:"middle" }}
         title="Info"
-      >ℹ</button>
+      >{"ℹ"}</button>
       {open&&(
         <div onClick={e=>e.stopPropagation()} style={{ position:"absolute", zIndex:9999, left:"50%", top:22, transform:"translateX(-50%)", minWidth:220, maxWidth:300, background:T.raised, border:`1px solid ${T.border}`, borderRadius:10, padding:"12px 14px", boxShadow:T.shadowLg, fontSize:12, color:T.textSec, lineHeight:1.6, animation:"wg-up 0.15s ease" }}>
-          <button onClick={()=>setOpen(false)} style={{ position:"absolute", top:6, right:8, background:"none", border:"none", color:T.textMuted, cursor:"pointer", fontSize:14 }}>×</button>
+          <button onClick={()=>setOpen(false)} style={{ position:"absolute", top:6, right:8, background:"none", border:"none", color:T.textMuted, cursor:"pointer", fontSize:14 }}>{"×"}</button>
           {text}
         </div>
       )}
@@ -361,7 +361,7 @@ function PreviewFrame({ previewUrl, builtAt, jobId }: { previewUrl:string; built
           {["#ff5f57","#febc2e","#28c840"].map((c,i)=><div key={i} style={{width:10,height:10,borderRadius:"50%",background:c}}/>)}
         </div>
         <div style={{flex:1,background:T.raised,borderRadius:6,padding:"3px 10px",fontSize:11,color:T.textMuted,fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" as const}}>{previewUrl}</div>
-        <button onClick={doRefresh} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:6,padding:"3px 8px",fontSize:12,cursor:"pointer",color:T.textMuted}}>↺</button>
+        <button onClick={doRefresh} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:6,padding:"3px 8px",fontSize:12,cursor:"pointer",color:T.textMuted}}>{"↺"}</button>
         <a href={previewUrl} target="_blank" rel="noreferrer" style={{background:T.green+"20",color:T.green,border:`1px solid ${T.green}35`,borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700,textDecoration:"none"}}>Open →</a>
       </div>
       <div style={{position:"relative",height:containerH,overflow:"hidden",background:T.raised}}>
@@ -744,7 +744,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                 <div style={{ fontSize:12, color:T.textMuted, marginTop:2 }}>{c.industry}</div>
               </div>
             </div>
-            <button onClick={onClose} style={{ background:T.raised, border:`1px solid ${T.border}`, borderRadius:8, color:T.textMuted, fontSize:16, cursor:"pointer", width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
+            <button onClick={onClose} style={{ background:T.raised, border:`1px solid ${T.border}`, borderRadius:8, color:T.textMuted, fontSize:16, cursor:"pointer", width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center" }}>{"×"}</button>
           </div>
           <div style={{ display:"flex", gap:5, flexWrap:"wrap" as const }}>
             <Pill color={statusColor}>{c.buildStatus||"pending"}</Pill>
@@ -798,7 +798,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
             if (!info) return null;
             return (
               <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 16px",marginBottom:20,display:"flex",gap:10,alignItems:"flex-start"}}>
-                <span style={{fontSize:16,flexShrink:0,marginTop:1}}>ℹ️</span>
+                <span style={{fontSize:16,flexShrink:0,marginTop:1}}>{"ℹ️"}</span>
                 <div style={{fontSize:12,color:T.textMuted,lineHeight:1.7,whiteSpace:"pre-line" as const}}>{info}</div>
               </div>
             );
@@ -1010,7 +1010,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                 <div style={{marginBottom:20}}>
                   {sectionTitle("Live preview")}
                   {c.buildStatus==="building"
-                    ? <div style={{borderRadius:10,border:`1px solid ${T.border}`,background:T.raised,height:160,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:T.textMuted,fontSize:13}}>⏳ Building… preview appears when done</div></div>
+                    ? <div style={{borderRadius:10,border:`1px solid ${T.border}`,background:T.raised,height:160,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:T.textMuted,fontSize:13}}>{"⏳"} Building{"…"} preview appears when done</div></div>
                     : <PreviewFrame previewUrl={c.previewUrl} builtAt={deployedAt||c.builtAt} jobId={jid}/>}
                 </div>
               )}
@@ -1342,7 +1342,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                 if (!isLocked) return null;
                 return (
                   <div style={{textAlign:"center" as const,padding:"52px 24px",background:T.surface,borderRadius:14,border:`1px dashed ${T.border}`}}>
-                    <div style={{fontSize:36,marginBottom:12}}>🔒</div>
+                    <div style={{fontSize:36,marginBottom:12}}>{"🔒"}</div>
                     <div style={{fontSize:15,fontWeight:700,color:T.text,marginBottom:8}}>{contentSubTab.charAt(0).toUpperCase()+contentSubTab.slice(1)} not included</div>
                     <div style={{fontSize:13,color:T.textMuted,marginBottom:4}}>This client did not select <strong style={{color:T.textSec}}>{gate!.featureLabel}</strong> in their intake form.</div>
                     <div style={{fontSize:12,color:T.textMuted}}>To unlock, the client needs to upgrade their package. Use the Requests tab to manage feature add-ons.</div>
@@ -1359,7 +1359,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                     <div style={{fontSize:12,color:T.textMuted,lineHeight:1.7}}>
                       Every newsletter sent must include: <strong style={{color:T.textSec}}>sender name ({c.businessName})</strong>, <strong style={{color:T.textSec}}>business address ({(ui.businessAddress)||"(add in checklist)"})</strong>, and a working <strong style={{color:T.textSec}}>unsubscribe link</strong>. Failure to include these is a breach of Australian law and can result in fines up to $2.2M.
                     </div>
-                    <div style={{fontSize:11,color:T.amber,marginTop:6,fontWeight:600}}>→ Always paste an unsubscribe link into the newsletter body before sending. e.g. "Unsubscribe: [link]"</div>
+                    <div style={{fontSize:11,color:T.amber,marginTop:6,fontWeight:600}}>{"→"} Always paste an unsubscribe link into the newsletter body before sending. e.g. "Unsubscribe: [link]"</div>
                   </div>
                 </div>
               )}
@@ -1576,7 +1576,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                               <button onClick={()=>{setContentForm(item);setGenPrompt("");setContentMsg("");}}
                                 style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:7,padding:"6px 14px",fontSize:11,color:T.text,cursor:"pointer",fontWeight:500}}>Edit</button>
                               <button onClick={()=>deleteContent(item.id)}
-                                style={{background:"transparent",border:`1px solid ${T.red}40`,borderRadius:7,padding:"6px 10px",fontSize:11,color:T.red,cursor:"pointer"}}>✕</button>
+                                style={{background:"transparent",border:`1px solid ${T.red}40`,borderRadius:7,padding:"6px 10px",fontSize:11,color:T.red,cursor:"pointer"}}>{"✕"}</button>
                             </div>
                           </div>
                         </div>
@@ -1644,7 +1644,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               {frLoading&&<div style={{color:T.textMuted,fontSize:13,padding:"20px 0"}}>Loading…</div>}
               {!frLoading&&featureRequests.length===0&&(
                 <div style={{textAlign:"center" as const,padding:"48px 0",color:T.textMuted}}>
-                  <div style={{fontSize:28,marginBottom:12}}>📬</div>
+                  <div style={{fontSize:28,marginBottom:12}}>{"📬"}</div>
                   <div style={{fontSize:14,fontWeight:600,color:T.textSec,marginBottom:6}}>No feature requests yet</div>
                   <div style={{fontSize:12}}>Clients can request features from their portal.</div>
                 </div>
@@ -1693,7 +1693,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                   })}
                 </div>
               )}
-              <button onClick={loadFeatureRequests} style={{...btn(T.textMuted),marginTop:16,fontSize:11}}>↻ Refresh</button>
+              <button onClick={loadFeatureRequests} style={{...btn(T.textMuted),marginTop:16,fontSize:11}}>{"↻"} Refresh</button>
             </div>
           )}
 
@@ -1904,7 +1904,7 @@ Once verified, submit the sitemap: ${siteUrl||"https://clientdomain.com.au"}/sit
                 {/* 🚀 Final Submit — Go Live CTA (appears only when all required pre-launch items done) */}
                 {allRequiredDone&&!alreadyReleased&&(
                   <div style={{marginBottom:28,padding:"24px 28px",background:`linear-gradient(135deg,${T.green}18,${T.green}08)`,border:`2px solid ${T.green}`,borderRadius:16,textAlign:"center" as const}}>
-                    <div style={{fontSize:24,marginBottom:8}}>🚀</div>
+                    <div style={{fontSize:24,marginBottom:8}}>{"🚀"}</div>
                     <div style={{fontSize:16,fontWeight:800,color:T.green,marginBottom:6}}>All pre-launch steps complete!</div>
                     <div style={{fontSize:13,color:T.textSec,marginBottom:20}}>Every required item is checked off. This site is ready to go live.</div>
                     <button
@@ -1924,7 +1924,7 @@ Once verified, submit the sitemap: ${siteUrl||"https://clientdomain.com.au"}/sit
                 )}
                 {alreadyReleased&&(
                   <div style={{marginBottom:24,padding:"14px 20px",background:`${T.green}10`,border:`1px solid ${T.green}40`,borderRadius:12,display:"flex",alignItems:"center",gap:12}}>
-                    <span style={{fontSize:20}}>✅</span>
+                    <span style={{fontSize:20}}>{"✅"}</span>
                     <div>
                       <div style={{fontSize:13,fontWeight:700,color:T.green}}>Site is live</div>
                       <div style={{fontSize:12,color:T.textMuted}}>This site has already been released to the client.</div>
@@ -1954,7 +1954,7 @@ Once verified, submit the sitemap: ${siteUrl||"https://clientdomain.com.au"}/sit
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <span style={{fontSize:11,color:sectionAllDone?T.green:T.textMuted,fontWeight:600}}>{sectionDoneCount}/{section.items.length}</span>
                         {sectionAllDone ? (
-                          <span style={{fontSize:11,fontWeight:700,color:T.green,background:`${T.green}18`,border:`1px solid ${T.green}40`,borderRadius:20,padding:"3px 12px"}}>✓ Done</span>
+                          <span style={{fontSize:11,fontWeight:700,color:T.green,background:`${T.green}18`,border:`1px solid ${T.green}40`,borderRadius:20,padding:"3px 12px"}}>{"✓"} Done</span>
                         ) : sectionCanMarkAll ? (
                           <button
                             onClick={()=>markSectionComplete(section)}
@@ -2070,7 +2070,7 @@ Once verified, submit the sitemap: ${siteUrl||"https://clientdomain.com.au"}/sit
                         {st==="both" ? "Website + Social Media" : "Social Media Only"}
                       </div>
                     </div>
-                    <span style={{ fontSize:11, fontWeight:700, color:T.purple, background:`${T.purple}18`, border:`1px solid ${T.purple}30`, borderRadius:99, padding:"3px 12px" }}>📱 {sp}</span>
+                    <span style={{ fontSize:11, fontWeight:700, color:T.purple, background:`${T.purple}18`, border:`1px solid ${T.purple}30`, borderRadius:99, padding:"3px 12px" }}>{"📱"} {sp}</span>
                   </div>
                 </div>
 
@@ -2101,7 +2101,7 @@ Once verified, submit the sitemap: ${siteUrl||"https://clientdomain.com.au"}/sit
                   <div style={{ fontSize:10, fontWeight:700, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:12 }}>Client Offboarding</div>
                   {offboardDone ? (
                     <div style={{ textAlign:"center" as const, padding:"12px 0" }}>
-                      <div style={{ fontSize:24, marginBottom:8 }}>✅</div>
+                      <div style={{ fontSize:24, marginBottom:8 }}>{"✅"}</div>
                       <div style={{ fontSize:14, fontWeight:700, color:T.green, marginBottom:4 }}>Offboarding email sent</div>
                       <div style={{ fontSize:12, color:T.textMuted }}>Client has been emailed confirmation and credentials.</div>
                       <button onClick={()=>{setOffboardDone(false);setOffboardConfirmed(false);setOffboardPassword("");setOffboardErr("");}} style={{ marginTop:12, background:"none", border:`1px solid ${T.border}`, borderRadius:7, color:T.textMuted, fontSize:12, cursor:"pointer", padding:"6px 14px" }}>Reset</button>
@@ -2149,7 +2149,7 @@ Once verified, submit the sitemap: ${siteUrl||"https://clientdomain.com.au"}/sit
                           : ["Stopped all scheduled posts in Postiz","Confirmed no future posts are queued","Noted accounts remain dormant — no further access"]
                         ).map((item, i) => (
                           <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:8, fontSize:12, color:T.textSec, marginBottom:i<2?6:0, lineHeight:1.5 }}>
-                            <span style={{ color:T.green, fontWeight:700, flexShrink:0 }}>✓</span>{item}
+                            <span style={{ color:T.green, fontWeight:700, flexShrink:0 }}>{"✓"}</span>{item}
                           </div>
                         ))}
                         <label style={{ display:"flex", alignItems:"center", gap:8, marginTop:10, cursor:"pointer" }}>
@@ -2293,7 +2293,7 @@ function ClientCard({ c, secret, dark, toast }: { c:ClientAnalytics; secret:stri
               style={{ background:"none", border:`1px solid ${T.border}`, borderRadius:7, color:T.textMuted, fontSize:13, cursor:"pointer", width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.15s ease" }}
               onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.background=T.raised;(e.currentTarget as HTMLElement).style.color=T.blue;}}
               onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.background="none";(e.currentTarget as HTMLElement).style.color=T.textMuted;}}
-            >⧉</button>
+            >{"⧉"}</button>
             <span style={{ fontSize:9, marginTop:3, letterSpacing:"0.04em", color:T.textMuted }}>LINKS</span>
           </div>
         </div>
@@ -2345,7 +2345,7 @@ function ExampleHtmlsPanel({ toast }: { toast:(msg:string,t:"ok"|"err"|"info")=>
     <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:16, overflow:"hidden", marginTop:32, boxShadow:T.shadow }}>
       <button onClick={()=>setOpen(o=>!o)} style={{ width:"100%", background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 24px", color:T.text }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ width:34,height:34,borderRadius:8,background:T.blue+"20",border:`1px solid ${T.blue}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14 }}>📄</div>
+          <div style={{ width:34,height:34,borderRadius:8,background:T.blue+"20",border:`1px solid ${T.blue}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14 }}>{"📄"}</div>
           <div style={{ textAlign:"left" as const }}>
             <div style={{ fontSize:14, fontWeight:700, color:T.text }}>Example HTML Library</div>
             <div style={{ fontSize:12, color:T.textMuted, marginTop:2 }}>{files.length} reference files · matched by industry at build time</div>
@@ -2537,7 +2537,7 @@ function ErrorHistorySection() {
   return (
     <div style={{marginTop:32}}>
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,paddingBottom:10,borderBottom:`1px solid ${T.red}30`}}>
-        <span style={{fontSize:14}}>🗂️</span>
+        <span style={{fontSize:14}}>{"🗂️"}</span>
         <span style={{fontSize:12,fontWeight:700,color:T.red,textTransform:"uppercase" as const,letterSpacing:"0.07em"}}>Error History</span>
         <span style={{fontSize:11,color:T.textSec,background:T.red+"18",borderRadius:10,padding:"1px 8px",fontWeight:600,marginLeft:2}}>{KNOWN_ERRORS.length}</span>
         <span style={{fontSize:11,color:T.textSec,marginLeft:4}}>all-time known errors across {KNOWN_ERRORS.length} issues</span>
@@ -2656,7 +2656,7 @@ function PipelineLogsPanel() {
             {f!=="all"&&<span style={{marginLeft:5,color:lvlColor(f),fontWeight:700}}>{logs.filter(l=>l.level===f).length}</span>}
           </button>
         ))}
-        <button onClick={load} style={{marginLeft:"auto",background:T.raised,border:`1px solid ${T.border}`,color:T.textSec,borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer",fontWeight:500}}>↻ Refresh</button>
+        <button onClick={load} style={{marginLeft:"auto",background:T.raised,border:`1px solid ${T.border}`,color:T.textSec,borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer",fontWeight:500}}>{"↻"} Refresh</button>
       </div>
 
       {loading&&<div style={{color:T.textSec,fontSize:13,padding:"40px 0",textAlign:"center" as const}}>Loading logs…</div>}
@@ -2732,9 +2732,9 @@ function AttentionRow({ cl, badge, color, howToFix, action, onOpen, initials }: 
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         {fixDone
-          ? <span style={{ fontSize: 11, color: T.green }}>✓ {fixDone}</span>
+          ? <span style={{ fontSize: 11, color: T.green }}>{"✓"} {fixDone}</span>
           : fixErr
-          ? <span style={{ fontSize: 11, color: T.red }}>✗ {fixErr}</span>
+          ? <span style={{ fontSize: 11, color: T.red }}>{"✗"} {fixErr}</span>
           : <button disabled={fixing} onClick={doAutoFix} style={{ background: color === T.textMuted ? T.blue : color, color: "#000", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 11, fontWeight: 700, cursor: "pointer", opacity: fixing ? 0.6 : 1, flexShrink: 0 }}>
               {fixing ? "Working…" : actionLabel}
             </button>
@@ -2978,7 +2978,7 @@ function AnalyticsView({ clients, onOpenClient }: { clients: ClientAnalytics[]; 
       <div style={{ ...cardStyle, marginBottom:8 }}>
         {needsAttention.length===0 ? (
           <div style={{ display:"flex",alignItems:"center",gap:10,padding:"8px 0" }}>
-            <div style={{ width:28,height:28,borderRadius:8,background:T.green+"20",border:`1px solid ${T.green}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14 }}>✓</div>
+            <div style={{ width:28,height:28,borderRadius:8,background:T.green+"20",border:`1px solid ${T.green}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14 }}>{"✓"}</div>
             <span style={{ fontSize:13,color:T.green,fontWeight:600 }}>All systems normal — no clients need attention.</span>
           </div>
         ) : (
@@ -3319,7 +3319,7 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
             <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
               {displayClients.length === 0 && (
                 <div style={{ padding:"20px 16px", textAlign:"center" as const }}>
-                  <div style={{ fontSize:28, marginBottom:8 }}>👥</div>
+                  <div style={{ fontSize:28, marginBottom:8 }}>{"👥"}</div>
                   <div style={{ fontSize:12, fontWeight:600, color:T.textSec, marginBottom:4 }}>No social clients yet</div>
                   <div style={{ fontSize:11, color:T.textMuted, lineHeight:1.5 }}>Clients with a social media plan will appear here.</div>
                 </div>
@@ -3369,7 +3369,7 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
         <div style={{ overflowY:"auto" }}>
           {!selectedClientSlug ? (
             <div style={{ ...cardStyle, height:"100%", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:12 }}>
-              <div style={{ fontSize:36 }}>👈</div>
+              <div style={{ fontSize:36 }}>{"👈"}</div>
               <div style={{ fontSize:14, fontWeight:700, color:T.text }}>Select a client</div>
               <div style={{ fontSize:12, color:T.textMuted, textAlign:"center" as const, maxWidth:220, lineHeight:1.6 }}>Click a client from the roster to view and manage their onboarding checklist.</div>
             </div>
@@ -3389,7 +3389,7 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
                     {progressPct===100 ? "✓ Complete" : `${progressPct}%`}
                   </div>
                   <button onClick={() => { setSelectedClientSlug(null); setChecks({}); setOpenedUrls({}); }}
-                    style={{ background:"none", border:`1px solid ${T.border}`, borderRadius:7, padding:"4px 10px", fontSize:11, color:T.textMuted, cursor:"pointer", fontFamily:"inherit" }}>✕</button>
+                    style={{ background:"none", border:`1px solid ${T.border}`, borderRadius:7, padding:"4px 10px", fontSize:11, color:T.textMuted, cursor:"pointer", fontFamily:"inherit" }}>{"✕"}</button>
                 </div>
               </div>
 
@@ -3434,7 +3434,7 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
 
               {progressPct === 100 && (
                 <div style={{ marginTop:14, background:T.green+"12", border:`1px solid ${T.green}30`, borderRadius:10, padding:"12px 16px", textAlign:"center" as const }}>
-                  <div style={{ fontSize:20, marginBottom:4 }}>🎉</div>
+                  <div style={{ fontSize:20, marginBottom:4 }}>{"🎉"}</div>
                   <div style={{ fontSize:13, fontWeight:700, color:T.green }}>Onboarding complete!</div>
                   <div style={{ fontSize:11, color:T.textMuted, marginTop:3 }}>All 12 steps done for {selectedClient?.businessName}.</div>
                 </div>
@@ -3462,9 +3462,9 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
                   </div>
                   <div style={{ fontSize:11, color:T.textSec, lineHeight:1.4, marginBottom:8, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" as any }}>{post.caption}</div>
                   <div style={{ display:"flex", gap:5 }}>
-                    <button style={{ flex:1, background:T.green+"18", color:T.green, border:`1px solid ${T.green}30`, borderRadius:6, padding:"5px 0", fontSize:10, fontWeight:700, cursor:"pointer" }}>✓ Approve</button>
-                    <button style={{ flex:1, background:T.blue+"18", color:T.blue, border:`1px solid ${T.blue}30`, borderRadius:6, padding:"5px 0", fontSize:10, fontWeight:600, cursor:"pointer" }}>✎ Edit</button>
-                    <button style={{ flex:1, background:T.red+"18", color:T.red, border:`1px solid ${T.red}30`, borderRadius:6, padding:"5px 0", fontSize:10, fontWeight:600, cursor:"pointer" }}>✕ Reject</button>
+                    <button style={{ flex:1, background:T.green+"18", color:T.green, border:`1px solid ${T.green}30`, borderRadius:6, padding:"5px 0", fontSize:10, fontWeight:700, cursor:"pointer" }}>{"✓"} Approve</button>
+                    <button style={{ flex:1, background:T.blue+"18", color:T.blue, border:`1px solid ${T.blue}30`, borderRadius:6, padding:"5px 0", fontSize:10, fontWeight:600, cursor:"pointer" }}>{"✎"} Edit</button>
+                    <button style={{ flex:1, background:T.red+"18", color:T.red, border:`1px solid ${T.red}30`, borderRadius:6, padding:"5px 0", fontSize:10, fontWeight:600, cursor:"pointer" }}>{"✕"} Reject</button>
                   </div>
                 </div>
               ))}
@@ -3558,7 +3558,7 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
                   onMouseEnter={e=>(e.currentTarget.style.borderColor=T.blue)} onMouseLeave={e=>(e.currentTarget.style.borderColor=T.border)}>
                   <span style={{ fontSize:13 }}>{link.icon}</span>
                   <span style={{ flex:1 }}>{link.label}</span>
-                  <span style={{ fontSize:10, color:T.textMuted }}>↗</span>
+                  <span style={{ fontSize:10, color:T.textMuted }}>{"↗"}</span>
                 </a>
               ))}
             </div>
@@ -3727,7 +3727,7 @@ function AdminDashboard() {
 
             <div style={{ height:1, background:T.border, margin:"12px 16px" }}/>
             <button onClick={loadDashboard} className="wg-sidebar-item" style={{ color:T.textMuted }}>
-              <span style={{ fontSize:14,width:18,textAlign:"center" as const }}>↻</span>
+              <span style={{ fontSize:14,width:18,textAlign:"center" as const }}>{"↻"}</span>
               <span>Refresh</span>
             </button>
 
@@ -3740,7 +3740,7 @@ function AdminDashboard() {
               <span>{dark?"Light mode":"Dark mode"}</span>
             </button>
             <button onClick={handleLogout} className="wg-sidebar-item" style={{ color:T.red }}>
-              <span style={{ fontSize:14,width:18,textAlign:"center" as const }}>↩</span>
+              <span style={{ fontSize:14,width:18,textAlign:"center" as const }}>{"↩"}</span>
               <span>Sign out</span>
             </button>
           </div>
