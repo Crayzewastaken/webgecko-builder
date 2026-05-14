@@ -2013,7 +2013,7 @@ export default function ClientPortal() {
                     </div>
                     <div style={{ textAlign:"right" }}>
                       <div style={{ fontSize:26, fontWeight:800, color:C.accent }}>
-                        ${((client?.metadata as any)?.socialPrice) || "499"}
+                        ${((client?.metadata as any)?.socialPrice) || "349"}
                       </div>
                       <div style={{ fontSize:12, color:C.textMuted }}>/month</div>
                     </div>
@@ -2170,73 +2170,104 @@ export default function ClientPortal() {
         {/* ══════════════════════ MY PLAN ══════════════════════ */}
         {tab === "plan" && (
           <>
-            {/* Plan summary */}
-            <div style={S.card}>
-              <div style={S.label}>Current Plan</div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+            {/* ── Plan header ── */}
+            <div style={{ ...S.card, background: "linear-gradient(135deg, rgba(0,200,150,0.08), rgba(0,200,150,0.02))", border: "1.5px solid rgba(0,200,150,0.25)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>{client.quote?.package || "Standard"} Plan</div>
-                  <div style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>Hosting, maintenance & ongoing updates</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, letterSpacing: "0.08em", textTransform: "uppercase" as const, marginBottom: 6 }}>Website Performance Plan</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: C.text, letterSpacing: "-0.02em" }}>{client.quote?.package || "Standard"}</div>
+                  <div style={{ fontSize: 12, color: C.textMuted, marginTop: 3 }}>Your site is actively managed and improving every month.</div>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: C.accent }}>$109</div>
-                  <div style={{ fontSize: 12, color: C.textMuted }}>/month</div>
-                  <div style={{ fontSize: 10, color: C.textMuted, marginTop: 1 }}>then $119/mo</div>
+                <div style={{ textAlign: "right" as const, flexShrink: 0 }}>
+                  <div style={{ fontSize: 28, fontWeight: 900, color: C.accent, letterSpacing: "-0.03em" }}>$109</div>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>/month incl. GST</div>
+                  <div style={{ fontSize: 10, color: C.textMuted, marginTop: 2 }}>then $119/mo after 3 months</div>
                 </div>
               </div>
-              <div style={S.divider} />
-              {["Fast Australian hosting", "Monthly site improvements", "10 free site changes/month", "SEO & performance updates", "Priority email support"].map((item, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: C.textSec, marginBottom: 8 }}>
-                  <span style={{ color: C.accent, fontSize: 11 }}>✓</span>{item}
-                </div>
-              ))}
+              <div style={{ marginTop: 14, background: "rgba(0,200,150,0.08)", border: "1px solid rgba(0,200,150,0.2)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: C.accent, lineHeight: 1.6 }}>
+                <strong>Tax tip:</strong> <span style={{ color: C.textSec }}>This is a legitimate business expense and is fully tax-deductible in Australia. Claim it under "website & digital services" in your annual tax return. Ask your accountant — your WebGecko invoices are GST-compliant and ready to use.</span>
+              </div>
             </div>
 
-            {/* What's included */}
+            {/* ── Full cost breakdown ── */}
             <div style={S.card}>
-              <div style={S.label}>What You Get</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 10 }}>
+              <div style={S.label}>Complete Cost Breakdown</div>
+              <div style={{ marginTop: 10, display: "flex", flexDirection: "column" as const, gap: 0 }}>
                 {[
-                  { icon: "🔧", title: "Monthly Fix Pass", desc: "Our team reviews and improves your site every month automatically." },
-                  { icon: "📈", title: "SEO & Speed Updates", desc: "We keep your site fast, indexed, and discoverable." },
-                  { icon: "✏️", title: "Site Change Requests", desc: "Request changes anytime from the Site Preview tab. First 10 are free each month." },
-                ].map(({ icon, title, desc }) => (
-                  <div key={title} style={{ display: "flex", gap: 12 }}>
-                    <div style={{ fontSize: 20 }}>{icon}</div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{title}</div>
-                      <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{desc}</div>
+                  { label: "Website build — 50% deposit", note: "Due upfront to start your build", amount: `$${Math.round((paymentStatus?.quote?.total || client?.quote?.price || 0) / 2).toLocaleString()}`, color: C.textSec, border: true },
+                  { label: "Website build — 50% final payment", note: "Due before your site goes live", amount: `$${Math.round((paymentStatus?.quote?.total || client?.quote?.price || 0) / 2).toLocaleString()}`, color: C.textSec, border: true },
+                  { label: "Month 1 hosting", note: "Included in your final payment — no extra charge", amount: "Free", color: C.accent, border: true },
+                  { label: "Months 2–3 hosting (intro rate)", note: "$109/mo — first 3 months", amount: "$109/mo", color: C.text, border: true },
+                  { label: "Ongoing hosting (standard rate)", note: "From month 4 onwards", amount: "$119/mo", color: C.text, border: false },
+                ].map((row, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "12px 0", borderBottom: row.border ? `1px solid ${C.border}` : "none", gap: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{row.label}</div>
+                      <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{row.note}</div>
                     </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: row.color, flexShrink: 0 }}>{row.amount}</div>
                   </div>
                 ))}
               </div>
+              <div style={{ marginTop: 12, background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 11, color: C.textMuted, lineHeight: 1.6 }}>
+                All prices include GST. Hosting is billed monthly via the payment method on file. No hidden fees — ever.
+              </div>
             </div>
 
-            {/* Plan tiers */}
+            {/* ── What's included ── */}
+            <div style={S.card}>
+              <div style={S.label}>What Happens Every Month</div>
+              <div style={{ display: "flex", flexDirection: "column" as const, gap: 14, marginTop: 10 }}>
+                {[
+                  { icon: "⚡", title: "Performance Audit", desc: "We check your site speed, uptime, and Core Web Vitals every month. Slow sites lose customers — we keep yours fast." },
+                  { icon: "🔍", title: "SEO Health Check", desc: "We review your search rankings, fix broken links, refresh meta tags, and submit any new content to Google." },
+                  { icon: "🛡️", title: "Security Scan", desc: "We scan for vulnerabilities, keep your SSL certificate valid, and monitor for any suspicious activity." },
+                  { icon: "✏️", title: "10 Free Site Changes", desc: "Need to update prices, add a service, change a photo? Submit from the Site Preview tab — first 10 changes each month are included at no charge." },
+                  { icon: "📊", title: "Hosting & Infrastructure", desc: "Australian servers, 99.9% uptime SLA, automatic backups, and CDN delivery so your site loads fast for QLD visitors." },
+                ].map(({ icon, title, desc }) => (
+                  <div key={title} style={{ display: "flex", gap: 12, paddingBottom: 14, borderBottom: `1px solid ${C.border}` }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(0,200,150,0.1)", border: "1px solid rgba(0,200,150,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{icon}</div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 3 }}>{title}</div>
+                      <div style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.6 }}>{desc}</div>
+                    </div>
+                  </div>
+                ))}
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(0,200,150,0.1)", border: "1px solid rgba(0,200,150,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{"📧"}</div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 3 }}>Priority Email Support</div>
+                    <div style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.6 }}>Direct line to your account manager at <a href="mailto:hello@webgecko.au" style={{ color: C.accent, textDecoration: "none" }}>hello@webgecko.au</a>. We aim to respond within 1 business day.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Active plan card ── */}
             {!showSubModal && (
               <div style={S.card}>
-                <div style={S.label}>Your Hosting Plan</div>
-                <div style={{ background: C.bg, border: "2px solid #00c89640", borderRadius: 12, padding: "20px 18px", marginTop: 10 }}>
+                <div style={S.label}>Your Current Plan</div>
+                <div style={{ background: C.bg, border: "2px solid rgba(0,200,150,0.3)", borderRadius: 12, padding: "20px 18px", marginTop: 10 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: C.accent, marginBottom: 4 }}>Standard Hosting</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.accent, marginBottom: 4 }}>Website Performance Plan</div>
                       <div style={{ fontSize: 28, fontWeight: 800, color: C.text, lineHeight: 1 }}>$109<span style={{ fontSize: 13, color: C.textMuted, fontWeight: 400 }}>/mo</span></div>
-                      <div style={{ fontSize: 11, color: C.textMuted, marginTop: 3 }}>Intro rate — first 3 months</div>
+                      <div style={{ fontSize: 11, color: C.textMuted, marginTop: 3 }}>Intro rate — first 3 months · then $119/mo</div>
                     </div>
-                    <div style={{ background: "#00c89615", border: "1px solid #00c89630", borderRadius: 20, padding: "4px 12px", fontSize: 11, fontWeight: 700, color: C.accent }}>ACTIVE</div>
+                    <div style={{ background: "rgba(0,200,150,0.1)", border: "1px solid rgba(0,200,150,0.25)", borderRadius: 20, padding: "4px 12px", fontSize: 11, fontWeight: 700, color: C.accent }}>ACTIVE</div>
                   </div>
                   <div style={{ height: 1, background: C.border, margin: "12px 0" }} />
-                  {["Hosting & SSL", "Site changes on request", "Monthly fix pass", "SEO updates", "Email support"].map(f => (
+                  {["Hosting & SSL certificate", "Monthly performance & security audit", "SEO health check", "10 free site changes/month", "Priority email support"].map(f => (
                     <div key={f} style={{ fontSize: 12, color: C.textMuted, display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                      <span style={{ color: C.accent, fontSize: 10 }}>✓</span>{f}
+                      <span style={{ color: C.accent, fontSize: 10 }}>{"✓"}</span>{f}
                     </div>
                   ))}
-                  <div style={{ marginTop: 14, background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: C.textMuted }}>
-                    After 3 months, plan renews at <span style={{ color: C.text, fontWeight: 600 }}>$119/mo</span>. Email us anytime to discuss your plan.
+                  <div style={{ marginTop: 14, background: C.raised, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: C.textMuted, lineHeight: 1.6 }}>
+                    After 3 months, your plan renews at <span style={{ color: C.text, fontWeight: 600 }}>$119/mo</span>. No lock-in contract — cancel anytime with 30 days notice.
                   </div>
-                  <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Plan query — " + client.businessName)}&body=${encodeURIComponent("Hi, I wanted to ask about my hosting plan.\n\nBusiness: " + client.businessName)}`}
+                  <a href={`mailto:hello@webgecko.au?subject=${encodeURIComponent("Plan query — " + client.businessName)}&body=${encodeURIComponent("Hi, I wanted to ask about my website performance plan.\n\nBusiness: " + client.businessName)}`}
                     style={{ display: "block", textAlign: "center", marginTop: 12, background: C.raised, border: `1px solid ${C.border}`, color: C.textSec, borderRadius: 8, padding: "9px 0", fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
-                    Contact us about your plan
+                    Ask us about your plan
                   </a>
                 </div>
                 <div style={{ fontSize: 11, color: C.textMuted, textAlign: "center", marginTop: 12 }}>Plan changes take effect after your current paid month ends.</div>
@@ -2779,34 +2810,34 @@ export default function ClientPortal() {
               {
                 id: "starter",
                 name: "Starter",
-                price: 499,
+                price: 699,
                 period: "/mo",
                 badge: null,
                 platforms: 2,
                 posts: 12,
-                perPost: "~$42",
+                perPost: "~$58",
                 features: [
                   "2 platforms (Instagram + Facebook)",
-                  "12 posts per month",
+                  "12 posts per month (3/week)",
                   "We create & manage your accounts",
-                  "Comment & DM responses included",
-                  "Expert captions & hashtags",
-                  "Monthly performance report",
+                  "Caption writing & hashtag research",
+                  "Comment & DM responses",
+                  "Monthly performance snapshot",
                 ],
                 color: "#4f9eff",
               },
               {
                 id: "growth",
                 name: "Growth",
-                price: 799,
+                price: 1099,
                 period: "/mo",
                 badge: "Most Popular",
-                platforms: 4,
+                platforms: 3,
                 posts: 20,
-                perPost: "~$40",
+                perPost: "~$55",
                 features: [
-                  "4 platforms of your choice",
-                  "20 posts per month",
+                  "3 platforms of your choice",
+                  "20 posts per month (5/week)",
                   "We create & manage your accounts",
                   "Comment, DM & review responses",
                   "Reel / short-video scripts included",
@@ -2818,18 +2849,18 @@ export default function ClientPortal() {
               {
                 id: "suite",
                 name: "Full Suite",
-                price: 1299,
+                price: 1599,
                 period: "/mo",
                 badge: "Best Value",
                 platforms: 99,
-                posts: 36,
-                perPost: "~$36",
+                posts: 30,
+                perPost: "~$53",
                 features: [
-                  "All platforms (6+)",
-                  "36 posts per month",
+                  "All platforms (up to 6)",
+                  "30 posts per month",
                   "We create & manage your accounts",
-                  "Full community management (comments, DMs, reviews)",
-                  "Full creative direction & brand kit",
+                  "Full community management",
+                  "Reels, stories & short-video included",
                   "Paid ad management (Meta + TikTok)",
                   "Dedicated account manager",
                 ],
@@ -2931,7 +2962,7 @@ export default function ClientPortal() {
 
                     {/* Competitor context */}
                     <div style={{ background: C.raised, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", fontSize: 11, color: C.textMuted, lineHeight: 1.6, flexShrink: 0 }}>
-                      💡 <strong style={{ color: C.textSec }}>Market context:</strong> Hiring a social media manager in Australia costs $6,700–$8,300/mo in salary alone. Most agencies charge $1,500–$5,000/mo. Our plans include full account creation, posting, and community management — no lock-in, no hidden fees.
+                      💡 <strong style={{ color: C.textSec }}>How we compare:</strong> Most Brisbane agencies charge $2,450–$5,370/mo for social media management (Quantum Web, SOUP Agency). A dedicated social media manager costs $6,500–$8,000/mo in salary alone. WebGecko delivers full-service management — content creation, community management, and reporting — at a fraction of the cost, with no lock-in contract.
                     </div>
                   </div>
 
