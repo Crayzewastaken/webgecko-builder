@@ -16,13 +16,13 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 function buildRow(label: string, value: string, highlight = false): string {
-  const color  = highlight ? "#c084fc" : "#d0e8ff";
+  const color  = highlight ? "#a78bfa" : "#eef2f8";
   const weight = highlight ? "700" : "500";
   return (
     "<tr>" +
-    "<td style=\"padding:10px 0;border-bottom:1px solid #1e3560;font-size:13px;" +
-    "color:#4a6898;width:140px;vertical-align:top;\">" + label + "</td>" +
-    "<td style=\"padding:10px 0;border-bottom:1px solid #1e3560;font-size:14px;" +
+    "<td style=\"padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.09);font-size:13px;" +
+    "color:#8695aa;width:140px;vertical-align:top;\">" + label + "</td>" +
+    "<td style=\"padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.09);font-size:14px;" +
     "font-weight:" + weight + ";color:" + color + "\">" + value + "</td>" +
     "</tr>"
   );
@@ -82,15 +82,15 @@ export async function POST(req: NextRequest) {
     const portalUrl = "https://webgeckofl.vercel.app/c/" + slug;
     const timestamp = new Date().toLocaleString("en-AU", { timeZone: "Australia/Brisbane" });
 
-    const btnStyle1 = "display:inline-block;background:linear-gradient(135deg,#7c3aed,#a855f7);" +
+    const btnStyle1 = "display:inline-block;background:linear-gradient(135deg,#8347ff,#9333ea);" +
       "color:#fff;text-decoration:none;padding:11px 22px;border-radius:9px;font-size:13px;font-weight:700;";
-    const btnStyle2 = "display:inline-block;background:#102240;border:1px solid #1e3560;" +
+    const btnStyle2 = "display:inline-block;background:#102240;border:1px solid rgba(255,255,255,0.09);" +
       "color:#80bbff;text-decoration:none;padding:11px 22px;border-radius:9px;font-size:13px;font-weight:600;";
 
     const html =
       "<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;" +
-      "background:#0a1020;color:#c8d8f0;border-radius:12px;overflow:hidden;\">" +
-        "<div style=\"background:linear-gradient(135deg,#7c3aed,#a855f7);padding:24px 28px;\">" +
+      "background:#070d1a;color:#eef2f8;border-radius:12px;overflow:hidden;\">" +
+        "<div style=\"background:linear-gradient(135deg,#8347ff,#9333ea);padding:24px 28px;\">" +
           "<div style=\"font-size:22px;font-weight:800;color:#fff;margin-bottom:4px;\">" + headerTitle + "</div>" +
           "<div style=\"font-size:14px;color:rgba(255,255,255,0.8);\">" +
             "A client has submitted a request from their portal" +
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
             "<a href=\"" + portalUrl + "\" style=\"" + btnStyle2 + "\">View Client Portal</a>" +
           "</div>" +
         "</div>" +
-        "<div style=\"padding:16px 28px;border-top:1px solid #1e3560;font-size:12px;color:#2a4060;\">" +
+        "<div style=\"padding:16px 28px;border-top:1px solid rgba(255,255,255,0.09);font-size:12px;color:#4a5a70;\">" +
           "Sent automatically by WebGecko " + timestamp + " AEST" +
         "</div>" +
       "</div>";

@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
     const platformRows = platformList.length > 0
       ? platformList.map((p: string) =>
           "<tr>" +
-          "<td style='padding:6px 0;font-size:13px;color:#4a6898;width:160px;border-bottom:1px solid #1e3560;'>Platform</td>" +
-          "<td style='padding:6px 0;font-size:13px;font-weight:600;color:#d0e8ff;border-bottom:1px solid #1e3560;'>" + p + " — signed out ✓</td>" +
+          "<td style='padding:6px 0;font-size:13px;color:#8695aa;width:160px;border-bottom:1px solid rgba(255,255,255,0.09);'>Platform</td>" +
+          "<td style='padding:6px 0;font-size:13px;font-weight:600;color:#eef2f8;border-bottom:1px solid rgba(255,255,255,0.09);'>" + p + " — signed out ✓</td>" +
           "</tr>"
         ).join("")
       : "";
@@ -58,29 +58,29 @@ export async function POST(req: NextRequest) {
       : "We've stopped all posting and management for your accounts.";
 
     const credentialsBlock = isFull && gmailPassword
-      ? "<div style='background:#0d1f3c;border:1px solid #1e3560;border-radius:10px;padding:16px 20px;margin-bottom:20px;'>" +
-        "<div style='font-size:11px;font-weight:700;color:#4a6898;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;'>Your Login Credentials</div>" +
+      ? "<div style='background:#0c1526;border:1px solid rgba(255,255,255,0.09);border-radius:10px;padding:16px 20px;margin-bottom:20px;'>" +
+        "<div style='font-size:11px;font-weight:700;color:#8695aa;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;'>Your Login Credentials</div>" +
         "<table style='width:100%;border-collapse:collapse;'>" +
-        "<tr><td style='padding:6px 0;font-size:13px;color:#4a6898;width:160px;border-bottom:1px solid #1e3560;'>Gmail Address</td>" +
-        "<td style='padding:6px 0;font-size:14px;font-weight:700;color:#c084fc;border-bottom:1px solid #1e3560;'>" + gmailAddress + "</td></tr>" +
-        "<tr><td style='padding:6px 0;font-size:13px;color:#4a6898;width:160px;'>Temporary Password</td>" +
-        "<td style='padding:6px 0;font-size:14px;font-weight:700;color:#c084fc;'>" + gmailPassword + "</td></tr>" +
+        "<tr><td style='padding:6px 0;font-size:13px;color:#8695aa;width:160px;border-bottom:1px solid rgba(255,255,255,0.09);'>Gmail Address</td>" +
+        "<td style='padding:6px 0;font-size:14px;font-weight:700;color:#a78bfa;border-bottom:1px solid rgba(255,255,255,0.09);'>" + gmailAddress + "</td></tr>" +
+        "<tr><td style='padding:6px 0;font-size:13px;color:#8695aa;width:160px;'>Temporary Password</td>" +
+        "<td style='padding:6px 0;font-size:14px;font-weight:700;color:#a78bfa;'>" + gmailPassword + "</td></tr>" +
         "</table>" +
-        "<div style='margin-top:12px;font-size:12px;color:#2a6098;'>Change this password immediately after logging in. Use the Gmail account to reset passwords on each social platform.</div>" +
+        "<div style='margin-top:12px;font-size:12px;color:#4a5a70;'>Change this password immediately after logging in. Use the Gmail account to reset passwords on each social platform.</div>" +
         "</div>"
       : "";
 
     const platformsBlock = platformRows
-      ? "<div style='background:#0d1f3c;border:1px solid #1e3560;border-radius:10px;padding:16px 20px;margin-bottom:20px;'>" +
-        "<div style='font-size:11px;font-weight:700;color:#4a6898;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;'>Sign-Out Confirmation</div>" +
+      ? "<div style='background:#0c1526;border:1px solid rgba(255,255,255,0.09);border-radius:10px;padding:16px 20px;margin-bottom:20px;'>" +
+        "<div style='font-size:11px;font-weight:700;color:#8695aa;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;'>Sign-Out Confirmation</div>" +
         "<table style='width:100%;border-collapse:collapse;'>" + platformRows + "</table>" +
         "</div>"
       : "";
 
     const legalBlock =
-      "<div style='background:#060e1c;border:1px solid #1e3560;border-radius:10px;padding:14px 18px;margin-bottom:20px;'>" +
-      "<div style='font-size:11px;font-weight:700;color:#4a6898;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;'>Legal Confirmation</div>" +
-      "<div style='font-size:12px;color:#4a6898;line-height:1.7;'>" +
+      "<div style='background:#070d1a;border:1px solid rgba(255,255,255,0.09);border-radius:10px;padding:14px 18px;margin-bottom:20px;'>" +
+      "<div style='font-size:11px;font-weight:700;color:#8695aa;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;'>Legal Confirmation</div>" +
+      "<div style='font-size:12px;color:#8695aa;line-height:1.7;'>" +
       "This email serves as written confirmation that WebGecko has:" +
       "<ul style='margin:8px 0;padding-left:18px;'>" +
       (isFull
@@ -100,22 +100,22 @@ export async function POST(req: NextRequest) {
       "</div>";
 
     const noteBlock = adminNote
-      ? "<div style='background:#0d1f3c;border:1px solid #1e3560;border-radius:10px;padding:14px 18px;margin-bottom:20px;'>" +
-        "<div style='font-size:11px;font-weight:700;color:#4a6898;margin-bottom:6px;'>Note from our team</div>" +
-        "<div style='font-size:13px;color:#b0cce8;line-height:1.6;'>" + adminNote + "</div>" +
+      ? "<div style='background:#0c1526;border:1px solid rgba(255,255,255,0.09);border-radius:10px;padding:14px 18px;margin-bottom:20px;'>" +
+        "<div style='font-size:11px;font-weight:700;color:#8695aa;margin-bottom:6px;'>Note from our team</div>" +
+        "<div style='font-size:13px;color:#8695aa;line-height:1.6;'>" + adminNote + "</div>" +
         "</div>"
       : "";
 
-    const gradientColor = isFull ? "#7c3aed,#a855f7" : "#1e3a5f,#2563eb";
+    const gradientColor = isFull ? "#8347ff,#9333ea" : "#111f36,#4a9eff";
 
     const html =
-      "<div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a1020;color:#c8d8f0;border-radius:12px;overflow:hidden;'>" +
+      "<div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#070d1a;color:#eef2f8;border-radius:12px;overflow:hidden;'>" +
         "<div style='background:linear-gradient(135deg," + gradientColor + ");padding:24px 28px;'>" +
           "<div style='font-size:22px;font-weight:800;color:#fff;margin-bottom:4px;'>" + headerTitle + "</div>" +
           "<div style='font-size:14px;color:rgba(255,255,255,0.8);'>" + headerSub + "</div>" +
         "</div>" +
         "<div style='padding:28px;'>" +
-          "<div style='font-size:14px;color:#b0cce8;line-height:1.7;margin-bottom:20px;'>" +
+          "<div style='font-size:14px;color:#8695aa;line-height:1.7;margin-bottom:20px;'>" +
           "Hi " + businessName + ",<br/><br/>" +
           (isFull
             ? "As requested, we have completed the full handover of your social media accounts. All platforms have been signed out, your Gmail credentials are below, and we no longer have any access to your accounts."
@@ -126,9 +126,9 @@ export async function POST(req: NextRequest) {
           platformsBlock +
           legalBlock +
           noteBlock +
-          "<div style='font-size:12px;color:#2a4060;margin-top:8px;'>Questions? Reply to this email or contact hello@webgecko.au</div>" +
+          "<div style='font-size:12px;color:#4a5a70;margin-top:8px;'>Questions? Reply to this email or contact hello@webgecko.au</div>" +
         "</div>" +
-        "<div style='padding:16px 28px;border-top:1px solid #1e3560;font-size:12px;color:#2a4060;'>" +
+        "<div style='padding:16px 28px;border-top:1px solid rgba(255,255,255,0.09);font-size:12px;color:#4a5a70;'>" +
           "WebGecko · Sent " + timestamp + " AEST · Ref: " + (slug || businessName.toLowerCase().replace(/\s+/g, "-")) +
         "</div>" +
       "</div>";
@@ -146,7 +146,5 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error("offboard-social error:", err);
     return NextResponse.json({ error: err.message || "Failed" }, { status: 500 });
-  }
-}
   }
 }

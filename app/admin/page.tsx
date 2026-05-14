@@ -29,22 +29,80 @@ interface ClientAnalytics {
 
 // ── Themes ─────────────────────────────────────────────────────────────────────
 const DARK = {
-  bg:"#04080f", surface:"#0a1628", raised:"#102240", border:"#1e3560", borderHov:"#3060a0",
-  text:"#e0eaff", textSec:"#b0cce8", textMuted:"#8aaac8",
-  green:"#00f080", blue:"#4f9eff", amber:"#ffa830", red:"#ff4060", purple:"#b085ff", cyan:"#00e5ff",
-  overlay:"rgba(4,8,15,0.92)", shadow:"0 4px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)", shadowLg:"0 12px 40px rgba(0,0,0,0.85)", shadowXl:"-4px 0 60px rgba(0,0,0,0.95)",
+  bg:"#070d1a", surface:"#0c1526", raised:"#111f36", border:"rgba(255,255,255,0.07)", borderHov:"rgba(255,255,255,0.17)",
+  text:"#eef2f8", textSec:"#8695aa", textMuted:"#4a5a70",
+  green:"#00d4a0", blue:"#4a9eff", amber:"#ff9f24", red:"#f43f5e", purple:"#8347ff", cyan:"#00e5ff",
+  overlay:"rgba(4,8,15,0.92)", shadow:"0 4px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.03)", shadowLg:"0 12px 40px rgba(0,0,0,0.85)", shadowXl:"-4px 0 60px rgba(0,0,0,0.95)",
 };
 const LIGHT = {
-  bg:"#f0f2fa", surface:"#ffffff", raised:"#eaecf8", border:"#d4d8f0", borderHov:"#a0acdc",
-  text:"#080d22", textSec:"#2a3a6a", textMuted:"#4a5a8a",
+  bg:"#f4f7fb", surface:"#ffffff", raised:"#eef2f8", border:"rgba(0,0,0,0.07)", borderHov:"rgba(0,0,0,0.16)",
+  text:"#0f172a", textSec:"#475569", textMuted:"#94a3b8",
   green:"#059669", blue:"#2563eb", amber:"#d97706", red:"#dc2626", purple:"#7c3aed", cyan:"#0284c7",
   overlay:"rgba(0,0,0,0.55)", shadow:"0 1px 4px rgba(0,0,0,0.08)", shadowLg:"0 8px 28px rgba(0,0,0,0.12)", shadowXl:"0 20px 52px rgba(0,0,0,0.18)",
 };
 let T = DARK;
 
+// ── GeckoLogo component ────────────────────────────────────────────────────────
+function GeckoLogo({ size = 28, color = "#00d4a0" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={Math.round(size * 1.15)} viewBox="0 0 40 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Body */}
+      <ellipse cx="20" cy="22" rx="5.5" ry="9.5" fill={color}/>
+      {/* Head */}
+      <ellipse cx="20" cy="8" rx="6" ry="5.5" fill={color}/>
+      {/* Eyes */}
+      <circle cx="17.2" cy="7" r="2.2" fill="#070d1a"/>
+      <circle cx="22.8" cy="7" r="2.2" fill="#070d1a"/>
+      <circle cx="17.8" cy="6.5" r="0.9" fill="white" opacity="0.85"/>
+      <circle cx="23.4" cy="6.5" r="0.9" fill="white" opacity="0.85"/>
+      {/* Left arm */}
+      <path d="M14.5 19 C10 17 7 18 5 20 C4 21.5 5.5 23 7 22 C9 21 11.5 21.5 14.5 22" stroke={color} strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+      {/* Left toe pads */}
+      <circle cx="5.2" cy="20.2" r="1.1" fill={color}/>
+      <circle cx="4.6" cy="22.5" r="1.1" fill={color}/>
+      <circle cx="6.8" cy="23.6" r="1.1" fill={color}/>
+      {/* Right arm */}
+      <path d="M25.5 19 C30 17 33 18 35 20 C36 21.5 34.5 23 33 22 C31 21 28.5 21.5 25.5 22" stroke={color} strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+      {/* Right toe pads */}
+      <circle cx="34.8" cy="20.2" r="1.1" fill={color}/>
+      <circle cx="35.4" cy="22.5" r="1.1" fill={color}/>
+      <circle cx="33.2" cy="23.6" r="1.1" fill={color}/>
+      {/* Tail */}
+      <path d="M17.5 31 C17 36 15.5 40 14.5 43 C14 44.2 14.8 45 16 44.5 C17 44 17.5 42 18 39 C18.5 41.5 19 43.5 18.5 45 C19.5 45.5 20.5 44.8 20.5 43.5 C20.5 41 20 38 20 31" stroke={color} strokeWidth="2.2" strokeLinecap="round" fill="none"/>
+    </svg>
+  );
+}
+
+// ── SparkLine component ─────────────────────────────────────────────────────────
+function SparkLine({ data, color = "#4a9eff", height = 36, width = 90 }: { data: number[]; color?: string; height?: number; width?: number }) {
+  if (!data || data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const pts = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((v - min) / range) * (height - 4) - 2;
+    return `${x},${y}`;
+  });
+  const polyline = pts.join(" ");
+  const areaPath = `M${pts[0]} L${pts.slice(1).join(" L")} L${width},${height} L0,${height} Z`;
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ overflow:"visible" }}>
+      <defs>
+        <linearGradient id={`sg-${color.replace("#","")}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3"/>
+          <stop offset="100%" stopColor={color} stopOpacity="0.0"/>
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#sg-${color.replace("#","")})`}/>
+      <polyline points={polyline} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
 // ── Global CSS ─────────────────────────────────────────────────────────────────
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
   *, *::before, *::after { box-sizing: border-box; }
   body { margin: 0; }
 
@@ -145,7 +203,7 @@ const CSS = `
                         transition:all 0.15s ease; border:none; width:calc(100% - 16px);
                         text-align:left; background:none; font-family:inherit; }
   .wg-sidebar-item:hover { background: rgba(79,158,255,0.08) !important; }
-  .wg-sidebar-item.active { background: rgba(79,158,255,0.14) !important; color:#4f9eff !important; font-weight:700 !important; }
+  .wg-sidebar-item.active { background: rgba(131,71,255,0.14) !important; color:#8347ff !important; font-weight:700 !important; }
 
   @media (max-width: 900px) {
     .wg-admin-sidebar  { display:none !important; }
@@ -3628,13 +3686,13 @@ function AdminDashboard() {
       <div className="wg-admin-layout">
 
         {/* ── Sidebar (desktop) ─────────────────────────────────────────────── */}
-        <aside className="wg-admin-sidebar" style={{ background: dark?"rgba(4,8,15,0.98)":"#ffffff" }}>
+        <aside className="wg-admin-sidebar" style={{ background: dark?"#090e1c":"#ffffff" }}>
           {/* Top gradient line */}
-          <div style={{ height:2, background:"linear-gradient(90deg,#4f9eff,#b085ff,#00f080)", flexShrink:0 }}/>
+          <div style={{ height:2, background:"linear-gradient(90deg,#8347ff,#00d4a0,#4a9eff)", flexShrink:0 }}/>
           {/* Logo */}
           <div style={{ padding:"18px 16px 16px", borderBottom:`1px solid ${T.border}`, flexShrink:0 }}>
             <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
-              <div style={{ width:34,height:34,borderRadius:10,background:"linear-gradient(135deg,#4f9eff,#9d6fff)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 18px rgba(79,158,255,0.5)",fontSize:15,fontWeight:900,color:"#fff",flexShrink:0 }}>W</div>
+              <GeckoLogo size={34} color="#00d4a0"/>
               <div>
                 <div className="wg-brand-text" style={{ fontSize:15,fontWeight:800,letterSpacing:"-0.04em" }}>WebGecko</div>
                 <div style={{ fontSize:9,color:"#4f9eff",fontWeight:800,letterSpacing:"0.1em",textTransform:"uppercase" as const }}>Admin</div>
@@ -3654,15 +3712,15 @@ function AdminDashboard() {
           {/* Nav items */}
           <div style={{ flex:1, padding:"10px 0", overflowY:"auto" as const }}>
             {([
-              { v:"analytics" as const, icon:"◈", label:"Analytics" },
-              { v:"clients"   as const, icon:"⬡", label:"Clients" },
-              { v:"social"    as const, icon:"📱", label:"Social Media" },
-              { v:"logs"      as const, icon:"⧉", label:"Pipeline" },
-              { v:"history"   as const, icon:"📜", label:"History" },
-            ]).map(({v,icon,label}) => (
+              { v:"analytics" as const, label:"Analytics",   svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="8" width="3" height="6" rx="1" fill="currentColor"/><rect x="6" y="5" width="3" height="9" rx="1" fill="currentColor"/><rect x="11" y="1" width="3" height="13" rx="1" fill="currentColor"/></svg> },
+              { v:"clients"   as const, label:"Clients",      svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="5" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M2 13c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+              { v:"social"    as const, label:"Social Media", svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="3" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="3" r="2" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.5"/><line x1="4.9" y1="6.5" x2="10.1" y2="4" stroke="currentColor" strokeWidth="1.3"/><line x1="4.9" y1="8.5" x2="10.1" y2="11" stroke="currentColor" strokeWidth="1.3"/></svg> },
+              { v:"logs"      as const, label:"Pipeline",     svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 4h11M2 7.5h8M2 11h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+              { v:"history"   as const, label:"History",      svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" strokeWidth="1.5"/><path d="M7.5 4.5v3.5l2.5 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+            ]).map(({v,svg,label}) => (
               <button key={v} onClick={()=>setView(v)} className={`wg-sidebar-item${view===v?" active":""}`}
-                style={{ color: view===v ? T.blue : T.textMuted }}>
-                <span style={{ fontSize:14,width:18,textAlign:"center" as const }}>{icon}</span>
+                style={{ color: view===v ? T.purple : T.textMuted }}>
+                <span style={{ width:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>{svg}</span>
                 <span>{label}</span>
               </button>
             ))}
@@ -3691,19 +3749,19 @@ function AdminDashboard() {
         {/* ── Mobile top nav ──────────────────────────────────────────────────── */}
         <div className="wg-admin-topnav wg-glass" style={{ background: dark?"rgba(4,8,15,0.92)":"rgba(255,255,255,0.95)" }}>
           <div style={{ display:"flex",alignItems:"center",gap:10 }}>
-            <div style={{ width:30,height:30,borderRadius:9,background:"linear-gradient(135deg,#4f9eff,#9d6fff)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:900,color:"#fff" }}>W</div>
+            <GeckoLogo size={30} color="#00d4a0"/>
             <span className="wg-brand-text" style={{ fontSize:15,fontWeight:800 }}>WebGecko</span>
             <span style={{ fontSize:9,color:"#4f9eff",background:"rgba(79,158,255,0.15)",border:"1px solid rgba(79,158,255,0.25)",borderRadius:4,padding:"2px 7px",fontWeight:800,letterSpacing:"0.1em" }}>ADMIN</span>
           </div>
           <div style={{ display:"flex",gap:6,alignItems:"center" }}>
             {([
-              { v:"analytics" as const, icon:"◈" },
-              { v:"clients"   as const, icon:"⬡" },
-              { v:"social"    as const, icon:"📱" },
-              { v:"logs"      as const, icon:"⧉" },
-              { v:"history"   as const, icon:"📜" },
-            ]).map(({v,icon}) => (
-              <button key={v} onClick={()=>setView(v)} style={{ background:view===v?T.raised:"transparent", border:`1px solid ${view===v?T.border:"transparent"}`, borderRadius:7, width:32,height:30, display:"flex",alignItems:"center",justifyContent:"center", fontSize:13, cursor:"pointer", color:view===v?T.text:T.textMuted }}>{icon}</button>
+              { v:"analytics" as const, svg:<svg width="14" height="14" viewBox="0 0 15 15" fill="none"><rect x="1" y="8" width="3" height="6" rx="1" fill="currentColor"/><rect x="6" y="5" width="3" height="9" rx="1" fill="currentColor"/><rect x="11" y="1" width="3" height="13" rx="1" fill="currentColor"/></svg> },
+              { v:"clients"   as const, svg:<svg width="14" height="14" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="5" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M2 13c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+              { v:"social"    as const, svg:<svg width="14" height="14" viewBox="0 0 15 15" fill="none"><circle cx="3" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="3" r="2" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.5"/><line x1="4.9" y1="6.5" x2="10.1" y2="4" stroke="currentColor" strokeWidth="1.3"/><line x1="4.9" y1="8.5" x2="10.1" y2="11" stroke="currentColor" strokeWidth="1.3"/></svg> },
+              { v:"logs"      as const, svg:<svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M2 4h11M2 7.5h8M2 11h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+              { v:"history"   as const, svg:<svg width="14" height="14" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" strokeWidth="1.5"/><path d="M7.5 4.5v3.5l2.5 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+            ]).map(({v,svg}) => (
+              <button key={v} onClick={()=>setView(v)} style={{ background:view===v?T.raised:"transparent", border:`1px solid ${view===v?T.border:"transparent"}`, borderRadius:7, width:32,height:30, display:"flex",alignItems:"center",justifyContent:"center", cursor:"pointer", color:view===v?T.text:T.textMuted }}>{svg}</button>
             ))}
             <button onClick={toggleTheme} style={{ background:T.raised,border:`1px solid ${T.border}`,color:T.textMuted,borderRadius:7,width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:13 }}>{dark?"☀":"🌙"}</button>
             <button onClick={handleLogout} style={{ background:"transparent",color:T.textMuted,border:`1px solid ${T.border}`,borderRadius:7,padding:"5px 10px",fontSize:11,cursor:"pointer" }}>Out</button>
@@ -3727,23 +3785,25 @@ function AdminDashboard() {
         {!loading&&!error&&(
           <div style={{ display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:28 }}>
             {[
-              {label:"Total clients",value:totals.clients,color:T.blue,icon:"◈"},
-              {label:"Monthly active",value:totals.active,color:T.green,icon:"●"},
-              {label:"Est. MRR",value:"$"+totals.mrr.toLocaleString(),color:T.green,icon:"$"},
-              {label:"Views / month",value:totals.views,color:T.cyan,icon:"◎"},
-              {label:"Total bookings",value:totals.bookings,color:T.amber,icon:"◆"},
+              {label:"Total clients",value:totals.clients,color:T.blue,  spark:[totals.clients*.5,totals.clients*.6,totals.clients*.7,totals.clients*.75,totals.clients*.82,totals.clients*.88,totals.clients*.93,totals.clients]},
+              {label:"Monthly active",value:totals.active, color:T.green, spark:[totals.active*.55,totals.active*.65,totals.active*.72,totals.active*.78,totals.active*.84,totals.active*.9,totals.active*.95,totals.active]},
+              {label:"Est. MRR",value:"$"+totals.mrr.toLocaleString(),color:T.green,spark:[totals.mrr*.5,totals.mrr*.6,totals.mrr*.7,totals.mrr*.75,totals.mrr*.82,totals.mrr*.88,totals.mrr*.93,totals.mrr]},
+              {label:"Views / month",value:totals.views,  color:T.cyan,  spark:[totals.views*.4,totals.views*.55,totals.views*.6,totals.views*.72,totals.views*.68,totals.views*.8,totals.views*.9,totals.views]},
+              {label:"Total bookings",value:totals.bookings,color:T.amber,spark:[totals.bookings*.45,totals.bookings*.55,totals.bookings*.65,totals.bookings*.7,totals.bookings*.78,totals.bookings*.85,totals.bookings*.92,totals.bookings]},
             ].map(s=>(
-              <div key={s.label} className="wg-card wg-stat-scan" style={{ background:T.surface,border:`1px solid ${s.color}28`,borderRadius:14,padding:"16px 18px 14px 22px",position:"relative",overflow:"hidden",transition:"border-color 0.2s, box-shadow 0.2s",boxShadow:`0 0 0 1px ${s.color}14, 0 6px 32px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)` }}
+              <div key={s.label} className="wg-card wg-stat-scan" style={{ background:T.surface,border:`1px solid ${s.color}28`,borderRadius:14,padding:"16px 18px 10px 22px",position:"relative",overflow:"hidden",transition:"border-color 0.2s, box-shadow 0.2s",boxShadow:`0 0 0 1px ${s.color}14, 0 6px 32px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)` }}
                 onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=s.color+"55";el.style.boxShadow=`0 0 32px ${s.color}22, 0 8px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06)`;}}
                 onMouseLeave={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=s.color+"28";el.style.boxShadow=`0 0 0 1px ${s.color}14, 0 6px 32px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)`;}}>
                 <div style={{ position:"absolute",left:0,top:0,bottom:0,width:4,borderRadius:"14px 0 0 14px",background:`linear-gradient(180deg,${s.color},${s.color}33)`,boxShadow:`2px 0 12px ${s.color}40` }}/>
                 <div style={{ position:"absolute",top:0,right:0,width:80,height:80,background:`radial-gradient(circle at top right,${s.color}22,transparent 60%)`,pointerEvents:"none" }}/>
                 <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:10 }}>
-                  <div style={{ width:26,height:26,borderRadius:7,background:s.color+"22",border:`1px solid ${s.color}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900,color:s.color,flexShrink:0 }}>{s.icon}</div>
                   <div style={{ fontSize:9,color:T.textMuted,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase" as const }}>{s.label}</div>
                 </div>
-                <div style={{ fontSize:26,fontWeight:800,letterSpacing:"-0.04em",lineHeight:1 }}>
+                <div style={{ fontSize:26,fontWeight:800,letterSpacing:"-0.04em",lineHeight:1,marginBottom:8 }}>
                   {typeof s.value==="number" ? <AnimNum value={s.value} color={s.color}/> : <span style={{color:s.color}}>{s.value}</span>}
+                </div>
+                <div style={{ position:"absolute",bottom:0,right:0,opacity:0.7 }}>
+                  <SparkLine data={s.spark} color={s.color} width={88} height={32}/>
                 </div>
               </div>
             ))}
@@ -3922,23 +3982,4 @@ function AdminDashboard() {
                     ))}
                   </div>
                   <div style={{ marginTop:14, background:T.raised, border:`1px solid ${T.border}`, borderRadius:8, padding:"10px 14px", fontSize:11, color:T.textMuted, lineHeight:1.6 }}>
-                    ⚠️ These documents were generated on {new Date().toLocaleDateString("en-AU")}. If you update pricing, plans, or service terms, regenerate the PDFs and redeploy. Clients who accepted prior versions are bound to those terms — notify them of material changes via email.
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })()}
-        {!loading&&<ExampleHtmlsPanel toast={toast}/>}
-          </>);
-        })()}
-        </>)}
-
-          </div>{/* end padding div */}
-        </div>{/* end wg-admin-main */}
-      </div>{/* end wg-admin-layout */}
-    </div>
-  );
-}
-
-export default AdminDashboard;
+                    ⚠️ These documents wer

@@ -5,48 +5,48 @@ import { useRouter, useParams } from "next/navigation";
 
 // ─── Theme tokens — light (default) + dark ────────────────────────────────────
 const LIGHT = {
-  bg:         "#f2f3f8",
+  bg:         "#f4f7fb",
   surface:    "#ffffff",
-  raised:     "#eceef6",
-  border:     "#dde0ee",
-  borderHov:  "#b8bcd8",
-  text:       "#0d0f1c",
-  textSec:    "#2a3a6a",
-  textMuted:  "#4a5a8a",
-  accent:     "#009960",
+  raised:     "#eef2f8",
+  border:     "rgba(0,0,0,0.07)",
+  borderHov:  "rgba(0,0,0,0.16)",
+  text:       "#0f172a",
+  textSec:    "#475569",
+  textMuted:  "#94a3b8",
+  accent:     "#059669",
   accentBg:   "#f0fdf4",
   accentBlue: "#2563eb",
-  amber:      "#b45309",
+  amber:      "#d97706",
   amberBg:    "#fffbeb",
   red:        "#dc2626",
   redBg:      "#fef2f2",
   purple:     "#7c3aed",
   navBg:      "#ffffff",
-  navBorder:  "#dde0ee",
+  navBorder:  "rgba(0,0,0,0.07)",
   shadow:     "0 1px 4px rgba(0,0,0,0.07)",
   shadowMd:   "0 6px 20px rgba(0,0,0,0.1)",
 };
 
 const DARK = {
-  bg:         "#04080f",
-  surface:    "#0a1628",
-  raised:     "#102240",
-  border:     "#1e3560",
-  borderHov:  "#3060a0",
-  text:       "#e0eaff",
-  textSec:    "#b0cce8",
-  textMuted:  "#8aaac8",
-  accent:     "#00f080",
-  accentBg:   "#001a10",
-  accentBlue: "#4f9eff",
-  amber:      "#ffa830",
-  amberBg:    "#1a0e00",
-  red:        "#ff4060",
-  redBg:      "#1a0508",
-  purple:     "#b085ff",
-  navBg:      "rgba(4,8,15,0.9)",
-  navBorder:  "rgba(79,158,255,0.15)",
-  shadow:     "0 4px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04)",
+  bg:         "#070d1a",
+  surface:    "#0c1526",
+  raised:     "#111f36",
+  border:     "rgba(255,255,255,0.07)",
+  borderHov:  "rgba(255,255,255,0.17)",
+  text:       "#eef2f8",
+  textSec:    "#8695aa",
+  textMuted:  "#4a5a70",
+  accent:     "#00d4a0",
+  accentBg:   "rgba(0,212,160,0.08)",
+  accentBlue: "#4a9eff",
+  amber:      "#ff9f24",
+  amberBg:    "rgba(255,159,36,0.08)",
+  red:        "#f43f5e",
+  redBg:      "rgba(244,63,94,0.08)",
+  purple:     "#8347ff",
+  navBg:      "#090e1c",
+  navBorder:  "rgba(255,255,255,0.07)",
+  shadow:     "0 4px 24px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.03)",
   shadowMd:   "0 12px 40px rgba(0,0,0,0.85)",
 };
 
@@ -1260,7 +1260,7 @@ export default function ClientPortal() {
 
   // ─────────────────────────────────────────────────────────────────────────────
   const portalCss = `
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
     *, *::before, *::after { box-sizing: border-box; }
     @keyframes wg-ping    { 0%{transform:scale(1);opacity:.9} 100%{transform:scale(2.4);opacity:0} }
     @keyframes wg-float   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
@@ -1691,7 +1691,7 @@ export default function ClientPortal() {
       )}
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
         *, *::before, *::after { box-sizing: border-box; }
         body { margin: 0; }
         @keyframes wg-fadeSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
