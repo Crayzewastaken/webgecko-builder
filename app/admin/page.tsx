@@ -3873,6 +3873,62 @@ function AdminDashboard() {
           </div>
         )}
 
+
+        {/* ── Legal Documents Panel ─────────────────────────────── */}
+        {!loading && (()=>{
+          const DOCS = [
+            { title:"Terms & Conditions", ref:"WG-TNC-001", file:"WebGecko_Terms_and_Conditions.pdf", desc:"Full service agreement, payment terms, IP, liability, dispute resolution." },
+            { title:"Privacy Policy", ref:"WG-PRV-001", file:"WebGecko_Privacy_Policy.pdf", desc:"Privacy Act 1988 (Cth) compliance, data handling, OAIC complaint pathway." },
+            { title:"Cancellation & Refund Policy", ref:"WG-CAN-001", file:"WebGecko_Cancellation_and_Refund_Policy.pdf", desc:"Cancellation process, refund rights, handover package pricing, ACL." },
+            { title:"Social Media Agreement", ref:"WG-SOC-001", file:"WebGecko_Social_Media_Agreement.pdf", desc:"Account ownership, credentials, community management, offboarding." },
+          ];
+          const [legalOpen, setLegalOpen] = useState(false);
+          return (
+            <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:16, overflow:"hidden", marginTop:32, boxShadow:T.shadow }}>
+              <button onClick={()=>setLegalOpen(o=>!o)} style={{ width:"100%", background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 24px", color:T.text, fontFamily:"inherit" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:34,height:34,borderRadius:8,background:T.purple+"20",border:`1px solid ${T.purple}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16 }}>⚖️</div>
+                  <div style={{ textAlign:"left" as const }}>
+                    <div style={{ fontSize:14, fontWeight:700, color:T.text }}>Legal Documents</div>
+                    <div style={{ fontSize:12, color:T.textMuted, marginTop:2 }}>{DOCS.length} documents · Queensland, Australia · ABN 32 300 992 377</div>
+                  </div>
+                </div>
+                <div style={{ color:T.textMuted, fontSize:12 }}>{legalOpen?"▲":"▼"}</div>
+              </button>
+              {legalOpen && (
+                <div style={{ padding:"0 24px 24px", borderTop:`1px solid ${T.border}` }}>
+                  <div style={{ fontSize:12, color:T.textMuted, lineHeight:1.6, margin:"16px 0 14px" }}>
+                    These documents are served to clients at <b style={{color:T.textSec}}>webgecko.au/legal/</b> and must be accepted by clients before their first payment. Download to keep offline copies.
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10 }}>
+                    {DOCS.map(doc => (
+                      <div key={doc.ref} style={{ background:T.raised, border:`1px solid ${T.border}`, borderRadius:12, padding:"14px 16px", display:"flex", flexDirection:"column" as const, gap:8 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
+                          <div style={{ fontSize:13, fontWeight:700, color:T.text, lineHeight:1.3 }}>{doc.title}</div>
+                          <span style={{ fontSize:9, fontWeight:700, color:T.purple, background:T.purple+"18", border:`1px solid ${T.purple}30`, borderRadius:5, padding:"2px 7px", whiteSpace:"nowrap" as const, flexShrink:0 }}>{doc.ref}</span>
+                        </div>
+                        <div style={{ fontSize:11, color:T.textMuted, lineHeight:1.5, flex:1 }}>{doc.desc}</div>
+                        <div style={{ display:"flex", gap:8, marginTop:4 }}>
+                          <a href={"/legal/"+doc.file} target="_blank" rel="noreferrer"
+                            style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:T.purple+"18", border:`1px solid ${T.purple}40`, color:T.purple, borderRadius:7, padding:"7px 10px", fontSize:12, fontWeight:600, textDecoration:"none" }}>
+                            View ↗
+                          </a>
+                          <a href={"/legal/"+doc.file} download={doc.file}
+                            style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:T.raised, border:`1px solid ${T.border}`, color:T.textSec, borderRadius:7, padding:"7px 10px", fontSize:12, fontWeight:600, textDecoration:"none" }}>
+                            ↓ Download
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop:14, background:T.raised, border:`1px solid ${T.border}`, borderRadius:8, padding:"10px 14px", fontSize:11, color:T.textMuted, lineHeight:1.6 }}>
+                    ⚠️ These documents were generated on {new Date().toLocaleDateString("en-AU")}. If you update pricing, plans, or service terms, regenerate the PDFs and redeploy. Clients who accepted prior versions are bound to those terms — notify them of material changes via email.
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
         {!loading&&<ExampleHtmlsPanel toast={toast}/>}
           </>);
         })()}

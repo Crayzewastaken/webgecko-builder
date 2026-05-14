@@ -162,7 +162,7 @@ interface PaymentStatus {
   quote: { total: number; monthly: number; deposit: number; final: number };
 }
 
-type Tab = "overview" | "preview" | "bookings" | "content" | "quote" | "plan" | "upgrade" | "contact" | "social";
+type Tab = "overview" | "preview" | "bookings" | "content" | "quote" | "plan" | "upgrade" | "contact" | "social" | "settings";
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 function formatDate(dateStr: string) {
@@ -584,6 +584,9 @@ export default function ClientPortal() {
 
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
   const [payLoading, setPayLoading] = useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [termsChecked, setTermsChecked] = useState({ tnc: false, privacy: false, cancellation: false, social: false });
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   // Preview / feedback
@@ -848,6 +851,11 @@ export default function ClientPortal() {
         setTourStep(0);
       }
     } catch { setError("Failed to load your project. Please refresh."); }
+    // Load saved terms acceptance
+    try {
+      const saved = localStorage.getItem("wg_terms_" + slug);
+      if (saved === "accepted") setTermsAccepted(true);
+    } catch {}
     finally { setLoading(false); }
   }
 
@@ -959,6 +967,7 @@ export default function ClientPortal() {
   }
 
   async function handlePay(stage: "deposit" | "final" | "monthly") {
+    if (!termsAccepted) { setTermsModalOpen(true); return; }
     setPayLoading(stage);
     try {
       const res = await fetch(`/api/payment/create?slug=${slug}&stage=${stage}`);
@@ -1052,6 +1061,7 @@ export default function ClientPortal() {
     { id: "plan", label: "My Plan", icon: "📋" },
     ...(!isSocialOnly ? [{ id: "upgrade" as Tab, label: "Add Features", icon: "⚡" }] : []),
     { id: "contact", label: "Contact Us", icon: "💬" },
+    { id: "settings" as Tab, label: "Settings", icon: "⚙" },
   ];
 
   const S = {
@@ -3465,6 +3475,129 @@ export default function ClientPortal() {
               )}
             </div>
           </>
+        )}
+
+        {/* ══════════════════════ SETTINGS ══════════════════════ */}
+        {tab === "settings" && (
+          <>
+            {/* Legal Documents */}
+            <div style={S.card}>
+              <div style={S.label}>Legal Documents</div>
+              <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 16, lineHeight: 1.6 }}>
+                These are the agreements that govern your relationship with Web Gecko. You accepted these before your first payment.
+              </div>
+              {[
+                { title: "Terms & Conditions", ref: "WG-TNC-001", desc: "Full service agreement covering payments, IP, liability, and dispute resolution.", url: "/legal/WebGecko_Terms_and_Conditions.pdf", icon: "📄" },
+                { title: "Privacy Policy", ref: "WG-PRV-001", desc: "How we collect, use, and protect your personal information under Australian Privacy Law.", url: "/legal/WebGecko_Privacy_Policy.pdf", icon: "🔒" },
+                { title: "Cancellation & Refund Policy", ref: "WG-CAN-001", desc: "Your rights and our obligations around cancellations, refunds, and handover packages.", url: "/legal/WebGecko_Cancellation_and_Refund_Policy.pdf", icon: "↩️" },
+                { title: "Social Media Management Agreement", ref: "WG-SOC-001", desc: "Account ownership, content approval, community management, and offboarding terms.", url: "/legal/WebGecko_Social_Media_Agreement.pdf", icon: "📱" },
+              ].map(doc => (
+                <a key={doc.ref} href={doc.url} target="_blank" rel="noreferrer" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", background: C.raised, border: `1px solid ${C.border}`, borderRadius: 10, marginBottom: 8, transition: "border-color 0.18s" }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = C.accentBlue + "60"}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = C.border}>
+                  <span style={{ fontSize: 22, flexShrink: 0 }}>{doc.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 2 }}>{doc.title}</div>
+                    <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.4 }}>{doc.desc}</div>
+                  </div>
+                  <div style={{ flexShrink: 0, display: "flex", flexDirection: "column" as const, alignItems: "flex-end", gap: 4 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 5, padding: "2px 7px" }}>{doc.ref}</span>
+                    <span style={{ fontSize: 11, color: C.accentBlue }}>View PDF ↗</span>
+                  </div>
+                </a>
+              ))}
+            </div>
+
+            {/* Acceptance record */}
+            <div style={{ ...S.card, background: termsAccepted ? (dark ? "rgba(0,200,150,0.05)" : "rgba(0,200,150,0.04)") : C.surface, borderColor: termsAccepted ? `${C.accent}30` : C.border }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                <span style={{ fontSize: 18 }}>{termsAccepted ? "✅" : "⚠️"}</span>
+                <div style={{ fontSize: 13, fontWeight: 700, color: termsAccepted ? C.accent : C.amber }}>
+                  {termsAccepted ? "You have accepted all legal agreements" : "You have not yet accepted the legal agreements"}
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.6 }}>
+                {termsAccepted
+                  ? "Your acceptance was recorded when you first paid your deposit. If you have questions about any of these documents, contact us at hello@webgecko.au."
+                  : "Acceptance of all legal documents is required before your first payment. These will be shown automatically when you proceed to pay."}
+              </div>
+            </div>
+
+            {/* Account info */}
+            <div style={S.card}>
+              <div style={S.label}>Your Account</div>
+              <div style={{ display: "flex", flexDirection: "column" as const, gap: 10 }}>
+                {[
+                  { label: "Business", value: client.businessName },
+                  { label: "Slug / Portal ID", value: slug },
+                  { label: "Service", value: serviceMode === "both" ? "Website + Social Media" : serviceMode === "social" ? "Social Media Management" : "Website" },
+                ].map(row => (
+                  <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
+                    <span style={{ fontSize: 12, color: C.textMuted }}>{row.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{row.value}</span>
+                  </div>
+                ))}
+              </div>
+              <button onClick={signOut} style={{ ...S.btn("ghost"), marginTop: 14, fontSize: 12, width: "100%" }}>Sign Out</button>
+            </div>
+          </>
+        )}
+
+        {/* ══════════════════════ TERMS MODAL ══════════════════════ */}
+        {termsModalOpen && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setTermsModalOpen(false)}>
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 18, padding: 28, width: "100%", maxWidth: 500, maxHeight: "90vh", overflowY: "auto" as const }} onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 4 }}>Before you pay</div>
+              <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 20, lineHeight: 1.6 }}>
+                Please read and accept all of the following agreements. You can view the full PDF for each at any time from the Settings tab.
+              </div>
+
+              {[
+                { key: "tnc", title: "Terms & Conditions", ref: "WG-TNC-001", url: "/legal/WebGecko_Terms_and_Conditions.pdf", desc: "Service agreement, payment terms, liability, and dispute resolution." },
+                { key: "privacy", title: "Privacy Policy", ref: "WG-PRV-001", url: "/legal/WebGecko_Privacy_Policy.pdf", desc: "How we collect and protect your personal information." },
+                { key: "cancellation", title: "Cancellation & Refund Policy", ref: "WG-CAN-001", url: "/legal/WebGecko_Cancellation_and_Refund_Policy.pdf", desc: "Your rights around cancellations, refunds, and handover." },
+                { key: "social", title: "Social Media Agreement", ref: "WG-SOC-001", url: "/legal/WebGecko_Social_Media_Agreement.pdf", desc: "Account creation, management, and offboarding terms." },
+              ].map(doc => {
+                const checked = termsChecked[doc.key as keyof typeof termsChecked];
+                return (
+                  <div key={doc.key} style={{ background: checked ? (dark ? "rgba(0,200,150,0.06)" : "rgba(0,200,150,0.04)") : C.raised, border: `1px solid ${checked ? C.accent + "40" : C.border}`, borderRadius: 10, padding: "12px 14px", marginBottom: 10, transition: "all 0.18s" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                      <input type="checkbox" checked={checked}
+                        onChange={e => setTermsChecked(prev => ({ ...prev, [doc.key]: e.target.checked }))}
+                        style={{ marginTop: 2, accentColor: C.accent, width: 15, height: 15, flexShrink: 0, cursor: "pointer" }}/>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{doc.title}</span>
+                          <span style={{ fontSize: 10, color: C.textMuted, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 4, padding: "1px 6px" }}>{doc.ref}</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: C.textMuted, lineHeight: 1.4, marginBottom: 6 }}>{doc.desc}</div>
+                        <a href={doc.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: C.accentBlue, textDecoration: "none", fontWeight: 600 }}>Read full document ↗</a>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div style={{ background: dark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", marginBottom: 18, fontSize: 11, color: C.textMuted, lineHeight: 1.6 }}>
+                By ticking all boxes and clicking Accept below, you confirm that you have read and agree to all Web Gecko legal agreements. These documents are always available in your Settings tab. Governing law: Queensland, Australia.
+              </div>
+
+              {Object.values(termsChecked).every(Boolean) ? (
+                <button onClick={() => {
+                  setTermsAccepted(true);
+                  setTermsModalOpen(false);
+                  try { localStorage.setItem("wg_terms_" + slug, "accepted"); } catch {}
+                }} style={{ ...S.btn("primary"), width: "100%", fontSize: 14, padding: "13px" }}>
+                  ✓ I Accept All Agreements — Continue to Payment →
+                </button>
+              ) : (
+                <button disabled style={{ ...S.btn("primary", true), width: "100%", fontSize: 14, padding: "13px", opacity: 0.45 }}>
+                  Tick all boxes above to continue
+                </button>
+              )}
+              <button onClick={() => setTermsModalOpen(false)} style={{ ...S.btn("ghost"), width: "100%", fontSize: 13, marginTop: 8 }}>Cancel</button>
+            </div>
+          </div>
         )}
       </div>
           {/* Mobile bottom navigation */}
