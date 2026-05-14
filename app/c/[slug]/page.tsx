@@ -2876,12 +2876,12 @@ export default function ClientPortal() {
                 posts: 0,
                 perPost: "",
                 features: [
-                  "Any platform mix you need",
-                  "Flexible posting frequency",
+                  "Unlimited platforms & posting frequency",
+                  "Multi-location & multi-brand support",
                   "Add-ons: UGC, influencer outreach",
-                  "White-glove onboarding",
-                  "Custom reporting cadence",
-                  "Direct line to your strategist",
+                  "White-glove onboarding & strategy",
+                  "Custom reporting & analytics dashboard",
+                  "Dedicated account manager & direct line",
                 ],
                 color: "#f59e0b",
               },
@@ -2962,7 +2962,7 @@ export default function ClientPortal() {
 
                     {/* Competitor context */}
                     <div style={{ background: C.raised, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", fontSize: 11, color: C.textMuted, lineHeight: 1.6, flexShrink: 0 }}>
-                      💡 <strong style={{ color: C.textSec }}>How we compare:</strong> Most Brisbane agencies charge $2,450–$5,370/mo for social media management (Quantum Web, SOUP Agency). A dedicated social media manager costs $6,500–$8,000/mo in salary alone. WebGecko delivers full-service management — content creation, community management, and reporting — at a fraction of the cost, with no lock-in contract.
+                      💡 <strong style={{ color: C.textSec }}>Why WebGecko?</strong> Brisbane agencies like Quantum Web and SOUP charge $2,450–$5,370/mo. A full-time social media manager costs $6,500–$8,000/mo in salary. WebGecko delivers the same high-quality, full-service management — content, community, reporting — for a fraction of the price. Whether you are a tradie, a family business, or a corporate brand, we are Australia's best-value social media team. No lock-in contract, ever.
                     </div>
                   </div>
 
