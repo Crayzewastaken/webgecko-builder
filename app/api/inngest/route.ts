@@ -1487,20 +1487,39 @@ const buildWebsite = inngest.createFunction(
               console.warn("[Step7b] ensureMultiPageStructure applied " + report.repairs.length + " emergency repairs. Added: [" + report.missingPagesAdded.join(",") + "]");
             }
             repaired = ensuredHtml;
-            // Ensure first data-page wrapper has class="active" — Stitch consistently omits it
-            const hasActive = /data-page=["'][^"']+["'][^>]*class="[^"]*active|class="[^"]*active[^"]*"[^>]*data-page=/.test(repaired);
-            if (!hasActive) {
+            // Ensure exactly one data-page wrapper has class="active".
+            // ensureMultiPageStructure may already have set it — count and normalise.
+            {
+              const countA = (h: string) =>
+                (h.match(/data-page=["'][^"']+["'][^>]*class="[^"]*active/g) || []).length +
+                (h.match(/class="[^"]*active[^"]*"[^>]*data-page=/g) || []).length;
+              const nActive = countA(repaired);
               const firstId = requestedPageIds[0];
-              const addActiveRe = new RegExp(`(data-page=["']${firstId}["'][^>]*class=")([^"]*)(")`, 'i');
-              if (addActiveRe.test(repaired)) {
-                repaired = repaired.replace(addActiveRe, (_m: string, pre: string, cls: string, end: string) =>
-                  `${pre}${cls.replace(/active/g,'').trim()} active${end}`);
-              } else {
-                const injectRe = new RegExp(`(data-page=["']${firstId}["'])([^>]*>)`, 'i');
-                repaired = repaired.replace(injectRe, (_m: string, dp: string, rest: string) =>
-                  `${dp} class="page-section active"${rest}`);
+              if (nActive === 0) {
+                // No active wrapper — add to first page
+                const re1 = new RegExp('(data-page=["\']' + firstId + '["\'][^>]*class=")([^"]*)"', 'i');
+                if (re1.test(repaired)) {
+                  repaired = repaired.replace(re1, (_m: string, pre: string, cls: string) =>
+                    pre + cls.replace(/active/g, '').trim() + ' active"');
+                } else {
+                  const re2 = new RegExp('(data-page=["\']' + firstId + '["\'])([^>]*>)', 'i');
+                  repaired = repaired.replace(re2, (_m: string, dp: string, rest: string) =>
+                    dp + ' class="page-section active"' + rest);
+                }
+                console.warn('[Step7b] Injected missing active class on first data-page wrapper');
+              } else if (nActive > 1) {
+                // Multiple active — strip all, then add only to first page
+                repaired = repaired.replace(/(data-page=["'][^"']+["'][^>]*class="[^"]*)active([^"]*")/g,
+                  (_m: string, pre: string, post: string) => pre + post);
+                repaired = repaired.replace(/(class="[^"]*)active([^"]*"[^>]*data-page=)/g,
+                  (_m: string, pre: string, post: string) => pre + post);
+                const re3 = new RegExp('(data-page=["\']' + firstId + '["\'][^>]*class=")([^"]*)"', 'i');
+                if (re3.test(repaired)) {
+                  repaired = repaired.replace(re3, (_m: string, pre: string, cls: string) =>
+                    pre + cls.trim() + ' active"');
+                }
+                console.warn('[Step7b] Normalised multiple active classes to single first-page active');
               }
-              console.warn('[Step7b] Injected missing active class on first data-page wrapper');
             }
           }
 
