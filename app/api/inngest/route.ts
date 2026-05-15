@@ -236,21 +236,8 @@ const buildWebsite = inngest.createFunction(
         const pid = project.projectId;
         if (!pid) throw new Error("Stitch SDK: no projectId returned from createProject");
 
-        // Attach DESIGN.md as a native design system — gives Stitch exact tokens
-        // for colours, typography, and components so it can't deviate from the palette.
-        if (spec.designMd) {
-          try {
-            await project.createDesignSystem({
-              displayName: `${spec.projectTitle} Design System`,
-              designTokens: spec.designMd,
-              styleGuidelines: `Premium dark website for ${spec.projectTitle}. Use the exact hex colours from the design tokens. All CTAs use the accent colour. All section backgrounds stay within the same dark colour family.`,
-            });
-            console.log(`[Inngest] STEP 2: DESIGN.md design system attached (${spec.designMd.length} chars)`);
-          } catch (dsErr: any) {
-            // Non-fatal — log and continue without design system
-            console.warn(`[Inngest] STEP 2: design system attach failed (non-fatal): ${dsErr?.message}`);
-          }
-        }
+        // DESIGN.md attachment removed — was constraining Stitch structure/layout
+        // Colour/typography guidance is already in the stitchPrompt itself
 
         console.log(`[Inngest] STEP 2 DONE: projectId=${pid}`);
         return pid;
@@ -263,7 +250,6 @@ const buildWebsite = inngest.createFunction(
       const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3-stitch-generate", async () => {
         const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
         const stitchPrompt = (spec.stitchPrompt || "")
-          .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
           .replace(/\s{3,}/g, "  ");
         // Do NOT slice stitchPrompt — truncation breaks multipage and section instructions
         console.log(`[Inngest] STEP 3: Stitch generate (prompt: ${stitchPrompt.length} chars, projectId=${projectId})`);
@@ -272,7 +258,7 @@ const buildWebsite = inngest.createFunction(
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
             const project = stitchSdk.project(projectId);
-            const screen = await project.generate(stitchPrompt, "DESKTOP");
+            const screen = await project.generate(stitchPrompt, "DESKTOP", "GEMINI_3_PRO");
             console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
 
             // generate() returns a Screen — try getHtml() on it first (uses cached downloadUrl if present)

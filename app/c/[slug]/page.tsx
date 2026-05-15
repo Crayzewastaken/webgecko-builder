@@ -698,6 +698,28 @@ export default function ClientPortal() {
     if (pm === "auto" || pm === "manual") setPostingMode(pm);
   }, [client?.jobId]);
 
+  // Poll while building — refresh preview + client data when build completes
+  useEffect(() => {
+    if (!client?.jobId) return;
+    const jobStatus = (client as any).buildStatus || (client as any).status;
+    if (jobStatus !== "building") return;
+    const iv = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/client-login?slug=${slug}`);
+        if (!res.ok) return;
+        const raw = await res.json();
+        const st = raw.status || raw.build_status || raw.buildStatus;
+        if (st === "completed" || st === "complete") {
+          clearInterval(iv);
+          const normalised = normalizeClient(raw);
+          setClient(normalised);
+          setPreviewTs(Date.now());
+        }
+      } catch { /* silent */ }
+    }, 8000);
+    return () => clearInterval(iv);
+  }, [client?.jobId, (client as any)?.buildStatus, (client as any)?.status]);
+
   async function loadMyContent() {
     setContentItemsLoading(true);
     try {

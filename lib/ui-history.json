@@ -582,5 +582,21 @@
     "lines": 4008,
     "description": "feat: DESIGN.md integration — blueprint generates design tokens, Step 2 attaches to Stitch project",
     "type": "feat"
+  },
+  {
+    "version": "v74",
+    "date": "2026-05-15",
+    "commit": "pending",
+    "lines": 4008,
+    "description": "Fix: InfoRow contrast, block owned features, valid DESIGN.md YAML, Sonnet blueprint model",
+    "type": "feat"
+  },
+  {
+    "version": "v75",
+    "date": "2026-05-15",
+    "commit": "pending",
+    "lines": 4008,
+    "description": "\"Updated admin dashboard\"",
+    "type": "feat"
   }
 ]

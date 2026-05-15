@@ -3702,7 +3702,7 @@ function AdminDashboard() {
       const d=await r.json().catch(()=>({}));
       const fresh:ClientAnalytics[]=d.clients||[];
       setClients(prev=>{
-        const changed=fresh.some(f=>{const p=prev.find(p=>p.jobId===f.jobId);return !p||p.buildStatus!==f.buildStatus||p.previewUrl!==f.previewUrl;});
+        const changed=fresh.some(f=>{const p=prev.find(p=>p.jobId===f.jobId);return !p||p.buildStatus!==f.buildStatus||p.previewUrl!==f.previewUrl||p.builtAt!==f.builtAt;});
         return changed?fresh:prev;
       });
     },8000);

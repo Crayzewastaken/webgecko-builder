@@ -118,6 +118,10 @@ export async function GET(req: NextRequest) {
             safeData.squareConnected = true;
             safeData.squareMerchantId = job.squareMerchantId || null;
           }
+          // Expose build status + fresh previewUrl so client portal can detect build completion
+          safeData.status = job.status || null;
+          safeData.buildStatus = job.status || null;
+          if (job.previewUrl) safeData.preview_url = job.previewUrl;
         }
       } catch (e) {
         console.error("client-login: failed to fetch job data", e);
