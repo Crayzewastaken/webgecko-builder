@@ -229,12 +229,29 @@ const buildWebsite = inngest.createFunction(
       console.log(`[Inngest] STEP 1 DONE (Blueprint): ${spec.projectTitle} — palette: ${spec.palette?.primary}`);
 
 
-      // ── STEP 2: Create Stitch project ─────────────────────────────────────────
+      // ── STEP 2: Create Stitch project + attach DESIGN.md design system ─────────
       const projectId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step2-stitch-create", async () => {
         console.log(`[Inngest] STEP 2 START: creating Stitch project "${spec.projectTitle}"`);
         const project = await stitchSdk.createProject(spec.projectTitle);
         const pid = project.projectId;
         if (!pid) throw new Error("Stitch SDK: no projectId returned from createProject");
+
+        // Attach DESIGN.md as a native design system — gives Stitch exact tokens
+        // for colours, typography, and components so it can't deviate from the palette.
+        if (spec.designMd) {
+          try {
+            await project.createDesignSystem({
+              displayName: `${spec.projectTitle} Design System`,
+              designTokens: spec.designMd,
+              styleGuidelines: `Premium dark website for ${spec.projectTitle}. Use the exact hex colours from the design tokens. All CTAs use the accent colour. All section backgrounds stay within the same dark colour family.`,
+            });
+            console.log(`[Inngest] STEP 2: DESIGN.md design system attached (${spec.designMd.length} chars)`);
+          } catch (dsErr: any) {
+            // Non-fatal — log and continue without design system
+            console.warn(`[Inngest] STEP 2: design system attach failed (non-fatal): ${dsErr?.message}`);
+          }
+        }
+
         console.log(`[Inngest] STEP 2 DONE: projectId=${pid}`);
         return pid;
       }) as string;

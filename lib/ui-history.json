@@ -574,13 +574,5 @@
     "lines": 4005,
     "description": "\"Updated admin dashboard\"",
     "type": "feat"
-  },
-  {
-    "version": "v73",
-    "date": "2026-05-15",
-    "commit": "pending",
-    "lines": 4008,
-    "description": "\"Updated admin dashboard\"",
-    "type": "feat"
   }
 ]
