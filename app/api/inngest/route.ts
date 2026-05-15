@@ -239,35 +239,36 @@ const buildWebsite = inngest.createFunction(
         return pid;
       }) as string;
 
-      // ── STEP 3: Stitch generate + fetch HTML in one blocking step ─────────────
-      // generate() is synchronous/blocking — it waits until the screen is fully
-      // rendered before returning. We call getHtml() immediately on the returned
-      // screen object (no sleep, no polling needed).
       // ── STEP 3a: Stitch generate — returns screenId (own 300s Vercel window) ────
-      // generate() is blocking and can take 100-180s for Pro model. Splitting into
-      // two steps gives each phase its own fresh 300s budget.
+      // generate() is blocking and can take 100-180s for Pro model. We race it
+      // against a 250s timeout so we can throw cleanly before Vercel's hard 300s kill.
+      // On "service unavailable" Inngest will retry the step with a fresh window.
       const stitchScreenId = savedHtmlForRebuild ? null : await step.run("step3a-stitch-generate", async () => {
         const stitchPrompt = (spec.stitchPrompt || "").replace(/\s{3,}/g, "  ");
         // Do NOT slice stitchPrompt — truncation breaks multipage and section instructions
         // Do NOT strip URLs — booking iframe and contact form endpoints must stay intact
         console.log(`[Inngest] STEP 3a: Stitch generate (prompt: ${stitchPrompt.length} chars, projectId=${projectId})`);
 
-        for (let attempt = 1; attempt <= 3; attempt++) {
+        // Race generate() against 250s — throw before Vercel's hard 300s kill so Inngest retries cleanly
+        const withTimeout = (p: Promise<any>, ms: number, label: string) =>
+          Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`${label} timed out after ${ms}ms`)), ms))]);
+
+        for (let attempt = 1; attempt <= 2; attempt++) {
           try {
             const project = stitchSdk.project(projectId);
-            const screen = await project.generate(stitchPrompt, "DESKTOP");
+            const screen = await withTimeout(project.generate(stitchPrompt, "DESKTOP"), 250_000, "generate()");
             console.log(`[Inngest] STEP 3a: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
             if (!screen.screenId) throw new Error("generate() returned no screenId");
             return screen.screenId as string;
           } catch (e: any) {
             const msg = e?.message || String(e);
             console.warn(`[Inngest] STEP 3a: attempt ${attempt} failed: ${msg}`);
-            appendPipelineLog(jobId, { level: attempt === 3 ? "error" : "warn", step: "stitch", msg: `generate attempt ${attempt} failed: ${msg}`, businessName: userInput.businessName }).catch(()=>{});
-            if (attempt === 3) throw e;
-            await new Promise(r => setTimeout(r, 8000));
+            appendPipelineLog(jobId, { level: "warn", step: "stitch", msg: `generate attempt ${attempt} failed: ${msg}`, businessName: userInput.businessName }).catch(()=>{});
+            // Always re-throw — let Inngest retry the full step with a fresh 300s window
+            throw e;
           }
         }
-        throw new Error("Stitch generate failed after 3 attempts");
+        throw new Error("Stitch generate failed");
       }) as string | null;
 
       // ── STEP 3b: Stitch fetch HTML — polls until URL ready (own 300s window) ────
