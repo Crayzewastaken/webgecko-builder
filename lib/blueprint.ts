@@ -307,7 +307,7 @@ Primary keyword placement: weave "${industry} ${location.split(",")[0]?.trim()}"
     ? pages.map(p => `<a href='#' onclick='navigateTo(\"${p.toLowerCase().replace(/\s+/g,"-")}\")'>${p}</a>`).join(" ")
     : ["Home","Services","About","Testimonials","FAQ","Contact"].map(p => `<a href='#${p.toLowerCase()}'>${p}</a>`).join(" ");
 
-  const contactFormScaffold = `<form id='contact-form' onsubmit='(function(f,e){e.preventDefault();var btn=f.querySelector("button[type=submit]");btn.disabled=true;btn.textContent="Sending...";var d={jobId:"JOB_ID_PLACEHOLDER",name:f.name.value,email:f.email.value,phone:f.phone?f.phone.value:"",message:f.message.value};fetch("https://webgeckofl.vercel.app/api/contact/submit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)}).then(function(r){return r.json()}).then(function(r){if(r.ok){f.style.display="none";document.getElementById("contact-success").style.display="block";}else{btn.disabled=false;btn.textContent="Send Message";}}).catch(function(){btn.disabled=false;btn.textContent="Send Message";});})(this,event)'>
+  const contactFormScaffold = `<form id='contact-form' onsubmit='event.preventDefault();this.style.display=\"none\";document.getElementById(\"contact-success\").style.display=\"block\"'>
   <div style='display:grid;gap:14px'>
     <input type='text' name='name' placeholder='Full Name' required style='width:100%;padding:14px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:inherit;font-size:1rem;outline:none;box-sizing:border-box'>
     <input type='email' name='email' placeholder='Email Address' required style='width:100%;padding:14px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:inherit;font-size:1rem;outline:none;box-sizing:border-box'>
@@ -391,47 +391,106 @@ RULES:
 3. No markdown (** or *) anywhere
 4. stitchPrompt MUST follow the EXACT STRUCTURE SCAFFOLD below — this is non-negotiable
 
-STRUCTURE — describe each section in this order:
+EXACT STRUCTURE SCAFFOLD — the stitchPrompt MUST describe rendering EXACTLY these elements in this order:
 
-[1] STICKY HEADER: logo "${businessName}" left, nav ${navPages} right, hamburger id=hamburger (mobile), div id=mobile-menu hidden
+⚠️ COLOUR CONSISTENCY RULE (NON-NEGOTIABLE): Every section background MUST be a shade of the same base colour family (e.g. all cool-navy variants: #0a0f1a, #0d1420, #111827). NEVER switch from a cool palette to a warm palette between sections. The hero background and the body background must belong to the same colour family.
 
-[2] SECTION id=hero (min-height:100vh): two-column layout — left: trust badges row, headline (max 8 words, no address), subheadline (1-2 sentences), TWO CTAs ("${ctaText || "Get Started"}" + ghost), stats bar (3-4 numbers). Right: ${heroUrl ? `use this image URL: ${heroUrl}` : `animated CSS gradient or SVG illustration for ${industry} — no fake URLs`}. Floating stat card. Fade-in-up keyframe on headline.
+[1] STICKY HEADER
+  - Logo text "${businessName}" left
+  - Desktop nav links right: ${navPages}
+  - Button id=hamburger class=md:hidden (hamburger icon ☰) — toggles mobile menu
+  - div id=mobile-menu hidden by default, contains same nav links, close button aria-label=Close menu
 
-[3] SECTION id=about: 2-3 paragraphs about ${businessName}, "Why Choose Us" with 3 icon+text blocks
+[2] SECTION id=hero (full viewport height, visually striking — THIS IS THE MOST IMPORTANT SECTION)
+  MANDATORY HERO REQUIREMENTS — do NOT produce a plain centered headline + button:
+  - Layout: TWO-COLUMN split (left: text content, right: visual element) OR full-bleed cinematic layout with layered depth
+  - Left/main column MUST contain ALL of:
+    a) A small TRUST BADGE row above the headline: e.g. "★★★★★ Trusted by 5,000+ patients" or "✓ AHPRA Registered ✓ Medicare Bulk Billing ✓ Same-Day Appointments" — styled as pill badges with accent colour border
+    b) Large headline (benefit-driven, max 8 words, NO address) — use CSS animation: fade-in-up on load
+    c) Subheadline 1-2 sentences (value prop, NO address) — slightly muted colour
+    d) TWO CTA buttons side by side: PRIMARY button (accent background, "${ctaText || "Get Started"}") + SECONDARY ghost button ("Learn More" or "How It Works")
+    e) A horizontal SOCIAL PROOF bar: 3-4 micro-stats with large numbers and labels (e.g. "5,000+ Patients" / "24/7 Available" / "< 10min Wait" / "50+ Doctors") — use accent colour for numbers
+  - Right column (or background layer) MUST contain:
+    ${heroUrl ? `- Hero image: use exactly this URL as a full-bleed background or right-column image — ${heroUrl}` : "- Decorative visual: animated CSS gradient orbs/blobs, geometric pattern, or SVG illustration relevant to ${industry} — NO fake image URLs, NO placeholder images"}
+    - Floating stat cards or feature pills overlapping the visual (e.g. a card showing "Next available: Today 2:00pm" or a badge "100% Secure & Private") — positioned with absolute CSS
+  - Add a CSS keyframe animation for the headline: fade-in from bottom over 0.6s
+  - Add a subtle animated background: either a slow gradient shift, floating particles (pure CSS), or a mesh gradient
+  - The section must feel like a premium SaaS or medical tech landing page — NOT a basic brochure site
+  HERO SECTION HEIGHT: min-height: 100vh with display:flex align-items:center
 
-[4] SECTION id=services: "Our Services" heading, 4-6 cards (icon, title, description) for ${industry}
+[3] SECTION id=about
+  - 2-3 paragraphs about ${businessName}
+  - Why choose us — 3 icon+text feature blocks
+
+[4] SECTION id=services
+  - Heading: "Our Services"
+  - Grid of 3-6 service cards with icon, title, description
+  - Each relevant to ${industry}
 ${extraSectionsScaffold}
-[5] SECTION id=testimonials: 3 cards, Australian names, ★★★★★, 2-sentence quotes
+[5] SECTION id=testimonials
+  - Heading: "What Our Clients Say"
+  - 3 testimonial cards with Australian names, 5-star ★★★★★, quote text
 
 ${(() => {
+  // FAQ placement: only include as a dedicated section if it genuinely adds value
+  // Skip for sites where FAQ is its own page, or very simple portfolio/creative sites
   const faqAsOwnPage = isMultiPage && pages.some((p: string) => /^faq$/i.test(p.trim()));
   const skipFaq = faqAsOwnPage || /portfolio|artist|photographer|creative|gallery/i.test(industry);
-  if (skipFaq) return faqAsOwnPage ? `[6] FAQ is its own page — do NOT add a FAQ section here.` : '';
-  return `[6] SECTION id=faq: 5 accordion Q&As specific to "${industry}" using <details><summary> tags`;
+  if (skipFaq) return faqAsOwnPage ? `[6] NOTE: FAQ is its own page — do NOT duplicate it as a section on other pages.` : '';
+  return `[6] SECTION id=faq
+  - Heading: "Frequently Asked Questions"
+  - 5-6 accordion Q&A items highly specific to "${industry}" (NOT generic)
+  - Each item: <details><summary>Question</summary><p>Answer</p></details>
+  - Place this section on the page where it makes most sense: services page for trade businesses, home page for general businesses, booking page for appointment-based businesses`;
 })()}
 
-[7] SECTION id=contact: "Get in Touch" — left col: ${clientEmail}, ${clientPhone}, ${businessAddress || "address"}. Right col: COPY THIS FORM EXACTLY:
+[7] SECTION id=contact (CRITICAL — copy this form structure EXACTLY)
+  - Heading: "Get in Touch"
+  - Left column: ${clientEmail} and ${clientPhone} and ${businessAddress || "business address"}
+  - Right column: RENDER THIS EXACT FORM:
 ${contactFormScaffold.replace(/ACCENT/g, "the accent colour")}
-${businessAddress ? `After form: Google Maps iframe src="https://maps.google.com/maps?q=${encodeURIComponent(businessAddress || "")}&output=embed" width="100%" height="300" style="border:0;border-radius:12px;margin-top:40px" — ABOVE footer only.` : ""}
+  - NO extra fields. NO dropdown. NO checkbox. NO Business Name field. ONLY the 4 fields above.
+  ${businessAddress ? `- AFTER the form columns: render a Google Maps embed iframe INSIDE this contact section (NOT after the footer) — use src="https://maps.google.com/maps?q=${encodeURIComponent(businessAddress || "")}&output=embed" width="100%" height="300" style="border:0;border-radius:12px;margin-top:40px"` : ""}
+  CRITICAL: The contact section and Google Maps embed must appear ABOVE the footer. NEVER place the map after </footer>.
 
 ${bookingInstruction ? `[8] ${bookingInstruction}` : ""}
 ${features.includes("Photo Gallery") ? "[GALLERY] section id=gallery — image grid" : ""}
 ${features.includes("Payments / Shop") ? "[SHOP] section id=shop — product cards with class=wg-buy-btn on purchase buttons" : ""}
 ${features.includes("Newsletter Signup") ? "[NEWSLETTER] section id=newsletter — email input + Subscribe button, id=newsletter-form" : ""}
+${isMultiPage ? `
+⚠️ MULTI-PAGE SITE — THIS IS MANDATORY, NOT OPTIONAL ⚠️
+This site has ${pages.length} SEPARATE PAGES: ${pageList}
+REQUIRED STRUCTURE — every page must be its own top-level div:
+  <div data-page="home" id="home" class="page-section">   ← HOME page content </div>
+  <div data-page="services" id="services" class="page-section">   ← SERVICES page content </div>
+  ... one <div data-page="PAGE_ID"> per page listed above ...
+RULES:
+- Each data-page value must be the lowercase-hyphenated page name (e.g. "about-us", "contact")
+- Nav links MUST use onclick='navigateTo("PAGE_ID")' — NO href="#section" anchors
+- Do NOT place all content in one scroll page — each page-section div is a full separate view
+- Do NOT define navigateTo() or .page-section CSS — these are injected by the pipeline
+- All sections (hero, services, testimonials, contact) go INSIDE the appropriate page div
+- The home page div must contain the hero section
+` : ""}
 
-[FOOTER]: © ${currentYear} ${businessName}. Social: ${[facebookPage, instagramUrl, linkedinUrl].filter(Boolean).join(", ") || "none"}
+[FOOTER]
+  - Copyright © ${currentYear} ${businessName}
+  - Social links: ${[facebookPage, instagramUrl, linkedinUrl].filter(Boolean).join(", ") || "none"}
 
-${isMultiPage ? `⚠️ MULTI-PAGE: ${pages.length} pages. Each page = one top-level div:
-${pages.map((p: string) => { const pid = p.toLowerCase().replace(/\s+/g,"-"); return `  <div data-page="${pid}" id="${pid}" class="page-section">...</div>`; }).join("\n")}
-Nav uses onclick='navigateTo("PAGE_ID")'. No anchor links. Do NOT define navigateTo() or .page-section CSS.` : ""}
+VISUAL DESIGN — STRICT COLOUR RULES (stitchPrompt MUST use these exact hex codes everywhere):
+- Decide on ONE coherent dark colour palette and use it consistently across ALL sections
+- Background (body, all sections): ONE dark base colour — either cool-dark navy (#0a0f1a) or warm-dark charcoal (#0f0f0f) — NEVER a brownish/warm colour unless explicitly requested in colour prefs
+- ALL section backgrounds must be VARIATIONS of the same base (e.g. #0a0f1a, #0d1320, #111827) — NOT a completely different hue
+- The hero gradient MUST use the same colour family as the body background — no colour-family switching
+- Accent/CTA colour: pick from "${colorPrefs}" — a vivid contrasting colour (e.g. #00c896 teal, #3b82f6 blue, #f97316 orange, #8b5cf6 purple) based on the industry
+- Text: #e2e8f0 (main), #94a3b8 (muted) — always high-contrast on the dark background
+- NEVER use Tailwind Material You brownish dark tokens (surface-container, #1d100c, etc.) — use explicit hex codes
+- Typography: pick specific Google Fonts for headings and body
+- The design must look like a premium SaaS / tech landing page, ${industry}-appropriate, and conversion-focused
 
-COLOURS (use these exact hex codes — no warm/brownish tones unless requested):
-- Background/body: shades of same dark family (e.g. #0a0f1a, #0d1320, #111827)
-- Accent: vivid from "${colorPrefs}" (e.g. #00c896, #3b82f6, #f97316)
-- Text: #e2e8f0 main, #94a3b8 muted
-- Header: phone pill <a href='tel:${clientPhone}'>${clientPhone}</a>, hamburger id=hamburger mobile
-
-COPY RULES: hero headline max 8 words, no address/location. Subheadline value prop only. All section text real and industry-specific — no placeholders.
+HERO COPY RULES (strictly enforced):
+- heroHeadline: max 8 words, benefit-driven, NO business name, NO address, NO suburb
+- heroSubheadline: 1-2 sentences, value prop ONLY, NO address or location
 
 Return ONLY this JSON:
 {
@@ -444,15 +503,15 @@ Return ONLY this JSON:
   "heroSubheadline": "1-2 sentences value prop only",
   "ctaText": "${ctaText || "Get Started"}",
   "uniqueDesignIdea": "one sentence visual theme",
-  "stitchPrompt": "Rendering instructions following the scaffold above — 800-1200 words. For each section: hex colours, font names, key copy text (not placeholders), CTA text. Single quotes inside only. No markdown. Be concise but complete."
+  "stitchPrompt": "DETAILED rendering instructions following the scaffold above — 1000-2000 words, describe every section, all hex colours, fonts, spacing, content. Single quotes inside only."
 }${exampleHtmls.length > 0 ? `
 
 REFERENCE EXAMPLES (structure/depth inspiration — do NOT copy text):
 ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.slice(0, 4000)}\n---`).join("\n\n")}` : ""}`;
 
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 16000,
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 8000,
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -491,9 +550,12 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
   }
   if (!blueprint.projectTitle) throw new Error("Blueprint missing projectTitle");
 
-  // Do NOT strip URLs — booking iframes and contact form endpoints must stay intact.
+  // Strip URLs from stitchPrompt — Stitch's renderer throws "expected object at projection path"
+  // when the prompt contains http(s):// links. Remove them, keeping surrounding context.
+  blueprint.stitchPrompt = blueprint.stitchPrompt
+    .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
+    .replace(/\s{3,}/g, "  ");
   // Do NOT slice stitchPrompt — truncation silently drops multipage and section instructions.
-  blueprint.stitchPrompt = blueprint.stitchPrompt.replace(/\s{3,}/g, "  ");
 
   // Prepend the palette as hard hex codes so Stitch cannot deviate to Material You browns
   const p = blueprint.palette || {};
