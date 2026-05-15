@@ -2703,6 +2703,7 @@ export default function ClientPortal() {
                           {owned ? (
                             <div style={{ display:"flex", flexDirection:"column" as const, alignItems:"flex-end", gap:4, flexShrink:0 }}>
                               <span style={{ fontSize:10, fontWeight:700, color:C.accent, background:C.accent+"15", border:`1px solid ${C.accent}35`, borderRadius:99, padding:"3px 10px", whiteSpace:"nowrap" as const }}>{"✓"} Active</span>
+                              <span style={{ fontSize:10, color:C.textMuted, whiteSpace:"nowrap" as const }}>Already included</span>
                             </div>
                           ) : (
                             <div style={{ width:22, height:22, borderRadius:"50%", flexShrink:0,

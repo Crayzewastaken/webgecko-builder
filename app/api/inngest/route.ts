@@ -245,17 +245,25 @@ const buildWebsite = inngest.createFunction(
       // screen object (no sleep, no polling needed).
       const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3-stitch-generate", async () => {
         const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-        const stitchPrompt = (spec.stitchPrompt || "")
-          .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
-          .replace(/\s{3,}/g, "  ");
+        const stitchPrompt = (spec.stitchPrompt || "").replace(/\s{3,}/g, "  ");
         // Do NOT slice stitchPrompt — truncation breaks multipage and section instructions
+        // Do NOT strip URLs — booking iframe and contact form endpoints must stay intact
         console.log(`[Inngest] STEP 3: Stitch generate (prompt: ${stitchPrompt.length} chars, projectId=${projectId})`);
+
+        // Wrap generate() with a 240s timeout so "service unavailable" fails fast
+        // rather than burning all 300s and hitting Vercel's hard limit.
+        const withTimeout = <T>(p: Promise<T>, ms: number, label: string): Promise<T> =>
+          Promise.race([p, new Promise<T>((_, rej) =>
+            setTimeout(() => rej(new Error(`${label} timed out after ${ms/1000}s`)), ms))]);
 
         let html = "";
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
             const project = stitchSdk.project(projectId);
-            const screen = await project.generate(stitchPrompt, "DESKTOP");
+            const screen = await withTimeout(
+              project.generate(stitchPrompt, "DESKTOP"),
+              240000, "generate()"
+            );
             console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
 
             // generate() returns a Screen — try getHtml() on it first (uses cached downloadUrl if present)
@@ -294,7 +302,9 @@ const buildWebsite = inngest.createFunction(
             console.warn(`[Inngest] STEP 3: attempt ${attempt} failed: ${msg}`);
             appendPipelineLog(jobId, { level: attempt === 3 ? "error" : "warn", step: "stitch", msg: `Attempt ${attempt} failed: ${msg}`, businessName: userInput.businessName }).catch(()=>{});
             if (attempt === 3) throw e;
-            await sleep(10000 * attempt);
+            // Short wait on service errors; longer on other failures
+            const isUnavail = msg.toLowerCase().includes("unavailable") || msg.toLowerCase().includes("timeout");
+            await sleep(isUnavail ? 5000 : 8000);
           }
         }
 
