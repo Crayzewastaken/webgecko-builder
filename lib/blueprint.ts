@@ -27,7 +27,6 @@ export interface SiteBlueprint {
   ctaText: string;
   uniqueDesignIdea: string;
   stitchPrompt: string;
-  designMd?: string;
   // SEO additions
   lsiKeywords?: string[];
   serpInsights?: SerpInsights;
@@ -603,133 +602,7 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
   blueprint.lsiKeywords = lsiKeywords;
   blueprint.serpInsights = serpInsights ?? undefined;
 
-  // ── Generate DESIGN.md design system spec ──────────────────────────────────
-  // Produces machine-readable tokens Stitch can use natively, separate from
-  // the stitchPrompt content instructions.
-  const p2 = blueprint.palette || {};
-  // Build DESIGN.md with valid token values (no multi-value dimensions, no quoted refs)
-  const headingFont = blueprint.typography?.headingFont || "Inter";
-  const bodyFont = blueprint.typography?.bodyFont || "Inter";
-  const heroSize = blueprint.typography?.heroSize || "64px";
-  const bgColor = p2.background || "#0a0f1a";
-  const surfaceColor = p2.surface || "#0f1623";
-  const primaryColor = p2.primary || "#4a9eff";
-  const accentColor = p2.accent || "#00c896";
-  const textColor = p2.text || "#e2e8f0";
-  const tone = blueprint.tone || "Premium, modern, conversion-focused";
-
-  blueprint.designMd = [
-    "---",
-    "version: alpha",
-    `name: ${blueprint.projectTitle}`,
-    "colors:",
-    `  background: "${bgColor}"`,
-    `  surface: "${surfaceColor}"`,
-    `  primary: "${primaryColor}"`,
-    `  accent: "${accentColor}"`,
-    `  text: "${textColor}"`,
-    `  muted: "#94a3b8"`,
-    "typography:",
-    "  h1:",
-    `    fontFamily: ${headingFont}`,
-    `    fontSize: ${heroSize}`,
-    "    fontWeight: 800",
-    "    lineHeight: 1.1",
-    "    letterSpacing: -0.03em",
-    "  h2:",
-    `    fontFamily: ${headingFont}`,
-    "    fontSize: 36px",
-    "    fontWeight: 700",
-    "    lineHeight: 1.2",
-    "    letterSpacing: -0.02em",
-    "  body-md:",
-    `    fontFamily: ${bodyFont}`,
-    "    fontSize: 16px",
-    "    fontWeight: 400",
-    "    lineHeight: 1.6",
-    "  label:",
-    `    fontFamily: ${bodyFont}`,
-    "    fontSize: 12px",
-    "    fontWeight: 600",
-    "    letterSpacing: 0.08em",
-    "rounded:",
-    "  sm: 6px",
-    "  md: 12px",
-    "  lg: 16px",
-    "  full: 9999px",
-    "spacing:",
-    "  xs: 4px",
-    "  sm: 8px",
-    "  md: 16px",
-    "  lg: 32px",
-    "  xl: 64px",
-    "components:",
-    "  button-primary:",
-    `    backgroundColor: "${accentColor}"`,
-    `    textColor: "#ffffff"`,
-    "    rounded: 12px",
-    "    padding: 14px",
-    "  button-primary-hover:",
-    `    backgroundColor: "${primaryColor}"`,
-    "  button-secondary:",
-    `    backgroundColor: "transparent"`,
-    `    textColor: "${accentColor}"`,
-    "    rounded: 12px",
-    "    padding: 12px",
-    "  card:",
-    `    backgroundColor: "${surfaceColor}"`,
-    "    rounded: 16px",
-    "    padding: 24px",
-    "  nav:",
-    `    backgroundColor: "${bgColor}"`,
-    `    textColor: "${textColor}"`,
-    "---",
-    "",
-    "## Overview",
-    "",
-    `${tone} design for ${blueprint.projectTitle}. Dark, sophisticated, built for trust and conversions.`,
-    "",
-    "## Colors",
-    "",
-    "Dark premium palette. All sections use the same cool-dark colour family.",
-    "",
-    `- **Background (${bgColor}):** Deep base for body and hero.`,
-    `- **Surface (${surfaceColor}):** Cards and panels.`,
-    `- **Primary (${primaryColor}):** Brand accent for highlights.`,
-    `- **Accent (${accentColor}):** CTA buttons and key actions.`,
-    `- **Text (${textColor}):** Near-white for maximum readability.`,
-    "- **Muted (#94a3b8):** Secondary text and captions.",
-    "",
-    "## Typography",
-    "",
-    `${headingFont} for headings, ${bodyFont} for body. Bold tight headlines, airy body text.`,
-    "",
-    "## Layout",
-    "",
-    "Max-width 1200px. 8px spacing grid. 80px vertical section padding. Card-based blocks.",
-    "",
-    "## Elevation & Depth",
-    "",
-    "Tonal layering: background to surface to raised. Subtle shadows on cards. Accent glow on hover.",
-    "",
-    "## Shapes",
-    "",
-    "Cards: 16px radius. Buttons: 12px. Pills: 9999px. Consistent throughout.",
-    "",
-    "## Components",
-    "",
-    "Primary CTA: accent background, white text. Secondary: ghost with accent border.",
-    "",
-    "## Do's and Don'ts",
-    "",
-    "- Do use accent colour only for primary CTAs and key stats",
-    "- Do keep all backgrounds within the same dark colour family",
-    "- Don't use warm or brownish dark tones",
-    "- Don't use placeholder text — every section must have real business content",
-    "- Do maintain WCAG AA contrast (4.5:1 minimum)",
-  ].join("\n");
-
-  console.log(`[Blueprint] Done: "${blueprint.projectTitle}" — stitch ${blueprint.stitchPrompt.length} chars | designMd ${blueprint.designMd.length} chars | LSI: ${lsiKeywords.length} keywords | SERP: ${serpInsights ? "yes" : "no"}`);
+  console.log(`[Blueprint] Done: "${blueprint.projectTitle}" — stitch ${blueprint.stitchPrompt.length} chars | LSI: ${lsiKeywords.length} keywords | SERP: ${serpInsights ? "yes" : "no"}`);
   return blueprint;
 }
 
