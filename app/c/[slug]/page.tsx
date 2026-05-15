@@ -2661,26 +2661,26 @@ export default function ClientPortal() {
                         <div key={f.id}
                           onClick={() => { if (!owned) setUpgradeSelected(prev => sel ? prev.filter(x => x !== f.id) : [...prev, f.id]); }}
                           style={{ display:"flex", alignItems:"center", gap:12,
-                            background: owned ? C.surface : sel ? C.accent+"0e" : C.bg,
-                            border:`1px solid ${owned ? C.accent+"35" : sel ? C.accent+"40" : C.border}`,
+                            background: owned ? C.raised+"80" : sel ? C.accent+"0e" : C.bg,
+                            border:`1px solid ${owned ? C.border : sel ? C.accent+"40" : C.border}`,
                             borderRadius:10, padding:"12px 14px",
-                            cursor: owned ? "default" : "pointer",
-                            opacity: owned ? 1 : 1,
+                            cursor: owned ? "not-allowed" : "pointer",
+                            opacity: owned ? 0.55 : 1,
                             transition:"border-color 0.15s, background 0.15s" }}>
                           <div style={{ width:40, height:40, borderRadius:10, flexShrink:0,
-                            background: owned ? C.accent+"15" : sel ? C.accent+"15" : C.raised,
-                            border:`1px solid ${owned ? C.accent+"30" : sel ? C.accent+"30" : C.border}`,
-                            display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>
+                            background: owned ? C.raised : sel ? C.accent+"15" : C.raised,
+                            border:`1px solid ${owned ? C.border : sel ? C.accent+"30" : C.border}`,
+                            display:"flex", alignItems:"center", justifyContent:"center", fontSize:20,
+                            filter: owned ? "grayscale(1)" : "none" }}>
                             {f.icon}
                           </div>
                           <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ fontSize:13, fontWeight:600, color: owned ? C.textSec : sel ? C.accent : C.text, marginBottom:2 }}>{f.label}</div>
+                            <div style={{ fontSize:13, fontWeight:600, color: owned ? C.textMuted : sel ? C.accent : C.text, marginBottom:2 }}>{f.label}</div>
                             <div style={{ fontSize:12, color:C.textMuted, lineHeight:1.4 }}>{f.desc}</div>
                           </div>
                           {owned ? (
                             <div style={{ display:"flex", flexDirection:"column" as const, alignItems:"flex-end", gap:4, flexShrink:0 }}>
                               <span style={{ fontSize:10, fontWeight:700, color:C.accent, background:C.accent+"15", border:`1px solid ${C.accent}35`, borderRadius:99, padding:"3px 10px", whiteSpace:"nowrap" as const }}>{"✓"} Active</span>
-                              <span style={{ fontSize:10, color:C.textMuted }}>Already on your site</span>
                             </div>
                           ) : (
                             <div style={{ width:22, height:22, borderRadius:"50%", flexShrink:0,

@@ -275,8 +275,8 @@ function InfoRow({ label, value, mono=false }: { label:string; value?:string|nul
   if (!value) return null;
   return (
     <div style={{ marginBottom:12 }}>
-      <div style={{ fontSize:10, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:700, marginBottom:4 }}>{label}</div>
-      <div style={{ fontSize:13, color:T.textSec, fontFamily:mono?"'SF Mono','Fira Code',monospace":"inherit", wordBreak:"break-all" as const, lineHeight:1.5 }}>{value}</div>
+      <div style={{ fontSize:10, color:T.textSec, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:700, marginBottom:4 }}>{label}</div>
+      <div style={{ fontSize:13, color:T.text, fontFamily:mono?"'SF Mono','Fira Code',monospace":"inherit", wordBreak:"break-all" as const, lineHeight:1.5 }}>{value}</div>
     </div>
   );
 }
@@ -646,7 +646,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   }
 
   const sectionTitle = (text:string) => (
-    <div style={{ fontSize:10, color:T.textMuted, textTransform:"uppercase" as const, letterSpacing:"0.09em", fontWeight:700, marginBottom:12, paddingBottom:8, borderBottom:`1px solid ${T.border}` }}>{text}</div>
+    <div style={{ fontSize:10, color:T.textSec, textTransform:"uppercase" as const, letterSpacing:"0.09em", fontWeight:700, marginBottom:12, paddingBottom:8, borderBottom:`1px solid ${T.border}` }}>{text}</div>
   );
 
   async function loadArchiveVersions() {
