@@ -1513,6 +1513,25 @@ const buildWebsite = inngest.createFunction(
             }
           }
 
+          // Ensure exactly one data-page wrapper has class="active" — the first requested page.
+          // This is required by validateForDeploy and by the navigateTo() router.
+          const activeCheck = /data-page=["'][^"']+["'][^>]*class="[^"]*\bactive\b|class="[^"]*\bactive\b[^"]*"[^>]*data-page=/;
+          if (!activeCheck.test(repaired)) {
+            const firstId = requestedPageIds[0];
+            // Try to add active to existing class attr on the first data-page wrapper
+            const addActiveRe = new RegExp(`(data-page=["']${firstId}["'][^>]*class=")([^"]*)(")`, 'i');
+            if (addActiveRe.test(repaired)) {
+              repaired = repaired.replace(addActiveRe, (_m: string, pre: string, cls: string, end: string) =>
+                `${pre}${cls.replace(/\bactive\b/g,'').trim()} active${end}`);
+            } else {
+              // No class attr — inject one
+              const injectRe = new RegExp(`(data-page=["']${firstId}["'])([^>]*>)`, 'i');
+              repaired = repaired.replace(injectRe, (_m: string, dp: string, rest: string) =>
+                `${dp} class="page-section active"${rest}`);
+            }
+            console.warn('[Step7b] Injected missing active class on first data-page wrapper');
+          }
+
           const failuresAfterRepair = validateForDeploy(repaired, requestedPageIds, isMultiPage, hasBookingFeature);
           if (failuresAfterRepair.length > 0) {
             console.error("[Step7b] Still failing after repair:", failuresAfterRepair.join("; "));
