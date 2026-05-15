@@ -351,19 +351,10 @@ export async function auditAndFixSite(
     }
   }
 
-  // Fix: Inject legal pages (Terms + Privacy) if not already present
-  fixed = injectLegalPages(fixed, {
-    businessName,
-    clientEmail,
-    businessAddress: businessAddress || "",
-    abn,
-    domain,
-    features: context.features || [],
-    ga4: !!(context.features || []).includes("Google Analytics") || fixed.includes("G-"),
-    dark,
-    clrBg, clrBg2, clrCard, clrText, clrSub, clrBord, clrAcct,
-    yr,
-  });
+  // Legal pages (Privacy + Terms) are NOT injected automatically — they are only
+  // added when the admin has configured Termly links via the checklist. Injecting
+  // them unconditionally was causing every site to get Privacy/Terms pages with
+  // placeholder ABN/address data the client hadn't approved.
 
   // Ensure </body></html> exists — append if missing (handles Claude truncation)
   if (!fixed.includes("</body>") || !fixed.includes("</html>")) {

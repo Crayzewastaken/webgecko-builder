@@ -871,7 +871,8 @@ const buildWebsite = inngest.createFunction(
         // Posts directly to Beehiiv's public embed API — no dependency on our builder app.
         // Guard: skip if Stitch already generated ANY newsletter/subscribe section
         const hasNewsletterAlready = html.includes('id="newsletter-form"') || html.includes('id="newsletter"')
-          || /subscribe.*to.*newsletter|stay.*updated|stay.*in.*the.*loop|sign.*up.*newsletter/i.test(html);
+          || /subscribe.*to.*newsletter|stay.*updated|stay.*in.*the.*loop|sign.*up.*newsletter/i.test(html)
+          || /SUBSCRIBE|Subscribe to|Get Updates/i.test(html);
         if (features.includes("Newsletter Signup") && !hasNewsletterAlready) {
           const beehiivPubId = (process.env.BEEHIIV_PUBLICATION_ID || "").startsWith("pub_")
             ? process.env.BEEHIIV_PUBLICATION_ID

@@ -1116,6 +1116,37 @@ document.querySelectorAll("[class*='faq'],[class*='accordion'],[id*='faq']").for
 var cart = [];
 function showToast(msg) { var t = document.getElementById("wg-toast"); if (!t) { t = document.createElement("div"); t.id = "wg-toast"; t.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:99999;transition:opacity 0.3s;pointer-events:none;"; document.body.appendChild(t); } t.textContent = msg; t.style.opacity = "1"; setTimeout(function() { t.style.opacity = "0"; }, 2500); }
 document.querySelectorAll("button,a").forEach(function(btn) { var txt = (btn.textContent || "").toLowerCase().trim(); if (txt.includes("add to cart") || txt.includes("buy now") || txt.includes("add to bag")) { btn.addEventListener("click", function(e) { e.preventDefault(); e.stopPropagation(); var card = this.closest("article") || this.closest("[class*='product']") || this.parentElement; var nm = card && card.querySelector("h1,h2,h3,h4"); var n = nm ? nm.textContent.trim() : "Item"; var ex = cart.find(function(i) { return i.name === n; }); if (ex) ex.qty++; else cart.push({ name: n, qty: 1 }); showToast(n + " added"); var total = cart.reduce(function(a, b) { return a + b.qty; }, 0); document.querySelectorAll("#cart-count,#cart-badge,[class*='cart-count']").forEach(function(b) { b.textContent = total; }); }); } });
+// ── Wire orphaned Stitch buttons with no handler ────────────────────────────
+// Stitch sometimes generates SUBSCRIBE, GET QUOTE, GO PRO, GET STARTED buttons
+// with no onclick and no form parent. Wire them to sensible page targets.
+document.querySelectorAll("button,a").forEach(function(btn) {
+  if (btn.getAttribute("onclick") || btn.getAttribute("data-wg-wired") || btn.getAttribute("href")) return;
+  if (btn.closest("form")) return; // already inside a form
+  var txt = (btn.textContent || "").trim().toUpperCase();
+  if (txt === "SUBSCRIBE" || txt === "GET UPDATES" || txt === "SIGN UP") {
+    btn.setAttribute("data-wg-wired", "1");
+    btn.addEventListener("click", function(e) {
+      e.preventDefault();
+      var ns = document.getElementById("newsletter") || document.getElementById("newsletter-form");
+      if (ns) { ns.scrollIntoView({ behavior: "smooth", block: "start" }); }
+      else if (window.navigateTo) { window.navigateTo("contact"); }
+    });
+  } else if (txt === "GET QUOTE" || txt === "GET A QUOTE" || txt === "REQUEST QUOTE") {
+    btn.setAttribute("data-wg-wired", "1");
+    btn.addEventListener("click", function(e) {
+      e.preventDefault();
+      if (window.navigateTo) { window.navigateTo("contact"); }
+      else { var c = document.getElementById("contact"); if (c) c.scrollIntoView({ behavior: "smooth" }); }
+    });
+  } else if (txt === "GO PRO" || txt === "UPGRADE" || txt === "GET STARTED") {
+    btn.setAttribute("data-wg-wired", "1");
+    btn.addEventListener("click", function(e) {
+      e.preventDefault();
+      if (window.navigateTo) { window.navigateTo("pricing"); }
+      else { var c = document.getElementById("pricing") || document.getElementById("contact"); if (c) c.scrollIntoView({ behavior: "smooth" }); }
+    });
+  }
+});
 document.querySelectorAll("form").forEach(function(form) {
   // Skip forms inside the booking widget — it manages its own fetch-based submit
   if (form.closest("#booking") || form.closest(".bw-container") || form.id === "bw-form") return;

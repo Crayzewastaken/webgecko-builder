@@ -408,7 +408,7 @@ EXACT STRUCTURE SCAFFOLD — the stitchPrompt MUST describe rendering EXACTLY th
     a) A small TRUST BADGE row above the headline: e.g. "★★★★★ Trusted by 5,000+ patients" or "✓ AHPRA Registered ✓ Medicare Bulk Billing ✓ Same-Day Appointments" — styled as pill badges with accent colour border
     b) Large headline (benefit-driven, max 8 words, NO address) — use CSS animation: fade-in-up on load
     c) Subheadline 1-2 sentences (value prop, NO address) — slightly muted colour
-    d) TWO CTA buttons side by side: PRIMARY button (accent background, "${ctaText || "Get Started"}") + SECONDARY ghost button ("Learn More" or "How It Works")
+    d) TWO CTA buttons side by side: PRIMARY button (accent background, "${ctaText || "Get Started"}") onclick='navigateTo("${isMultiPage ? pageList.split(", ")[0] : "contact"}")' + SECONDARY ghost button ("Learn More" or "How It Works") onclick that scrolls to id=about or id=services if on same page, or navigateTo the correct page if multipage
     e) A horizontal SOCIAL PROOF bar: 3-4 micro-stats with large numbers and labels (e.g. "5,000+ Patients" / "24/7 Available" / "< 10min Wait" / "50+ Doctors") — use accent colour for numbers
   - Right column (or background layer) MUST contain:
     ${heroUrl ? `- Hero image: use exactly this URL as a full-bleed background or right-column image — ${heroUrl}` : "- Decorative visual: animated CSS gradient orbs/blobs, geometric pattern, or SVG illustration relevant to ${industry} — NO fake image URLs, NO placeholder images"}
@@ -460,10 +460,9 @@ ${features.includes("Newsletter Signup") ? "[NEWSLETTER] section id=newsletter �
 ${isMultiPage ? `
 ⚠️ MULTI-PAGE SITE — THIS IS MANDATORY, NOT OPTIONAL ⚠️
 This site has ${pages.length} SEPARATE PAGES: ${pageList}
-REQUIRED STRUCTURE — every page must be its own top-level div:
+REQUIRED STRUCTURE — every page must be its own top-level div with EXACTLY the page names listed above:
   <div data-page="home" id="home" class="page-section">   ← HOME page content </div>
-  <div data-page="services" id="services" class="page-section">   ← SERVICES page content </div>
-  ... one <div data-page="PAGE_ID"> per page listed above ...
+  ... one <div data-page="PAGE_ID"> per page listed above — ONLY these pages, no extras ...
 RULES:
 - Each data-page value must be the lowercase-hyphenated page name (e.g. "about-us", "contact")
 - Nav links MUST use onclick='navigateTo("PAGE_ID")' — NO href="#section" anchors
