@@ -2677,7 +2677,23 @@ export default function ClientPortal() {
                       { id: "Portfolio", icon: "🎨", label: "Portfolio", desc: "Visual portfolio of your past work or case studies." },
                       { id: "Video Background", icon: "🎬", label: "Video Background", desc: "Full-screen video background hero section." },
                     ].map(f => {
-                      const owned = features.includes(f.id);
+                      // Match against both exact ID and common aliases stored in job features array
+                      const aliases: Record<string,string[]> = {
+                        "Testimonials": ["Testimonials","Reviews & Testimonials","Customer Reviews","Reviews","Testimonials & Reviews"],
+                        "FAQ": ["FAQ","FAQ Section","FAQs"],
+                        "Gallery": ["Gallery","Photo Gallery","Image Gallery"],
+                        "Newsletter": ["Newsletter","Email Newsletter","Newsletter Signup","Newsletter Sign-up"],
+                        "Pricing": ["Pricing","Pricing Section","Pricing Table"],
+                        "Blog": ["Blog","Blog Section","News/Blog"],
+                        "Shop": ["Shop","Online Shop","E-commerce","eCommerce"],
+                        "Portfolio": ["Portfolio","Portfolio Section"],
+                        "Live Chat": ["Live Chat","Chat","Tawk.to","Live Chat Widget"],
+                        "Booking System": ["Booking System","Booking","Online Booking"],
+                        "Video Background": ["Video Background","Video Hero"],
+                      };
+                      const owned = (aliases[f.id] || [f.id]).some(a =>
+                        features.some(feat => feat.toLowerCase() === a.toLowerCase())
+                      );
                       const sel = upgradeSelected.includes(f.id);
                       return (
                         <div key={f.id}

@@ -250,20 +250,11 @@ const buildWebsite = inngest.createFunction(
         // Do NOT strip URLs — booking iframe and contact form endpoints must stay intact
         console.log(`[Inngest] STEP 3: Stitch generate (prompt: ${stitchPrompt.length} chars, projectId=${projectId})`);
 
-        // Wrap generate() with a 240s timeout so "service unavailable" fails fast
-        // rather than burning all 300s and hitting Vercel's hard limit.
-        const withTimeout = <T>(p: Promise<T>, ms: number, label: string): Promise<T> =>
-          Promise.race([p, new Promise<T>((_, rej) =>
-            setTimeout(() => rej(new Error(`${label} timed out after ${ms/1000}s`)), ms))]);
-
         let html = "";
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
             const project = stitchSdk.project(projectId);
-            const screen = await withTimeout(
-              project.generate(stitchPrompt, "DESKTOP"),
-              240000, "generate()"
-            );
+            const screen = await project.generate(stitchPrompt, "DESKTOP");
             console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
 
             // generate() returns a Screen — try getHtml() on it first (uses cached downloadUrl if present)
@@ -301,10 +292,11 @@ const buildWebsite = inngest.createFunction(
             const msg = e?.message || String(e);
             console.warn(`[Inngest] STEP 3: attempt ${attempt} failed: ${msg}`);
             appendPipelineLog(jobId, { level: attempt === 3 ? "error" : "warn", step: "stitch", msg: `Attempt ${attempt} failed: ${msg}`, businessName: userInput.businessName }).catch(()=>{});
+            // "service unavailable" — throw immediately so Inngest retries the step
+            // with a fresh 300s window rather than wasting time sleeping
+            if (msg.toLowerCase().includes("unavailable") || msg.toLowerCase().includes("service")) throw e;
             if (attempt === 3) throw e;
-            // Short wait on service errors; longer on other failures
-            const isUnavail = msg.toLowerCase().includes("unavailable") || msg.toLowerCase().includes("timeout");
-            await sleep(isUnavail ? 5000 : 8000);
+            await sleep(8000);
           }
         }
 
@@ -501,6 +493,36 @@ const buildWebsite = inngest.createFunction(
               console.log("[Step4b] ensureMultiPageStructure added: [" + report.missingPagesAdded.join(",") + "]");
             }
             html = ensuredHtml;
+          }
+          // 5b. Deduplicate any duplicate data-page wrappers Stitch generates.
+          // Stitch consistently emits two data-page="home" divs — remove extras here
+          // so Step7b never sees them as a validation failure.
+          for (const pageId of requestedPageIds) {
+            const dpRe = new RegExp(`data-page=["']${pageId}["']`, 'g');
+            const hits = (html.match(dpRe) || []).length;
+            if (hits > 1) {
+              let first = true;
+              html = html.replace(
+                new RegExp(`(<(?:div|section)[^>]*data-page=["']${pageId}["'][^>]*>[\s\S]*?</(?:div|section)>)`, 'gi'),
+                (m: string) => { if (first) { first = false; return m; } return ''; }
+              );
+              console.log(`[Step4b] Deduped ${hits - 1} extra data-page="${pageId}"`);
+            }
+          }
+          // 5c. Ensure first data-page wrapper has class="active"
+          const firstPageId = requestedPageIds[0];
+          const alreadyActive = new RegExp(`data-page=["']${firstPageId}["'][^>]*class="[^"]*active`).test(html)
+            || new RegExp(`class="[^"]*active[^"]*"[^>]*data-page=["']${firstPageId}["']`).test(html);
+          if (!alreadyActive) {
+            const addRe = new RegExp(`(data-page=["']${firstPageId}["'][^>]*class=")([^"]*)(")`, 'i');
+            if (addRe.test(html)) {
+              html = html.replace(addRe, (_m: string, pre: string, cls: string, end: string) =>
+                `${pre}${cls.replace(/active/g,'').trim()} active${end}`);
+            } else {
+              const injRe = new RegExp(`(data-page=["']${firstPageId}["'])([^>]*>)`, 'i');
+              html = html.replace(injRe, (_m: string, dp: string, rest: string) =>
+                `${dp} class="page-section active"${rest}`);
+            }
           }
         }
 
