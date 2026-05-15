@@ -258,20 +258,19 @@ const buildWebsite = inngest.createFunction(
         console.log(`[Inngest] STEP 3a: Stitch generate (prompt: ${stitchPrompt.length} chars, projectId=${projectId})`);
         // generate() is synchronous/blocking — Stitch renders fully before returning.
         // 120s timeout: generous enough for Pro model, fails fast if Stitch is down.
-        for (let attempt = 1; attempt <= 3; attempt++) {
+        for (let attempt = 1; attempt <= 2; attempt++) {
           try {
             const project = stitchSdk.project(projectId);
-            const screen = await withTimeout(
-              project.generate(stitchPrompt, "DESKTOP", "GEMINI_3_PRO"),
-              120000, "generate()"
-            );
+            // No timeout on generate() — Stitch Pro can take 2-3 min, let it finish.
+            // The step itself has a full 300s Vercel window.
+            const screen = await project.generate(stitchPrompt, "DESKTOP", "GEMINI_3_PRO");
             console.log(`[Inngest] STEP 3a DONE: screenId=${screen.screenId} (attempt ${attempt})`);
             return screen.screenId;
           } catch (e: any) {
             console.warn(`[Inngest] STEP 3a attempt ${attempt} failed: ${e?.message}`);
-            appendPipelineLog(jobId, { level: attempt === 3 ? "error" : "warn", step: "stitch", msg: `3a attempt ${attempt}: ${e?.message}`, businessName: userInput.businessName }).catch(()=>{});
-            if (attempt === 3) throw e;
-            await new Promise(r => setTimeout(r, 15000 * attempt));
+            appendPipelineLog(jobId, { level: attempt === 2 ? "error" : "warn", step: "stitch", msg: `3a attempt ${attempt}: ${e?.message}`, businessName: userInput.businessName }).catch(()=>{});
+            if (attempt === 2) throw e;
+            await new Promise(r => setTimeout(r, 8000));
           }
         }
         throw new Error("step3a: all attempts failed");
