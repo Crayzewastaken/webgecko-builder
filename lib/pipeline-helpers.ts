@@ -707,8 +707,8 @@ export function ensureMultiPageStructure(
   }
 
   // ── 4. Remove inline display:none / display:block from data-page wrappers ────
-  //    The CSS rule [data-page]{display:none!important}[data-page].active{display:block!important}
-  //    is the sole authority — inline styles fight it and cause blank pages.
+  //    The multiPageInit JS sets display via style.display at runtime — no !important CSS needed.
+  //    Stripping inline display here prevents a flash of all-visible pages before JS runs.
   out = out.replace(/(<(?:div|section|article|main)[^>]*\bdata-page=["'][^"']+["'][^>]*)(\bstyle="([^"]*)")([^>]*>)/gi,
     (_m, before, _styleAttr, styleContent, after) => {
       const cleaned = styleContent
@@ -858,31 +858,20 @@ window.navigateTo = function(pageId) {
     var target = document.querySelector("[data-page='" + pageId + "']") || document.getElementById(pageId);
     if (!target || target === current) return;
 
-    // Fade out current page
-    if (current) {
-      current.style.transition = "opacity 0.22s ease";
-      current.style.opacity = "0";
-      setTimeout(function() {
-        if (current) current.classList.remove("active");
-        // Fade in new page
-        target.classList.add("active");
-        target.style.opacity = "0";
-        target.style.transition = "opacity 0.28s ease";
-        requestAnimationFrame(function() {
-          requestAnimationFrame(function() {
-            target.style.opacity = "1";
-          });
-        });
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }, 220);
-    } else {
-      sections.forEach(function(s) { s.classList.remove("active"); });
-      target.classList.add("active");
-      target.style.opacity = "0";
-      target.style.transition = "opacity 0.28s ease";
-      requestAnimationFrame(function() { requestAnimationFrame(function() { target.style.opacity = "1"; }); });
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    // Hide all pages, show the target — use style.display directly so Stitch's buttons and ours both work
+    sections.forEach(function(s) {
+      s.classList.remove("active");
+      s.style.display = "none";
+      s.style.opacity = "0";
+    });
+    target.classList.add("active");
+    target.style.display = "block";
+    target.style.opacity = "0";
+    target.style.transition = "opacity 0.28s ease";
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() { target.style.opacity = "1"; });
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
     return;
   }
 
@@ -1120,18 +1109,17 @@ document.querySelectorAll("form").forEach(function(form) {
   document.head.appendChild(ts);
 })();
 // Multi-page init: only fires when [data-page] wrappers exist. Never touches .page-section.
+// Uses style.display directly (no !important CSS) so Stitch's own onclick buttons still work.
 (function() {
   var pages = document.querySelectorAll("[data-page]");
   if (pages.length < 2) return;
-  if (!document.querySelector("style[data-wg-mp]")) {
-    var s = document.createElement("style");
-    s.setAttribute("data-wg-mp", "1");
-    s.textContent = "[data-page]{display:none!important;opacity:0;}[data-page].active{display:block!important;opacity:1;}";
-    document.head.appendChild(s);
-  }
   var active = document.querySelector("[data-page].active") || pages[0];
-  pages.forEach(function(p) { p.classList.remove("active"); p.style.opacity = "0"; });
+  pages.forEach(function(p) {
+    p.classList.remove("active");
+    if (p !== active) { p.style.display = "none"; p.style.opacity = "0"; }
+  });
   active.classList.add("active");
+  active.style.display = "block";
   active.style.opacity = "1";
   console.log("[WG] Multi-page init: activated", active.getAttribute("data-page") || active.id, "of", pages.length);
 })()
