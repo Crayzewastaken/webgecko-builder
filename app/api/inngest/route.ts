@@ -278,13 +278,52 @@ const buildWebsite = inngest.createFunction(
         const screenId = stitchScreenId!;
         console.log(`[Inngest] STEP 3b: polling for HTML export — screenId=${screenId}`);
 
+        // Poll get_screen and inspect ALL downloadUrl fields — find the one that is HTML
         let url = "";
         for (let poll = 1; poll <= 27; poll++) {
           await sleep(10000);
           try {
-            const freshScreen = await stitchSdk.project(projectId).getScreen(screenId);
-            url = await freshScreen.getHtml();
-            console.log(`[Inngest] STEP 3b: poll ${poll} — url length=${url?.length ?? 0}`);
+            // Access raw get_screen response to inspect all URL fields
+            const stitchClient = (stitchSdk as any).client || (stitchSdk as any)._client;
+            let rawScreen: any = null;
+            if (stitchClient?.callTool) {
+              rawScreen = await stitchClient.callTool("get_screen", {
+                projectId,
+                screenId,
+                name: `projects/${projectId}/screens/${screenId}`,
+              });
+            } else {
+              // Fallback: use SDK method
+              const freshScreen = await stitchSdk.project(projectId).getScreen(screenId);
+              url = await freshScreen.getHtml();
+            }
+            if (rawScreen) {
+              console.log(`[Inngest] STEP 3b: poll ${poll} raw keys=${Object.keys(rawScreen).join(",")}`);
+              // htmlCode.downloadUrl is what getHtml() returns — but it may point to SVG
+              // Also check renderedFile, htmlExport, html, outputFile, exportedHtml
+              const candidates: string[] = [
+                rawScreen?.htmlCode?.downloadUrl,
+                rawScreen?.renderedFile?.downloadUrl,
+                rawScreen?.htmlExport?.downloadUrl,
+                rawScreen?.html?.downloadUrl,
+                rawScreen?.outputFile?.downloadUrl,
+                rawScreen?.exportedHtml?.downloadUrl,
+              ].filter(Boolean);
+              console.log(`[Inngest] STEP 3b: poll ${poll} url candidates: ${JSON.stringify(candidates)}`);
+              // Pick the first URL that returns actual HTML (not SVG)
+              for (const candidate of candidates) {
+                if (!candidate) continue;
+                try {
+                  const probe = await fetch(candidate, { redirect: "follow" });
+                  const snippet = await probe.text();
+                  console.log(`[Inngest] STEP 3b: poll ${poll} candidate probe — length=${snippet.length} starts=${snippet.slice(0,80)}`);
+                  if (snippet.length > 5000 && snippet.includes("<html") || snippet.includes("<!DOCTYPE") || (snippet.includes("<body") && snippet.length > 5000)) {
+                    url = candidate;
+                    break;
+                  }
+                } catch { /* try next */ }
+              }
+            }
             if (url) break;
           } catch (pe: any) {
             console.log(`[Inngest] STEP 3b: poll ${poll} error: ${pe?.message}`);
@@ -293,18 +332,11 @@ const buildWebsite = inngest.createFunction(
 
         if (!url) throw new Error(`Stitch HTML export never became available after 270s (screenId=${screenId})`);
 
-        // Follow redirects and fetch with retries — Stitch CDN URLs sometimes need a moment
-        let text = "";
-        for (let fetchAttempt = 1; fetchAttempt <= 3; fetchAttempt++) {
-          const fetchRes = await fetch(url, { redirect: "follow" });
-          text = await fetchRes.text();
-          console.log(`[Inngest] STEP 3b: fetch attempt ${fetchAttempt} — status=${fetchRes.status} length=${text.length} first200=${text.slice(0,200)}`);
-          if (text.length > 5000 && text.includes("<")) break;
-          // If it's short/not HTML, wait and retry — CDN may not have propagated yet
-          if (fetchAttempt < 3) await sleep(15000);
-        }
+        const fetchRes = await fetch(url, { redirect: "follow" });
+        const text = await fetchRes.text();
+        console.log(`[Inngest] STEP 3b: fetched HTML — status=${fetchRes.status} length=${text.length}`);
         if (text.length < 5000 || !text.includes("<")) {
-          throw new Error(`Stitch HTML too short or not HTML (${text.length} chars)`);
+          throw new Error(`Stitch HTML too short or not HTML (${text.length} chars, first200=${text.slice(0,200)})`);
         }
         if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(text)) throw new Error("Stitch returned skeleton");
         const styleLen = (text.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
