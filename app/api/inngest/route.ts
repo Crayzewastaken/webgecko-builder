@@ -256,54 +256,78 @@ const buildWebsite = inngest.createFunction(
         const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
         console.log(`[Inngest] STEP 3b: polling for HTML export — screenId=${stitchScreenId}`);
 
+        // Helper: try fetching a URL and return text if it looks like real HTML
+        const tryFetchHtml = async (url: string, label: string): Promise<string | null> => {
+          if (!url || url.length < 10) return null;
+          try {
+            const r = await fetch(url, { redirect: "follow" });
+            const t = await r.text();
+            if (t.trimStart().startsWith("<svg")) return null; // SVG, not HTML
+            if (t.length > 5000 && (t.includes("<!DOCTYPE") || t.includes("<html") || t.includes("<body"))) {
+              const styleLen = (t.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
+              const inlineStyleCount = (t.match(/\bstyle=/gi) || []).length;
+              if (styleLen < 100 && inlineStyleCount < 20) return null; // no CSS
+              if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(t)) return null; // skeleton
+              console.log(`[Inngest] STEP 3b: found real HTML at ${label} — ${t.length} chars`);
+              return t;
+            }
+            return null;
+          } catch { return null; }
+        };
+
         // Poll every 10s for up to 270s (27 polls) within this step's 300s window
         for (let poll = 1; poll <= 27; poll++) {
           await sleep(10000);
           try {
-            const freshScreen = await stitchSdk.project(projectId).getScreen(stitchScreenId);
+            // Call get_screen raw to inspect ALL fields — getHtml() only checks htmlCode.downloadUrl
+            // but Stitch may return the HTML URL in a different field
+            const raw = await (stitchSdk as any).client.callTool("get_screen", {
+              projectId,
+              screenId: stitchScreenId,
+              name: `projects/${projectId}/screens/${stitchScreenId}`,
+            });
 
-            // Log all available fields on first poll so we can see what Stitch returns
             if (poll === 1) {
-              try {
-                const rawKeys = Object.keys((freshScreen as any)?.raw || freshScreen || {});
-                console.log(`[Inngest] STEP 3b: screen keys: ${rawKeys.join(", ")}`);
-              } catch (_) {}
+              // Log the full raw structure so we can see exactly what Stitch returns
+              console.log(`[Inngest] STEP 3b: raw keys: ${Object.keys(raw || {}).join(", ")}`);
+              const allUrls: string[] = [];
+              const scanObj = (obj: any, path: string) => {
+                if (!obj || typeof obj !== "object") return;
+                for (const [k, v] of Object.entries(obj)) {
+                  if (typeof v === "string" && v.startsWith("http")) allUrls.push(`${path}.${k}=${v.slice(0, 80)}`);
+                  else if (typeof v === "object") scanObj(v, `${path}.${k}`);
+                }
+              };
+              scanObj(raw, "raw");
+              console.log(`[Inngest] STEP 3b: all URLs in raw: ${allUrls.join(" | ")}`);
             }
 
-            let url = await freshScreen.getHtml();
-            console.log(`[Inngest] STEP 3b: poll ${poll} — url length=${url?.length ?? 0}${url ? " first100=" + url.slice(0, 100) : ""}`);
-
-            if (!url || url.length === 0) continue;
-
-            // Fetch the URL and verify it's actually HTML (not an SVG or JSON error)
-            const fetchRes = await fetch(url, { redirect: "follow" });
-            const text = await fetchRes.text();
-            const first200 = text.slice(0, 200);
-            console.log(`[Inngest] STEP 3b: poll ${poll} fetch — status=${fetchRes.status} length=${text.length} first200=${first200}`);
-
-            // Skip SVG responses (Stitch sometimes returns logo URL instead of HTML)
-            if (text.trimStart().startsWith("<svg")) {
-              console.log(`[Inngest] STEP 3b: poll ${poll} — got SVG, not HTML, keep polling`);
-              continue;
-            }
-
-            if (text.length > 5000 && text.includes("<")) {
-              // Validate has CSS
-              const styleLen = (text.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
-              const inlineStyleCount = (text.match(/\bstyle=/gi) || []).length;
-              if (styleLen < 100 && inlineStyleCount < 20) {
-                console.log(`[Inngest] STEP 3b: poll ${poll} — HTML has no CSS, keep polling`);
-                continue;
+            // Try every URL-shaped field in the response — not just htmlCode.downloadUrl
+            const candidateUrls: Array<{url: string, label: string}> = [];
+            const collectUrls = (obj: any, path: string) => {
+              if (!obj || typeof obj !== "object") return;
+              for (const [k, v] of Object.entries(obj)) {
+                if (typeof v === "string" && v.startsWith("http")) {
+                  // Prioritise fields that sound like HTML exports
+                  const priority = /html|export|code|file|output/i.test(k) ? 0 : 1;
+                  candidateUrls.push({ url: v, label: `${path}.${k}` });
+                } else if (typeof v === "object") {
+                  collectUrls(v, `${path}.${k}`);
+                }
               }
-              if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(text)) {
-                console.log(`[Inngest] STEP 3b: poll ${poll} — got skeleton HTML, keep polling`);
-                continue;
-              }
-              console.log(`[Inngest] STEP 3b DONE: got real HTML ${text.length} chars at poll ${poll}`);
-              return text;
+            };
+            collectUrls(raw, "raw");
+            // Sort: html-sounding fields first
+            candidateUrls.sort((a, b) => (/html|export|code|file|output/i.test(a.label) ? 0 : 1) - (/html|export|code|file|output/i.test(b.label) ? 0 : 1));
+
+            console.log(`[Inngest] STEP 3b: poll ${poll} — ${candidateUrls.length} candidate URLs`);
+
+            for (const { url, label } of candidateUrls) {
+              const html = await tryFetchHtml(url, label);
+              if (html) return html;
             }
 
-            console.log(`[Inngest] STEP 3b: poll ${poll} — content too short (${text.length} chars), keep polling`);
+            console.log(`[Inngest] STEP 3b: poll ${poll} — no valid HTML found yet, keep polling`);
           } catch (pe: any) {
             console.log(`[Inngest] STEP 3b: poll ${poll} error: ${pe?.message}`);
           }
