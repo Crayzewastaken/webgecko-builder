@@ -343,10 +343,13 @@ function InfoBtn({ text }: { text: string }) {
 // ── Preview frame ──────────────────────────────────────────────────────────────
 function PreviewFrame({ previewUrl, builtAt, jobId }: { previewUrl:string; builtAt?:string; jobId?:string }) {
   const [key, setKey] = useState(()=>Date.now());
-  const prevRef = useRef(builtAt);
+  const prevRef = useRef({ builtAt, previewUrl });
   useEffect(()=>{
-    if(builtAt!==prevRef.current){prevRef.current=builtAt;setKey(Date.now());}
-  },[builtAt]);
+    if(builtAt!==prevRef.current.builtAt || previewUrl!==prevRef.current.previewUrl){
+      prevRef.current={builtAt,previewUrl};
+      setKey(Date.now());
+    }
+  },[builtAt, previewUrl]);
   const doRefresh = ()=>setKey(Date.now());
   // Scale 1280px iframe to fit ~710px panel content width
   const SCALE=0.55, IW=1280, IH=800;

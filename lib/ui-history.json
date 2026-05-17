@@ -598,5 +598,13 @@
     "lines": 4008,
     "description": "\"Updated admin dashboard\"",
     "type": "feat"
+  },
+  {
+    "version": "v76",
+    "date": "2026-05-17",
+    "commit": "pending",
+    "lines": 4011,
+    "description": "Fix: 37 pipeline bugs — critical nav/rebuild/validation issues",
+    "type": "feat"
   }
 ]

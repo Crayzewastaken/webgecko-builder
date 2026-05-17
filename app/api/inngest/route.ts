@@ -20,6 +20,8 @@ import {
   validateForDeploy,
   ensureMultiPageStructure,
   getExampleHtmlsForIndustry,
+  fetchPexelsPhotos,
+  getPexelsQuery,
 } from "@/lib/pipeline-helpers";
 import { createSuperSaasSchedule } from "@/lib/supersaas";
 import { createClientShopCatalogue } from "@/lib/square";
@@ -387,8 +389,12 @@ const buildWebsite = inngest.createFunction(
           }
         }
 
-        // 3. Inject id="contact" section if missing
-        if (!html.includes('id="contact"')) {
+        // 3. Inject id="contact" section if missing (also detect Stitch contact sections without the id)
+        const hasContactSection = html.includes('id="contact"') ||
+          /(?:get in touch|contact us|send us a message|reach out|enquire|enquiry form)/i.test(
+            html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '')
+          );
+        if (!hasContactSection) {
           const contactSection = `
   <section id="contact" style="padding:80px 24px;background:#0f172a;scroll-margin-top:80px;">
     <div style="max-width:640px;margin:0 auto;">
@@ -403,7 +409,12 @@ const buildWebsite = inngest.createFunction(
       </form>
     </div>
   </section>`;
-          html = html.replace(/<\/body>/i, contactSection + "\n</body>");
+          // Inject before footer if present, otherwise before </body>
+          if (/<footer[\s>]/i.test(html)) {
+            html = html.replace(/<footer[\s>]/i, contactSection + "\n$&");
+          } else {
+            html = html.replace(/<\/body>/i, contactSection + "\n</body>");
+          }
         }
 
         // 4. Inject footer with copyright + legal links if missing; always pin to bottom via flex body
@@ -1073,12 +1084,29 @@ const buildWebsite = inngest.createFunction(
         const navFixedHtml = fixNavigateToTargets(checkedHtml);
         const ga4Id = job.ga4Id || userInput.ga4Id || "";
 
+        // Fetch Pexels photos if site has a gallery page and client has few/no photos
+        let augmentedPhotoUrls = [...photoUrls];
+        const sitePages = Array.isArray(userInput.pages) ? userInput.pages : [];
+        const hasGalleryPage = sitePages.some((p: string) => /gallery|portfolio|work|project/i.test(p));
+        if (hasGalleryPage && photoUrls.length < 4 && process.env.PEXELS_API_KEY && process.env.PEXELS_API_KEY !== "YOUR_PEXELS_KEY_HERE") {
+          try {
+            const pexelsQuery = getPexelsQuery(userInput.businessName, userInput.industry || "", sitePages);
+            const pexelsPhotos = await fetchPexelsPhotos(pexelsQuery, 8);
+            augmentedPhotoUrls = [...photoUrls, ...pexelsPhotos].slice(0, 12);
+            console.log(`[Pexels] Fetched ${pexelsPhotos.length} photos for query: "${pexelsQuery}"`);
+          } catch (e) {
+            console.log("[Pexels] Failed to fetch:", e);
+          }
+        }
+        // Use first augmented photo as hero if client has no hero
+        const effectiveHeroUrl = heroUrl || (augmentedPhotoUrls.length > 0 ? augmentedPhotoUrls[0] : null);
+
         // On rebuild, the saved HTML already has our injected scripts (navigateTo, multi-page
         // init, hamburger JS, etc.) from the original build. Re-running injectEssentials would
         // produce double <script> blocks. Skip it and only re-inject images.
         if (savedHtmlForRebuild) {
           console.log("[Step6] Rebuild mode — skipping injectEssentials (scripts already present), re-injecting images only");
-          const html = injectImages(navFixedHtml, logoUrl, heroUrl, photoUrls, productsWithPhotos);
+          const html = injectImages(navFixedHtml, logoUrl, effectiveHeroUrl, augmentedPhotoUrls, productsWithPhotos);
           return html;
         }
 
@@ -1099,7 +1127,7 @@ const buildWebsite = inngest.createFunction(
           }
         }
         let html = injectEssentials(navFixedHtml, clientEmail, clientPhone, jobId, ga4Id, tawktoPropertyId);
-        html = injectImages(html, logoUrl, heroUrl, photoUrls, productsWithPhotos);
+        html = injectImages(html, logoUrl, effectiveHeroUrl, augmentedPhotoUrls, productsWithPhotos);
         return html;
       });
 

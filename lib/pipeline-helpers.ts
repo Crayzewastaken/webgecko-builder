@@ -35,6 +35,58 @@ export function normalizePageId(label: string): string {
 }
 
 
+// ─── Pexels photo fetching ───────────────────────────────────────────────────
+
+export async function fetchPexelsPhotos(query: string, count: number = 6): Promise<string[]> {
+  const apiKey = process.env.PEXELS_API_KEY;
+  if (!apiKey || apiKey === "YOUR_PEXELS_KEY_HERE") return [];
+  try {
+    const res = await fetch(
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${count}&orientation=landscape`,
+      { headers: { Authorization: apiKey }, next: { revalidate: 3600 } }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.photos || []).map((p: any) => p.src?.large2x || p.src?.large || p.src?.original || "").filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+export function getPexelsQuery(businessName: string, industry: string, pages: string[]): string {
+  // Build a specific search query from the business context
+  const lower = (industry || "").toLowerCase();
+
+  // Industry-specific photo queries
+  const queryMap: Record<string, string> = {
+    dart: "dartboard darts game",
+    darts: "dartboard darts game",
+    medical: "medical clinic doctor",
+    dental: "dental clinic teeth",
+    fitness: "gym workout fitness",
+    restaurant: "restaurant food dining",
+    cafe: "cafe coffee shop",
+    hair: "hair salon hairdresser",
+    beauty: "beauty salon makeup",
+    construction: "construction building",
+    plumb: "plumber pipes bathroom",
+    electric: "electrician wiring",
+    clean: "cleaning service professional",
+    landscap: "garden landscaping outdoor",
+    legal: "law office professional",
+    account: "accounting finance office",
+    "real estate": "real estate property house",
+    photography: "photography camera portrait",
+    yoga: "yoga meditation wellness",
+  };
+
+  const matched = Object.entries(queryMap).find(([k]) => lower.includes(k));
+  if (matched) return matched[1];
+
+  // Fallback: use industry + "professional"
+  return `${industry} professional`;
+}
+
 // ─── extractJson ──────────────────────────────────────────────────────────────
 
 export function extractJson(text: string) {
@@ -1275,10 +1327,21 @@ export function injectImages(
   var productImgs = document.querySelectorAll("[class*='menu'] img, [class*='product'] img, [class*='item'] img, [id*='menu'] img, [class*='card'] img");
   var photoList = productData.map(function(p) { return p.photoUrl; });
   productImgs.forEach(function(img, i) { if (photoList[i]) { img.src = photoList[i]; img.style.objectFit = "cover"; } });` : ""}
-  ${photoUrls.length > 0 ? `
   var generalPhotos = ${JSON.stringify(photoUrls)};
-  var galleryImgs = document.querySelectorAll("[class*='gallery'] img, [id*='gallery'] img");
-  galleryImgs.forEach(function(img, i) { if (generalPhotos[i]) img.src = generalPhotos[i]; });` : ""}
+  if (generalPhotos.length > 0) {
+    var galleryImgs = Array.from(document.querySelectorAll("[class*='gallery'] img, [id*='gallery'] img, [data-page='gallery'] img"));
+    galleryImgs.forEach(function(img, i) {
+      if (generalPhotos[i]) {
+        img.src = generalPhotos[i];
+        img.style.display = '';
+      } else {
+        // Hide gallery items that exceed client's photo count
+        var card = img.closest('div,li,article,[class*="card"],[class*="item"]') || img.parentElement;
+        if (card && card !== document.body) card.style.display = 'none';
+        else img.style.display = 'none';
+      }
+    });
+  }
 })();
 </script>`;
   if (processed.includes("</body>")) return processed.replace("</body>", script + "</body>");
