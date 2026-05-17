@@ -293,9 +293,16 @@ const buildWebsite = inngest.createFunction(
 
         if (!url) throw new Error(`Stitch HTML export never became available after 270s (screenId=${screenId})`);
 
-        const fetchRes = await fetch(url);
-        const text = await fetchRes.text();
-        console.log(`[Inngest] STEP 3b: fetched HTML — status=${fetchRes.status} length=${text.length}`);
+        // Follow redirects and fetch with retries — Stitch CDN URLs sometimes need a moment
+        let text = "";
+        for (let fetchAttempt = 1; fetchAttempt <= 3; fetchAttempt++) {
+          const fetchRes = await fetch(url, { redirect: "follow" });
+          text = await fetchRes.text();
+          console.log(`[Inngest] STEP 3b: fetch attempt ${fetchAttempt} — status=${fetchRes.status} length=${text.length} first200=${text.slice(0,200)}`);
+          if (text.length > 5000 && text.includes("<")) break;
+          // If it's short/not HTML, wait and retry — CDN may not have propagated yet
+          if (fetchAttempt < 3) await sleep(15000);
+        }
         if (text.length < 5000 || !text.includes("<")) {
           throw new Error(`Stitch HTML too short or not HTML (${text.length} chars)`);
         }
