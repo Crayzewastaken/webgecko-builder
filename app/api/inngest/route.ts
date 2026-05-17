@@ -260,23 +260,25 @@ const buildWebsite = inngest.createFunction(
             let url = await screen.getHtml();
             console.log(`[Inngest] STEP 3: getHtml() from generate response — url length=${url?.length ?? 0}`);
 
-            // If generate() response didn't include htmlCode.downloadUrl, poll via get_screen
+            // get_screen NEVER returns htmlCode.downloadUrl — only list_screens does.
+            // Wait 60s after generate() then poll list_screens every 30s (4 polls = 120s more).
+            // Total: generate() time + 60s wait + up to 120s polling, well within 300s.
             if (!url && screen.screenId) {
-              console.log(`[Inngest] STEP 3: retrying via project.getScreen(${screen.screenId})`);
-              // Intervals: 6s × 5, then 10s × 7 = 100s total polling window
-              const pollIntervals = [6,6,6,6,6,10,10,10,10,10,10,10];
-              for (let poll = 1; poll <= pollIntervals.length; poll++) {
-                await sleep(pollIntervals[poll - 1] * 1000);
+              console.log(`[Inngest] STEP 3: waiting 60s for HTML export to become ready...`);
+              await sleep(60000);
+
+              for (let poll = 1; poll <= 4; poll++) {
                 try {
-                  // Try fresh getScreen first, fall back to retrying on the original screen object
-                  const freshScreen = await stitchSdk.project(projectId).getScreen(screen.screenId);
-                  url = await freshScreen.getHtml();
-                  if (!url) url = await screen.getHtml();
-                  console.log(`[Inngest] STEP 3: get_screen poll ${poll} — url length=${url?.length ?? 0}`);
+                  const listRaw = await (stitchSdk as any).client.callTool("list_screens", { projectId });
+                  const screens: any[] = listRaw?.screens || [];
+                  const found = screens.find((s: any) => (s.id || s.name?.split("/screens/").pop()) === screen.screenId);
+                  url = found?.htmlCode?.downloadUrl || "";
+                  console.log(`[Inngest] STEP 3: list_screens poll ${poll} — ${screens.length} screens, htmlUrl length=${url?.length ?? 0}`);
                   if (url) break;
                 } catch (pe: any) {
-                  console.log(`[Inngest] STEP 3: get_screen poll ${poll} error: ${pe?.message}`);
+                  console.log(`[Inngest] STEP 3: list_screens poll ${poll} error: ${pe?.message}`);
                 }
+                if (poll < 4) await sleep(30000);
               }
             }
 
@@ -2117,7 +2119,6 @@ const featureGoLive = inngest.createFunction(
       const existingFeatures: string[] = Array.isArray(userInput.features) ? userInput.features : [];
       const newFeatures = [...new Set([...existingFeatures, featureId])];
 
-      // Persist the new feature into userInput
       // Persist the new feature into userInput
       await saveJob(jobId, { userInput: { ...userInput, features: newFeatures } });
     });
