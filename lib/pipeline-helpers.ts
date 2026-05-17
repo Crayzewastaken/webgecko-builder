@@ -806,25 +806,6 @@ export function ensureMultiPageStructure(
     }
   }
 
-  // 9. Deduplication guard — if any data-page value appears more than once, strip the attribute
-  //    from all but the FIRST (outermost) occurrence. This prevents the validator crashing on
-  //    Stitch-built pages where a section inside home already carries data-page="home".
-  for (const pageId of requestedPageIds) {
-    const dpRe = new RegExp(`\\bdata-page=["']${pageId}["']`, 'g');
-    const matches = [...out.matchAll(dpRe)];
-    if (matches.length > 1) {
-      // Keep the first occurrence, strip all subsequent ones
-      let skipFirst = true;
-      out = out.replace(dpRe, (m) => {
-        if (skipFirst) { skipFirst = false; return m; }
-        return ''; // strip duplicate attribute
-      });
-      report.repairs.push(`Removed ${matches.length - 1} duplicate data-page="${pageId}" attribute(s)`);
-      console.log(`[ensureMultiPage] Deduped ${matches.length - 1} extra data-page="${pageId}"`);
-      report.duplicatesRemoved.push(pageId);
-    }
-  }
-
   console.log(`[ensureMultiPage] Done. Repairs: ${report.repairs.length}, Added pages: [${report.missingPagesAdded.join(',')}], Nav fixes: ${report.navTargetsFixed.length}`);
   return { html: out, report };
 }
@@ -1028,36 +1009,6 @@ document.querySelectorAll("#close-drawer,#close-menu,#menu-close,#nav-close,[ari
     });
   }
 })();
-// ── Click-to-call phone wiring ───────────────────────────────────────────────
-// Finds phone number text nodes in the header and wraps them in tel: links.
-// Also ensures any bare phone text anywhere in the page is linkified.
-(function() {
-  var phoneRe = /\b(0[2-9]\d{8}|04\d{8}|1[38]00\s?\d{3}\s?\d{3}|\+61\s?[2-9]\s?\d{4}\s?\d{4})\b/g;
-  function linkifyPhone(el) {
-    if (!el || el.tagName === "A" || el.tagName === "SCRIPT" || el.tagName === "STYLE") return;
-    Array.from(el.childNodes).forEach(function(node) {
-      if (node.nodeType === 3) { // text node
-        var txt = node.textContent || "";
-        if (phoneRe.test(txt)) {
-          phoneRe.lastIndex = 0;
-          var span = document.createElement("span");
-          span.innerHTML = txt.replace(phoneRe, function(m) {
-            var digits = m.replace(/\s/g, "");
-            return '<a href="tel:' + digits + '" style="color:inherit;text-decoration:none;font-weight:inherit;">' + m + '</a>';
-          });
-          node.parentNode && node.parentNode.replaceChild(span, node);
-        }
-        phoneRe.lastIndex = 0;
-      } else if (node.nodeType === 1) {
-        linkifyPhone(node);
-      }
-    });
-  }
-  var header = document.querySelector("header,nav,[class*='navbar'],[class*='header']");
-  if (header) linkifyPhone(header);
-  var contact = document.getElementById("contact");
-  if (contact) linkifyPhone(contact);
-})();
 // Newsletter popup / modal close — catches any floating popup with a close button
 // Stitch generates these with no onclick — we wire them up here
 (function() {
@@ -1116,37 +1067,6 @@ document.querySelectorAll("[class*='faq'],[class*='accordion'],[id*='faq']").for
 var cart = [];
 function showToast(msg) { var t = document.getElementById("wg-toast"); if (!t) { t = document.createElement("div"); t.id = "wg-toast"; t.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:99999;transition:opacity 0.3s;pointer-events:none;"; document.body.appendChild(t); } t.textContent = msg; t.style.opacity = "1"; setTimeout(function() { t.style.opacity = "0"; }, 2500); }
 document.querySelectorAll("button,a").forEach(function(btn) { var txt = (btn.textContent || "").toLowerCase().trim(); if (txt.includes("add to cart") || txt.includes("buy now") || txt.includes("add to bag")) { btn.addEventListener("click", function(e) { e.preventDefault(); e.stopPropagation(); var card = this.closest("article") || this.closest("[class*='product']") || this.parentElement; var nm = card && card.querySelector("h1,h2,h3,h4"); var n = nm ? nm.textContent.trim() : "Item"; var ex = cart.find(function(i) { return i.name === n; }); if (ex) ex.qty++; else cart.push({ name: n, qty: 1 }); showToast(n + " added"); var total = cart.reduce(function(a, b) { return a + b.qty; }, 0); document.querySelectorAll("#cart-count,#cart-badge,[class*='cart-count']").forEach(function(b) { b.textContent = total; }); }); } });
-// ── Wire orphaned Stitch buttons with no handler ────────────────────────────
-// Stitch sometimes generates SUBSCRIBE, GET QUOTE, GO PRO, GET STARTED buttons
-// with no onclick and no form parent. Wire them to sensible page targets.
-document.querySelectorAll("button,a").forEach(function(btn) {
-  if (btn.getAttribute("onclick") || btn.getAttribute("data-wg-wired") || btn.getAttribute("href")) return;
-  if (btn.closest("form")) return; // already inside a form
-  var txt = (btn.textContent || "").trim().toUpperCase();
-  if (txt === "SUBSCRIBE" || txt === "GET UPDATES" || txt === "SIGN UP") {
-    btn.setAttribute("data-wg-wired", "1");
-    btn.addEventListener("click", function(e) {
-      e.preventDefault();
-      var ns = document.getElementById("newsletter") || document.getElementById("newsletter-form");
-      if (ns) { ns.scrollIntoView({ behavior: "smooth", block: "start" }); }
-      else if (window.navigateTo) { window.navigateTo("contact"); }
-    });
-  } else if (txt === "GET QUOTE" || txt === "GET A QUOTE" || txt === "REQUEST QUOTE") {
-    btn.setAttribute("data-wg-wired", "1");
-    btn.addEventListener("click", function(e) {
-      e.preventDefault();
-      if (window.navigateTo) { window.navigateTo("contact"); }
-      else { var c = document.getElementById("contact"); if (c) c.scrollIntoView({ behavior: "smooth" }); }
-    });
-  } else if (txt === "GO PRO" || txt === "UPGRADE" || txt === "GET STARTED") {
-    btn.setAttribute("data-wg-wired", "1");
-    btn.addEventListener("click", function(e) {
-      e.preventDefault();
-      if (window.navigateTo) { window.navigateTo("pricing"); }
-      else { var c = document.getElementById("pricing") || document.getElementById("contact"); if (c) c.scrollIntoView({ behavior: "smooth" }); }
-    });
-  }
-});
 document.querySelectorAll("form").forEach(function(form) {
   // Skip forms inside the booking widget — it manages its own fetch-based submit
   if (form.closest("#booking") || form.closest(".bw-container") || form.id === "bw-form") return;
@@ -1329,50 +1249,11 @@ export function injectImages(
   }` : ""}
   ${heroUrl ? `
   var heroUrl = "${heroUrl}";
-  // Strategy 1: find hero section by id/class
-  var heroSection = document.getElementById("hero") || document.querySelector("[class*='hero']") || document.querySelector("[data-page='home'] section:first-of-type") || document.querySelector("section:first-of-type");
+  var heroSection = document.querySelector("[class*='hero'],[id*='hero'],section:first-of-type");
   if (heroSection) {
-    // 1a. If already has a background-image style, update it
-    var bgStyle = heroSection.style.backgroundImage || getComputedStyle(heroSection).backgroundImage;
-    if (bgStyle && bgStyle !== "none") {
-      heroSection.style.backgroundImage = "url(" + heroUrl + ")";
-      heroSection.style.backgroundSize = "cover";
-      heroSection.style.backgroundPosition = "center";
-    }
-    // 1b. If there's an existing img tag, update src
-    var heroImg = heroSection.querySelector("img:not([src*='logo']):not([class*='logo'])");
-    if (heroImg) {
-      heroImg.src = heroUrl;
-      heroImg.style.objectFit = "cover";
-      heroImg.style.width = "100%";
-      heroImg.style.height = "100%";
-    } else {
-      // 1c. Find Stitch right-column visual div (relative + height class)
-      var relDiv = heroSection.querySelector("div[class*='relative'][class*='h-']") || heroSection.querySelector("div[class*='aspect-']") || heroSection.querySelector("div[class*='image']");
-      if (relDiv && !relDiv.querySelector("img")) {
-        var img = document.createElement("img");
-        img.src = heroUrl;
-        img.alt = "Hero image";
-        img.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:12px;z-index:0;";
-        relDiv.style.position = "relative";
-        relDiv.style.overflow = "hidden";
-        relDiv.insertBefore(img, relDiv.firstChild);
-      } else if (!bgStyle || bgStyle === "none") {
-        // 1d. Last resort: set as background image on the hero section itself
-        heroSection.style.backgroundImage = "url(" + heroUrl + ")";
-        heroSection.style.backgroundSize = "cover";
-        heroSection.style.backgroundPosition = "center";
-        heroSection.style.backgroundRepeat = "no-repeat";
-        // Add a dark overlay via pseudo-element if not already present
-        if (!document.getElementById("wg-hero-overlay")) {
-          var overlay = document.createElement("div");
-          overlay.id = "wg-hero-overlay";
-          overlay.style.cssText = "position:absolute;inset:0;background:rgba(0,0,0,0.45);z-index:0;pointer-events:none;";
-          heroSection.style.position = "relative";
-          heroSection.insertBefore(overlay, heroSection.firstChild);
-        }
-      }
-    }
+    if (heroSection.style.backgroundImage) heroSection.style.backgroundImage = "url(" + heroUrl + ")";
+    var heroImg = heroSection.querySelector("img");
+    if (heroImg) { heroImg.src = heroUrl; heroImg.style.objectFit = "cover"; }
   }` : ""}
   ${products.filter(p => p.photoUrl).length > 0 ? `
   var productData = ${JSON.stringify(products.filter(p => p.photoUrl))};
@@ -1392,23 +1273,8 @@ export function injectImages(
   productImgs.forEach(function(img, i) { if (photoList[i]) { img.src = photoList[i]; img.style.objectFit = "cover"; } });` : ""}
   ${photoUrls.length > 0 ? `
   var generalPhotos = ${JSON.stringify(photoUrls)};
-  // Target gallery images broadly — Stitch uses many class naming patterns
-  var galleryImgs = Array.from(document.querySelectorAll("[class*='gallery'] img,[id*='gallery'] img,[class*='portfolio'] img,[class*='work'] img,[class*='project'] img,[class*='grid'] img,[class*='photo'] img"));
-  // Exclude logo images
-  galleryImgs = galleryImgs.filter(function(img) { return !img.src.includes("logo") && !img.className.includes("logo"); });
-  if (galleryImgs.length === 0) {
-    // Fallback: any img tags that look like content images (not tiny icons)
-    galleryImgs = Array.from(document.querySelectorAll("img")).filter(function(img) {
-      return img.naturalWidth > 100 || parseInt(img.getAttribute("width") || "0") > 100 || img.className.includes("card") || img.closest("[class*='card']") || img.closest("[class*='service']");
-    }).slice(0, generalPhotos.length);
-  }
-  galleryImgs.forEach(function(img, i) {
-    if (generalPhotos[i]) {
-      img.src = generalPhotos[i];
-      img.style.objectFit = "cover";
-      img.loading = "lazy";
-    }
-  });` : ""}
+  var galleryImgs = document.querySelectorAll("[class*='gallery'] img, [id*='gallery'] img");
+  galleryImgs.forEach(function(img, i) { if (generalPhotos[i]) img.src = generalPhotos[i]; });` : ""}
 })();
 </script>`;
   if (processed.includes("</body>")) return processed.replace("</body>", script + "</body>");
@@ -1490,85 +1356,4 @@ export async function getExampleHtmlsForIndustry(
     console.warn("[getExampleHtmls] Failed to fetch examples:", e);
     return [];
   }
-}
-// ── Pexels photo search ────────────────────────────────────────────────────────
-export async function fetchPexelsPhoto(query: string, orientation: "landscape" | "portrait" | "square" = "landscape"): Promise<string | null> {
-  const key = process.env.PEXELS_API_KEY;
-  if (!key) return null;
-  try {
-    const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&orientation=${orientation}&per_page=5&page=1`;
-    const res = await fetch(url, { headers: { Authorization: key } });
-    if (!res.ok) return null;
-    const data = await res.json() as { photos?: { src: { large2x: string } }[] };
-    return data.photos?.[0]?.src?.large2x || null;
-  } catch {
-    return null;
-  }
-}
-
-// ── SEO meta tag injection ────────────────────────────────────────────────────
-// Injects <meta> description, Open Graph, Twitter Card, and canonical tags.
-// Called in Step 6 after injectEssentials, before injectImages.
-
-export function injectSeoMeta(html: string, opts: {
-  businessName: string;
-  industry: string;
-  description: string;   // heroSubheadline or custom
-  siteUrl: string;       // stable Vercel alias, e.g. https://wg-slug.vercel.app
-  heroImageUrl?: string; // Pexels or Cloudinary hero URL
-  location?: string;
-}): string {
-  const { businessName, industry, description, siteUrl, heroImageUrl, location } = opts;
-
-  // Escape for HTML attribute context
-  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-  const title = `${businessName} | ${industry}${location ? " | " + location : ""}`;
-  const desc = esc(description.slice(0, 160));
-  const escapedTitle = esc(title);
-  const ogImage = heroImageUrl || `${siteUrl}/og-image.jpg`;
-  const canonical = siteUrl.replace(/\/$/, "");
-
-  const metaTags = `
-  <!-- WebGecko SEO -->
-  <meta name="description" content="${desc}">
-  <link rel="canonical" href="${canonical}">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="${canonical}">
-  <meta property="og:title" content="${escapedTitle}">
-  <meta property="og:description" content="${desc}">
-  <meta property="og:image" content="${esc(ogImage)}">
-  <meta property="og:locale" content="en_AU">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="${escapedTitle}">
-  <meta name="twitter:description" content="${desc}">
-  <meta name="twitter:image" content="${esc(ogImage)}">
-  <meta name="robots" content="index, follow">
-  <meta name="geo.region" content="AU">`;
-
-
-  // Check if meta description already injected (e.g. by Stitch)
-  if (html.includes('name="description"') || html.includes("name='description'")) {
-    // Just add canonical + og if missing, avoid duplicating description
-    if (!html.includes("og:title")) {
-      const ogOnly = `
-  <!-- WebGecko OG -->
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="${canonical}">
-  <meta property="og:title" content="${escapedTitle}">
-  <meta property="og:description" content="${desc}">
-  <meta property="og:image" content="${esc(ogImage)}">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="${escapedTitle}">
-  <meta name="twitter:image" content="${esc(ogImage)}">`;
-      return html.replace(/<\/head>/i, ogOnly + "\n</head>");
-    }
-    return html;
-  }
-
-  // Inject after <title> tag if present, else before </head>
-  if (/<title>/i.test(html)) {
-    return html.replace(/(<title>[^<]*<\/title>)/i, "$1" + metaTags);
-  }
-  return html.replace(/<\/head>/i, metaTags + "\n</head>");
 }
