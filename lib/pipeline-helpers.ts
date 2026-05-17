@@ -445,8 +445,12 @@ export function validateForDeploy(
     }
 
     // 6. No navigateTo() target that points to a page NOT in requestedPageIds
-    // Whitelist legal/utility pages injected by the auditor
-    const legalPages = new Set(["privacy", "terms", "privacy-policy", "terms-of-service"]);
+    // Whitelist legal/utility pages injected by the auditor, plus universal section anchors
+    // that Stitch always links to regardless of requested pages (contact, faq, home are sections not pages)
+    const legalPages = new Set([
+      "privacy", "terms", "privacy-policy", "terms-of-service",
+      "contact", "faq", "faqs", "home", "hero",
+    ]);
     const navTargets = [...html.matchAll(/navigateTo\(['"]([^'"]+)['"]\)/g)].map(m => m[1]);
     for (const t of navTargets) {
       if (!requestedPageIds.includes(t) && !legalPages.has(t)) {
@@ -859,6 +863,26 @@ export function ensureMultiPageStructure(
       report.repairs.push(`Removed ${bookingDpCount} stray data-page="booking" attribute(s) (booking not requested)`);
       console.log(`[ensureMultiPage] Removed ${bookingDpCount} stray data-page="booking" attributes`);
     }
+  }
+
+  // ── 9. Deduplicate data-page attributes — keep only the FIRST tag with each id ──
+  // Scan for all opening tags that carry data-page="X"; if we've seen X before,
+  // strip the data-page attribute from that tag (leave the element's content intact).
+  {
+    const seenDp = new Set<string>();
+    out = out.replace(/<(div|section|article|main)([^>]*\bdata-page=["']([^"']+)["'][^>]*)>/gi,
+      (match, tag, attrs, pageId) => {
+        if (!seenDp.has(pageId)) {
+          seenDp.add(pageId);
+          return match; // first occurrence — keep as-is
+        }
+        // Duplicate — remove the data-page attribute from this opening tag only
+        const stripped = attrs.replace(/\s*\bdata-page=["'][^"']+["']/, '');
+        report.repairs.push(`Removed duplicate data-page="${pageId}" attribute (kept first occurrence)`);
+        console.log(`[ensureMultiPage] Deduped duplicate data-page="${pageId}"`);
+        return `<${tag}${stripped}>`;
+      }
+    );
   }
 
   console.log(`[ensureMultiPage] Done. Repairs: ${report.repairs.length}, Added pages: [${report.missingPagesAdded.join(',')}], Nav fixes: ${report.navTargetsFixed.length}`);
