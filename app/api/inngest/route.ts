@@ -275,21 +275,49 @@ const buildWebsite = inngest.createFunction(
           } catch { return null; }
         };
 
+        console.log(`[Inngest] STEP 3b: using projectId=${projectId} screenId=${stitchScreenId}`);
+
         // Poll every 10s for up to 270s (27 polls) within this step's 300s window
         // KEY INSIGHT: list_screens returns htmlCode.downloadUrl when ready; get_screen does NOT.
-        // The download-handler.js in the SDK uses list_screens for exactly this reason.
         for (let poll = 1; poll <= 27; poll++) {
           await sleep(10000);
           try {
             const listRaw = await (stitchSdk as any).client.callTool("list_screens", { projectId });
             const screens: any[] = listRaw?.screens || [];
-            const screen = screens.find((s: any) => {
+
+            // Log all screen IDs on first poll to diagnose mismatches
+            if (poll === 1) {
+              const ids = screens.map((s: any) => s.id || s.name?.split("/screens/").pop()).join(", ");
+              console.log(`[Inngest] STEP 3b: poll 1 list_screens returned ${screens.length} screens: [${ids}]`);
+            }
+
+            // Also try get_screen directly as fallback — some projects need this
+            let screen = screens.find((s: any) => {
               const sid = s.id || s.name?.split("/screens/").pop();
               return sid === stitchScreenId;
             });
 
+            if (!screen && poll <= 3) {
+              // Fallback: try get_screen raw for first 3 polls to see if it appears there
+              try {
+                const gsRaw = await (stitchSdk as any).client.callTool("get_screen", {
+                  projectId,
+                  screenId: stitchScreenId,
+                  name: `projects/${projectId}/screens/${stitchScreenId}`,
+                });
+                if (gsRaw?.htmlCode?.downloadUrl) {
+                  console.log(`[Inngest] STEP 3b: poll ${poll} — found htmlCode in get_screen fallback!`);
+                  screen = gsRaw;
+                } else {
+                  console.log(`[Inngest] STEP 3b: poll ${poll} — get_screen keys: ${Object.keys(gsRaw || {}).join(", ")}, htmlCode=${JSON.stringify(gsRaw?.htmlCode)}`);
+                }
+              } catch (gse: any) {
+                console.log(`[Inngest] STEP 3b: poll ${poll} get_screen error: ${gse?.message}`);
+              }
+            }
+
             if (!screen) {
-              console.log(`[Inngest] STEP 3b: poll ${poll} — screenId not found in list_screens yet (${screens.length} screens)`);
+              console.log(`[Inngest] STEP 3b: poll ${poll} — screen not found yet (list has ${screens.length})`);
               continue;
             }
 
@@ -298,10 +326,9 @@ const buildWebsite = inngest.createFunction(
 
             if (!htmlUrl) continue;
 
-            const html = await tryFetchHtml(htmlUrl, "list_screens.htmlCode.downloadUrl");
+            const html = await tryFetchHtml(htmlUrl, "htmlCode.downloadUrl");
             if (html) return html;
 
-            // If that URL didn't work, try screenshot as last resort (shouldn't happen)
             console.log(`[Inngest] STEP 3b: poll ${poll} — htmlUrl exists but content invalid, keep polling`);
           } catch (pe: any) {
             console.log(`[Inngest] STEP 3b: poll ${poll} error: ${pe?.message}`);
