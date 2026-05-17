@@ -322,10 +322,13 @@ export async function auditAndFixSite(
     const beforeCopy = fixed;
     const copyDiv = '<div style="text-align:center;padding:12px 0;font-size:13px;opacity:0.7;">© ' + yr + ' ' + businessName + '. All rights reserved.</div>';
     if (fixed.includes("</footer>")) {
-      fixed = fixed.replace(/([\s\S]*?)(<\/footer>)/i, (m: string, body: string, close: string) => {
-        if (body.includes("©") || body.includes("&copy;")) return m;
-        return body + '\n' + copyDiv + '\n' + close;
-      });
+      // BUG-33 FIX: target the LAST </footer> not the first
+      const lastFooterIdx = fixed.lastIndexOf("</footer>");
+      const beforeLastFooter = fixed.slice(0, lastFooterIdx);
+      const afterLastFooter = fixed.slice(lastFooterIdx);
+      if (!beforeLastFooter.includes("©") && !beforeLastFooter.includes("&copy;")) {
+        fixed = beforeLastFooter + '\n' + copyDiv + '\n' + afterLastFooter;
+      }
     } else if (fixed.includes("</body>")) {
       fixed = fixed.replace("</body>", copyDiv + '\n</body>');
     } else {
@@ -426,7 +429,7 @@ function injectLegalPages(html: string, ctx: {
 <div id="privacy" data-page="privacy" style="background:${clrBg};display:none;">
   <div style="${wrap}">
     <h1 style="color:${clrText};font-size:2rem;font-weight:900;margin-bottom:8px;">Privacy Policy</h1>
-    <p style="${clrSub};font-size:0.85rem;margin-bottom:32px;color:${clrSub};">Last updated: ${new Date().toLocaleDateString("en-AU", { day:"numeric", month:"long", year:"numeric" })}</p>
+    <p style="color:${clrSub};font-size:0.85rem;margin-bottom:32px;">Last updated: ${new Date().toLocaleDateString("en-AU", { day:"numeric", month:"long", year:"numeric" })}</p>
 
     <p style="${prose}">${siteName}${abnLine} ("we", "us", "our") is committed to protecting your personal information in accordance with the <em>Privacy Act 1988</em> (Cth) and the Australian Privacy Principles (APPs).</p>
 
@@ -494,7 +497,7 @@ function injectLegalPages(html: string, ctx: {
 <div id="terms" data-page="terms" style="background:${clrBg2};display:none;">
   <div style="${wrap}">
     <h1 style="color:${clrText};font-size:2rem;font-weight:900;margin-bottom:8px;">Terms of Service</h1>
-    <p style="font-size:0.85rem;margin-bottom:32px;color:${clrSub};">Last updated: ${new Date().toLocaleDateString("en-AU", { day:"numeric", month:"long", year:"numeric" })}</p>
+    <p style="color:${clrSub};font-size:0.85rem;margin-bottom:32px;">Last updated: ${new Date().toLocaleDateString("en-AU", { day:"numeric", month:"long", year:"numeric" })}</p>
 
     <p style="${prose}">Please read these Terms of Service carefully before using${siteUrl ? ` <a href="${siteUrl}" style="color:${clrAcct};">${siteUrl}</a>` : " this website"} (the "Site") operated by <strong>${siteName}</strong>${abnLine} ("we", "us", "our").</p>
     <p style="${prose}">By accessing or using this Site, you agree to be bound by these Terms. If you do not agree, please do not use this Site.</p>
@@ -580,7 +583,7 @@ function addSectionIdSmart(html: string, id: string, classPatterns: RegExp[], he
     re.lastIndex = 0;
     while ((hm = re.exec(html)) !== null) { if (hp.test(hm[1])) { pos = hm.index; ht = hm[1].trim(); break; } }
     if (pos === -1) continue;
-    const tagRe = new RegExp('<(section|div)(\s[^>]*)?>',  'gi');
+    const tagRe = new RegExp('<(section|div)(\\s[^>]*)?>',  'gi');
     let tm; let bStart = -1; let bStr = '';
     tagRe.lastIndex = 0;
     while ((tm = tagRe.exec(html)) !== null) {

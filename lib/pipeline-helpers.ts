@@ -149,7 +149,7 @@ export function fixNavigateToTargets(html: string): string {
   };
 
   // Normalise hyphenated targets to match our page IDs (contact-us → contact)
-  const normaliseTarget = (t: string) => t.replace(/-/g, "").toLowerCase();
+  const normaliseTarget = (t: string) => t.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
 
   // Match navigateTo() and window.navigateTo() in onclick attributes
   return html.replace(
@@ -239,17 +239,17 @@ export function checkAndFixLinks(html: string, pages: string[]): { html: string;
 
     // Strategy D: inject a real styled section before </body>
     const sectionTemplates: Record<string, string> = {
-      contact: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:600px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:8px;">Contact Us</h2><p style="color:#94a3b8;margin-bottom:24px;">Get in touch and we will respond within 24 hours.</p><form style="display:flex;flex-direction:column;gap:16px;" onsubmit="event.preventDefault();this.innerHTML='<p style=color:#22c55e;font-weight:bold;font-size:1.1rem;>Thank you! We will be in touch shortly.</p>'"><input type="text" placeholder="Your Name" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/><input type="email" placeholder="Your Email" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/><input type="tel" placeholder="Your Phone" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/><textarea placeholder="Your Message" rows="5" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;resize:vertical;"></textarea><button type="submit" style="background:#10b981;color:#fff;font-weight:700;padding:16px;border:none;border-radius:8px;font-size:1rem;cursor:pointer;">Send Message</button></form></div></div>`,
-      about: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:16px;">About Us</h2><p style="color:#94a3b8;font-size:1.1rem;line-height:1.8;">We are a dedicated team committed to delivering exceptional results for our clients. With years of experience in the industry, we pride ourselves on quality, reliability, and customer satisfaction.</p></div></div>`,
-      services: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:none;padding:80px 24px;background:#0a0f1a;"><div style="max-width:900px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Our Services</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:24px;"><div style="background:#1e293b;border-radius:12px;padding:28px;"><h3 style="color:#10b981;margin-bottom:8px;">Professional Service</h3><p style="color:#94a3b8;">High quality results delivered on time and on budget.</p></div></div></div></div>`,
-      pricing: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Pricing</h2><p style="color:#94a3b8;">Contact us for a custom quote tailored to your needs.</p></div></div>`,
-      gallery: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:none;padding:80px 24px;background:#0a0f1a;"><div style="max-width:1000px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Gallery</h2><p style="color:#94a3b8;">Our portfolio of recent work.</p></div></div>`,
+      contact: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:block;padding:80px 24px;background:#0f172a;"><div style="max-width:600px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:8px;">Contact Us</h2><p style="color:#94a3b8;margin-bottom:24px;">Get in touch and we will respond within 24 hours.</p><form style="display:flex;flex-direction:column;gap:16px;" onsubmit="event.preventDefault();this.innerHTML='<p style=color:#22c55e;font-weight:bold;font-size:1.1rem;>Thank you! We will be in touch shortly.</p>'"><input type="text" placeholder="Your Name" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/><input type="email" placeholder="Your Email" required style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/><input type="tel" placeholder="Your Phone" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;"/><textarea placeholder="Your Message" rows="5" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:14px;font-size:1rem;resize:vertical;"></textarea><button type="submit" style="background:#10b981;color:#fff;font-weight:700;padding:16px;border:none;border-radius:8px;font-size:1rem;cursor:pointer;">Send Message</button></form></div></div>`,
+      about: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:block;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:16px;">About Us</h2><p style="color:#94a3b8;font-size:1.1rem;line-height:1.8;">We are a dedicated team committed to delivering exceptional results for our clients. With years of experience in the industry, we pride ourselves on quality, reliability, and customer satisfaction.</p></div></div>`,
+      services: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:block;padding:80px 24px;background:#0a0f1a;"><div style="max-width:900px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Our Services</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:24px;"><div style="background:#1e293b;border-radius:12px;padding:28px;"><h3 style="color:#10b981;margin-bottom:8px;">Professional Service</h3><p style="color:#94a3b8;">High quality results delivered on time and on budget.</p></div></div></div></div>`,
+      pricing: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:block;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Pricing</h2><p style="color:#94a3b8;">Contact us for a custom quote tailored to your needs.</p></div></div>`,
+      gallery: `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:block;padding:80px 24px;background:#0a0f1a;"><div style="max-width:1000px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:32px;">Gallery</h2><p style="color:#94a3b8;">Our portfolio of recent work.</p></div></div>`,
     };
 
     const templateKey = Object.keys(sectionTemplates).find(k => new RegExp(k, "i").test(pageId));
     const injectedHtml = templateKey
       ? sectionTemplates[templateKey]
-      : `<div class="page-section" data-page="${pageId}" id="${pageId}" style="display:none;padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;text-align:center;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:16px;">${pageId.charAt(0).toUpperCase() + pageId.slice(1)}</h2><p style="color:#94a3b8;">Content coming soon.</p></div></div>`;
+      : `<div class="page-section" data-page="${pageId}" id="${pageId}" style="padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;text-align:center;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin-bottom:16px;">${pageId.charAt(0).toUpperCase() + pageId.slice(1)}</h2><p style="color:#94a3b8;">Content coming soon.</p></div></div>`;
 
     fixed = fixed.replace("</body>", `${injectedHtml}\n</body>`);
     console.log(`Link Fix [D]: injected "${templateKey || "generic"}" section for id="${pageId}"`);
@@ -395,7 +395,7 @@ export function validateForDeploy(
     // 6. No navigateTo() target that points to a page NOT in requestedPageIds
     // Whitelist legal/utility pages injected by the auditor
     const legalPages = new Set(["privacy", "terms", "privacy-policy", "terms-of-service"]);
-    const navTargets = [...html.matchAll(/navigateTo\(['"]([\.^'"]+)['"]\)/g)].map(m => m[1]);
+    const navTargets = [...html.matchAll(/navigateTo\(['"]([^'"]+)['"]\)/g)].map(m => m[1]);
     for (const t of navTargets) {
       if (!requestedPageIds.includes(t) && !legalPages.has(t)) {
         failures.push(`navigateTo('${t}') points to page not in requestedPageIds`);
@@ -649,9 +649,18 @@ export function ensureMultiPageStructure(
         ? fullTag
         : fullTag.replace(/>$/, ` data-page="${pageId}">`);
       // Also ensure class="page-section" (or add it)
-      const withClass = newTag.includes("page-section")
-        ? newTag
-        : newTag.replace(/>$/, ` class="page-section">`).replace(/class="([^"]*)"/, `class="$1 page-section"`);
+      // BUG-25 FIX: avoid duplicate class= attribute
+      const withClass = (() => {
+        if (newTag.includes("page-section")) return newTag;
+        const hasClass = /class="/.test(newTag);
+        if (hasClass) {
+          // Append "page-section" to existing class attribute
+          return newTag.replace(/class="([^"]*)"/, `class="$1 page-section"`);
+        } else {
+          // Add new class attribute
+          return newTag.replace(/>$/, ` class="page-section">`);
+        }
+      })();
       out = out.slice(0, m.index) + withClass + out.slice(m.index + fullTag.length);
       report.repairs.push(`Promoted id="${pageId}" element to data-page wrapper`);
     } else {
@@ -807,11 +816,12 @@ export function injectEssentials(html: string, email: string, phone: string, job
   let processed = html;
 
   if (email) {
-    processed = processed.replace(/hello@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
-    processed = processed.replace(/info@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
-    processed = processed.replace(/contact@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
-    processed = processed.replace(/support@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
-    processed = processed.replace(/admin@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
+    // BUG-14 FIX: only replace non-webgecko emails
+    processed = processed.replace(/hello@(?!webgecko\.au)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
+    processed = processed.replace(/info@(?!webgecko\.au)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
+    processed = processed.replace(/contact@(?!webgecko\.au)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
+    processed = processed.replace(/support@(?!webgecko\.au)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
+    processed = processed.replace(/admin@(?!webgecko\.au)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, email);
   }
   if (phone) {
     const phoneDigits = phone.replace(/\D/g, "");

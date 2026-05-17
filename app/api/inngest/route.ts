@@ -70,9 +70,15 @@ const buildWebsite = inngest.createFunction(
 
       // ── REBUILD MODE: always run full pipeline from scratch ─────────────────────
       // Rebuild regenerates everything including a fresh Stitch generation.
-      const savedHtmlForRebuild: string | null = null;
+      // BUG-01 FIX: fetch saved HTML from DB so rebuild has access to it.
+      let savedHtmlForRebuild: string | null = null;
       if (isRebuild) {
         console.log("[Rebuild] Full rebuild from scratch — running complete pipeline including Stitch");
+        const existingJob = await getJob(jobId);
+        if (existingJob?.html && existingJob.html.length > 1000) {
+          savedHtmlForRebuild = existingJob.html;
+          console.log(`[Rebuild] Loaded saved HTML (${existingJob.html.length} chars) from DB`);
+        }
       }
 
 
@@ -1559,7 +1565,18 @@ const buildWebsite = inngest.createFunction(
             body: JSON.stringify({
               name: vercelProjectName,
               teamId: process.env.VERCEL_TEAM_ID || undefined,
-              files: [{ file: "index.html", data: loopHtml, encoding: "utf-8" }],
+              files: (() => {
+                const siteUrl2 = `https://${vercelProjectName}.vercel.app`;
+                const customUrl2 = rawDomain ? `https://${rawDomain}` : siteUrl2;
+                const now2 = new Date().toISOString().split("T")[0];
+                const sitemap2 = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>${customUrl2}/</loc>\n    <lastmod>${now2}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>1.0</priority>\n  </url>\n</urlset>`;
+                const robots2 = `User-agent: *\nAllow: /\nSitemap: ${customUrl2}/sitemap.xml`;
+                return [
+                  { file: "index.html", data: loopHtml, encoding: "utf-8" },
+                  { file: "sitemap.xml", data: sitemap2, encoding: "utf-8" },
+                  { file: "robots.txt", data: robots2, encoding: "utf-8" },
+                ];
+              })(),
               projectSettings: { framework: null, outputDirectory: "./" },
             }),
           });
@@ -2121,6 +2138,12 @@ const featureGoLive = inngest.createFunction(
 
       // Persist the new feature into userInput
       await saveJob(jobId, { userInput: { ...userInput, features: newFeatures } });
+    });
+
+    // BUG-03 FIX: trigger a rebuild so the new feature is actually built into the site
+    await inngest.send({
+      name: "build/website",
+      data: { jobId: event.data.jobId, isRebuild: true, features: [event.data.featureId] },
     });
   }
 );
