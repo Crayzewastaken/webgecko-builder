@@ -256,6 +256,11 @@ const buildWebsite = inngest.createFunction(
         const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
         console.log(`[Inngest] STEP 3b: polling for HTML export — screenId=${stitchScreenId}`);
 
+        // Wait 3 minutes before first poll — Stitch generate() takes ~2min and the HTML
+        // export isn't ready until after generation finishes. Polling early wastes time.
+        console.log(`[Inngest] STEP 3b: waiting 180s for Stitch to finish generating...`);
+        await sleep(180000);
+
         // Helper: try fetching a URL and return text if it looks like real HTML
         const tryFetchHtml = async (url: string, label: string): Promise<string | null> => {
           if (!url || url.length < 10) return null;
@@ -277,10 +282,10 @@ const buildWebsite = inngest.createFunction(
 
         console.log(`[Inngest] STEP 3b: using projectId=${projectId} screenId=${stitchScreenId}`);
 
-        // Poll every 10s for up to 270s (27 polls) within this step's 300s window
+        // Poll every 20s for up to 6 polls (120s) — total budget: 180s wait + 120s polling = 300s
         // KEY INSIGHT: list_screens returns htmlCode.downloadUrl when ready; get_screen does NOT.
-        for (let poll = 1; poll <= 27; poll++) {
-          await sleep(10000);
+        for (let poll = 1; poll <= 6; poll++) {
+          await sleep(20000);
           try {
             const listRaw = await (stitchSdk as any).client.callTool("list_screens", { projectId });
             const screens: any[] = listRaw?.screens || [];
@@ -297,8 +302,8 @@ const buildWebsite = inngest.createFunction(
               return sid === stitchScreenId;
             });
 
-            if (!screen && poll <= 3) {
-              // Fallback: try get_screen raw for first 3 polls to see if it appears there
+            if (!screen) {
+              // Fallback: try get_screen raw — some projects need this
               try {
                 const gsRaw = await (stitchSdk as any).client.callTool("get_screen", {
                   projectId,
@@ -335,7 +340,7 @@ const buildWebsite = inngest.createFunction(
           }
         }
 
-        throw new Error(`Stitch HTML never became available after 27 polls (screenId=${stitchScreenId})`);
+        throw new Error(`Stitch HTML never became available after 180s wait + 6 polls (screenId=${stitchScreenId})`);
       }) as string;
 
       // ── STEP 4b: Structural injection into Stitch HTML ──────────────────────────
@@ -2187,12 +2192,11 @@ const featureGoLive = inngest.createFunction(
       const existingFeatures: string[] = Array.isArray(userInput.features) ? userInput.features : [];
       const newFeatures = [...new Set([...existingFeatures, featureId])];
 
-      // Persist the new feature into userInput
-      // Persist the new feature into userInput
       await saveJob(jobId, { userInput: { ...userInput, features: newFeatures } });
     });
   }
 );
+
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
