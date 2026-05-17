@@ -593,16 +593,7 @@ function addSectionIdSmart(html: string, id: string, classPatterns: RegExp[], he
     }
   }
   console.log('[Auditor] id="' + id + '" via fallback injection');
-  // For multi-page sites: inject inside the home page wrapper so the section
-  // only appears on the home page, not on every page.
-  const homeWrapperRe = /(<[^>]+data-page=["']home["'][^>]*>)([\s\S]*?)(<\/(?:section|div)>(?=[\s\S]*?(?:data-page|<\/body>)))/i;
-  if (homeWrapperRe.test(html)) {
-    return html.replace(homeWrapperRe, (_m: string, open: string, inner: string, close: string) => {
-      if (inner.includes('id="' + id + '"')) return _m; // already injected
-      return open + inner + fallbackSection + "\n" + close;
-    });
-  }
-  // Single-page: inject before footer if one exists, otherwise before </body>
+  // Inject before footer if one exists, otherwise before </body>
   if (/<footer[\s>]/i.test(html)) {
     return html.replace(/<footer[\s>]/i, fallbackSection + '\n<footer ');
   }

@@ -25,7 +25,7 @@ import { createSuperSaasSchedule } from "@/lib/supersaas";
 import { createClientShopCatalogue } from "@/lib/square";
 import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailability, getAnalyticsCount, getBookingsForJob, appendPipelineLog } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
-import { createTawktoProperty, inviteTawktoAgent } from "@/lib/tawkto";
+import { createTawktoProperty } from "@/lib/tawkto";
 import { subscribeToNewsletter } from "@/lib/beehiiv";
 import { provisionClientDomain } from "@/lib/synergy";
 import { generateSiteBlueprint, requestGoogleIndexing } from "@/lib/blueprint";
@@ -237,110 +237,74 @@ const buildWebsite = inngest.createFunction(
         return pid;
       }) as string;
 
-      // ── STEP 3a: Stitch generate — returns screenId ────────────────────────────
-      // generate() blocks for ~2min. Gets its own 300s Vercel window.
-      const stitchScreenId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step3a-stitch-generate", async () => {
-        const stitchPrompt = (spec.stitchPrompt || "")
-          .replace(/\s{3,}/g, "  ");
-        console.log(`[Inngest] STEP 3a: Stitch generate (prompt: ${stitchPrompt.length} chars, projectId=${projectId})`);
-        const project = stitchSdk.project(projectId);
-        const screen = await project.generate(stitchPrompt, "DESKTOP");
-        const sid = screen.screenId;
-        if (!sid) throw new Error("Stitch generate() returned no screenId");
-        console.log(`[Inngest] STEP 3a DONE: screenId=${sid}`);
-        return sid;
-      }) as string;
-
-      // ── STEP 3b: Poll for HTML export — gets its own fresh 300s window ─────────
-      const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3b-stitch-fetch-html", async () => {
+      // ── STEP 3: Stitch generate + fetch HTML in one blocking step ─────────────
+      // generate() is synchronous/blocking — it waits until the screen is fully
+      // rendered before returning. We call getHtml() immediately on the returned
+      // screen object (no sleep, no polling needed).
+      const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3-stitch-generate", async () => {
         const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-        console.log(`[Inngest] STEP 3b: polling for HTML export — screenId=${stitchScreenId}`);
+        const stitchPrompt = (spec.stitchPrompt || "")
+          .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
+          .replace(/\s{3,}/g, "  ");
+        // Do NOT slice stitchPrompt — truncation breaks multipage and section instructions
+        console.log(`[Inngest] STEP 3: Stitch generate (prompt: ${stitchPrompt.length} chars, projectId=${projectId})`);
 
-        // Wait 3 minutes before first poll — Stitch generate() takes ~2min and the HTML
-        // export isn't ready until after generation finishes. Polling early wastes time.
-        console.log(`[Inngest] STEP 3b: waiting 180s for Stitch to finish generating...`);
-        await sleep(180000);
-
-        // Helper: try fetching a URL and return text if it looks like real HTML
-        const tryFetchHtml = async (url: string, label: string): Promise<string | null> => {
-          if (!url || url.length < 10) return null;
+        let html = "";
+        for (let attempt = 1; attempt <= 3; attempt++) {
           try {
-            const r = await fetch(url, { redirect: "follow" });
-            const t = await r.text();
-            if (t.trimStart().startsWith("<svg")) return null; // SVG, not HTML
-            if (t.length > 5000 && (t.includes("<!DOCTYPE") || t.includes("<html") || t.includes("<body"))) {
-              const styleLen = (t.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
-              const inlineStyleCount = (t.match(/\bstyle=/gi) || []).length;
-              if (styleLen < 100 && inlineStyleCount < 20) return null; // no CSS
-              if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(t)) return null; // skeleton
-              console.log(`[Inngest] STEP 3b: found real HTML at ${label} — ${t.length} chars`);
-              return t;
-            }
-            return null;
-          } catch { return null; }
-        };
+            const project = stitchSdk.project(projectId);
+            const screen = await project.generate(stitchPrompt, "DESKTOP");
+            console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
 
-        console.log(`[Inngest] STEP 3b: using projectId=${projectId} screenId=${stitchScreenId}`);
+            // generate() returns a Screen — try getHtml() on it first (uses cached downloadUrl if present)
+            let url = await screen.getHtml();
+            console.log(`[Inngest] STEP 3: getHtml() from generate response — url length=${url?.length ?? 0}`);
 
-        // Poll every 20s for up to 6 polls (120s) — total budget: 180s wait + 120s polling = 300s
-        // KEY INSIGHT: list_screens returns htmlCode.downloadUrl when ready; get_screen does NOT.
-        for (let poll = 1; poll <= 6; poll++) {
-          await sleep(20000);
-          try {
-            const listRaw = await (stitchSdk as any).client.callTool("list_screens", { projectId });
-            const screens: any[] = listRaw?.screens || [];
-
-            // Log all screen IDs on first poll to diagnose mismatches
-            if (poll === 1) {
-              const ids = screens.map((s: any) => s.id || s.name?.split("/screens/").pop()).join(", ");
-              console.log(`[Inngest] STEP 3b: poll 1 list_screens returned ${screens.length} screens: [${ids}]`);
-            }
-
-            // Also try get_screen directly as fallback — some projects need this
-            let screen = screens.find((s: any) => {
-              const sid = s.id || s.name?.split("/screens/").pop();
-              return sid === stitchScreenId;
-            });
-
-            if (!screen) {
-              // Fallback: try get_screen raw — some projects need this
-              try {
-                const gsRaw = await (stitchSdk as any).client.callTool("get_screen", {
-                  projectId,
-                  screenId: stitchScreenId,
-                  name: `projects/${projectId}/screens/${stitchScreenId}`,
-                });
-                if (gsRaw?.htmlCode?.downloadUrl) {
-                  console.log(`[Inngest] STEP 3b: poll ${poll} — found htmlCode in get_screen fallback!`);
-                  screen = gsRaw;
-                } else {
-                  console.log(`[Inngest] STEP 3b: poll ${poll} — get_screen keys: ${Object.keys(gsRaw || {}).join(", ")}, htmlCode=${JSON.stringify(gsRaw?.htmlCode)}`);
+            // If generate() response didn't include htmlCode.downloadUrl, poll via get_screen
+            if (!url && screen.screenId) {
+              console.log(`[Inngest] STEP 3: retrying via project.getScreen(${screen.screenId})`);
+              // Intervals: 6s × 5, then 10s × 7 = 100s total polling window
+              const pollIntervals = [6,6,6,6,6,10,10,10,10,10,10,10];
+              for (let poll = 1; poll <= pollIntervals.length; poll++) {
+                await sleep(pollIntervals[poll - 1] * 1000);
+                try {
+                  // Try fresh getScreen first, fall back to retrying on the original screen object
+                  const freshScreen = await stitchSdk.project(projectId).getScreen(screen.screenId);
+                  url = await freshScreen.getHtml();
+                  if (!url) url = await screen.getHtml();
+                  console.log(`[Inngest] STEP 3: get_screen poll ${poll} — url length=${url?.length ?? 0}`);
+                  if (url) break;
+                } catch (pe: any) {
+                  console.log(`[Inngest] STEP 3: get_screen poll ${poll} error: ${pe?.message}`);
                 }
-              } catch (gse: any) {
-                console.log(`[Inngest] STEP 3b: poll ${poll} get_screen error: ${gse?.message}`);
               }
             }
 
-            if (!screen) {
-              console.log(`[Inngest] STEP 3b: poll ${poll} — screen not found yet (list has ${screens.length})`);
-              continue;
-            }
+            if (!url) throw new Error(`Stitch getHtml() returned empty URL (screenId=${screen.screenId})`);
 
-            const htmlUrl = screen?.htmlCode?.downloadUrl;
-            console.log(`[Inngest] STEP 3b: poll ${poll} — htmlCode.downloadUrl length=${htmlUrl?.length ?? 0}`);
-
-            if (!htmlUrl) continue;
-
-            const html = await tryFetchHtml(htmlUrl, "htmlCode.downloadUrl");
-            if (html) return html;
-
-            console.log(`[Inngest] STEP 3b: poll ${poll} — htmlUrl exists but content invalid, keep polling`);
-          } catch (pe: any) {
-            console.log(`[Inngest] STEP 3b: poll ${poll} error: ${pe?.message}`);
+            const fetchRes = await fetch(url);
+            const text = await fetchRes.text();
+            console.log(`[Inngest] STEP 3: fetched HTML — status=${fetchRes.status} length=${text.length}`);
+            if (text.length > 5000 && text.includes("<")) { html = text; break; }
+            throw new Error(`Stitch HTML too short or not HTML (${text.length} chars, status=${fetchRes.status})`);
+          } catch (e: any) {
+            const msg = e?.message || String(e);
+            console.warn(`[Inngest] STEP 3: attempt ${attempt} failed: ${msg}`);
+            appendPipelineLog(jobId, { level: attempt === 3 ? "error" : "warn", step: "stitch", msg: `Attempt ${attempt} failed: ${msg}`, businessName: userInput.businessName }).catch(()=>{});
+            if (attempt === 3) throw e;
+            await sleep(10000 * attempt);
           }
         }
 
-        throw new Error(`Stitch HTML never became available after 180s wait + 6 polls (screenId=${stitchScreenId})`);
+        if (html.length < 5000) throw new Error(`Stitch HTML too short (${html.length} chars)`);
+        if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton");
+        const styleLen = (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
+        const inlineStyleCount = (html.match(/\bstyle=/gi) || []).length;
+        if (styleLen < 100 && inlineStyleCount < 20) {
+          throw new Error(`Stitch HTML has no CSS (styleLen=${styleLen}, inlineStyles=${inlineStyleCount})`);
+        }
+        console.log(`[Inngest] STEP 3 DONE: HTML ${html.length} chars`);
+        return html;
       }) as string;
 
       // ── STEP 4b: Structural injection into Stitch HTML ──────────────────────────
@@ -351,19 +315,14 @@ const buildWebsite = inngest.createFunction(
         .map((p: string) => normalizePageId(p));
       const rebuiltHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step4b-claude-rebuild", async () => {
 
-        // Use site's actual palette so booking section doesn't clash with the design
-        const siteBg = spec.palette?.background || "#0a0f1a";
-        const siteAccent = spec.palette?.accent || "#00c896";
-        const siteText = spec.palette?.text || "#e2e8f0";
         const bookingBlock = hasBookingFeature && bookingUrl
-          ? `<section id="booking" data-page="booking" class="page-section" style="padding:80px 24px;background:${siteBg};scroll-margin-top:80px;">
+          ? `<section id="booking" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">
     <div style="max-width:900px;margin:0 auto;text-align:center;">
-      <h2 style="color:${siteText};font-size:2.2rem;font-weight:900;margin:0 0 8px;">Book an Appointment</h2>
-      <p style="color:${siteText};opacity:0.7;margin:0 0 32px;">Schedule your appointment with ${userInput.businessName} online.</p>
-      <div style="border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);">
-        <iframe src="${bookingUrl}" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;" title="Book an Appointment" loading="lazy"></iframe>
+      <h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;margin:0 0 8px;">Book an Appointment</h2>
+      <p style="color:#94a3b8;margin:0 0 32px;">Schedule your appointment with ${userInput.businessName} online.</p>
+      <div style="border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.4);">
+        <iframe src="${bookingUrl}" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;" loading="lazy"></iframe>
       </div>
-      <p style="color:${siteText};opacity:0.5;font-size:12px;margin-top:16px;">Prefer to call? <a href="tel:${clientPhone}" style="color:${siteAccent};">${clientPhone}</a></p>
     </div>
   </section>`
           : "";
@@ -373,23 +332,9 @@ const buildWebsite = inngest.createFunction(
         // from Stitch is preserved exactly as-is.
         let html = stitchHtml;
 
-        // 1. Inject id="hero" on the first <section> that appears AFTER </header> (not inside header/nav)
+        // 1. Inject id="hero" on the first section/div if missing
         if (!html.includes('id="hero"') && !html.includes("id='hero'")) {
-          // Strip header block first so the regex doesn't match elements inside it
-          const headerEnd = html.search(/<\/header>/i);
-          if (headerEnd > -1) {
-            const afterHeader = html.slice(headerEnd);
-            const heroTagMatch = afterHeader.match(/(<(?:section|div)\b)(?![^>]*\bid=)([^>]*>)/);
-            if (heroTagMatch) {
-              const idx = html.indexOf(heroTagMatch[0], headerEnd);
-              if (idx > -1) {
-                html = html.slice(0, idx) + heroTagMatch[1] + ' id="hero"' + heroTagMatch[2] + html.slice(idx + heroTagMatch[0].length);
-              }
-            }
-          } else {
-            // No header tag — fallback: first section/div without id
-            html = html.replace(/(<(?:section|div)\b)(?![^>]*\bid=)/, '$1 id="hero"');
-          }
+          html = html.replace(/(<(?:section|div)\b)(?![^>]*\bid=)/, '$1 id="hero"');
         }
 
         // 2. Wire existing hamburger/SVG menu button OR inject our own if missing
@@ -716,9 +661,9 @@ const buildWebsite = inngest.createFunction(
             if (/Map Loading|map-placeholder|lh3\.googleusercontent/i.test(m)) return '';
             return m;
           });
-          // Inject map as a full-width block. Use display:block + clear:both + position:relative
-          // to always break out of any flex/grid context the contact section may use.
-          const mapBlock = `<div id="map-section" style="display:block;clear:both;position:relative;width:100%;padding:0 0 60px;background:inherit;flex:none;grid-column:1/-1;">${mapsEmbed}</div>`;
+          // Always inject map as a full-width block AFTER the contact section, never inside it.
+          // This prevents the map overlapping the two-column contact layout.
+          const mapBlock = `<div id="map-section" style="width:100%;padding:0 0 60px;background:inherit;">${mapsEmbed}</div>`;
           let mapInjected = false;
 
           // 1. Replace explicit MAP PLACEHOLDER divs
@@ -871,30 +816,13 @@ const buildWebsite = inngest.createFunction(
       <p style="color:#475569;font-size:0.75rem;margin-top:16px;">No spam. Unsubscribe any time.</p>
     </div>
   </section>`;
-          // For multi-page: inject inside the home page wrapper before its closing tag.
-          // For single-page: inject before <footer> so footer stays at the very bottom.
-          if (isMultiPage) {
-            // Find the home data-page wrapper and insert the newsletter just before it closes
-            const homePageRe = /(<[^>]+data-page=["']home["'][^>]*>)([\s\S]*?)(<\/(?:section|div)>(?=[\s\S]*?data-page|[\s\S]*?<\/body>))/i;
-            if (homePageRe.test(html)) {
-              html = html.replace(homePageRe, (_m: string, open: string, inner: string, close: string) => {
-                // Only inject if not already inside this wrapper
-                if (inner.includes('id="newsletter"') || inner.includes('id="newsletter-form"')) return _m;
-                return open + inner + newsletterSection + "\n" + close;
-              });
-              console.log("[Step5] Newsletter signup section injected into home page wrapper");
-            } else {
-              // Fallback: before footer
-              html = html.includes("<footer") ? html.replace(/<footer/i, newsletterSection + "\n<footer") : html.replace("</body>", newsletterSection + "\n</body>");
-              console.log("[Step5] Newsletter signup section injected (fallback before footer)");
-            }
-          } else if (html.includes("<footer")) {
+          // Inject before <footer> so footer stays at the very bottom
+          if (html.includes("<footer")) {
             html = html.replace(/<footer/i, newsletterSection + "\n<footer");
-            console.log("[Step5] Newsletter signup section injected (Beehiiv direct)");
           } else {
             html = html.replace("</body>", newsletterSection + "\n</body>");
-            console.log("[Step5] Newsletter signup section injected (Beehiiv direct)");
           }
+          console.log("[Step5] Newsletter signup section injected (Beehiiv direct)");
         }
 
         // -- Pop-up Form -- timed lead-capture overlay (15s delay + exit intent) ---
@@ -928,7 +856,6 @@ const buildWebsite = inngest.createFunction(
     document.addEventListener('mouseleave',function(e){if(e.clientY<=0)showPopup();});
   })();
   </script>`;
-          // Popup is a fixed overlay — inject at end of body always (works for all page types)
           html = html.replace("</body>", popupHtml + "\n</body>");
           console.log("[Step5] Pop-up form injected");
         }
@@ -1046,12 +973,23 @@ const buildWebsite = inngest.createFunction(
           }
         }
 
-        // Do NOT strip Stitch's scripts — Stitch generates working navigateTo() and
-        // toggleMobileMenu() functions. Stripping them breaks all nav buttons.
-        // injectEssentials (Step 6) defines window.navigateTo as an authoritative
-        // override AFTER the page loads, which takes precedence over Stitch's version
-        // while still allowing toggleMobileMenu and other Stitch functions to work.
-        console.log("[Step5] Preserving Stitch scripts (navigateTo + toggleMobileMenu intact)");
+        // Strip Stitch scripts that define navigateTo or page-switching.
+        // Skip this on rebuild — the saved HTML already has our authoritative scripts;
+        // stripping them causes the router to be missing until Step 6 re-injects it,
+        // and any step in between that reads [data-page] count will get wrong results.
+        if (!savedHtmlForRebuild) {
+          html = html.replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, (m: string, body: string) => {
+            const definesNavigateTo = /function\s+navigateTo/.test(body) || /window\.navigateTo\s*=/.test(body) || /var\s+navigateTo\s*=/.test(body);
+            const definesPageSwitch = /function\s+showPage/.test(body) || /function\s+switchPage/.test(body) || /\.page-section['"\s]*[,{]/.test(body);
+            if (definesNavigateTo || definesPageSwitch) {
+              console.log("[Step5] Stripped Stitch script (" + body.length + " chars, navigateTo=" + definesNavigateTo + " pageSwitch=" + definesPageSwitch + ")");
+              return "";
+            }
+            return m;
+          });
+        } else {
+          console.log("[Step5] Rebuild mode — skipping script strip to preserve injected navigateTo");
+        }
 
         // Replace any showPage('id') calls with navigateTo('id') — all site types.
         const showPageCount = (html.match(/showPage\s*\(/g) || []).length;
@@ -1105,7 +1043,7 @@ const buildWebsite = inngest.createFunction(
     ${siteUrl ? `<meta property="og:url" content="${siteUrl}">` : ""}
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="${pageTitle.replace(/"/g, "&quot;")}">
-    <meta name="twitter:description" content="${metaDesc.replace(/"/g, "&quot;")}">`;
+    <meta name="twitter:description" content="${metaDesc.replace(/"/g, "&quot;")}`;
           // Inject after <head> or <meta charset=...>
           if (html.includes("<head>")) {
             html = html.replace("<head>", "<head>" + seoMeta);
@@ -1149,13 +1087,6 @@ const buildWebsite = inngest.createFunction(
               tawktoPropertyId = propId;
               await saveJob(jobId, { ...job, tawktoPropertyId: propId });
               console.log("[Step6] Tawk.to property created:", propId);
-              // Auto-invite client as agent so they can see their own chats
-              if (clientEmail) {
-                await inviteTawktoAgent(propId, clientEmail, userInput.businessName || clientEmail);
-              }
-            } else {
-              console.error("[Step6] Tawk.to: property creation failed — live chat will not be active.");
-              logPipelineError(jobId, "Step6/TawkTo", "TAWKTO_FAIL", `Failed to create Tawk.to property for "${userInput.businessName}" — live chat not injected. Check TAWKTO_API_KEY in Vercel.`).catch(() => {});
             }
           }
         }
@@ -1486,37 +1417,31 @@ const buildWebsite = inngest.createFunction(
         if (!deployRes.ok) { const deployErr = await deployRes.text(); console.error("[Inngest] Deploy failed:", deployErr); appendPipelineLog(jobId, { level: "error", step: "deploy", msg: `Deploy failed: ${deployErr.slice(0,300)}`, businessName: userInput.businessName }).catch(()=>{}); return ""; }
         const deployData = await deployRes.json();
         const stableUrl = `https://${vercelProjectName}.vercel.app`;
+        // Use the unique per-deployment URL so admin preview shows new content immediately
+        // (stable alias takes ~30-60s to propagate; unique deploy URL is ready in seconds)
         const uniqueDeployUrl = deployData.url ? `https://${deployData.url}` : stableUrl;
         console.log(`[Inngest] Deploy URL: unique=${uniqueDeployUrl} stable=${stableUrl}`);
+        // Fire-and-forget Google Indexing API ping — never blocks deploy
         requestGoogleIndexing(stableUrl).catch(() => {});
-        // Return both so step9 can save stable as liveUrl
-        return JSON.stringify({ unique: uniqueDeployUrl, stable: stableUrl });
+        return uniqueDeployUrl;
       });
-
-      // Parse the JSON returned by step8 to separate unique vs stable URLs
-      const { unique: deployUniqueUrl, stable: deployStableUrl } = (() => {
-        try { return JSON.parse(previewUrl) as { unique: string; stable: string }; }
-        catch { return { unique: previewUrl, stable: previewUrl }; }
-      })();
 
       // ── STEP 8b: Smoke test — fetch live URL and verify critical elements ─────
       // Non-blocking: failures recorded and surfaced in the email, never kill the build.
       type SmokeCheck = { label: string; pass: boolean; severity: "error" | "warn" };
       const smokeResults = await step.run("step8b-smoke", async () => {
         const checks: SmokeCheck[] = [];
-        if (!deployUniqueUrl) return [{ label: "Deploy URL", pass: false, severity: "error" as const }];
+        if (!previewUrl) return [{ label: "Deploy URL", pass: false, severity: "error" as const }];
 
-        // Use stable alias for smoke test — unique per-deploy URL hits cold starts and fails.
-        // Stable alias (wg-xxx.vercel.app) points to latest deployment within ~10s.
-        const smokeUrl = deployStableUrl || deployUniqueUrl;
+        // Vercel cold-starts — retry up to 3x with backoff
         let liveHtml = "";
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
-            await new Promise(r => setTimeout(r, attempt * 3000));
-            const res = await fetch(smokeUrl, { headers: { "User-Agent": "WebGecko-SmokeTest/1.0" } });
+            await new Promise(r => setTimeout(r, attempt * 2000));
+            const res = await fetch(previewUrl, { headers: { "User-Agent": "WebGecko-SmokeTest/1.0" } });
             if (res.ok) { liveHtml = await res.text(); break; }
           } catch {}
-          console.log("[Smoke] Attempt " + attempt + " failed for " + smokeUrl);
+          console.log("[Smoke] Attempt " + attempt + " failed for " + previewUrl);
         }
 
         if (!liveHtml) return [{ label: "Site reachable", pass: false, severity: "error" as const }];
@@ -1567,7 +1492,7 @@ const buildWebsite = inngest.createFunction(
       // patch what it finds, redeploy, re-smoke. Non-blocking if all retries fail.
       const MAX_FIX_ATTEMPTS = 2;
       let loopHtml = deployHtml;
-      let loopPreviewUrl = deployStableUrl;  // always use stable alias for saving/display
+      let loopPreviewUrl = previewUrl;
       let loopSmokeResults = smokeResults;
 
       for (let attempt = 1; attempt <= MAX_FIX_ATTEMPTS; attempt++) {
@@ -1754,7 +1679,7 @@ const buildWebsite = inngest.createFunction(
 
         // Auto-snapshot: save a version to page_versions so the Archive tab has a record of every build
         try {
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app";
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app";
           await fetch(`${appUrl}/api/versions/snapshot`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-process-secret": process.env.PROCESS_SECRET || "" },
@@ -1804,7 +1729,7 @@ const buildWebsite = inngest.createFunction(
 
       // ── STEP 10: Email owner ──────────────────────────────────────────────────
       await step.run("step10-email", async () => {
-        const base = (process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app");
+        const base = (process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app");
         const secret = encodeURIComponent(process.env.PROCESS_SECRET || "");
         const releaseUrl = `${base}/api/unlock/release?jobId=${jobId}&secret=${secret}`;
         const fixUrl = `${base}/api/admin/fix-proxy?jobId=${jobId}&secret=${secret}`;
@@ -2010,7 +1935,7 @@ const autoRelease = inngest.createFunction(
 
         console.log("[AutoRelease] Releasing job", job.id, "scheduled for", releaseAt);
         try {
-          const base = (process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app");
+          const base = (process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app");
           await fetch(`${base}/api/preview-unlock`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -2149,7 +2074,7 @@ const featureInject = inngest.createFunction(
 
       // Notify admin
       const secret = process.env.ADMIN_SESSION_SECRET?.slice(0, 16) || "";
-      const adminUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app") + `/admin?secret=${encodeURIComponent(secret)}`;
+      const adminUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://webgecko-builder.vercel.app") + `/admin?secret=${encodeURIComponent(secret)}`;
       await resend.emails.send({
         from: "WebGecko <hello@webgecko.au>",
         to: process.env.RESULT_TO_EMAIL || "hello@webgecko.au",
@@ -2192,11 +2117,12 @@ const featureGoLive = inngest.createFunction(
       const existingFeatures: string[] = Array.isArray(userInput.features) ? userInput.features : [];
       const newFeatures = [...new Set([...existingFeatures, featureId])];
 
+      // Persist the new feature into userInput
+      // Persist the new feature into userInput
       await saveJob(jobId, { userInput: { ...userInput, features: newFeatures } });
     });
   }
 );
-
 
 export const { GET, POST, PUT } = serve({
   client: inngest,

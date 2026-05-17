@@ -393,8 +393,6 @@ RULES:
 
 EXACT STRUCTURE SCAFFOLD — the stitchPrompt MUST describe rendering EXACTLY these elements in this order:
 
-⚠️ COLOUR CONSISTENCY RULE (NON-NEGOTIABLE): Every section background MUST be a shade of the same base colour family (e.g. all cool-navy variants: #0a0f1a, #0d1420, #111827). NEVER switch from a cool palette to a warm palette between sections. The hero background and the body background must belong to the same colour family.
-
 [1] STICKY HEADER
   - Logo text "${businessName}" left
   - Desktop nav links right: ${navPages}
@@ -477,16 +475,12 @@ RULES:
   - Copyright © ${currentYear} ${businessName}
   - Social links: ${[facebookPage, instagramUrl, linkedinUrl].filter(Boolean).join(", ") || "none"}
 
-VISUAL DESIGN — STRICT COLOUR RULES (stitchPrompt MUST use these exact hex codes everywhere):
-- Decide on ONE coherent dark colour palette and use it consistently across ALL sections
-- Background (body, all sections): ONE dark base colour — either cool-dark navy (#0a0f1a) or warm-dark charcoal (#0f0f0f) — NEVER a brownish/warm colour unless explicitly requested in colour prefs
-- ALL section backgrounds must be VARIATIONS of the same base (e.g. #0a0f1a, #0d1320, #111827) — NOT a completely different hue
-- The hero gradient MUST use the same colour family as the body background — no colour-family switching
-- Accent/CTA colour: pick from "${colorPrefs}" — a vivid contrasting colour (e.g. #00c896 teal, #3b82f6 blue, #f97316 orange, #8b5cf6 purple) based on the industry
-- Text: #e2e8f0 (main), #94a3b8 (muted) — always high-contrast on the dark background
-- NEVER use Tailwind Material You brownish dark tokens (surface-container, #1d100c, etc.) — use explicit hex codes
+VISUAL DESIGN (stitchPrompt must describe these with hex codes):
+- Primary: pick from colour preferences "${colorPrefs}"
+- Accent: contrasting highlight colour
+- Background: dark or light base (based on style "${style}")
 - Typography: pick specific Google Fonts for headings and body
-- The design must look like a premium SaaS / tech landing page, ${industry}-appropriate, and conversion-focused
+- The design must look premium, ${industry}-appropriate, and conversion-focused
 
 HERO COPY RULES (strictly enforced):
 - heroHeadline: max 8 words, benefit-driven, NO business name, NO address, NO suburb
@@ -557,18 +551,6 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
     .replace(/\s{3,}/g, "  ");
   // Do NOT slice stitchPrompt — truncation silently drops multipage and section instructions.
 
-  // Prepend the palette as hard hex codes so Stitch cannot deviate to Material You browns
-  const p = blueprint.palette || {};
-  const palettePrefix = `⚠️ MANDATORY COLOUR PALETTE — USE THESE EXACT HEX CODES, NO SUBSTITUTIONS:\n` +
-    `- Body background: ${p.background || "#0a0f1a"}\n` +
-    `- Section surfaces: shades of ${p.background || "#0a0f1a"} (e.g. ${p.surface || "#0f1623"}, #111827)\n` +
-    `- Hero gradient: starts from ${p.background || "#0a0f1a"} family — same colour family as body\n` +
-    `- Accent / CTA buttons: ${p.accent || "#00c896"}\n` +
-    `- Main text: ${p.text || "#e2e8f0"}\n` +
-    `- Muted text: #94a3b8\n` +
-    `- DO NOT use Tailwind Material You dark tokens or brownish warm colours (#1d100c, #2a1c18, etc.)\n\n`;
-  blueprint.stitchPrompt = palettePrefix + blueprint.stitchPrompt;
-
   // For multipage sites, prepend a hard constraint at the very top of the prompt
   // so Stitch sees it before anything else and can't ignore it.
   if (isMultiPage && pages.length > 1) {
@@ -593,79 +575,12 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
 // Pings Google to index a URL immediately after deploy.
 // Requires GOOGLE_INDEXING_SA_KEY env var = base64-encoded service account JSON
 // with the Indexing API enabled and the site verified in Search Console.
-// Non-fatal -- a failure here never blocks the deploy.
-
-async function getGoogleAccessToken(saKeyB64: string): Promise<string> {
-  const saRaw = Buffer.from(saKeyB64, "base64").toString("utf-8");
-  // Parse private_key separately to handle literal newlines in the PEM block
-  const keyMatch = saRaw.match(/"private_key"\s*:\s*"([\s\S]+?)"\s*,/);
-  const saObj = JSON.parse(
-    keyMatch
-      ? saRaw.replace(keyMatch[0], '"private_key":"__PK__",')
-      : saRaw
-  );
-  if (keyMatch) {
-    saObj.private_key = keyMatch[1].replace(/\\n/g, "\n");
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url");
-  const payload = Buffer.from(JSON.stringify({
-    iss: saObj.client_email,
-    scope: "https://www.googleapis.com/auth/indexing",
-    aud: "https://oauth2.googleapis.com/token",
-    iat: now,
-    exp: now + 3600,
-  })).toString("base64url");
-
-  const { createSign } = await import("crypto");
-  const sign = createSign("RSA-SHA256");
-  sign.update(`${header}.${payload}`);
-  const sig = sign.sign(saObj.private_key, "base64url");
-  const jwt = `${header}.${payload}.${sig}`;
-
-  const res = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion: jwt,
-    }),
-  });
-  const data = await res.json() as { access_token?: string; error?: string };
-  if (!data.access_token) throw new Error(`Google OAuth failed: ${data.error}`);
-  return data.access_token;
-}
+// Non-fatal — a failure here never blocks the deploy.
 
 export async function requestGoogleIndexing(url: string): Promise<void> {
   const saKeyB64 = process.env.GOOGLE_INDEXING_SA_KEY;
   if (!saKeyB64) {
-    console.log("[Indexing] GOOGLE_INDEXING_SA_KEY not set -- skipping");
+    console.log("[Indexing] GOOGLE_INDEXING_SA_KEY not set — skipping");
     return;
-  }
-  if (url.includes("vercel.app")) {
-    console.log("[Indexing] Skipping vercel.app URL -- only indexing custom domains");
-    return;
-  }
-  try {
-    const token = await getGoogleAccessToken(saKeyB64);
-    const res = await fetch("https://indexing.googleapis.com/v3/urlNotifications:publish", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ url, type: "URL_UPDATED" }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(JSON.stringify(data));
-    console.log(`[Indexing] Submitted ${url} to Google:`, data);
-
-    const sitemapUrl = `${url.replace(/\/$/, "")}/sitemap.xml`;
-    await fetch("https://indexing.googleapis.com/v3/urlNotifications:publish", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ url: sitemapUrl, type: "URL_UPDATED" }),
-    });
-    console.log(`[Indexing] Sitemap submitted: ${sitemapUrl}`);
-  } catch (err: any) {
-    console.error("[Indexing] Failed (non-fatal):", err?.message || err);
   }
 }
