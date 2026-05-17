@@ -1010,23 +1010,12 @@ const buildWebsite = inngest.createFunction(
           }
         }
 
-        // Strip Stitch scripts that define navigateTo or page-switching.
-        // Skip this on rebuild — the saved HTML already has our authoritative scripts;
-        // stripping them causes the router to be missing until Step 6 re-injects it,
-        // and any step in between that reads [data-page] count will get wrong results.
-        if (!savedHtmlForRebuild) {
-          html = html.replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, (m: string, body: string) => {
-            const definesNavigateTo = /function\s+navigateTo/.test(body) || /window\.navigateTo\s*=/.test(body) || /var\s+navigateTo\s*=/.test(body);
-            const definesPageSwitch = /function\s+showPage/.test(body) || /function\s+switchPage/.test(body) || /\.page-section['"\s]*[,{]/.test(body);
-            if (definesNavigateTo || definesPageSwitch) {
-              console.log("[Step5] Stripped Stitch script (" + body.length + " chars, navigateTo=" + definesNavigateTo + " pageSwitch=" + definesPageSwitch + ")");
-              return "";
-            }
-            return m;
-          });
-        } else {
-          console.log("[Step5] Rebuild mode — skipping script strip to preserve injected navigateTo");
-        }
+        // Do NOT strip Stitch's scripts — Stitch generates working navigateTo() and
+        // toggleMobileMenu() functions. Stripping them breaks all nav buttons.
+        // injectEssentials (Step 6) defines window.navigateTo as an authoritative
+        // override AFTER the page loads, which takes precedence over Stitch's version
+        // while still allowing toggleMobileMenu and other Stitch functions to work.
+        console.log("[Step5] Preserving Stitch scripts (navigateTo + toggleMobileMenu intact)");
 
         // Replace any showPage('id') calls with navigateTo('id') — all site types.
         const showPageCount = (html.match(/showPage\s*\(/g) || []).length;
