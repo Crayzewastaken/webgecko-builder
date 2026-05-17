@@ -379,13 +379,16 @@ export function validateForDeploy(
     if (activeCount === 0) failures.push("No data-page wrapper has class 'active'");
     if (activeCount > 1)   failures.push(`Multiple data-page wrappers (${activeCount}) have class 'active'`);
 
-    // 5. No requested page wrapper should be empty/tiny (< 300 stripped chars)
+    // 5. No requested page wrapper should be empty/tiny
+    // Visual pages (gallery, portfolio, shop) are image-heavy — use lower threshold
+    const visualPages = new Set(["gallery", "portfolio", "shop", "work", "projects"]);
     for (const id of requestedPageIds) {
       const wrapperRe = new RegExp(`data-page=["']${id}["'][\\s\\S]{0,5000}`, "i");
       const wm = wrapperRe.exec(html);
       if (wm) {
         const textContent = wm[0].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-        if (textContent.length < 300) failures.push(`data-page="${id}" appears empty or very thin (${textContent.length} visible chars)`);
+        const minChars = visualPages.has(id) ? 50 : 300;
+        if (textContent.length < minChars) failures.push(`data-page="${id}" appears empty or very thin (${textContent.length} visible chars)`);
       }
     }
 
