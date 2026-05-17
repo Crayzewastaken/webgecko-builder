@@ -2748,7 +2748,7 @@ function AttentionRow({ cl, badge, color, howToFix, action, onOpen, initials }: 
 }
 
 // ── Analytics view ─────────────────────────────────────────────────────────────
-function AnalyticsView({ clients, onOpenClient }: { clients: ClientAnalytics[]; onOpenClient: (c: ClientAnalytics) => void }) {
+function AnalyticsView({ clients, onOpenClient, onClearBuilding }: { clients: ClientAnalytics[]; onOpenClient: (c: ClientAnalytics) => void; onClearBuilding: () => Promise<void> }) {
   const total = clients.length || 1;
   const active = clients.filter(c=>c.paymentState?.monthlyActive).length;
   const mrr = active * 109;
@@ -2937,6 +2937,12 @@ function AnalyticsView({ clients, onOpenClient }: { clients: ClientAnalytics[]; 
               <div key={i} style={{ flex:seg.count,background:seg.color,minWidth:2 }}/>
             ))}
           </div>
+          {pipelineCounts.building > 0 && (
+            <button
+              onClick={async()=>{ if(!confirm(`Reset all ${pipelineCounts.building} building job(s) to completed?`)) return; await onClearBuilding(); }}
+              style={{marginTop:14,width:"100%",padding:"7px 0",borderRadius:7,border:`1px solid ${T.amber}55`,background:T.amber+"12",color:T.amber,fontSize:11,fontWeight:700,cursor:"pointer",letterSpacing:"0.02em"}}
+            >✕ Clear {pipelineCounts.building} building job{pipelineCounts.building>1?"s":""}</button>
+          )}
         </div>
 
         {/* Industries */}
@@ -3876,7 +3882,7 @@ function AdminDashboard() {
         {selectedClient&&<ClientPanel c={selectedClient} secret="" onClose={()=>setSelectedClient(null)} toast={toast}/>}
 
         {view==="analytics"&&!loading&&!error&&(
-          <AnalyticsView clients={clients} onOpenClient={openClient}/>
+          <AnalyticsView clients={clients} onOpenClient={openClient} onClearBuilding={async()=>{ const r=await fetch("/api/admin/clear-building-jobs",{method:"POST"}).then(r=>r.json()).catch(()=>({error:"Failed"})); if(r.error){alert("Error: "+r.error);return;} toast(`Cleared ${r.cleared} stuck job(s)`,"ok"); await loadDashboard(); }}/>
         )}
 
         {view==="logs"&&<PipelineLogsPanel/>}

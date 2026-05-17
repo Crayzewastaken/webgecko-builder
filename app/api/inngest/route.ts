@@ -1372,14 +1372,24 @@ const buildWebsite = inngest.createFunction(
 
       // ── STEP 7b: Pre-deploy validation ──────────────────────────────────────
       const deployReady = await step.run("step7b-validate", async () => {
-        const failures = validateForDeploy(finalHtmlWithShop, requestedPageIds, isMultiPage, hasBookingFeature);
+        // Strip duplicate data-page attributes before validation
+        const seenDpIds = new Set<string>();
+        const dedupedHtml = finalHtmlWithShop.replace(
+          /<(div|section|article|main)([^>]*\bdata-page=["']([^"']+)["'][^>]*)>/gi,
+          (match: string, tag: string, attrs: string, pageId: string) => {
+            if (!seenDpIds.has(pageId)) { seenDpIds.add(pageId); return match; }
+            console.log(`[Step7b] Stripped duplicate data-page="${pageId}" before validation`);
+            return `<${tag}${attrs.replace(/\s*\bdata-page=["'][^"']+["']/, '')}>`;
+          }
+        );
+        const failures = validateForDeploy(dedupedHtml, requestedPageIds, isMultiPage, hasBookingFeature);
         if (failures.length > 0) {
           console.error("[Step7b] Pre-deploy validation FAILED:", failures.join("; "));
           appendPipelineLog(jobId, { level: "error", step: "validate", msg: failures.join("; "), businessName: userInput.businessName }).catch(()=>{});
           logPipelineError(jobId, "Step7b/Validate", "VALIDATION_FAIL", failures.join("; ")).catch(()=>{});
 
           // Pass 1: structural repair (truncated tags, missing footer/body/html)
-          let repaired = repairHtml(finalHtmlWithShop, userInput.businessName, new Date().getFullYear());
+          let repaired = repairHtml(dedupedHtml, userInput.businessName, new Date().getFullYear());
 
 
           // Pass 1b: force-inject id="hero" on first section/div if still missing
