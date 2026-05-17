@@ -412,7 +412,12 @@ export function validateForDeploy(
     }
 
     // 2. Must have some data-page wrappers at all
-    const allDataPages = (html.match(/\bdata-page=["']([^"']+)["']/g) || []);
+    // Strip scripts/styles so JS strings like querySelector("[data-page='gallery']")
+    // don't get counted as real data-page attributes and cause false duplicate errors
+    const htmlNoScripts = html
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?<\/style>/gi, "");
+    const allDataPages = (htmlNoScripts.match(/\bdata-page=["']([^"']+)["']/g) || []);
     if (allDataPages.length === 0) {
       failures.push("No data-page wrappers found at all");
     }
