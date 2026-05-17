@@ -2629,6 +2629,36 @@ function LogSection({ title, icon, logs, accentColor, emptyMsg }: { title:string
   );
 }
 
+function ClearBuildingBtn() {
+  const [busy, setBusy] = useState(false);
+  const [count, setCount] = useState<number|null>(null);
+
+  useEffect(()=>{
+    fetch("/api/admin/clients").then(r=>r.json()).then(d=>{
+      const n=(d.clients||[]).filter((c:any)=>c.buildStatus==="building").length;
+      setCount(n);
+    }).catch(()=>{});
+  },[]);
+
+  if (!count) return null;
+
+  async function clear() {
+    if(!confirm(`Reset ${count} building job(s) to completed?`)) return;
+    setBusy(true);
+    const r = await fetch("/api/admin/clear-building-jobs",{method:"POST"}).then(r=>r.json()).catch(()=>({error:"Failed"}));
+    setBusy(false);
+    if(r.error){alert("Error: "+r.error);return;}
+    setCount(0);
+    alert(`Cleared ${r.cleared} stuck job(s)`);
+  }
+
+  return (
+    <button onClick={clear} disabled={busy} style={{background:T.amber+"18",border:`1px solid ${T.amber}55`,color:T.amber,borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer",fontWeight:700}}>
+      {busy?"Clearing…":`✕ Clear ${count} building`}
+    </button>
+  );
+}
+
 function PipelineLogsPanel() {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2659,7 +2689,10 @@ function PipelineLogsPanel() {
             {f!=="all"&&<span style={{marginLeft:5,color:lvlColor(f),fontWeight:700}}>{logs.filter(l=>l.level===f).length}</span>}
           </button>
         ))}
-        <button onClick={load} style={{marginLeft:"auto",background:T.raised,border:`1px solid ${T.border}`,color:T.textSec,borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer",fontWeight:500}}>↻ Refresh</button>
+        <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+          <ClearBuildingBtn/>
+          <button onClick={load} style={{background:T.raised,border:`1px solid ${T.border}`,color:T.textSec,borderRadius:6,padding:"5px 12px",fontSize:12,cursor:"pointer",fontWeight:500}}>↻ Refresh</button>
+        </div>
       </div>
 
       {loading&&<div style={{color:T.textSec,fontSize:13,padding:"40px 0",textAlign:"center" as const}}>Loading logs…</div>}
