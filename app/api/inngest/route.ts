@@ -276,58 +276,33 @@ const buildWebsite = inngest.createFunction(
         };
 
         // Poll every 10s for up to 270s (27 polls) within this step's 300s window
+        // KEY INSIGHT: list_screens returns htmlCode.downloadUrl when ready; get_screen does NOT.
+        // The download-handler.js in the SDK uses list_screens for exactly this reason.
         for (let poll = 1; poll <= 27; poll++) {
           await sleep(10000);
           try {
-            // Call get_screen raw to inspect ALL fields — getHtml() only checks htmlCode.downloadUrl
-            // but Stitch may return the HTML URL in a different field
-            const raw = await (stitchSdk as any).client.callTool("get_screen", {
-              projectId,
-              screenId: stitchScreenId,
-              name: `projects/${projectId}/screens/${stitchScreenId}`,
+            const listRaw = await (stitchSdk as any).client.callTool("list_screens", { projectId });
+            const screens: any[] = listRaw?.screens || [];
+            const screen = screens.find((s: any) => {
+              const sid = s.id || s.name?.split("/screens/").pop();
+              return sid === stitchScreenId;
             });
 
-            if (poll === 1) {
-              // Log the full raw structure so we can see exactly what Stitch returns
-              console.log(`[Inngest] STEP 3b: raw keys: ${Object.keys(raw || {}).join(", ")}`);
-              const allUrls: string[] = [];
-              const scanObj = (obj: any, path: string) => {
-                if (!obj || typeof obj !== "object") return;
-                for (const [k, v] of Object.entries(obj)) {
-                  if (typeof v === "string" && v.startsWith("http")) allUrls.push(`${path}.${k}=${v.slice(0, 80)}`);
-                  else if (typeof v === "object") scanObj(v, `${path}.${k}`);
-                }
-              };
-              scanObj(raw, "raw");
-              console.log(`[Inngest] STEP 3b: all URLs in raw: ${allUrls.join(" | ")}`);
+            if (!screen) {
+              console.log(`[Inngest] STEP 3b: poll ${poll} — screenId not found in list_screens yet (${screens.length} screens)`);
+              continue;
             }
 
-            // Try every URL-shaped field in the response — not just htmlCode.downloadUrl
-            const candidateUrls: Array<{url: string, label: string}> = [];
-            const collectUrls = (obj: any, path: string) => {
-              if (!obj || typeof obj !== "object") return;
-              for (const [k, v] of Object.entries(obj)) {
-                if (typeof v === "string" && v.startsWith("http")) {
-                  // Prioritise fields that sound like HTML exports
-                  const priority = /html|export|code|file|output/i.test(k) ? 0 : 1;
-                  candidateUrls.push({ url: v, label: `${path}.${k}` });
-                } else if (typeof v === "object") {
-                  collectUrls(v, `${path}.${k}`);
-                }
-              }
-            };
-            collectUrls(raw, "raw");
-            // Sort: html-sounding fields first
-            candidateUrls.sort((a, b) => (/html|export|code|file|output/i.test(a.label) ? 0 : 1) - (/html|export|code|file|output/i.test(b.label) ? 0 : 1));
+            const htmlUrl = screen?.htmlCode?.downloadUrl;
+            console.log(`[Inngest] STEP 3b: poll ${poll} — htmlCode.downloadUrl length=${htmlUrl?.length ?? 0}`);
 
-            console.log(`[Inngest] STEP 3b: poll ${poll} — ${candidateUrls.length} candidate URLs`);
+            if (!htmlUrl) continue;
 
-            for (const { url, label } of candidateUrls) {
-              const html = await tryFetchHtml(url, label);
-              if (html) return html;
-            }
+            const html = await tryFetchHtml(htmlUrl, "list_screens.htmlCode.downloadUrl");
+            if (html) return html;
 
-            console.log(`[Inngest] STEP 3b: poll ${poll} — no valid HTML found yet, keep polling`);
+            // If that URL didn't work, try screenshot as last resort (shouldn't happen)
+            console.log(`[Inngest] STEP 3b: poll ${poll} — htmlUrl exists but content invalid, keep polling`);
           } catch (pe: any) {
             console.log(`[Inngest] STEP 3b: poll ${poll} error: ${pe?.message}`);
           }
