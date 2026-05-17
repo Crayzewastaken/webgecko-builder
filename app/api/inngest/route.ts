@@ -237,74 +237,79 @@ const buildWebsite = inngest.createFunction(
         return pid;
       }) as string;
 
-      // ── STEP 3: Stitch generate + fetch HTML in one blocking step ─────────────
-      // generate() is synchronous/blocking — it waits until the screen is fully
-      // rendered before returning. We call getHtml() immediately on the returned
-      // screen object (no sleep, no polling needed).
-      const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3-stitch-generate", async () => {
-        const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+      // ── STEP 3a: Stitch generate — returns screenId ────────────────────────────
+      // generate() blocks for ~2min. Gets its own 300s Vercel window.
+      const stitchScreenId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step3a-stitch-generate", async () => {
         const stitchPrompt = (spec.stitchPrompt || "")
-          .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
           .replace(/\s{3,}/g, "  ");
-        // Do NOT slice stitchPrompt — truncation breaks multipage and section instructions
-        console.log(`[Inngest] STEP 3: Stitch generate (prompt: ${stitchPrompt.length} chars, projectId=${projectId})`);
+        console.log(`[Inngest] STEP 3a: Stitch generate (prompt: ${stitchPrompt.length} chars, projectId=${projectId})`);
+        const project = stitchSdk.project(projectId);
+        const screen = await project.generate(stitchPrompt, "DESKTOP");
+        const sid = screen.screenId;
+        if (!sid) throw new Error("Stitch generate() returned no screenId");
+        console.log(`[Inngest] STEP 3a DONE: screenId=${sid}`);
+        return sid;
+      }) as string;
 
-        let html = "";
-        for (let attempt = 1; attempt <= 3; attempt++) {
+      // ── STEP 3b: Poll for HTML export — gets its own fresh 300s window ─────────
+      const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3b-stitch-fetch-html", async () => {
+        const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+        console.log(`[Inngest] STEP 3b: polling for HTML export — screenId=${stitchScreenId}`);
+
+        // Poll every 10s for up to 270s (27 polls) within this step's 300s window
+        for (let poll = 1; poll <= 27; poll++) {
+          await sleep(10000);
           try {
-            const project = stitchSdk.project(projectId);
-            const screen = await project.generate(stitchPrompt, "DESKTOP");
-            console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
+            const freshScreen = await stitchSdk.project(projectId).getScreen(stitchScreenId);
 
-            // generate() returns a Screen — try getHtml() on it first (uses cached downloadUrl if present)
-            let url = await screen.getHtml();
-            console.log(`[Inngest] STEP 3: getHtml() from generate response — url length=${url?.length ?? 0}`);
-
-            // If generate() response didn't include htmlCode.downloadUrl, poll via get_screen
-            if (!url && screen.screenId) {
-              console.log(`[Inngest] STEP 3: retrying via project.getScreen(${screen.screenId})`);
-              // Intervals: 6s × 5, then 10s × 7 = 100s total polling window
-              const pollIntervals = [6,6,6,6,6,10,10,10,10,10,10,10];
-              for (let poll = 1; poll <= pollIntervals.length; poll++) {
-                await sleep(pollIntervals[poll - 1] * 1000);
-                try {
-                  // Try fresh getScreen first, fall back to retrying on the original screen object
-                  const freshScreen = await stitchSdk.project(projectId).getScreen(screen.screenId);
-                  url = await freshScreen.getHtml();
-                  if (!url) url = await screen.getHtml();
-                  console.log(`[Inngest] STEP 3: get_screen poll ${poll} — url length=${url?.length ?? 0}`);
-                  if (url) break;
-                } catch (pe: any) {
-                  console.log(`[Inngest] STEP 3: get_screen poll ${poll} error: ${pe?.message}`);
-                }
-              }
+            // Log all available fields on first poll so we can see what Stitch returns
+            if (poll === 1) {
+              try {
+                const rawKeys = Object.keys((freshScreen as any)?.raw || freshScreen || {});
+                console.log(`[Inngest] STEP 3b: screen keys: ${rawKeys.join(", ")}`);
+              } catch (_) {}
             }
 
-            if (!url) throw new Error(`Stitch getHtml() returned empty URL (screenId=${screen.screenId})`);
+            let url = await freshScreen.getHtml();
+            console.log(`[Inngest] STEP 3b: poll ${poll} — url length=${url?.length ?? 0}${url ? " first100=" + url.slice(0, 100) : ""}`);
 
-            const fetchRes = await fetch(url);
+            if (!url || url.length === 0) continue;
+
+            // Fetch the URL and verify it's actually HTML (not an SVG or JSON error)
+            const fetchRes = await fetch(url, { redirect: "follow" });
             const text = await fetchRes.text();
-            console.log(`[Inngest] STEP 3: fetched HTML — status=${fetchRes.status} length=${text.length}`);
-            if (text.length > 5000 && text.includes("<")) { html = text; break; }
-            throw new Error(`Stitch HTML too short or not HTML (${text.length} chars, status=${fetchRes.status})`);
-          } catch (e: any) {
-            const msg = e?.message || String(e);
-            console.warn(`[Inngest] STEP 3: attempt ${attempt} failed: ${msg}`);
-            appendPipelineLog(jobId, { level: attempt === 3 ? "error" : "warn", step: "stitch", msg: `Attempt ${attempt} failed: ${msg}`, businessName: userInput.businessName }).catch(()=>{});
-            if (attempt === 3) throw e;
-            await sleep(10000 * attempt);
+            const first200 = text.slice(0, 200);
+            console.log(`[Inngest] STEP 3b: poll ${poll} fetch — status=${fetchRes.status} length=${text.length} first200=${first200}`);
+
+            // Skip SVG responses (Stitch sometimes returns logo URL instead of HTML)
+            if (text.trimStart().startsWith("<svg")) {
+              console.log(`[Inngest] STEP 3b: poll ${poll} — got SVG, not HTML, keep polling`);
+              continue;
+            }
+
+            if (text.length > 5000 && text.includes("<")) {
+              // Validate has CSS
+              const styleLen = (text.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
+              const inlineStyleCount = (text.match(/\bstyle=/gi) || []).length;
+              if (styleLen < 100 && inlineStyleCount < 20) {
+                console.log(`[Inngest] STEP 3b: poll ${poll} — HTML has no CSS, keep polling`);
+                continue;
+              }
+              if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(text)) {
+                console.log(`[Inngest] STEP 3b: poll ${poll} — got skeleton HTML, keep polling`);
+                continue;
+              }
+              console.log(`[Inngest] STEP 3b DONE: got real HTML ${text.length} chars at poll ${poll}`);
+              return text;
+            }
+
+            console.log(`[Inngest] STEP 3b: poll ${poll} — content too short (${text.length} chars), keep polling`);
+          } catch (pe: any) {
+            console.log(`[Inngest] STEP 3b: poll ${poll} error: ${pe?.message}`);
           }
         }
 
-        if (html.length < 5000) throw new Error(`Stitch HTML too short (${html.length} chars)`);
-        if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton");
-        const styleLen = (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
-        const inlineStyleCount = (html.match(/\bstyle=/gi) || []).length;
-        if (styleLen < 100 && inlineStyleCount < 20) {
-          throw new Error(`Stitch HTML has no CSS (styleLen=${styleLen}, inlineStyles=${inlineStyleCount})`);
-        }
-        console.log(`[Inngest] STEP 3 DONE: HTML ${html.length} chars`);
-        return html;
+        throw new Error(`Stitch HTML never became available after 27 polls (screenId=${stitchScreenId})`);
       }) as string;
 
       // ── STEP 4b: Structural injection into Stitch HTML ──────────────────────────
