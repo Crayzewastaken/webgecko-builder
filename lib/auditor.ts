@@ -45,7 +45,7 @@ export interface AuditResult {
 function detectTheme(html: string): "light" | "dark" {
   const head = html.slice(0, 4000);
   // Explicit dark class
-  if (/class="[^"]*dark/.test(head)) return "dark";
+  if (/class="[^"]*dark/.test(head)) return "dark";
   // Tailwind light backgrounds
   if (/bg-white|bg-zinc-50|bg-gray-50|bg-slate-50/i.test(head)) return "light";
   // Inline light background colors
@@ -79,6 +79,41 @@ export async function auditAndFixSite(
   const has = (t: AuditErrorType) => issues.some(i => i.type === t);
   const mark = (t: AuditErrorType) => issues.filter(i => i.type === t).forEach(i => { i.fixed = true; });
 
+  // Pre-pass: for multi-page sites, remove orphaned contact/faq/testimonials sections
+  // that were injected outside the data-page system by previous pipeline runs.
+  if (isMultiPage) {
+    const lastDpIdx = Math.max(
+      html.lastIndexOf('data-page="home"'),
+      html.lastIndexOf('data-page="shop"'),
+      html.lastIndexOf('data-page="about"'),
+      html.lastIndexOf('data-page="services"'),
+    );
+    if (lastDpIdx > 0) {
+      let afterDp = html.slice(lastDpIdx);
+      for (const sectId of ['contact', 'faq', 'testimonials']) {
+        const openRe = new RegExp('<(section|div)[^>]*\\bid=["\']' + sectId + '["\'][^>]*>', 'i');
+        const om = openRe.exec(afterDp);
+        if (!om || /\bdata-page=/i.test(om[0])) continue;
+        const tagName = om[1].toLowerCase();
+        let depth = 1, pos = om.index + om[0].length, endIdx = -1;
+        const openT = new RegExp('<' + tagName + '[\\s>]', 'gi');
+        const closeT = new RegExp('<\\/' + tagName + '>', 'gi');
+        while (depth > 0 && pos < afterDp.length) {
+          openT.lastIndex = pos; closeT.lastIndex = pos;
+          const nOpen = openT.exec(afterDp); const nClose = closeT.exec(afterDp);
+          if (!nClose) break;
+          if (nOpen && nOpen.index < nClose.index) { depth++; pos = nOpen.index + nOpen[0].length; }
+          else { depth--; pos = nClose.index + nClose[0].length; if (depth === 0) endIdx = pos; }
+        }
+        if (endIdx > 0) {
+          console.log('[Auditor] Pre-pass: removed orphaned #' + sectId + ' outside data-page system');
+          afterDp = afterDp.slice(0, om.index) + afterDp.slice(endIdx);
+        }
+      }
+      html = html.slice(0, lastDpIdx) + afterDp;
+    }
+  }
+
   if (!html.includes(clientEmail)) add(AuditErrorType.PLACEHOLDER_EMAIL, "Missing real email: " + clientEmail);
   if (clientPhone && !html.includes(clientPhone.replace(/\s/g, "")) && !html.includes(clientPhone)) add(AuditErrorType.PLACEHOLDER_PHONE, "Missing real phone: " + clientPhone);
   const hasHamburger = html.includes('id="hamburger"') || /data-icon=["']menu["']/.test(html) || /aria-label=["'](?:open menu|menu|toggle)["']/i.test(html);
@@ -89,37 +124,50 @@ export async function auditAndFixSite(
   const requestedPageIds = context.pages.map((p: string) => normalizePageId(p));
 
   if (isMultiPage) {
-    // Helper: extract content of a specific data-page wrapper (up to 12kb)
-    const getPageContent = (pageId: string): string => {
+    // Helper: extract ALL content inside any data-page wrapper (up to maxLen chars per wrapper)
+    const getAllPageContent = (maxLen = 20000): string => {
+      const parts: string[] = [];
+      const re = /data-page=["'][^"']+["']/gi;
+      let m: RegExpExecArray | null;
+      re.lastIndex = 0;
+      while ((m = re.exec(html)) !== null) {
+        parts.push(html.slice(m.index, Math.min(m.index + maxLen, html.length)));
+      }
+      return parts.join("\n");
+    };
+    const getPageContent = (pageId: string, maxLen = 20000): string => {
       const marker = `data-page="${pageId}"`;
       const idx = html.indexOf(marker);
       if (idx === -1) return "";
-      return html.slice(idx, idx + 12000);
+      return html.slice(idx, Math.min(idx + maxLen, html.length));
     };
+    const allPageContent = getAllPageContent();
     const homeContent = getPageContent("home");
     const contactContent = getPageContent("contact");
     const faqContent = getPageContent("faq");
 
-    // contact: id="contact" OR a form inside the contact page wrapper OR a form+contact-heading inside home
+    // contact: id="contact" OR a form inside ANY data-page wrapper OR heading text matching contact phrases
     const hasContactId = html.includes('id="contact"');
+    const anyPageHasContactForm = /<form[\s>]/i.test(allPageContent);
+    const anyPageHasContactHeading = /contact|get in touch|reach us|enquir/i.test(allPageContent) && /<form[\s>]/i.test(allPageContent);
     const contactPageHasForm = /<form[\s>]/i.test(contactContent);
     const homeHasContactForm = /<form[\s>]/i.test(homeContent) && /contact|get in touch|reach|enquir/i.test(homeContent);
-    if (!hasContactId && !contactPageHasForm && !homeHasContactForm) {
+    if (!hasContactId && !contactPageHasForm && !homeHasContactForm && !anyPageHasContactHeading) {
       add(AuditErrorType.MISSING_CONTACT, 'Multi-page: no contact form found in any page wrapper');
     }
 
-    // faq: id="faq" OR FAQ content inside any data-page wrapper
+    // faq: id="faq" OR FAQ/accordion content inside ANY data-page wrapper
     const hasFaqId = html.includes('id="faq"');
     const faqPageHasContent = faqContent.length > 400;
-    const homeHasFaq = /faq|frequently.asked|common.*question|accordion|<details/i.test(homeContent);
-    if (!hasFaqId && !faqPageHasContent && !homeHasFaq) {
+    const anyPageHasFaq = /faq|frequently.asked|common.*question|accordion|<details/i.test(allPageContent);
+    if (!hasFaqId && !faqPageHasContent && !anyPageHasFaq) {
       add(AuditErrorType.MISSING_FAQ, 'Multi-page: no FAQ content found in any page wrapper');
     }
 
-    // testimonials: id="testimonials" OR testimonial content inside any data-page wrapper
+    // testimonials: id="testimonials" OR testimonial/review content inside ANY data-page wrapper
     const hasTestimonialsId = html.includes('id="testimonials"');
-    const hasTestimonialContent = /testimonial|what.*client.*say|what.*customer|\u2605\u2605\u2605\u2605|review.*card/i.test(html);
-    if (!hasTestimonialsId && !hasTestimonialContent) add(AuditErrorType.MISSING_TESTIMONIALS, 'Multi-page: no testimonial content found');
+    const anyPageHasTestimonials = /testimonial|review|what our|what clients|what.*client.*say|what.*customer|\u2605\u2605\u2605\u2605/i.test(allPageContent);
+    if (!hasTestimonialsId && !anyPageHasTestimonials) add(AuditErrorType.MISSING_TESTIMONIALS, 'Multi-page: no testimonial content found');
   } else {
     // Single-page: all content must be present as top-level sections
     if (!html.includes('id="contact"'))      add(AuditErrorType.MISSING_CONTACT,      'Missing id="contact"');
@@ -441,6 +489,50 @@ export async function auditAndFixSite(
     mark(AuditErrorType.BROKEN_NAV_LINKS);
   }
 
+  // Final cleanup: for multi-page sites, remove any contact/faq/testimonials sections
+  // that ended up OUTSIDE the data-page system (e.g. injected by a previous pipeline run
+  // or by the fallback path in injectIntoPageWrapper when no matching wrapper was found).
+  // Detection: the section has id="contact"|"faq"|"testimonials" but is NOT preceded by
+  // a data-page opening tag before the next closing tag of any data-page wrapper.
+  if (isMultiPage) {
+    for (const sectId of ['contact', 'faq', 'testimonials'] as const) {
+      const openRe = new RegExp('<(section|div)([^>]*)\\bid=["\']' + sectId + '["\'][^>]*>', 'gi');
+      let om: RegExpExecArray | null;
+      openRe.lastIndex = 0;
+      while ((om = openRe.exec(fixed)) !== null) {
+        // Check if this section is inside a data-page wrapper:
+        // scan backward from om.index for the nearest data-page= attribute
+        const before = fixed.slice(0, om.index);
+        const lastDpPos = before.lastIndexOf('data-page=');
+        const lastDpClosePos = before.lastIndexOf('</div>');
+        // If there's no data-page at all before this, or the last data-page closed before this section
+        const isOutsideDataPage = lastDpPos === -1 || (lastDpClosePos > lastDpPos && lastDpClosePos > om.index - 5000);
+        if (!isOutsideDataPage) continue;
+        // Also skip if the tag itself has data-page (it's a wrapper, not an orphan)
+        if (/\bdata-page=/i.test(om[0])) continue;
+        // Remove this orphaned section
+        const tagName = om[1].toLowerCase();
+        let depth = 1, pos = om.index + om[0].length, endIdx = -1;
+        const openT = new RegExp('<' + tagName + '[\\s>]', 'gi');
+        const closeT = new RegExp('<\\/' + tagName + '>', 'gi');
+        openT.lastIndex = pos; closeT.lastIndex = pos;
+        while (depth > 0 && pos < fixed.length) {
+          openT.lastIndex = pos; closeT.lastIndex = pos;
+          const nOpen = openT.exec(fixed); const nClose = closeT.exec(fixed);
+          if (!nClose) break;
+          if (nOpen && nOpen.index < nClose.index) { depth++; pos = nOpen.index + nOpen[0].length; }
+          else { depth--; pos = nClose.index + nClose[0].length; if (depth === 0) endIdx = pos; }
+        }
+        if (endIdx > 0) {
+          console.log('[Auditor] Final cleanup: removed orphaned #' + sectId + ' outside data-page system at pos ' + om.index);
+          fixed = fixed.slice(0, om.index) + fixed.slice(endIdx);
+          // Reset regex since string changed
+          openRe.lastIndex = 0;
+        }
+      }
+    }
+  }
+
   const issueStrings = issues.map(i => i.detail);
   console.log("[Auditor] Fixed " + issues.filter(i => i.fixed).length + "/" + issues.length + " issues");
   return { passed: false, issues, issueStrings, fixedHtml: fixed };
@@ -710,7 +802,7 @@ function injectIntoPageWrapper(html: string, sectionHtml: string, preferredPages
     }
   }
   // Fallback: before </body>
-  console.log(`[Auditor] injectIntoPageWrapper fallback: before </body>`);
+  console.log('[Auditor] injectIntoPageWrapper fallback: before </body>');
   if (/<footer[\s>]/i.test(html)) {
     return html.replace(/<footer[\s>]/i, sectionHtml + '\n<footer ');
   }

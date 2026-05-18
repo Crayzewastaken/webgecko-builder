@@ -1294,6 +1294,18 @@ const buildWebsite = inngest.createFunction(
       const finalHtmlWithShop = await step.run("step7-shop", async () => {
         if (!hasShopFeature || shopProducts.length === 0) {
           console.log("[Step7] Shop skipped: hasShopFeature=" + hasShopFeature + " products=" + shopProducts.length);
+          // If the site has a shop page but no products were provided, any "Buy Now" / shop CTA
+          // buttons that navigate to 'shop' would create an empty-shop loop. Rewire them to 'contact'.
+          if (hasShopFeature && shopProducts.length === 0) {
+            const rewired = finalHtml.replace(
+              /window\.navigateTo&&window\.navigateTo\('shop'\)/g,
+              "window.navigateTo&&window.navigateTo('contact')"
+            );
+            if (rewired !== finalHtml) {
+              console.log("[Step7] Rewired shop CTAs → contact (no products provided)");
+            }
+            return rewired;
+          }
           return finalHtml;
         }
         let html = finalHtml;
@@ -1316,7 +1328,31 @@ const buildWebsite = inngest.createFunction(
           const stripeAccountId = job.stripeAccountId || null;
           const useStripe = !effectiveToken && !manualPaymentUrl && !!stripeAccountId;
           if (!effectiveToken && !manualPaymentUrl && !useStripe) {
-            console.warn(`[Step7] No Square token, no Stripe account, and no manual payment URL for ${jobId} — shop buttons inactive`);
+            // No payment provider yet — but still rebuild the shop section with real client products.
+            // Wire "Buy Now" to the contact page so customers can inquire instead of hitting a dead loop.
+            console.warn(`[Step7] No payment provider for ${jobId} — injecting contact-linked shop cards`);
+            if (shopProducts.length > 0) {
+              const dark = html.includes('#0f172a') || html.includes('background:#0a0f1a') || html.includes("background: #0");
+              const bg = dark ? '#0f172a' : '#f8fafc';
+              const cardBg = dark ? '#1e293b' : '#ffffff';
+              const textCol = dark ? '#f1f5f9' : '#0f172a';
+              const priceCol = dark ? '#10b981' : '#059669';
+              const btnCol = '#006aff';
+              const cards = shopProducts.map((p: any) => {
+                const photoHtml = p.photoUrl ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:200px;object-fit:cover;border-radius:8px 8px 0 0;display:block;"/>` : '';
+                const price = p.price ? `<p style="color:${priceCol};font-weight:700;font-size:1.2rem;margin:0 0 12px;">$${String(p.price).replace(/[^0-9.]/g,'')} AUD</p>` : '';
+                return `<div style="background:${cardBg};border-radius:12px;overflow:hidden;display:flex;flex-direction:column;">${photoHtml}<div style="padding:20px 20px 24px;flex:1;display:flex;flex-direction:column;gap:8px;"><h3 style="color:${textCol};font-size:1.05rem;font-weight:700;margin:0;">${p.name}</h3>${price}<a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('contact')" style="display:inline-block;background:${btnCol};color:#fff;font-weight:700;padding:12px 20px;border-radius:8px;text-decoration:none;text-align:center;margin-top:auto;">Enquire Now</a></div></div>`;
+              }).join('\n');
+              const shopSection = `<section id="shop" data-page="shop" style="padding:80px 24px;background:${bg};"><div style="max-width:1100px;margin:0 auto;"><h2 style="color:${textCol};font-size:2rem;font-weight:900;text-align:center;margin:0 0 48px;">Shop</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:28px;">${cards}</div></div></section>`;
+              const shopRe = /<(?:section|div)[^>]*(?:id|data-page)=["']shop["'][^>]*>[\s\S]*?<\/(?:section|div)>/gi;
+              if (shopRe.test(html)) {
+                html = html.replace(/<(?:section|div)[^>]*(?:id|data-page)=["']shop["'][^>]*>[\s\S]*?<\/(?:section|div)>/gi, shopSection);
+                console.log(`[Step7] No-payment shop: replaced Stitch shop section with ${shopProducts.length} real product(s)`);
+              } else {
+                html = html.replace('</body>', shopSection + '\n</body>');
+                console.log(`[Step7] No-payment shop: injected ${shopProducts.length} real product(s) before </body>`);
+              }
+            }
             return html;
           }
           let catalogueItems: any[] = [];
