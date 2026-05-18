@@ -1624,6 +1624,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                   {title:"Reset password",color:T.textSec,desc:"Generate a new portal login password.",label:"Reset password",confirm:"Generate a new password?",fn:async()=>{const d=await api(`/api/admin/reset-password?secret=${sec}`,"POST",{slug:c.slug});toast(`New password: ${d.password}`,"info");return d;}},
                   ...(c.metadata?.lastGoodAt?[{title:"Rollback to last good",color:T.purple,desc:`Restores snapshot from ${new Date(c.metadata.lastGoodAt).toLocaleDateString("en-AU")}.`,label:"Rollback",confirm:`Roll back ${c.businessName} to last good build?`,fn:()=>api(`/api/admin/reset-job`,"POST",{jobId:jid,action:"rollback",secret:sec})}]:[]),
                   ...(c.hasBooking?[{title:"Unlock booking",color:T.purple,desc:"Enable the booking system for this client.",label:"Unlock booking",confirm:`Enable booking for ${c.businessName}?`,fn:()=>api(`/api/unlock/booking?jobId=${jid}&secret=${sec}`)}]:[]),
+                  ...(!((c as any).metadata?.serviceType==="social"||(c as any).metadata?.serviceType==="both")?[{title:"Unlock Social Media",color:T.purple,desc:"Grant this client access to the Social Media portal without requiring payment.",label:"📱 Unlock Social",confirm:`Unlock Social Media for ${c.businessName}?`,fn:async()=>{await api(`/api/admin/clients`,"PATCH",{jobId:jid,metadata:{...((c as any).metadata||{}),serviceType:"social"}});}}]:[]),
                 ].map(action=>(
                   <div key={action.title} style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px"}}>
                     <div style={{fontSize:12,fontWeight:700,color:action.color,marginBottom:4}}>{action.title}</div>
@@ -2264,14 +2265,6 @@ function ClientCard({ c, secret, dark, toast }: { c:ClientAnalytics; secret:stri
           {((c as any).metadata?.serviceType==="social"||(c as any).metadata?.serviceType==="both")&&<Pill color={T.purple}>📱 Social</Pill>}
         </div>
 
-        {!((c as any).metadata?.serviceType==="social"||(c as any).metadata?.serviceType==="both") && (
-          <div style={{ marginBottom:8 }} onClick={e=>e.stopPropagation()}>
-            <button onClick={async(e)=>{e.stopPropagation();if(!confirm("Unlock Social Media for "+c.businessName+"?"))return;
-              await fetch("/api/admin/clients",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:c.jobId,metadata:{...((c as any).metadata||{}),serviceType:"social"}})}).catch(()=>{});
-              toast("Social media unlocked for "+c.businessName,"ok");
-            }} style={{ background:"transparent", color:T.purple, border:`1px solid ${T.purple}55`, borderRadius:8, padding:"5px 12px", fontSize:11, fontWeight:500, cursor:"pointer", textDecoration:"none" }}>📱 Unlock Social</button>
-          </div>
-        )}
 
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:T.textMuted, borderTop:`1px solid ${T.border}`, paddingTop:12, marginTop:"auto" }}>
           <div style={{ display:"flex", flexDirection:"column" as const, alignItems:"center" }}>
