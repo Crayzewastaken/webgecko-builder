@@ -825,9 +825,17 @@ export function ensureMultiPageStructure(
   }
 
   // ── 6. Fix nav link targets that don't match requestedPageIds ────────────────
+  // Whitelist: legal/utility pages the auditor injects, and universal section anchors
+  // that are valid nav targets even when not in requestedPageIds (matching validateForDeploy)
+  const NAV_WHITELIST = new Set([
+    "contact", "faq", "faqs", "home", "hero",
+    "privacy", "terms", "privacy-policy", "terms-of-service",
+  ]);
   const validIds = new Set(requestedPageIds);
   out = out.replace(/navigateTo\(['"]([^'"]+)['"]\)/g, (m, target) => {
     if (validIds.has(target)) return m;
+    // Never rewrite whitelisted targets — they are valid section anchors on all sites
+    if (NAV_WHITELIST.has(target.toLowerCase())) return m;
     // Try to find the closest matching page id
     const lower = target.toLowerCase();
     const matched = requestedPageIds.find(id =>

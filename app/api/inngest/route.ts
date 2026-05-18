@@ -1359,8 +1359,10 @@ const buildWebsite = inngest.createFunction(
           // Strategy 3: inject fallback shop section for unmatched products
           const unlinked = catalogueItems.filter((_: any, i: number) => !html.includes(`data-product-index="${i}"`));
           if (unlinked.length > 0) {
-            const cards = catalogueItems.map((item: any, i: number) => `  <div style="background:#1e293b;border-radius:12px;padding:24px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;"><h3 style="color:#f1f5f9;font-size:1.1rem;font-weight:700;margin:0;">${item.name}</h3><p style="color:#10b981;font-weight:700;font-size:1.2rem;margin:0;">$${(item.priceCents/100).toFixed(2)}</p><a href="${item.paymentLinkUrl}" target="_blank" rel="noopener" class="wg-buy-btn" data-product-index="${i}" style="display:inline-block;background:#006aff;color:#fff;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;width:100%;">Buy Now</a></div>`).join("\n");
-            html = html.replace("</body>", `<section id="shop" style="padding:80px 24px;background:#0f172a;"><div style="max-width:1200px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;text-align:center;margin:0 0 48px;">Shop</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:24px;">${cards}</div></div></section>\n</body>`);
+            // Skip items with no paymentLinkUrl (variationId was missing — Square could not create a checkout link)
+            const cards = catalogueItems.filter((item: any) => !!item.paymentLinkUrl).map((item: any, i: number) => `  <div style="background:#1e293b;border-radius:12px;padding:24px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;"><h3 style="color:#f1f5f9;font-size:1.1rem;font-weight:700;margin:0;">${item.name}</h3><p style="color:#10b981;font-weight:700;font-size:1.2rem;margin:0;">$${(item.priceCents/100).toFixed(2)}</p><a href="${item.paymentLinkUrl}" target="_blank" rel="noopener" class="wg-buy-btn" data-product-index="${i}" style="display:inline-block;background:#006aff;color:#fff;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;width:100%;">Buy Now</a></div>`).join("\n");
+            if (cards.length === 0) console.warn("[Step7] No products have payment links (variationId missing for all) — skipping shop injection");
+            if (cards.length > 0) html = html.replace("</body>", `<section id="shop" style="padding:80px 24px;background:#0f172a;"><div style="max-width:1200px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;text-align:center;margin:0 0 48px;">Shop</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:24px;">${cards}</div></div></section>\n</body>`);
           }
           const squareBadge = clientSquareToken ? `<div style="text-align:center;margin-top:16px;padding:8px;"><p style="color:rgba(255,255,255,0.4);font-size:11px;margin:0;">Secure checkout powered by Square</p></div>` : "";
           html = html.replace(/(<section[^>]*(?:id|class)="[^"]*shop[^"]*"[^>]*>[\s\S]*?)(<\/section>)/gi, (_m: string, body: string, close: string) => body + squareBadge + close);
@@ -1382,14 +1384,27 @@ const buildWebsite = inngest.createFunction(
             return `<${tag}${attrs.replace(/\s*\bdata-page=["'][^"']+["']/, '')}>`;
           }
         );
-        const failures = validateForDeploy(dedupedHtml, requestedPageIds, isMultiPage, hasBookingFeature);
+        // Pre-pass: run ensureMultiPageStructure BEFORE validation so the validator
+        // sees already-repaired HTML and does not trigger the expensive emergency repair path.
+        let prePassHtml = dedupedHtml;
+        if (isMultiPage) {
+          const { html: preEnsured, report: preReport } = ensureMultiPageStructure(dedupedHtml, requestedPageIds, {
+            businessName: userInput.businessName,
+          });
+          if (preReport.repairs.length > 0) {
+            console.log(`[Step7b] pre-pass ensureMultiPageStructure: ${preReport.repairs.length} repairs, added: [${preReport.missingPagesAdded.join(",")}], navFixes: ${preReport.navTargetsFixed.length}`);
+          }
+          prePassHtml = preEnsured;
+        }
+        const failures = validateForDeploy(prePassHtml, requestedPageIds, isMultiPage, hasBookingFeature);
         if (failures.length > 0) {
           console.error("[Step7b] Pre-deploy validation FAILED:", failures.join("; "));
           appendPipelineLog(jobId, { level: "error", step: "validate", msg: failures.join("; "), businessName: userInput.businessName }).catch(()=>{});
           logPipelineError(jobId, "Step7b/Validate", "VALIDATION_FAIL", failures.join("; ")).catch(()=>{});
 
           // Pass 1: structural repair (truncated tags, missing footer/body/html)
-          let repaired = repairHtml(dedupedHtml, userInput.businessName, new Date().getFullYear());
+          // Start from prePassHtml (already had ensureMultiPage applied for multi-page)
+          let repaired = repairHtml(prePassHtml, userInput.businessName, new Date().getFullYear());
 
 
           // Pass 1b: force-inject id="hero" on first section/div if still missing
@@ -1433,7 +1448,7 @@ const buildWebsite = inngest.createFunction(
           return { html: repaired, valid: true, failures: [] };
         }
         console.log("[Step7b] Pre-deploy validation passed");
-        return { html: finalHtmlWithShop, valid: true, failures: [] };
+        return { html: prePassHtml, valid: true, failures: [] };
       });
       const deployHtml = deployReady.html;
 
@@ -1479,15 +1494,17 @@ const buildWebsite = inngest.createFunction(
         const checks: SmokeCheck[] = [];
         if (!previewUrl) return [{ label: "Deploy URL", pass: false, severity: "error" as const }];
 
-        // Vercel cold-starts — retry up to 3x with backoff
+        // Vercel unique deploy URLs need time to propagate — wait before first attempt
+        // then retry with increasing backoff (10s initial + 15s, 25s, 35s between retries)
         let liveHtml = "";
+        await new Promise(r => setTimeout(r, 10000)); // initial propagation delay
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
-            await new Promise(r => setTimeout(r, attempt * 2000));
             const res = await fetch(previewUrl, { headers: { "User-Agent": "WebGecko-SmokeTest/1.0" } });
             if (res.ok) { liveHtml = await res.text(); break; }
           } catch {}
           console.log("[Smoke] Attempt " + attempt + " failed for " + previewUrl);
+          if (attempt < 3) await new Promise(r => setTimeout(r, 10000 + attempt * 5000));
         }
 
         if (!liveHtml) return [{ label: "Site reachable", pass: false, severity: "error" as const }];

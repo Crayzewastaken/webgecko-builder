@@ -291,7 +291,7 @@ export async function auditAndFixSite(
       `</details>`
     ).join("");
     const faqSection = `<section id="faq" style="padding:80px 24px;background:${clrBg2};"><div style="max-width:800px;margin:0 auto;"><h2 style="color:${clrText};font-size:2rem;font-weight:900;margin:0 0 40px;">Frequently Asked Questions</h2>${faqHtml}</div></section>`;
-    fixed = addSectionIdSmart(fixed, "faq", [/faq|frequently|accordion|faqs/i], [/faq|frequently asked|common questions/i], faqSection);
+    fixed = addSectionIdSmart(fixed, "faq", [/faq|frequently|accordion|faqs|questions|q-and-a|qa-section|q_a/i], [/faq|frequently asked|common questions|have a question/i], faqSection);
     mark(AuditErrorType.MISSING_FAQ);
   }
 
