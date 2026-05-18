@@ -901,7 +901,7 @@ export function ensureMultiPageStructure(
   console.log(`[ensureMultiPage] Done. Repairs: ${report.repairs.length}, Added pages: [${report.missingPagesAdded.join(',')}], Nav fixes: ${report.navTargetsFixed.length}`);
   return { html: out, report };
 }
-export function injectEssentials(html: string, email: string, phone: string, jobId?: string, ga4Id?: string, tawktoPropertyId?: string): string {
+export function injectEssentials(html: string, email: string, phone: string, jobId?: string, ga4Id?: string, tawktoPropertyId?: string, businessAddress?: string, businessName?: string): string {
   let processed = html;
 
   if (email) {
@@ -923,6 +923,87 @@ export function injectEssentials(html: string, email: string, phone: string, job
       return m; // leave unknown numbers — Step 5 already replaced fakes
     });
   }
+
+  // ── patchContactSection ──────────────────────────────────────────────────────
+  // Comprehensively replace placeholder contact details inside the contact section.
+  // This catches arbitrary fake emails/phones Stitch uses (e.g. raatzy@gmail.com,
+  // +1 (888) DART-TECH) that the prefix-only replacements above would miss.
+  (function patchContactSection() {
+    // Find the contact section — try id="contact" first, then heading-based detection
+    const contactIdxById = processed.search(/id=["']contact["']/i);
+    const contactIdxByText = processed.search(/(?:get in touch|contact us|send us a message|reach out|enquire now|enquiry form)/i);
+    const sectionStart = contactIdxById >= 0 ? contactIdxById : contactIdxByText;
+    if (sectionStart < 0) return; // no contact section found
+
+    // Walk forward from the id/text to find the enclosing <section or <div tag start
+    let tagStart = sectionStart;
+    while (tagStart > 0 && processed[tagStart] !== "<") tagStart--;
+
+    // Now find the matching closing tag. We track depth for section/div tags.
+    // Simpler: just grab from the enclosing section tag to the next </section> or until
+    // we've grabbed enough (cap at 8000 chars — covers any realistic contact section).
+    const MAX_SECTION_LEN = 8000;
+    const sectionChunk = processed.slice(tagStart, tagStart + MAX_SECTION_LEN);
+
+    // Find end of this section — look for closing </section> or </div> at depth 0
+    let depth = 0;
+    let sectionEnd = -1;
+    const openTagRe = /<(section|div)(?:\s|>)/gi;
+    const closeTagRe = /<\/(section|div)>/gi;
+    // Reset and scan
+    let combined = /<(section|div)(?:\s|>)|<\/(section|div)>/gi;
+    let m;
+    let firstOpen = false;
+    while ((m = combined.exec(sectionChunk)) !== null) {
+      if (m[0].startsWith("</")) {
+        depth--;
+        if (firstOpen && depth <= 0) {
+          sectionEnd = tagStart + m.index + m[0].length;
+          break;
+        }
+      } else {
+        if (!firstOpen) firstOpen = true;
+        depth++;
+      }
+    }
+    if (sectionEnd < 0) sectionEnd = Math.min(tagStart + MAX_SECTION_LEN, processed.length);
+
+    let section = processed.slice(tagStart, sectionEnd);
+    const before = processed.slice(0, tagStart);
+    const after = processed.slice(sectionEnd);
+
+    // 1. Replace any email (skip @webgecko.au and noreply@)
+    if (email) {
+      section = section.replace(/(?<!noreply@)(?<!@webgecko\.au)[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g, (m: string) => {
+        if (m.includes("webgecko.au") || m.startsWith("noreply@")) return m;
+        return email;
+      });
+      // Also patch mailto: hrefs and form action mailto:
+      section = section.replace(/mailto:[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/gi, `mailto:${email}`);
+    }
+
+    // 2. Replace any phone number pattern
+    if (phone) {
+      // +1 (888) DART-TECH style vanity numbers
+      section = section.replace(/\+1\s*\([0-9A-Z]+\)[\s0-9A-Z\-\.]+/g, phone);
+      // Standard patterns: +1 (xxx) xxx-xxxx, (xxx) xxx-xxxx, xxx-xxx-xxxx, +xx xx xx xx xx
+      section = section.replace(/(?:\+?1[\s\-\.]?)?\(?[0-9]{3}\)?[\s\-\.][0-9]{3}[\s\-\.][0-9]{4}/g, phone);
+      // International-ish: +XX XXX XXXX XXXX
+      section = section.replace(/\+[0-9]{1,3}[\s\-\.][0-9\s\-\.]{7,}/g, phone);
+    }
+
+    // 3. Replace address patterns
+    if (businessAddress) {
+      // Street address: 123 Something St/Ave/Rd etc
+      section = section.replace(/\d+\s+[\w\s]{2,30}(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct|Place|Pl)\b[^<"]{0,60}/gi, businessAddress);
+      // Silicon Valley Tech Center, CA style placeholders
+      section = section.replace(/Silicon Valley[^<"]{0,80}/gi, businessAddress);
+      // City, STATE ZIP patterns
+      section = section.replace(/[A-Z][a-zA-Z\s]{3,25},\s*(?:CA|NY|TX|FL|WA|OR|IL|AZ|CO|GA|NC|VA|OH|PA|MA|NV|UT|TN|MO|IN|WI|MN|AL|LA|KY|SC|MD|CT|OK|AR|MS|KS|NE|ID|NM|WV|HI|MT|ND|SD|WY|AK|DE|RI|VT|NH|ME|DC|NSW|VIC|QLD|WA|SA|TAS|NT|ACT)(?:\s+\d{4,5})?/g, businessAddress);
+    }
+
+    processed = before + section + after;
+  })();
 
   const script = `
 <script>

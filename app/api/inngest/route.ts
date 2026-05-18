@@ -395,17 +395,26 @@ const buildWebsite = inngest.createFunction(
             html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '')
           );
         if (!hasContactSection) {
+          const bName = userInput.businessName || "Us";
+          const bPhone = clientPhone || "";
+          const bEmail = clientEmail || "";
+          const bAddress = userInput.businessAddress || "";
+          const contactInfoHtml = [
+            bPhone ? `<span style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 8px;">&#128222; <a href="tel:${bPhone}" style="color:#94a3b8;text-decoration:none;">${bPhone}</a></span>` : "",
+            bEmail ? `<span style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 8px;">&#9993; <a href="mailto:${bEmail}" style="color:#94a3b8;text-decoration:none;">${bEmail}</a></span>` : "",
+            bAddress ? `<span style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 8px;">&#128205; <span style="color:#94a3b8;">${bAddress}</span></span>` : "",
+          ].filter(Boolean).join("");
           const contactSection = `
-  <section id="contact" style="padding:80px 24px;background:#0f172a;scroll-margin-top:80px;">
-    <div style="max-width:640px;margin:0 auto;">
-      <h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;margin:0 0 8px;text-align:center;">Get In Touch</h2>
-      <p style="color:#94a3b8;text-align:center;margin:0 0 32px;">${clientPhone} &nbsp;|&nbsp; ${clientEmail}</p>
-      <form onsubmit="window.location='mailto:${clientEmail}?subject=Website Enquiry&body=Name: '+encodeURIComponent(this.name.value)+'%0APhone: '+encodeURIComponent(this.phone.value)+'%0AMessage: '+encodeURIComponent(this.message.value);return false;" style="display:flex;flex-direction:column;gap:16px;">
-        <input name="name" placeholder="Your Name" required style="padding:12px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#f1f5f9;font-size:1rem;">
-        <input name="email" type="email" placeholder="Your Email" required style="padding:12px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#f1f5f9;font-size:1rem;">
-        <input name="phone" placeholder="Your Phone" style="padding:12px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#f1f5f9;font-size:1rem;">
-        <textarea name="message" placeholder="Your Message" rows="4" required style="padding:12px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#f1f5f9;font-size:1rem;resize:vertical;"></textarea>
-        <button type="submit" style="padding:14px;border-radius:8px;background:#22c55e;color:#fff;font-size:1rem;font-weight:700;border:none;cursor:pointer;">Send Message</button>
+  <section id="contact" style="padding:80px 24px;background:var(--clr-bg,#0f172a);scroll-margin-top:80px;">
+    <div style="max-width:640px;margin:0 auto;text-align:center;">
+      <h2 style="color:var(--clr-text,#f1f5f9);font-size:2rem;font-weight:900;margin:0 0 12px;">Get In Touch With ${bName}</h2>
+      <p style="color:#94a3b8;margin:0 0 8px;flex-wrap:wrap;display:flex;justify-content:center;align-items:center;">${contactInfoHtml}</p>
+      <form style="display:flex;flex-direction:column;gap:16px;margin-top:32px;text-align:left;" onsubmit="(function(f){var nm=(f.querySelector('[name=name]')||{}).value||'';var em=(f.querySelector('[name=email]')||{}).value||'';var ph=(f.querySelector('[name=phone]')||{}).value||'';var mg=(f.querySelector('textarea')||{}).value||'';fetch('/api/contact/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jobId:typeof WG_JOB!=='undefined'?WG_JOB:'',name:nm,email:em,phone:ph,message:mg})}).catch(function(){window.location='mailto:${bEmail}?subject=Enquiry&body='+encodeURIComponent('Name: '+nm+'\nPhone: '+ph+'\nMessage: '+mg);});var s=document.createElement('div');s.style.cssText='background:#22c55e;color:#fff;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;';s.textContent='Thank you! ${bName} will be in touch within 24 hours.';f.appendChild(s);f.querySelectorAll('input,textarea,button').forEach(function(el){el.setAttribute('disabled','true');});})(this);return false;">
+        <input name="name" placeholder="Your Name" required style="padding:14px 16px;border-radius:10px;border:1px solid #334155;background:var(--clr-surface,#1e293b);color:var(--clr-text,#f1f5f9);font-size:1rem;outline:none;">
+        <input name="email" type="email" placeholder="Your Email" required style="padding:14px 16px;border-radius:10px;border:1px solid #334155;background:var(--clr-surface,#1e293b);color:var(--clr-text,#f1f5f9);font-size:1rem;outline:none;">
+        <input name="phone" type="tel" placeholder="Your Phone" style="padding:14px 16px;border-radius:10px;border:1px solid #334155;background:var(--clr-surface,#1e293b);color:var(--clr-text,#f1f5f9);font-size:1rem;outline:none;">
+        <textarea name="message" placeholder="Your Message" rows="4" required style="padding:14px 16px;border-radius:10px;border:1px solid #334155;background:var(--clr-surface,#1e293b);color:var(--clr-text,#f1f5f9);font-size:1rem;resize:vertical;outline:none;"></textarea>
+        <button type="submit" style="padding:15px;border-radius:10px;background:var(--clr-accent,#22c55e);color:#fff;font-size:1rem;font-weight:700;border:none;cursor:pointer;letter-spacing:0.02em;">Send Message</button>
       </form>
     </div>
   </section>`;
@@ -1153,7 +1162,7 @@ const buildWebsite = inngest.createFunction(
             }
           }
         }
-        let html = injectEssentials(navFixedHtml, clientEmail, clientPhone, jobId, ga4Id, tawktoPropertyId);
+        let html = injectEssentials(navFixedHtml, clientEmail, clientPhone, jobId, ga4Id, tawktoPropertyId, userInput.businessAddress || "", userInput.businessName || "");
         html = injectImages(html, logoUrl, effectiveHeroUrl, augmentedPhotoUrls, productsWithPhotos);
         return html;
       });
