@@ -2264,6 +2264,15 @@ function ClientCard({ c, secret, dark, toast }: { c:ClientAnalytics; secret:stri
           {((c as any).metadata?.serviceType==="social"||(c as any).metadata?.serviceType==="both")&&<Pill color={T.purple}>📱 Social</Pill>}
         </div>
 
+        {!((c as any).metadata?.serviceType==="social"||(c as any).metadata?.serviceType==="both") && (
+          <div style={{ marginBottom:8 }} onClick={e=>e.stopPropagation()}>
+            <button onClick={async(e)=>{e.stopPropagation();if(!confirm("Unlock Social Media for "+c.businessName+"?"))return;
+              await fetch("/api/admin/clients",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:c.jobId,metadata:{...((c as any).metadata||{}),serviceType:"social"}})}).catch(()=>{});
+              toast("Social media unlocked for "+c.businessName,"ok");
+            }} style={{ background:"transparent", color:T.purple, border:`1px solid ${T.purple}55`, borderRadius:8, padding:"5px 12px", fontSize:11, fontWeight:500, cursor:"pointer", textDecoration:"none" }}>📱 Unlock Social</button>
+          </div>
+        )}
+
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:T.textMuted, borderTop:`1px solid ${T.border}`, paddingTop:12, marginTop:"auto" }}>
           <div style={{ display:"flex", flexDirection:"column" as const, alignItems:"center" }}>
             <span style={{ fontSize:17, fontWeight:700, color:T.blue, letterSpacing:"-0.02em" }}>{a?.thisMonth.views??0}</span>
@@ -3265,7 +3274,7 @@ function SocialView({ clients }: { clients: ClientAnalytics[] }) {
       urls:["https://business.google.com","https://www.youtube.com/create_channel"] },
     { step:"9",  icon:"📌", title:"Connect to Postiz",          desc:"Add client as a new Brand in Postiz. Connect all platforms via OAuth — no login sharing. All posts route through here.",
       urls:["https://app.postiz.com","https://app.postiz.com"] },
-    { step:"10", icon:"🗓️", title:"Set posting schedule",     desc:"Agree frequency (e.g. 3×/week), platforms, tone. Set in client portal Social tab. Confirm auto-post vs. manual approval.",
+    { step:"10", icon:"🗓️", title:"Set posting schedule",     desc:"Agree frequency — standard plan is 12 posts/month total (split across platforms, not per platform). Set in client portal Social tab. Confirm auto-post vs. manual approval.",
       urls:[] },
     { step:"11", icon:"🤖", title:"Configure AI brand voice", desc:"Note industry, tone preferences, content restrictions in client record. Seeds the caption generator.",
       urls:[] },
@@ -3667,6 +3676,177 @@ function LegalDocsPanel() {
   );
 }
 
+function OriginsView() {
+  const PRODUCTS = [
+    { id:"hexcoaster-single", name:"Hex Coaster — Single", sku:"HC-S", price:14.95, color:"#00d4a0" },
+    { id:"hexcoaster-set4",   name:"Hex Coaster — Set of 4", sku:"HC-4", price:49.95, color:"#4f9eff" },
+    { id:"hexcoaster-set6",   name:"Hex Coaster — Set of 6", sku:"HC-6", price:69.95, color:"#b085ff" },
+    { id:"keychain",          name:"Custom Keychain", sku:"KC-1", price:12.95, color:"#ff6b6b" },
+    { id:"custom",            name:"Custom Order", sku:"CUSTOM", price:0, color:"#ffc107" },
+  ];
+
+  const [stock, setStock] = useState<Record<string,number>>(() => {
+    try { return JSON.parse(localStorage.getItem("wg_origins_stock")||"{}"); } catch { return {}; }
+  });
+  const [orders, setOrders] = useState<any[]>(() => {
+    try { return JSON.parse(localStorage.getItem("wg_origins_orders")||"[]"); } catch { return []; }
+  });
+  const [newOrder, setNewOrder] = useState({ product:"hexcoaster-single", qty:1, channel:"Shopify", customer:"", note:"" });
+  const [addingOrder, setAddingOrder] = useState(false);
+  const [editingStock, setEditingStock] = useState<string|null>(null);
+  const [stockInput, setStockInput] = useState("");
+
+  function saveStock(s: Record<string,number>) { setStock(s); localStorage.setItem("wg_origins_stock", JSON.stringify(s)); }
+  function saveOrders(o: any[]) { setOrders(o); localStorage.setItem("wg_origins_orders", JSON.stringify(o)); }
+
+  const totalRevenue = orders.reduce((a,o) => {
+    const p = PRODUCTS.find(p=>p.id===o.product);
+    return a + (p ? p.price * o.qty : 0);
+  }, 0);
+  const totalOrders = orders.length;
+  const totalUnits = orders.reduce((a,o)=>a+o.qty,0);
+  const lowStock = PRODUCTS.filter(p => (stock[p.id]||0) < 5);
+
+  const cardS: React.CSSProperties = { background:T.surface, border:`1px solid ${T.border}`, borderRadius:12, padding:"18px 20px" };
+  const labelS: React.CSSProperties = { fontSize:10, fontWeight:700, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:10 };
+
+  return (
+    <div style={{ maxWidth:900, margin:"0 auto", display:"flex", flexDirection:"column", gap:20 }}>
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+        <div style={{ width:44, height:44, borderRadius:12, background:"linear-gradient(135deg,#00d4a0,#4f9eff)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>⬡</div>
+        <div>
+          <div style={{ fontSize:20, fontWeight:900, color:T.text, letterSpacing:"-0.02em" }}>3D Origins</div>
+          <div style={{ fontSize:12, color:T.textMuted }}>3dorigins.com.au — Hex Coasters & Custom 3D Prints</div>
+        </div>
+        <a href="https://3dorigins.com.au" target="_blank" rel="noreferrer" style={{ marginLeft:"auto", fontSize:12, color:T.blue, textDecoration:"none", border:`1px solid ${T.blue}40`, borderRadius:7, padding:"5px 12px", fontWeight:600 }}>Open Store →</a>
+      </div>
+
+      {/* KPI row */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12 }}>
+        {[
+          { label:"Total Revenue", value:`$${totalRevenue.toFixed(2)}`, color:"#00d4a0", icon:"💰" },
+          { label:"Total Orders", value:String(totalOrders), color:"#4f9eff", icon:"📦" },
+          { label:"Units Sold", value:String(totalUnits), color:"#b085ff", icon:"🏭" },
+          { label:"Low Stock Items", value:String(lowStock.length), color: lowStock.length>0 ? "#ff6b6b" : "#00d4a0", icon:"⚠️" },
+        ].map(k => (
+          <div key={k.label} style={{ background:T.surface, border:`1px solid ${k.color}28`, borderRadius:12, padding:"16px 18px" }}>
+            <div style={{ fontSize:18 }}>{k.icon}</div>
+            <div style={{ fontSize:22, fontWeight:800, color:k.color, marginTop:6 }}>{k.value}</div>
+            <div style={{ fontSize:10, color:T.textMuted, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", marginTop:4 }}>{k.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+        {/* Stock tracker */}
+        <div style={cardS}>
+          <div style={labelS}>Stock Levels</div>
+          {PRODUCTS.map(p => {
+            const qty = stock[p.id] || 0;
+            const isLow = qty < 5;
+            const isEditing = editingStock === p.id;
+            return (
+              <div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10, padding:"8px 10px", borderRadius:8, background:isLow ? "#ff6b6b10" : T.raised, border:`1px solid ${isLow?"#ff6b6b30":T.border}` }}>
+                <div style={{ width:8, height:8, borderRadius:"50%", background:p.color, flexShrink:0 }}/>
+                <div style={{ flex:1, fontSize:12, color:T.text, fontWeight:600 }}>{p.name}</div>
+                {isEditing ? (
+                  <div style={{ display:"flex", gap:6 }}>
+                    <input autoFocus value={stockInput} onChange={e=>setStockInput(e.target.value)} type="number" min="0"
+                      style={{ width:60, background:T.raised, border:`1px solid ${T.border}`, borderRadius:6, padding:"3px 8px", color:T.text, fontSize:12, outline:"none" }}
+                      onKeyDown={e=>{if(e.key==="Enter"){const n=parseInt(stockInput)||0;saveStock({...stock,[p.id]:n});setEditingStock(null);}if(e.key==="Escape")setEditingStock(null);}}/>
+                    <button onClick={()=>{const n=parseInt(stockInput)||0;saveStock({...stock,[p.id]:n});setEditingStock(null);}} style={{ background:T.green+"20", border:`1px solid ${T.green}40`, color:T.green, borderRadius:6, padding:"3px 8px", fontSize:11, cursor:"pointer" }}>✓</button>
+                  </div>
+                ) : (
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <span style={{ fontSize:14, fontWeight:800, color: isLow?"#ff6b6b":T.text }}>{qty}</span>
+                    <span style={{ fontSize:10, color:T.textMuted }}>units</span>
+                    <button onClick={()=>{setEditingStock(p.id);setStockInput(String(qty));}} style={{ background:"none", border:`1px solid ${T.border}`, borderRadius:5, padding:"2px 7px", fontSize:10, color:T.textMuted, cursor:"pointer" }}>Edit</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Add order */}
+        <div style={cardS}>
+          <div style={labelS}>Log Order</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            <div>
+              <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Product</div>
+              <select value={newOrder.product} onChange={e=>setNewOrder(o=>({...o,product:e.target.value}))}
+                style={{ width:"100%", background:T.raised, border:`1px solid ${T.border}`, borderRadius:7, padding:"7px 10px", color:T.text, fontSize:12, outline:"none" }}>
+                {PRODUCTS.map(p=><option key={p.id} value={p.id}>{p.name} — ${p.price}</option>)}
+              </select>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+              <div>
+                <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Qty</div>
+                <input type="number" min="1" value={newOrder.qty} onChange={e=>setNewOrder(o=>({...o,qty:parseInt(e.target.value)||1}))}
+                  style={{ width:"100%", background:T.raised, border:`1px solid ${T.border}`, borderRadius:7, padding:"7px 10px", color:T.text, fontSize:12, outline:"none", boxSizing:"border-box" }}/>
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Channel</div>
+                <select value={newOrder.channel} onChange={e=>setNewOrder(o=>({...o,channel:e.target.value}))}
+                  style={{ width:"100%", background:T.raised, border:`1px solid ${T.border}`, borderRadius:7, padding:"7px 10px", color:T.text, fontSize:12, outline:"none" }}>
+                  {["Shopify","Etsy","Instagram DM","Facebook DM","In Person","Other"].map(c=><option key={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Customer name</div>
+              <input value={newOrder.customer} onChange={e=>setNewOrder(o=>({...o,customer:e.target.value}))} placeholder="Optional"
+                style={{ width:"100%", background:T.raised, border:`1px solid ${T.border}`, borderRadius:7, padding:"7px 10px", color:T.text, fontSize:12, outline:"none", boxSizing:"border-box" }}/>
+            </div>
+            <div>
+              <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Note</div>
+              <input value={newOrder.note} onChange={e=>setNewOrder(o=>({...o,note:e.target.value}))} placeholder="e.g. custom colour, gift wrap"
+                style={{ width:"100%", background:T.raised, border:`1px solid ${T.border}`, borderRadius:7, padding:"7px 10px", color:T.text, fontSize:12, outline:"none", boxSizing:"border-box" }}/>
+            </div>
+            <button onClick={()=>{
+              const p = PRODUCTS.find(x=>x.id===newOrder.product)!;
+              const order = { id:Date.now(), ...newOrder, productName:p.name, price:p.price, date:new Date().toISOString() };
+              saveOrders([order,...orders]);
+              // Deduct from stock
+              saveStock({...stock,[newOrder.product]:Math.max(0,(stock[newOrder.product]||0)-newOrder.qty)});
+              setNewOrder({ product:"hexcoaster-single", qty:1, channel:"Shopify", customer:"", note:"" });
+            }} style={{ background:"linear-gradient(135deg,#00d4a0,#4f9eff)", border:"none", borderRadius:9, padding:"10px", fontSize:13, fontWeight:700, color:"#fff", cursor:"pointer" }}>
+              + Log Order
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Order history */}
+      <div style={cardS}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+          <div style={labelS}>Order History ({orders.length})</div>
+          {orders.length > 0 && <button onClick={()=>{if(confirm("Clear all order history?"))saveOrders([]);}} style={{ fontSize:11, color:T.red, background:"none", border:`1px solid ${T.red}30`, borderRadius:6, padding:"3px 10px", cursor:"pointer" }}>Clear all</button>}
+        </div>
+        {orders.length === 0 && <div style={{ fontSize:13, color:T.textMuted, textAlign:"center", padding:"20px 0" }}>No orders logged yet.</div>}
+        <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:300, overflowY:"auto" }}>
+          {orders.map((o:any) => {
+            const p = PRODUCTS.find(x=>x.id===o.product);
+            return (
+              <div key={o.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:T.raised, borderRadius:8, border:`1px solid ${T.border}` }}>
+                <div style={{ width:6, height:6, borderRadius:"50%", background:p?.color||T.textMuted, flexShrink:0 }}/>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:T.text }}>{o.productName} ×{o.qty}</div>
+                  <div style={{ fontSize:11, color:T.textMuted }}>{o.channel}{o.customer ? ` — ${o.customer}` : ""}{o.note ? ` · ${o.note}` : ""}</div>
+                </div>
+                <div style={{ fontSize:13, fontWeight:700, color:"#00d4a0" }}>${(p ? p.price*o.qty : 0).toFixed(2)}</div>
+                <div style={{ fontSize:10, color:T.textMuted }}>{new Date(o.date).toLocaleDateString("en-AU",{day:"numeric",month:"short"})}</div>
+                <button onClick={()=>saveOrders(orders.filter((x:any)=>x.id!==o.id))} style={{ fontSize:11, color:T.textMuted, background:"none", border:"none", cursor:"pointer", padding:"2px 6px" }}>✕</button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AdminDashboard() {
   const [dark, setDark] = useState(true);
   useEffect(()=>{ const s=localStorage.getItem("wg_admin_theme"); setDark(s!=="light"); },[]);
@@ -3675,7 +3855,7 @@ function AdminDashboard() {
   const [clients, setClients] = useState<ClientAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [view, setView] = useState<"analytics"|"clients"|"logs"|"social"|"history">("analytics");
+  const [view, setView] = useState<"analytics"|"clients"|"logs"|"social"|"history"|"3dorigins">("analytics");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all"|"active"|"building"|"unpaid">("all");
   const [sort, setSort] = useState<"views"|"name"|"status">("views");
@@ -3815,6 +3995,7 @@ function AdminDashboard() {
               { v:"social"    as const, label:"Social Media", svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="3" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="3" r="2" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.5"/><line x1="4.9" y1="6.5" x2="10.1" y2="4" stroke="currentColor" strokeWidth="1.3"/><line x1="4.9" y1="8.5" x2="10.1" y2="11" stroke="currentColor" strokeWidth="1.3"/></svg> },
               { v:"logs"      as const, label:"Pipeline",     svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 4h11M2 7.5h8M2 11h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
               { v:"history"   as const, label:"History",      svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" strokeWidth="1.5"/><path d="M7.5 4.5v3.5l2.5 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+              { v:"3dorigins" as const, label:"3D Origins", svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 1L13 4.5v6L7.5 14 2 10.5v-6L7.5 1z" stroke="currentColor" strokeWidth="1.4"/><path d="M7.5 5L11 7.5 7.5 10 4 7.5 7.5 5z" fill="currentColor" opacity="0.6"/></svg> },
             ]).map(({v,svg,label}) => (
               <button key={v} onClick={()=>setView(v)} className={`wg-sidebar-item${view===v?" active":""}`}
                 style={{ color: view===v ? T.purple : T.textMuted }}>
@@ -3858,6 +4039,7 @@ function AdminDashboard() {
               { v:"social"    as const, svg:<svg width="14" height="14" viewBox="0 0 15 15" fill="none"><circle cx="3" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="3" r="2" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.5"/><line x1="4.9" y1="6.5" x2="10.1" y2="4" stroke="currentColor" strokeWidth="1.3"/><line x1="4.9" y1="8.5" x2="10.1" y2="11" stroke="currentColor" strokeWidth="1.3"/></svg> },
               { v:"logs"      as const, svg:<svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M2 4h11M2 7.5h8M2 11h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
               { v:"history"   as const, svg:<svg width="14" height="14" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" strokeWidth="1.5"/><path d="M7.5 4.5v3.5l2.5 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+              { v:"3dorigins" as const, svg:<svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M7.5 1L13 4.5v6L7.5 14 2 10.5v-6L7.5 1z" stroke="currentColor" strokeWidth="1.4"/><path d="M7.5 5L11 7.5 7.5 10 4 7.5 7.5 5z" fill="currentColor" opacity="0.6"/></svg> },
             ]).map(({v,svg}) => (
               <button key={v} onClick={()=>setView(v)} style={{ background:view===v?T.raised:"transparent", border:`1px solid ${view===v?T.border:"transparent"}`, borderRadius:7, width:32,height:30, display:"flex",alignItems:"center",justifyContent:"center", cursor:"pointer", color:view===v?T.text:T.textMuted }}>{svg}</button>
             ))}
@@ -3921,6 +4103,7 @@ function AdminDashboard() {
         {view==="logs"&&<PipelineLogsPanel/>}
         {view==="social"&&<SocialView clients={clients}/>}
         {view==="history"&&<HistoryView/>}
+        {view==="3dorigins"&&<OriginsView/>}
 
         {view==="clients"&&(<>
         {/* Client grid header with service-type sub-tabs */}

@@ -164,3 +164,29 @@ export async function GET(req: NextRequest) {
 
   return Response.json({ clients });
 }
+
+export async function PATCH(req: NextRequest) {
+  if (!isAdminAuthedLegacy(req)) return Response.json({ error: "Forbidden" }, { status: 403 });
+  const { jobId, metadata } = await req.json();
+  if (!jobId) return Response.json({ error: "Missing jobId" }, { status: 400 });
+
+  // Fetch current job metadata
+  const { data: jobRow, error: fetchErr } = await supabase
+    .from("jobs")
+    .select("metadata")
+    .eq("id", jobId)
+    .single();
+
+  if (fetchErr || !jobRow) return Response.json({ error: "Not found" }, { status: 404 });
+
+  const merged = { ...(jobRow.metadata || {}), ...metadata };
+
+  const { error: updateErr } = await supabase
+    .from("jobs")
+    .update({ metadata: merged })
+    .eq("id", jobId);
+
+  if (updateErr) return Response.json({ error: updateErr.message }, { status: 500 });
+
+  return Response.json({ ok: true });
+}

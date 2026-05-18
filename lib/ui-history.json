@@ -622,5 +622,29 @@
     "lines": 4050,
     "description": "\"Updated admin dashboard\"",
     "type": "feat"
+  },
+  {
+    "version": "v79",
+    "date": "2026-05-18",
+    "commit": "pending",
+    "lines": 4233,
+    "description": "Fix: pipeline process errors — smoke delay, active page, nav whitelist, Square variationId, pre-validate ensureMultiPage",
+    "type": "feat"
+  },
+  {
+    "version": "v80",
+    "date": "2026-05-18",
+    "commit": "pending",
+    "lines": 4233,
+    "description": "Fix: pipeline process errors — smoke delay, active page, nav whitelist, Square variationId, pre-validate ensureMultiPage",
+    "type": "feat"
+  },
+  {
+    "version": "v81",
+    "date": "2026-05-18",
+    "commit": "pending",
+    "lines": 4233,
+    "description": "\"Updated admin dashboard\"",
+    "type": "feat"
   }
 ]
