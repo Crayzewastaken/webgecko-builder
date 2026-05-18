@@ -528,6 +528,7 @@ const buildWebsite = inngest.createFunction(
         // ── Three-tier CTA keyword system ────────────────────────────────────────────
         // booking → link to bookingUrl externally (if external URL, no iframe) or scroll to #booking
         // contact → always scroll to #contact, never #booking
+        // shop → navigate to shop page (for shop-based sites)
         // general → scroll to bookingNavTarget (booking if available, else contact)
         const bookingCtaKeywords = [
           'book now','book a session','book a call','book a consult','book consultation','book free',
@@ -539,13 +540,25 @@ const buildWebsite = inngest.createFunction(
         const contactCtaKeywords = [
           'get in touch','contact us','reach out',
         ];
+        // Shop-specific CTAs — navigate to shop page
+        const shopCtaKeywords = [
+          'shop the setup','shop now','shop','buy the kit','buy kit','buy setup',
+          'add to cart','view products','browse products','view shop','shop products',
+          'get the kit','grab the kit','order kit',
+        ];
+        // Demo/video CTAs — navigate to shop (usually a video-demo product) or stay on page
+        const demoCtaKeywords = [
+          'watch demo','watch the demo','see it in action','view demo','demo',
+          'see demo','try demo','watch it','watch now',
+        ];
         const generalCtaKeywords = [
           'get started','get a quote','get free quote','get quote',
           'enquire now','enquire','learn more','find out more','discover more',
           'request a quote','request quote','order now','buy now',
           'explore capability','explore','launch',
+          'login','log in','sign in',  // For shop sites, login = go to shop/contact
         ];
-        const allCtaKeywords = [...bookingCtaKeywords, ...contactCtaKeywords, ...generalCtaKeywords];
+        const allCtaKeywords = [...bookingCtaKeywords, ...contactCtaKeywords, ...shopCtaKeywords, ...demoCtaKeywords, ...generalCtaKeywords];
 
         // ctaExternalUrl: explicit URL from additionalNotes/goal takes top priority.
         // Falls back to bookingUrl when hasBookingFeature is false (user provided own booking link).
@@ -555,17 +568,31 @@ const buildWebsite = inngest.createFunction(
           ? effectiveExternalCta.replace(/^https?:\/\/(?:www\.)?/, "").split("/")[0].toLowerCase()
           : "";
 
+        // Does this site have a shop page?
+        const hasShopPage = features.includes("Payments / Shop") || (userInput.pages || []).some((p: string) => normalizePageId(p) === "shop");
+
         // Booking CTA destination:
         const bookingCtaOnclick = effectiveExternalCta
           ? `window.open('${effectiveExternalCta}','_blank')`
           : `event.preventDefault();window.navigateTo&&window.navigateTo('${hasBookingFeature ? "booking" : "contact"}')`;
         const contactCtaOnclick = `event.preventDefault();window.navigateTo&&window.navigateTo('contact')`;
+        // Shop CTAs: go to shop page if it exists, else contact
+        const shopCtaOnclick = `event.preventDefault();window.navigateTo&&window.navigateTo('${hasShopPage ? "shop" : "contact"}')`;
+        // Demo CTAs: go to shop page (usually has product demo), or open external CTA if provided
+        const demoCtaOnclick = effectiveExternalCta
+          ? `window.open('${effectiveExternalCta}','_blank')`
+          : `event.preventDefault();window.navigateTo&&window.navigateTo('${hasShopPage ? "shop" : "contact"}')`;
         // General CTAs (Get Started, Explore, etc.) use explicit CTA URL when provided
+        // For shop sites: "Get Started", "Login" etc. go to shop not booking
         const generalCtaOnclick = effectiveExternalCta
           ? `window.open('${effectiveExternalCta}','_blank')`
-          : `event.preventDefault();window.navigateTo&&window.navigateTo('${bookingNavTarget}')`;
+          : hasShopPage
+            ? `event.preventDefault();window.navigateTo&&window.navigateTo('shop')`
+            : `event.preventDefault();window.navigateTo&&window.navigateTo('${bookingNavTarget}')`;
 
         const getCtaOnclick = (txt: string): string => {
+          if (shopCtaKeywords.some((k: string) => txt.includes(k))) return shopCtaOnclick;
+          if (demoCtaKeywords.some((k: string) => txt.includes(k))) return demoCtaOnclick;
           if (bookingCtaKeywords.some((k: string) => txt.includes(k))) return bookingCtaOnclick;
           if (contactCtaKeywords.some((k: string) => txt.includes(k))) return contactCtaOnclick;
           return generalCtaOnclick;
@@ -1360,9 +1387,25 @@ const buildWebsite = inngest.createFunction(
           const unlinked = catalogueItems.filter((_: any, i: number) => !html.includes(`data-product-index="${i}"`));
           if (unlinked.length > 0) {
             // Skip items with no paymentLinkUrl (variationId was missing — Square could not create a checkout link)
-            const cards = catalogueItems.filter((item: any) => !!item.paymentLinkUrl).map((item: any, i: number) => `  <div style="background:#1e293b;border-radius:12px;padding:24px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;"><h3 style="color:#f1f5f9;font-size:1.1rem;font-weight:700;margin:0;">${item.name}</h3><p style="color:#10b981;font-weight:700;font-size:1.2rem;margin:0;">$${(item.priceCents/100).toFixed(2)}</p><a href="${item.paymentLinkUrl}" target="_blank" rel="noopener" class="wg-buy-btn" data-product-index="${i}" style="display:inline-block;background:#006aff;color:#fff;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;width:100%;">Buy Now</a></div>`).join("\n");
+            const cards = catalogueItems.filter((item: any) => !!item.paymentLinkUrl).map((item: any, i: number) => {
+              const photoHtml = item.photoUrl ? `<img src="${item.photoUrl}" alt="${item.name}" style="width:100%;height:180px;object-fit:cover;border-radius:8px;margin-bottom:12px;"/>` : '';
+              return `  <div style="background:#1e293b;border-radius:12px;padding:24px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;">${photoHtml}<h3 style="color:#f1f5f9;font-size:1.1rem;font-weight:700;margin:0;">${item.name}</h3><p style="color:#10b981;font-weight:700;font-size:1.2rem;margin:0;">$${(item.priceCents/100).toFixed(2)}</p><a href="${item.paymentLinkUrl}" target="_blank" rel="noopener" class="wg-buy-btn" data-product-index="${i}" style="display:inline-block;background:#006aff;color:#fff;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;width:100%;">Buy Now</a></div>`;
+            }).join("\n");
             if (cards.length === 0) console.warn("[Step7] No products have payment links (variationId missing for all) — skipping shop injection");
-            if (cards.length > 0) html = html.replace("</body>", `<section id="shop" style="padding:80px 24px;background:#0f172a;"><div style="max-width:1200px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;text-align:center;margin:0 0 48px;">Shop</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:24px;">${cards}</div></div></section>\n</body>`);
+            if (cards.length > 0) {
+              const newShopSection = `<section id="shop" data-page="shop" style="padding:80px 24px;background:#0f172a;"><div style="max-width:1200px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;text-align:center;margin:0 0 48px;">Shop</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:24px;">${cards}</div></div></section>`;
+              // Replace existing Stitch shop section if present (it has wrong/placeholder products)
+              // This prevents a double shop section (Stitch placeholder + our real one)
+              const stitchShopRe = /<(?:section|div)[^>]*(?:id|data-page)=["']shop["'][^>]*>[\s\S]*?<\/(?:section|div)>/gi;
+              if (stitchShopRe.test(html)) {
+                console.log("[Step7] Replacing existing Stitch shop section with real products");
+                html = html.replace(/<(?:section|div)[^>]*(?:id|data-page)=["']shop["'][^>]*>[\s\S]*?<\/(?:section|div)>/gi, newShopSection);
+              } else {
+                // No existing shop section — insert before </body>
+                html = html.replace("</body>", newShopSection + "\n</body>");
+              }
+              console.log(`[Step7] Injected ${catalogueItems.filter((i: any) => !!i.paymentLinkUrl).length} real products into shop section`);
+            }
           }
           const squareBadge = clientSquareToken ? `<div style="text-align:center;margin-top:16px;padding:8px;"><p style="color:rgba(255,255,255,0.4);font-size:11px;margin:0;">Secure checkout powered by Square</p></div>` : "";
           html = html.replace(/(<section[^>]*(?:id|class)="[^"]*shop[^"]*"[^>]*>[\s\S]*?)(<\/section>)/gi, (_m: string, body: string, close: string) => body + squareBadge + close);
@@ -2143,7 +2186,7 @@ const featureInject = inngest.createFunction(
       const idx = requests.findIndex((r: any) => r.id === requestId);
       if (idx !== -1) {
         requests[idx] = { ...requests[idx], status: "draft", draftUrl: draftSiteUrl, updatedAt: new Date().toISOString() };
-        await supabase.from("jobs").update({ metadata: { ...(jobRow?.metadata || {}), featureRequests: requests } }).eq("id", jobId);
+        await supabase.from("jobs").update({ metadata: { ...(jobRow?.metadata || {}), eatureRequests: requests } }).eq("id", jobId);
       }
 
       // Notify admin
@@ -2160,36 +2203,21 @@ const featureInject = inngest.createFunction(
 <p>Once you're happy, go to <a href="${adminUrl}" style="color:#00c896;">Admin Dashboard</a> → Feature Requests → mark as <strong>Live</strong> to push to the client's real site.</p>
 </div>`,
       });
-
-      console.log("[FeatureInject] Draft deployed:", draftSiteUrl, "for", featureId, "job", jobId);
-      return draftSiteUrl;
     });
-
-    return { ok: true, draftUrl };
   }
 );
 
-// ─── Feature Go Live ──────────────────────────────────────────────────────────
-// When admin marks a feature request as "live", we push the draft HTML
-// to the real site by triggering a rebuild with the new feature included.
-
 const featureGoLive = inngest.createFunction(
-  {
-    id: "feature-go-live",
-    name: "Go Live with Feature",
-    retries: 1,
-    triggers: [{ event: "feature/go-live" }],
-  },
-  async ({ event, step }: { event: { data: { jobId: string; requestId: string; featureId: string } }; step: any }) => {
-    const { jobId, requestId, featureId } = event.data;
-
+  { id: "feature-go-live", name: "Feature Go Live", triggers: [{ event: "feature/go-live" }] },
+  async ({ event, step }: { event: { data: { jobId: string; requestId: string } }; step: any }) => {
+    const { jobId, requestId } = event.data;
     await step.run("update-job-features-and-rebuild", async () => {
       const job = await getJob(jobId);
       if (!job) throw new Error("Job not found");
 
       const userInput = job.userInput || {};
       const existingFeatures: string[] = Array.isArray(userInput.features) ? userInput.features : [];
-      const newFeatures = [...new Set([...existingFeatures, featureId])];
+      const newFeatures = [...new Set([...existingFeatures, requestId])];
 
       // Persist the new feature into userInput
       await saveJob(jobId, { userInput: { ...userInput, features: newFeatures } });
@@ -2198,7 +2226,7 @@ const featureGoLive = inngest.createFunction(
     // BUG-03 FIX: trigger a rebuild so the new feature is actually built into the site
     await inngest.send({
       name: "build/website",
-      data: { jobId: event.data.jobId, isRebuild: true, features: [event.data.featureId] },
+      data: { jobId: jobId, isRebuild: true },
     });
   }
 );

@@ -195,14 +195,16 @@ export async function auditAndFixSite(
   }
 
   // Fix 3b: ensure required semantic IDs exist (hero, testimonials, faq) regardless of multi-page
-  // These are checked by the smoke test and checklist — add them if content exists but id is missing
-  const semanticIds: Array<{ id: string; patterns: RegExp[] }> = [
+  // For multi-page sites skip testimonials/faq id stamping — they belong to specific page wrappers
+  // and the injection in Fix 5/6 handles them. Only stamp hero since it's always on the home page.
+  const semanticIds: Array<{ id: string; patterns: RegExp[]; skipForMultiPage?: boolean }> = [
     { id: "hero", patterns: [/class="[^"]*hero/i, /full.{0,10}viewport|min-height:\s*100vh|100vmin/i] },
-    { id: "testimonials", patterns: [/class="[^"]*(?:testimonial|review)/i, /what.*(?:client|customer).*say|our.*review/i] },
-    { id: "faq", patterns: [/class="[^"]*(?:faq|accordion)/i, /frequently.asked|common.question/i] },
+    { id: "testimonials", patterns: [/class="[^"]*(?:testimonial|review)/i, /what.*(?:client|customer).*say|our.*review/i], skipForMultiPage: true },
+    { id: "faq", patterns: [/class="[^"]*(?:faq|accordion)/i, /frequently.asked|common.question/i], skipForMultiPage: true },
   ];
-  for (const { id, patterns } of semanticIds) {
+  for (const { id, patterns, skipForMultiPage } of semanticIds) {
     if (fixed.includes(`id="${id}"`)) continue; // already present
+    if (isMultiPage && skipForMultiPage) continue; // let Fix 5/6 handle page-specific injection
     for (const pat of patterns) {
       // Find a section/div matching pattern, add id if it lacks one
       let added = false;
@@ -234,7 +236,16 @@ export async function auditAndFixSite(
       `<button type="submit" style="background:${clrAcct};color:#fff;font-weight:700;padding:16px;border:none;border-radius:8px;font-size:1rem;cursor:pointer;">Send Message</button>`,
       '</form></div></section>',
     ].join("");
-    fixed = addSectionIdSmart(fixed, "contact", [/contact|get-in-touch|contactus|reach-us/i], [/contact us|get in touch|reach us|enquire|send.*message/i], fb);
+    if (isMultiPage) {
+      // For multi-page: inject inside contact page wrapper, or home as fallback
+      fixed = injectIntoPageWrapper(fixed, fb, ["contact", "home"]);
+      if (!fixed.includes('id="contact"')) {
+        // If no wrapper found yet, stamp id on the wrapper we just inserted into
+        fixed = fixed.replace(/(<(?:div|section)[^>]*data-page=["']contact["'][^>]*>)/, (m: string) => m.replace(/>$/, ' id="contact-page">'));
+      }
+    } else {
+      fixed = addSectionIdSmart(fixed, "contact", [/contact|get-in-touch|contactus|reach-us/i], [/contact us|get in touch|reach us|enquire|send.*message/i], fb);
+    }
     mark(AuditErrorType.MISSING_CONTACT);
   }
 
@@ -291,14 +302,18 @@ export async function auditAndFixSite(
       `</details>`
     ).join("");
     const faqSection = `<section id="faq" style="padding:80px 24px;background:${clrBg2};"><div style="max-width:800px;margin:0 auto;"><h2 style="color:${clrText};font-size:2rem;font-weight:900;margin:0 0 40px;">Frequently Asked Questions</h2>${faqHtml}</div></section>`;
-    fixed = addSectionIdSmart(fixed, "faq", [/faq|frequently|accordion|faqs|questions|q-and-a|qa-section|q_a/i], [/faq|frequently asked|common questions|have a question/i], faqSection);
+    if (isMultiPage) {
+      // For multi-page: inject into faq page wrapper, or home as fallback
+      fixed = injectIntoPageWrapper(fixed, faqSection, ["faq", "home"]);
+    } else {
+      fixed = addSectionIdSmart(fixed, "faq", [/faq|frequently|accordion|faqs|questions|q-and-a|qa-section|q_a/i], [/faq|frequently asked|common questions|have a question/i], faqSection);
+    }
     mark(AuditErrorType.MISSING_FAQ);
   }
 
   // Fix 6: testimonials
   if (has(AuditErrorType.MISSING_TESTIMONIALS)) {
-    fixed = addSectionIdSmart(fixed, "testimonials", [/testimonial|review|clients-say|feedback/i], [/testimonial|what.*client|what.*customer|what people say/i],
-(() => {
+    const testimonialsSection = (() => {
       const tCards = [
         { q: `"Absolutely fantastic — professional, friendly, and great value. Couldn't be happier with the results."`, a: `— Sarah M., Brisbane` },
         { q: `"${businessName} went above and beyond. The whole experience was seamless from start to finish."`, a: "— James T., Gold Coast" },
@@ -312,8 +327,13 @@ export async function auditAndFixSite(
         `</div>`
       ).join("");
       return `<section id="testimonials" style="padding:80px 24px;background:${clrBg};"><div style="max-width:900px;margin:0 auto;"><h2 style="color:${clrText};font-size:2rem;font-weight:900;margin-bottom:32px;">What Our Clients Say</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;">${cards}</div></div></section>`;
-    })()
-    );
+    })();
+    if (isMultiPage) {
+      // For multi-page: inject into home or about page, NOT globally
+      fixed = injectIntoPageWrapper(fixed, testimonialsSection, ["home", "about"]);
+    } else {
+      fixed = addSectionIdSmart(fixed, "testimonials", [/testimonial|review|clients-say|feedback/i], [/testimonial|what.*client|what.*customer|what people say/i], testimonialsSection);
+    }
     mark(AuditErrorType.MISSING_TESTIMONIALS);
   }
 
@@ -603,3 +623,64 @@ function addSectionIdSmart(html: string, id: string, classPatterns: RegExp[], he
   return html.replace('</body>', fallbackSection + '\n</body>');
 }
 
+/**
+ * For multi-page sites: inject `section` HTML inside the closing tag of a specific data-page wrapper.
+ * Tries pageIds in order. Falls back to injecting before </body>.
+ */
+function injectIntoPageWrapper(html: string, sectionHtml: string, preferredPages: string[]): string {
+  for (const pageId of preferredPages) {
+    // Find the data-page wrapper start
+    const dpRe = new RegExp(`data-page=["']${pageId}["']`, 'i');
+    const dpMatch = dpRe.exec(html);
+    if (!dpMatch) continue;
+    // Find the opening tag containing this data-page attribute
+    const tagStart = html.lastIndexOf('<', dpMatch.index);
+    if (tagStart === -1) continue;
+    // Walk forward to find the matching closing tag (simple depth counter)
+    let depth = 0;
+    let i = tagStart;
+    let closePos = -1;
+    while (i < html.length) {
+      // Skip script/style content
+      const lower = html.slice(i, i + 8).toLowerCase();
+      if (lower.startsWith('<script') || lower.startsWith('<style')) {
+        const closeTag = lower.startsWith('<script') ? '</script>' : '</style>';
+        const end = html.indexOf(closeTag, i + 8);
+        if (end === -1) break;
+        i = end + closeTag.length;
+        continue;
+      }
+      if (html[i] === '<') {
+        if (html[i + 1] === '/') {
+          // closing tag
+          if (depth === 0) { closePos = i; break; }
+          depth--;
+          i = html.indexOf('>', i) + 1;
+          if (i === 0) break;
+        } else if (html[i + 1] !== '!') {
+          // opening tag — check if self-closing
+          const gt = html.indexOf('>', i);
+          if (gt === -1) break;
+          const tag = html.slice(i, gt + 1);
+          if (!tag.endsWith('/>')) depth++;
+          i = gt + 1;
+        } else {
+          i = html.indexOf('>', i) + 1;
+          if (i === 0) break;
+        }
+      } else {
+        i++;
+      }
+    }
+    if (closePos !== -1) {
+      console.log(`[Auditor] injecting into data-page="${pageId}" wrapper`);
+      return html.slice(0, closePos) + '\n' + sectionHtml + '\n' + html.slice(closePos);
+    }
+  }
+  // Fallback: before </body>
+  console.log(`[Auditor] injectIntoPageWrapper fallback: before </body>`);
+  if (/<footer[\s>]/i.test(html)) {
+    return html.replace(/<footer[\s>]/i, sectionHtml + '\n<footer ');
+  }
+  return html.replace('</body>', sectionHtml + '\n</body>');
+}
