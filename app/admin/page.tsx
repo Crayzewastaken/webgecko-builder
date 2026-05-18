@@ -1014,7 +1014,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                   {sectionTitle("Live preview")}
                   {c.buildStatus==="building"
                     ? <div style={{borderRadius:10,border:`1px solid ${T.border}`,background:T.raised,height:160,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:T.textMuted,fontSize:13}}>⏳ Building… preview appears when done</div></div>
-                    : <PreviewFrame previewUrl={c.previewUrl} builtAt={deployedAt||c.builtAt} jobId={jid}/>}
+                    : <PreviewFrame key={`${jid}-${deployedAt||c.builtAt||"init"}`} previewUrl={c.previewUrl} builtAt={deployedAt||c.builtAt} jobId={jid}/>}
                 </div>
               )}
               {c.hasBooking&&(

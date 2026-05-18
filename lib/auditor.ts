@@ -89,24 +89,37 @@ export async function auditAndFixSite(
   const requestedPageIds = context.pages.map((p: string) => normalizePageId(p));
 
   if (isMultiPage) {
-    // contact: id="contact" must exist somewhere, or the contact page must have a form
+    // Helper: extract content of a specific data-page wrapper (up to 12kb)
+    const getPageContent = (pageId: string): string => {
+      const marker = `data-page="${pageId}"`;
+      const idx = html.indexOf(marker);
+      if (idx === -1) return "";
+      return html.slice(idx, idx + 12000);
+    };
+    const homeContent = getPageContent("home");
+    const contactContent = getPageContent("contact");
+    const faqContent = getPageContent("faq");
+
+    // contact: id="contact" OR a form inside the contact page wrapper OR a form+contact-heading inside home
     const hasContactId = html.includes('id="contact"');
-    const contactPageHasForm = requestedPageIds.includes("contact")
-      && html.includes('data-page="contact"')
-      && /<form[\s>]/i.test(html.slice(html.indexOf('data-page="contact"'), html.indexOf('data-page="contact"') + 8000));
-    if (!hasContactId && !contactPageHasForm) add(AuditErrorType.MISSING_CONTACT, 'Multi-page: id="contact" missing and no form in contact page');
+    const contactPageHasForm = /<form[\s>]/i.test(contactContent);
+    const homeHasContactForm = /<form[\s>]/i.test(homeContent) && /contact|get in touch|reach|enquir/i.test(homeContent);
+    if (!hasContactId && !contactPageHasForm && !homeHasContactForm) {
+      add(AuditErrorType.MISSING_CONTACT, 'Multi-page: no contact form found in any page wrapper');
+    }
 
-    // faq: id="faq" must exist, or the faq page must have FAQ content
+    // faq: id="faq" OR FAQ content inside any data-page wrapper
     const hasFaqId = html.includes('id="faq"');
-    const faqPageHasContent = requestedPageIds.includes("faq")
-      && html.includes('data-page="faq"')
-      && (html.slice(html.indexOf('data-page="faq"'), html.indexOf('data-page="faq"') + 4000).length > 400);
-    if (!hasFaqId && !faqPageHasContent) add(AuditErrorType.MISSING_FAQ, 'Multi-page: id="faq" missing');
+    const faqPageHasContent = faqContent.length > 400;
+    const homeHasFaq = /faq|frequently.asked|common.*question|accordion|<details/i.test(homeContent);
+    if (!hasFaqId && !faqPageHasContent && !homeHasFaq) {
+      add(AuditErrorType.MISSING_FAQ, 'Multi-page: no FAQ content found in any page wrapper');
+    }
 
-    // testimonials: id="testimonials" must exist, or testimonial content exists somewhere
+    // testimonials: id="testimonials" OR testimonial content inside any data-page wrapper
     const hasTestimonialsId = html.includes('id="testimonials"');
-    const hasTestimonialContent = /testimonial|what.*client.*say|what.*customer/i.test(html);
-    if (!hasTestimonialsId && !hasTestimonialContent) add(AuditErrorType.MISSING_TESTIMONIALS, 'Multi-page: id="testimonials" missing and no testimonial content found');
+    const hasTestimonialContent = /testimonial|what.*client.*say|what.*customer|\u2605\u2605\u2605\u2605|review.*card/i.test(html);
+    if (!hasTestimonialsId && !hasTestimonialContent) add(AuditErrorType.MISSING_TESTIMONIALS, 'Multi-page: no testimonial content found');
   } else {
     // Single-page: all content must be present as top-level sections
     if (!html.includes('id="contact"'))      add(AuditErrorType.MISSING_CONTACT,      'Missing id="contact"');
@@ -360,6 +373,25 @@ export async function auditAndFixSite(
       mark(AuditErrorType.MISSING_COPYRIGHT);
     } else {
       console.warn("[Auditor] MISSING_COPYRIGHT: could not inject copyright — no anchor found");
+    }
+  }
+
+  // Fix: For multi-page sites, hide orphaned sections (contact/faq/testimonials/map)
+  // that exist OUTSIDE the data-page system — they show on every page otherwise.
+  if (isMultiPage) {
+    const mainCloseIdx = fixed.lastIndexOf('</main>');
+    if (mainCloseIdx !== -1) {
+      const afterMain = fixed.slice(mainCloseIdx);
+      const orphanFixed = afterMain.replace(
+        /<(section|div)([^>]*\bid=["'](contact|faq|testimonials|map-section)["'][^>]*)>/gi,
+        (m: string, tag: string, attrs: string) => {
+          if (/display\s*:\s*none/i.test(attrs)) return m;
+          console.log(`[Auditor] Hiding orphaned #${attrs.match(/id=["\']([^\"']+)["\']/)?.at(1)} outside <main>`);
+          if (/\bstyle=["\']/.test(attrs)) return `<${tag}${attrs.replace(/\bstyle=["\']/, 'style="display:none;')}>`;
+          return `<${tag}${attrs} style="display:none;">`;
+        }
+      );
+      fixed = fixed.slice(0, mainCloseIdx) + orphanFixed;
     }
   }
 
