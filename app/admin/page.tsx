@@ -2786,7 +2786,8 @@ function AttentionRow({ cl, badge, color, howToFix, action, onOpen, initials }: 
 function AnalyticsView({ clients, onOpenClient, onClearBuilding }: { clients: ClientAnalytics[]; onOpenClient: (c: ClientAnalytics) => void; onClearBuilding: () => Promise<void> }) {
   const total = clients.length || 1;
   const active = clients.filter(c=>c.paymentState?.monthlyActive).length;
-  const mrr = active * 109;
+  const MONTHLY_PRICE = 109; // ← update this when pricing changes
+  const mrr = active * MONTHLY_PRICE;
   const todayViews = clients.reduce((a,c)=>a+(c.analytics?.today.views||0),0);
   const monthViews = clients.reduce((a,c)=>a+(c.analytics?.thisMonth.views||0),0);
   const totalBookings = clients.reduce((a,c)=>a+c.bookingCount,0);
@@ -4008,7 +4009,7 @@ function AdminDashboard() {
     active:clients.filter(c=>c.paymentState?.monthlyActive).length,
     views:clients.reduce((a,c)=>a+(c.analytics?.thisMonth.views||0),0),
     bookings:clients.reduce((a,c)=>a+c.bookingCount,0),
-    mrr:clients.filter(c=>c.paymentState?.monthlyActive).length*109,
+    mrr:clients.filter(c=>c.paymentState?.monthlyActive).length*109, // sync with MONTHLY_PRICE above
   };
 
   const inp:React.CSSProperties={flex:1,minWidth:200,background:T.raised,border:`1px solid ${T.border}`,borderRadius:9,padding:"9px 14px",color:T.text,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",transition:"border-color 0.2s, box-shadow 0.2s"};
@@ -4119,8 +4120,8 @@ function AdminDashboard() {
           </div>
         )}
 
-        {/* Stats */}
-        {!loading&&!error&&(
+        {/* Stats — analytics only */}
+        {!loading&&!error&&view==="analytics"&&(
           <div style={{ display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:28 }}>
             {[
               {label:"Total clients",value:totals.clients,color:T.blue,  spark:[totals.clients*.5,totals.clients*.6,totals.clients*.7,totals.clients*.75,totals.clients*.82,totals.clients*.88,totals.clients*.93,totals.clients]},
