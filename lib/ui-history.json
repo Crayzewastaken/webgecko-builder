@@ -662,5 +662,29 @@
     "lines": 4226,
     "description": "\"Updated admin dashboard\"",
     "type": "feat"
+  },
+  {
+    "version": "v84",
+    "date": "2026-05-18",
+    "commit": "pending",
+    "lines": 4291,
+    "description": "fix: auditor control chars, shop CTA fallback to contact, dedup contact check",
+    "type": "fix"
+  },
+  {
+    "version": "v85",
+    "date": "2026-05-18",
+    "commit": "pending",
+    "lines": 4291,
+    "description": "fix: auditor control chars, shop CTA fallback to contact, dedup contact check",
+    "type": "fix"
+  },
+  {
+    "version": "v86",
+    "date": "2026-05-18",
+    "commit": "pending",
+    "lines": 4291,
+    "description": "\"Updated admin dashboard\"",
+    "type": "feat"
   }
 ]

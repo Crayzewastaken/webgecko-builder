@@ -3670,172 +3670,237 @@ function LegalDocsPanel() {
 }
 
 function OriginsView() {
-  const PRODUCTS = [
-    { id:"hexcoaster-single", name:"Hex Coaster — Single", sku:"HC-S", price:14.95, color:"#00d4a0" },
-    { id:"hexcoaster-set4",   name:"Hex Coaster — Set of 4", sku:"HC-4", price:49.95, color:"#4f9eff" },
-    { id:"hexcoaster-set6",   name:"Hex Coaster — Set of 6", sku:"HC-6", price:69.95, color:"#b085ff" },
-    { id:"keychain",          name:"Custom Keychain", sku:"KC-1", price:12.95, color:"#ff6b6b" },
-    { id:"custom",            name:"Custom Order", sku:"CUSTOM", price:0, color:"#ffc107" },
+  // WooCommerce products state
+  const [wooProducts, setWooProducts] = useState<Array<{
+    id: number;
+    name: string;
+    sku: string;
+    stock_quantity: number | null;
+    price: string;
+  }>>([]);
+  const [wooLoading, setWooLoading] = useState(true);
+  const [wooError, setWooError] = useState("");
+
+  // Shipped orders log (localStorage)
+  const [shippedOrders, setShippedOrders] = useState<any[]>(() => {
+    try { return JSON.parse(localStorage.getItem("wg_origins_shipped") || "[]"); } catch { return []; }
+  });
+
+  // Ship Order form state
+  const CHECKLIST_STEPS = [
+    "Print label",
+    "Package item(s)",
+    "Bubble wrap / padding added",
+    "Seal box/satchel",
+    "Attach label",
+    "Drop off / booked courier",
   ];
-
-  const [stock, setStock] = useState<Record<string,number>>(() => {
-    try { return JSON.parse(localStorage.getItem("wg_origins_stock")||"{}"); } catch { return {}; }
+  const [shipForm, setShipForm] = useState({
+    orderRef: "",
+    customerName: "",
+    productId: "",
+    qty: 1,
   });
-  const [orders, setOrders] = useState<any[]>(() => {
-    try { return JSON.parse(localStorage.getItem("wg_origins_orders")||"[]"); } catch { return []; }
-  });
-  const [newOrder, setNewOrder] = useState({ product:"hexcoaster-single", qty:1, channel:"Shopify", customer:"", note:"" });
-  const [addingOrder, setAddingOrder] = useState(false);
-  const [editingStock, setEditingStock] = useState<string|null>(null);
-  const [stockInput, setStockInput] = useState("");
+  const [checklist, setChecklist] = useState<boolean[]>(CHECKLIST_STEPS.map(() => false));
 
-  function saveStock(s: Record<string,number>) { setStock(s); localStorage.setItem("wg_origins_stock", JSON.stringify(s)); }
-  function saveOrders(o: any[]) { setOrders(o); localStorage.setItem("wg_origins_orders", JSON.stringify(o)); }
+  const allChecked = checklist.every(Boolean);
 
-  const totalRevenue = orders.reduce((a,o) => {
-    const p = PRODUCTS.find(p=>p.id===o.product);
-    return a + (p ? p.price * o.qty : 0);
-  }, 0);
-  const totalOrders = orders.length;
-  const totalUnits = orders.reduce((a,o)=>a+o.qty,0);
-  const lowStock = PRODUCTS.filter(p => (stock[p.id]||0) < 5);
+  useEffect(() => {
+    setWooLoading(true);
+    fetch("/api/admin/woo-products")
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(data => {
+        setWooProducts(data.products || []);
+        // Pre-select first product in ship form
+        if ((data.products || []).length > 0) {
+          setShipForm(f => ({ ...f, productId: String(data.products[0].id) }));
+        }
+        setWooLoading(false);
+      })
+      .catch(e => {
+        setWooError(e.message || "Failed to load WooCommerce products");
+        setWooLoading(false);
+      });
+  }, []);
 
-  const cardS: React.CSSProperties = { background:T.surface, border:`1px solid ${T.border}`, borderRadius:12, padding:"18px 20px" };
-  const labelS: React.CSSProperties = { fontSize:10, fontWeight:700, color:T.textMuted, textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:10 };
+  function saveShipped(orders: any[]) {
+    setShippedOrders(orders);
+    localStorage.setItem("wg_origins_shipped", JSON.stringify(orders));
+  }
+
+  function handleMarkShipped() {
+    if (!allChecked) return;
+    const product = wooProducts.find(p => String(p.id) === shipForm.productId);
+    const entry = {
+      id: Date.now(),
+      orderRef: shipForm.orderRef,
+      customerName: shipForm.customerName,
+      productId: shipForm.productId,
+      productName: product?.name || "Unknown product",
+      qty: shipForm.qty,
+      date: new Date().toISOString(),
+      checklistConfirmed: true,
+    };
+    saveShipped([entry, ...shippedOrders]);
+    // Reset form
+    setShipForm({ orderRef: "", customerName: "", productId: wooProducts[0] ? String(wooProducts[0].id) : "", qty: 1 });
+    setChecklist(CHECKLIST_STEPS.map(() => false));
+  }
+
+  const cardS: React.CSSProperties = { background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "18px 20px" };
+  const labelS: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 };
+  const inputS: React.CSSProperties = { width: "100%", background: T.raised, border: `1px solid ${T.border}`, borderRadius: 7, padding: "7px 10px", color: T.text, fontSize: 12, outline: "none", boxSizing: "border-box" };
 
   return (
-    <div style={{ maxWidth:900, margin:"0 auto", display:"flex", flexDirection:"column", gap:20 }}>
+    <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Header */}
-      <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-        <div style={{ width:44, height:44, borderRadius:12, background:"linear-gradient(135deg,#00d4a0,#4f9eff)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>⬡</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg,#00d4a0,#4f9eff)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>&#x2B21;</div>
         <div>
-          <div style={{ fontSize:20, fontWeight:900, color:T.text, letterSpacing:"-0.02em" }}>3D Origins</div>
-          <div style={{ fontSize:12, color:T.textMuted }}>3dorigins.com.au — Hex Coasters & Custom 3D Prints</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: T.text, letterSpacing: "-0.02em" }}>3D Origins</div>
+          <div style={{ fontSize: 12, color: T.textMuted }}>3dorigins.com.au — Hex Coasters & Custom 3D Prints</div>
         </div>
-        <a href="https://3dorigins.com.au" target="_blank" rel="noreferrer" style={{ marginLeft:"auto", fontSize:12, color:T.blue, textDecoration:"none", border:`1px solid ${T.blue}40`, borderRadius:7, padding:"5px 12px", fontWeight:600 }}>Open Store →</a>
+        <a href="https://3dorigins.com.au" target="_blank" rel="noreferrer" style={{ marginLeft: "auto", fontSize: 12, color: T.blue, textDecoration: "none", border: `1px solid ${T.blue}40`, borderRadius: 7, padding: "5px 12px", fontWeight: 600 }}>Open Store &#x2192;</a>
       </div>
 
-      {/* KPI row */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12 }}>
-        {[
-          { label:"Total Revenue", value:`$${totalRevenue.toFixed(2)}`, color:"#00d4a0", icon:"💰" },
-          { label:"Total Orders", value:String(totalOrders), color:"#4f9eff", icon:"📦" },
-          { label:"Units Sold", value:String(totalUnits), color:"#b085ff", icon:"🏭" },
-          { label:"Low Stock Items", value:String(lowStock.length), color: lowStock.length>0 ? "#ff6b6b" : "#00d4a0", icon:"⚠️" },
-        ].map(k => (
-          <div key={k.label} style={{ background:T.surface, border:`1px solid ${k.color}28`, borderRadius:12, padding:"16px 18px" }}>
-            <div style={{ fontSize:18 }}>{k.icon}</div>
-            <div style={{ fontSize:22, fontWeight:800, color:k.color, marginTop:6 }}>{k.value}</div>
-            <div style={{ fontSize:10, color:T.textMuted, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", marginTop:4 }}>{k.label}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
-        {/* Stock tracker */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {/* WooCommerce Products */}
         <div style={cardS}>
-          <div style={labelS}>Stock Levels</div>
-          {PRODUCTS.map(p => {
-            const qty = stock[p.id] || 0;
-            const isLow = qty < 5;
-            const isEditing = editingStock === p.id;
+          <div style={labelS}>WooCommerce Products</div>
+          {wooLoading && (
+            <div style={{ fontSize: 12, color: T.textMuted, textAlign: "center", padding: "20px 0" }}>Loading products...</div>
+          )}
+          {wooError && (
+            <div style={{ fontSize: 12, color: "#ff6b6b", background: "#ff6b6b10", border: "1px solid #ff6b6b30", borderRadius: 8, padding: "10px 14px" }}>
+              Failed to load: {wooError}
+            </div>
+          )}
+          {!wooLoading && !wooError && wooProducts.length === 0 && (
+            <div style={{ fontSize: 12, color: T.textMuted, textAlign: "center", padding: "20px 0" }}>No products found.</div>
+          )}
+          {!wooLoading && wooProducts.map(p => {
+            const qty = p.stock_quantity;
+            const isLow = qty !== null && qty < 5;
             return (
-              <div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10, padding:"8px 10px", borderRadius:8, background:isLow ? "#ff6b6b10" : T.raised, border:`1px solid ${isLow?"#ff6b6b30":T.border}` }}>
-                <div style={{ width:8, height:8, borderRadius:"50%", background:p.color, flexShrink:0 }}/>
-                <div style={{ flex:1, fontSize:12, color:T.text, fontWeight:600 }}>{p.name}</div>
-                {isEditing ? (
-                  <div style={{ display:"flex", gap:6 }}>
-                    <input autoFocus value={stockInput} onChange={e=>setStockInput(e.target.value)} type="number" min="0"
-                      style={{ width:60, background:T.raised, border:`1px solid ${T.border}`, borderRadius:6, padding:"3px 8px", color:T.text, fontSize:12, outline:"none" }}
-                      onKeyDown={e=>{if(e.key==="Enter"){const n=parseInt(stockInput)||0;saveStock({...stock,[p.id]:n});setEditingStock(null);}if(e.key==="Escape")setEditingStock(null);}}/>
-                    <button onClick={()=>{const n=parseInt(stockInput)||0;saveStock({...stock,[p.id]:n});setEditingStock(null);}} style={{ background:T.green+"20", border:`1px solid ${T.green}40`, color:T.green, borderRadius:6, padding:"3px 8px", fontSize:11, cursor:"pointer" }}>✓</button>
+              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, padding: "8px 10px", borderRadius: 8, background: isLow ? "#ff6b6b10" : T.raised, border: `1px solid ${isLow ? "#ff6b6b30" : T.border}` }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{p.name}</div>
+                  {p.sku && <div style={{ fontSize: 10, color: T.textMuted, marginTop: 2 }}>SKU: {p.sku}</div>}
+                </div>
+                <div style={{ textAlign: "right" as const }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: isLow ? "#ff6b6b" : "#00d4a0" }}>
+                    {qty === null ? "--" : qty}
+                    <span style={{ fontSize: 10, color: T.textMuted, fontWeight: 400, marginLeft: 3 }}>units</span>
                   </div>
-                ) : (
-                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                    <span style={{ fontSize:14, fontWeight:800, color: isLow?"#ff6b6b":T.text }}>{qty}</span>
-                    <span style={{ fontSize:10, color:T.textMuted }}>units</span>
-                    <button onClick={()=>{setEditingStock(p.id);setStockInput(String(qty));}} style={{ background:"none", border:`1px solid ${T.border}`, borderRadius:5, padding:"2px 7px", fontSize:10, color:T.textMuted, cursor:"pointer" }}>Edit</button>
-                  </div>
-                )}
+                  <div style={{ fontSize: 11, fontWeight: 600, color: T.textSec }}>${parseFloat(p.price || "0").toFixed(2)}</div>
+                </div>
               </div>
             );
           })}
         </div>
 
-        {/* Add order */}
+        {/* Ship Order Checklist */}
         <div style={cardS}>
-          <div style={labelS}>Log Order</div>
-          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            <div>
-              <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Product</div>
-              <select value={newOrder.product} onChange={e=>setNewOrder(o=>({...o,product:e.target.value}))}
-                style={{ width:"100%", background:T.raised, border:`1px solid ${T.border}`, borderRadius:7, padding:"7px 10px", color:T.text, fontSize:12, outline:"none" }}>
-                {PRODUCTS.map(p=><option key={p.id} value={p.id}>{p.name} — ${p.price}</option>)}
-              </select>
-            </div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+          <div style={labelS}>Ship Order</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               <div>
-                <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Qty</div>
-                <input type="number" min="1" value={newOrder.qty} onChange={e=>setNewOrder(o=>({...o,qty:parseInt(e.target.value)||1}))}
-                  style={{ width:"100%", background:T.raised, border:`1px solid ${T.border}`, borderRadius:7, padding:"7px 10px", color:T.text, fontSize:12, outline:"none", boxSizing:"border-box" }}/>
+                <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 4 }}>Order #</div>
+                <input value={shipForm.orderRef} onChange={e => setShipForm(f => ({ ...f, orderRef: e.target.value }))} placeholder="e.g. #1042"
+                  style={inputS} />
               </div>
               <div>
-                <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Channel</div>
-                <select value={newOrder.channel} onChange={e=>setNewOrder(o=>({...o,channel:e.target.value}))}
-                  style={{ width:"100%", background:T.raised, border:`1px solid ${T.border}`, borderRadius:7, padding:"7px 10px", color:T.text, fontSize:12, outline:"none" }}>
-                  {["Shopify","Etsy","Instagram DM","Facebook DM","In Person","Other"].map(c=><option key={c}>{c}</option>)}
+                <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 4 }}>Customer name</div>
+                <input value={shipForm.customerName} onChange={e => setShipForm(f => ({ ...f, customerName: e.target.value }))} placeholder="e.g. Jane Smith"
+                  style={inputS} />
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+              <div>
+                <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 4 }}>Product</div>
+                <select value={shipForm.productId} onChange={e => setShipForm(f => ({ ...f, productId: e.target.value }))}
+                  style={inputS} disabled={wooLoading || wooProducts.length === 0}>
+                  {wooLoading && <option>Loading...</option>}
+                  {wooProducts.map(p => (
+                    <option key={p.id} value={String(p.id)}>{p.name}</option>
+                  ))}
                 </select>
               </div>
+              <div>
+                <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 4 }}>Qty</div>
+                <input type="number" min="1" value={shipForm.qty} onChange={e => setShipForm(f => ({ ...f, qty: parseInt(e.target.value) || 1 }))}
+                  style={{ ...inputS, width: 60 }} />
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Customer name</div>
-              <input value={newOrder.customer} onChange={e=>setNewOrder(o=>({...o,customer:e.target.value}))} placeholder="Optional"
-                style={{ width:"100%", background:T.raised, border:`1px solid ${T.border}`, borderRadius:7, padding:"7px 10px", color:T.text, fontSize:12, outline:"none", boxSizing:"border-box" }}/>
+
+            {/* Checklist */}
+            <div style={{ background: T.raised, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 14px", display: "flex", flexDirection: "column", gap: 7 }}>
+              {CHECKLIST_STEPS.map((step, i) => (
+                <label key={step} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: checklist[i] ? "#00d4a0" : T.text }}>
+                  <div
+                    onClick={() => setChecklist(c => c.map((v, j) => j === i ? !v : v))}
+                    style={{
+                      width: 16, height: 16, borderRadius: 4, border: `2px solid ${checklist[i] ? "#00d4a0" : T.border}`,
+                      background: checklist[i] ? "#00d4a020" : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0, cursor: "pointer", transition: "all 0.15s ease",
+                    }}
+                  >
+                    {checklist[i] && <span style={{ fontSize: 10, color: "#00d4a0", fontWeight: 700 }}>&#x2713;</span>}
+                  </div>
+                  <span style={{ textDecoration: checklist[i] ? "line-through" : "none", opacity: checklist[i] ? 0.7 : 1 }}>{step}</span>
+                </label>
+              ))}
             </div>
-            <div>
-              <div style={{ fontSize:11, color:T.textMuted, marginBottom:4 }}>Note</div>
-              <input value={newOrder.note} onChange={e=>setNewOrder(o=>({...o,note:e.target.value}))} placeholder="e.g. custom colour, gift wrap"
-                style={{ width:"100%", background:T.raised, border:`1px solid ${T.border}`, borderRadius:7, padding:"7px 10px", color:T.text, fontSize:12, outline:"none", boxSizing:"border-box" }}/>
-            </div>
-            <button onClick={()=>{
-              const p = PRODUCTS.find(x=>x.id===newOrder.product)!;
-              const order = { id:Date.now(), ...newOrder, productName:p.name, price:p.price, date:new Date().toISOString() };
-              saveOrders([order,...orders]);
-              // Deduct from stock
-              saveStock({...stock,[newOrder.product]:Math.max(0,(stock[newOrder.product]||0)-newOrder.qty)});
-              setNewOrder({ product:"hexcoaster-single", qty:1, channel:"Shopify", customer:"", note:"" });
-            }} style={{ background:"linear-gradient(135deg,#00d4a0,#4f9eff)", border:"none", borderRadius:9, padding:"10px", fontSize:13, fontWeight:700, color:"#fff", cursor:"pointer" }}>
-              + Log Order
+
+            <button
+              onClick={handleMarkShipped}
+              disabled={!allChecked}
+              style={{
+                background: allChecked ? "linear-gradient(135deg,#00d4a0,#4f9eff)" : T.raised,
+                border: allChecked ? "none" : `1px solid ${T.border}`,
+                borderRadius: 9, padding: "10px", fontSize: 13, fontWeight: 700,
+                color: allChecked ? "#fff" : T.textMuted,
+                cursor: allChecked ? "pointer" : "not-allowed",
+                transition: "all 0.2s ease",
+              }}
+            >
+              Mark as Shipped
             </button>
           </div>
         </div>
       </div>
 
-      {/* Order history */}
-      <div style={cardS}>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
-          <div style={labelS}>Order History ({orders.length})</div>
-          {orders.length > 0 && <button onClick={()=>{if(confirm("Clear all order history?"))saveOrders([]);}} style={{ fontSize:11, color:T.red, background:"none", border:`1px solid ${T.red}30`, borderRadius:6, padding:"3px 10px", cursor:"pointer" }}>Clear all</button>}
-        </div>
-        {orders.length === 0 && <div style={{ fontSize:13, color:T.textMuted, textAlign:"center", padding:"20px 0" }}>No orders logged yet.</div>}
-        <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:300, overflowY:"auto" }}>
-          {orders.map((o:any) => {
-            const p = PRODUCTS.find(x=>x.id===o.product);
-            return (
-              <div key={o.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:T.raised, borderRadius:8, border:`1px solid ${T.border}` }}>
-                <div style={{ width:6, height:6, borderRadius:"50%", background:p?.color||T.textMuted, flexShrink:0 }}/>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:T.text }}>{o.productName} ×{o.qty}</div>
-                  <div style={{ fontSize:11, color:T.textMuted }}>{o.channel}{o.customer ? ` — ${o.customer}` : ""}{o.note ? ` · ${o.note}` : ""}</div>
+      {/* Shipped Orders Log */}
+      {shippedOrders.length > 0 && (
+        <div style={cardS}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div style={labelS}>Shipped Orders ({shippedOrders.length})</div>
+            <button onClick={() => { if (confirm("Clear all shipped order history?")) saveShipped([]); }}
+              style={{ fontSize: 11, color: T.red, background: "none", border: `1px solid ${T.red}30`, borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}>
+              Clear all
+            </button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 280, overflowY: "auto" }}>
+            {shippedOrders.map((o: any) => (
+              <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: T.raised, borderRadius: 8, border: `1px solid ${T.border}` }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#00d4a0", flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{o.orderRef ? `#${o.orderRef.replace(/^#/, "")} -- ` : ""}{o.productName} x{o.qty}</div>
+                  {o.customerName && <div style={{ fontSize: 11, color: T.textMuted }}>{o.customerName}</div>}
                 </div>
-                <div style={{ fontSize:13, fontWeight:700, color:"#00d4a0" }}>${(p ? p.price*o.qty : 0).toFixed(2)}</div>
-                <div style={{ fontSize:10, color:T.textMuted }}>{new Date(o.date).toLocaleDateString("en-AU",{day:"numeric",month:"short"})}</div>
-                <button onClick={()=>saveOrders(orders.filter((x:any)=>x.id!==o.id))} style={{ fontSize:11, color:T.textMuted, background:"none", border:"none", cursor:"pointer", padding:"2px 6px" }}>✕</button>
+                <div style={{ fontSize: 10, color: "#00d4a0", fontWeight: 700 }}>&#x2713; Shipped</div>
+                <div style={{ fontSize: 10, color: T.textMuted }}>{new Date(o.date).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}</div>
+                <button onClick={() => saveShipped(shippedOrders.filter((x: any) => x.id !== o.id))}
+                  style={{ fontSize: 11, color: T.textMuted, background: "none", border: "none", cursor: "pointer", padding: "2px 6px" }}>&#x2715;</button>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
