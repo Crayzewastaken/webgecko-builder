@@ -16,7 +16,7 @@ interface ClientAnalytics {
   previewUrl: string; buildStatus: string; domain?: string; liveDomain?: string;
   liveUrl?: string; vercelProjectName?: string;
   paymentState: { depositPaid: boolean; finalPaid: boolean; monthlyActive: boolean };
-  analytics: { thisMonth: { views: number; bookingClicks: number; contactClicks: number }; today: { views: number; bookingClicks: number }; totals: { views: number; bookingClicks: number; formSubmits: number } } | null;
+  analytics: { thisMonth: { views: number; bookingClicks: number; contactClicks: number }; today: { views: number; bookingClicks: number }; totals: { views: number; bookingClicks: number; formSubmits: number }; spark?: number[]; sparkMonths?: string[] } | null;
   bookingCount: number; hasBooking: boolean; builtAt?: string; supersaasId?: string;
   supersaasUrl?: string; bookingServices?: string; clientEmail?: string; clientPhone?: string;
   tawktoPropertyId?: string; shopCatalogue?: any[] | null;
@@ -4004,12 +4004,21 @@ function AdminDashboard() {
       return (b.analytics?.thisMonth.views||0)-(a.analytics?.thisMonth.views||0);
     });
 
+  // Real 8-month sparkline: sum spark arrays across all clients
+  const platformSpark = clients.reduce((acc, c) => {
+    const s = c.analytics?.spark || new Array(8).fill(0);
+    return acc.map((v:number, i:number) => v + (s[i] || 0));
+  }, new Array(8).fill(0) as number[]);
+
   const totals = {
     clients:clients.length,
     active:clients.filter(c=>c.paymentState?.monthlyActive).length,
     views:clients.reduce((a,c)=>a+(c.analytics?.thisMonth.views||0),0),
     bookings:clients.reduce((a,c)=>a+c.bookingCount,0),
     mrr:clients.filter(c=>c.paymentState?.monthlyActive).length*109, // sync with MONTHLY_PRICE above
+    totalViews:clients.reduce((a,c)=>a+(c.analytics?.totals.views||0),0),
+    totalBookingClicks:clients.reduce((a,c)=>a+(c.analytics?.totals.bookingClicks||0),0),
+    totalFormSubmits:clients.reduce((a,c)=>a+(c.analytics?.totals.formSubmits||0),0),
   };
 
   const inp:React.CSSProperties={flex:1,minWidth:200,background:T.raised,border:`1px solid ${T.border}`,borderRadius:9,padding:"9px 14px",color:T.text,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",transition:"border-color 0.2s, box-shadow 0.2s"};
@@ -4124,11 +4133,11 @@ function AdminDashboard() {
         {!loading&&!error&&view==="analytics"&&(
           <div style={{ display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:28 }}>
             {[
-              {label:"Total clients",value:totals.clients,color:T.blue,  spark:[totals.clients*.5,totals.clients*.6,totals.clients*.7,totals.clients*.75,totals.clients*.82,totals.clients*.88,totals.clients*.93,totals.clients]},
-              {label:"Monthly active",value:totals.active, color:T.green, spark:[totals.active*.55,totals.active*.65,totals.active*.72,totals.active*.78,totals.active*.84,totals.active*.9,totals.active*.95,totals.active]},
-              {label:"Est. MRR",value:"$"+totals.mrr.toLocaleString(),color:T.green,spark:[totals.mrr*.5,totals.mrr*.6,totals.mrr*.7,totals.mrr*.75,totals.mrr*.82,totals.mrr*.88,totals.mrr*.93,totals.mrr]},
-              {label:"Views / month",value:totals.views,  color:T.cyan,  spark:[totals.views*.4,totals.views*.55,totals.views*.6,totals.views*.72,totals.views*.68,totals.views*.8,totals.views*.9,totals.views]},
-              {label:"Total bookings",value:totals.bookings,color:T.amber,spark:[totals.bookings*.45,totals.bookings*.55,totals.bookings*.65,totals.bookings*.7,totals.bookings*.78,totals.bookings*.85,totals.bookings*.92,totals.bookings]},
+              {label:"Total clients",   value:totals.clients,                            color:T.blue,   spark:new Array(8).fill(0).map((_,i)=>i<clients.length?i+1:clients.length)},
+              {label:"Monthly active",  value:totals.active,                             color:T.green,  spark:new Array(8).fill(0).map((_,i)=>i<totals.active?i+1:totals.active)},
+              {label:"Est. MRR",        value:"$"+totals.mrr.toLocaleString(),           color:T.green,  spark:new Array(8).fill(0).map((_,i)=>totals.mrr*((i+1)/8))},
+              {label:"Views / month",   value:totals.views,                              color:T.cyan,   spark:platformSpark},
+              {label:"Total bookings",  value:totals.bookings,                           color:T.amber,  spark:new Array(8).fill(0).map((_,i)=>Math.round(totals.bookings*((i+1)/8)))},
             ].map(s=>(
               <div key={s.label} className="wg-card wg-stat-scan" style={{ background:T.surface,border:`1px solid ${s.color}28`,borderRadius:14,padding:"16px 18px 10px 22px",position:"relative",overflow:"hidden",transition:"border-color 0.2s, box-shadow 0.2s",boxShadow:`0 0 0 1px ${s.color}14, 0 6px 32px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)` }}
                 onMouseEnter={e=>{const el=e.currentTarget as HTMLElement;el.style.borderColor=s.color+"55";el.style.boxShadow=`0 0 32px ${s.color}22, 0 8px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06)`;}}

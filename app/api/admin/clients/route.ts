@@ -52,10 +52,16 @@ export async function GET(req: NextRequest) {
   }
 
   // Index: analytics aggregated per job — single pass, no extra queries
+  // Last 8 months for sparklines
+  const spark8: string[] = [];
+  { const d = new Date(); d.setDate(1);
+    for (let i=0;i<8;i++) { spark8.unshift(d.toISOString().slice(0,7)); d.setMonth(d.getMonth()-1); } }
+
   type AnalyticsAgg = {
     todayViews: number; todayBookingClicks: number;
     monthViews: number; monthBookingClicks: number; monthContactClicks: number;
     totalViews: number; totalBookingClicks: number; totalFormSubmits: number;
+    spark: number[]; // views per month for last 8 months
   };
   const analyticsByJob: Record<string, AnalyticsAgg> = {};
 
@@ -63,6 +69,7 @@ export async function GET(req: NextRequest) {
     todayViews: 0, todayBookingClicks: 0,
     monthViews: 0, monthBookingClicks: 0, monthContactClicks: 0,
     totalViews: 0, totalBookingClicks: 0, totalFormSubmits: 0,
+    spark: new Array(8).fill(0),
   });
 
   for (const row of analyticsRows || []) {
@@ -76,6 +83,9 @@ export async function GET(req: NextRequest) {
       a.totalViews++;
       if (isThisMonth) a.monthViews++;
       if (isToday) a.todayViews++;
+      // sparkline: bucket into last-8-months array
+      const si = spark8.indexOf(row.month);
+      if (si >= 0) a.spark[si]++;
     } else if (row.event === "booking_click") {
       a.totalBookingClicks++;
       if (isThisMonth) a.monthBookingClicks++;
@@ -128,6 +138,8 @@ export async function GET(req: NextRequest) {
           bookingClicks: a.totalBookingClicks,
           formSubmits: a.totalFormSubmits,
         },
+        spark: a.spark, // 8-month views sparkline (real data)
+        sparkMonths: spark8,
       },
       bookingCount: bookingsByJob[c.job_id] || 0,
       supersaasId: job.supersaas_id || "",

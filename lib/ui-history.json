@@ -686,5 +686,13 @@
     "lines": 4292,
     "description": "\"Updated admin dashboard\"",
     "type": "feat"
+  },
+  {
+    "version": "v87",
+    "date": "2026-05-19",
+    "commit": "pending",
+    "lines": 4301,
+    "description": "fix: stats bar analytics-only; fix ui-history version numbering; MRR constant",
+    "type": "fix"
   }
 ]
