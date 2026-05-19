@@ -22,6 +22,7 @@ import {
   getExampleHtmlsForIndustry,
   fetchPexelsPhotos,
   getPexelsQuery,
+  resolveStitchClasses,
 } from "@/lib/pipeline-helpers";
 import { createSuperSaasSchedule } from "@/lib/supersaas";
 import { createClientShopCatalogue } from "@/lib/square";
@@ -245,6 +246,98 @@ const buildWebsite = inngest.createFunction(
         return pid;
       }) as string;
 
+      // ── STEP 2b: Create design system from blueprint palette/typography ────────
+      // This must run before generate() so Stitch uses the correct theme.
+      const designSystemId = savedHtmlForRebuild ? "" : await step.run("step2b-design-system", async () => {
+        try {
+          const fs = require("fs");
+          const path = require("path");
+          let designMdContent = "";
+          try {
+            designMdContent = fs.readFileSync(path.join(process.cwd(), "DESIGN.md"), "utf-8");
+          } catch { /* DESIGN.md not found */ }
+
+          const palette = spec.palette || {};
+          const typography = spec.typography || {};
+
+          const fontMap: Record<string, string> = {
+            "Inter": "INTER", "Space Grotesk": "SPACE_GROTESK", "SpaceGrotesk": "SPACE_GROTESK",
+            "Manrope": "MANROPE", "Plus Jakarta Sans": "PLUS_JAKARTA_SANS", "PlusJakartaSans": "PLUS_JAKARTA_SANS",
+            "Work Sans": "WORK_SANS", "WorkSans": "WORK_SANS", "DM Sans": "DM_SANS", "DMSans": "DM_SANS",
+            "Geist": "GEIST", "Nunito Sans": "NUNITO_SANS", "NunitoSans": "NUNITO_SANS",
+            "Rubik": "RUBIK", "Sora": "SORA", "Epilogue": "EPILOGUE", "Lexend": "LEXEND",
+            "Montserrat": "MONTSERRAT", "Arimo": "ARIMO",
+            "Hanken Grotesk": "HANKEN_GROTESK", "IBM Plex Sans": "IBM_PLEX_SANS",
+          };
+          const resolveFont = (name: string): string => {
+            if (!name) return "INTER";
+            if (fontMap[name]) return fontMap[name];
+            const lower = name.toLowerCase();
+            for (const [k, v] of Object.entries(fontMap)) {
+              if (lower.includes(k.toLowerCase())) return v;
+            }
+            return "INTER";
+          };
+
+          const tokenLines = [
+            `--clr-bg: ${palette.background || "#0a0f1a"};`,
+            `--clr-surface: ${palette.surface || "#0f1623"};`,
+            `--clr-accent: ${palette.accent || "#10b981"};`,
+            `--clr-text: ${palette.text || "#e2e8f0"};`,
+            `--clr-text-muted: ${palette.text ? palette.text + "99" : "#94a3b8"};`,
+            "--clr-border: rgba(255,255,255,0.1);",
+            `--clr-primary: ${palette.primary || "#1a1a2e"};`,
+          ];
+          const tokens = `:root {\n${tokenLines.join("\n")}\n}`;
+
+          const isDark = (() => {
+            const bg = palette.background || "#0a0f1a";
+            const hex = bg.replace("#", "");
+            if (hex.length < 6) return true;
+            const r = parseInt(hex.slice(0,2),16);
+            const g = parseInt(hex.slice(2,4),16);
+            const b = parseInt(hex.slice(4,6),16);
+            return (r * 0.299 + g * 0.587 + b * 0.114) < 128;
+          })();
+
+          const headlineFont = resolveFont(typography.headingFont || "Space Grotesk");
+          const bodyFont = resolveFont(typography.bodyFont || "Inter");
+
+          const designSystemInput = {
+            displayName: `${spec.projectTitle} Design System`,
+            designTokens: tokens,
+            styleGuidelines: designMdContent || undefined,
+            theme: {
+              colorMode: (isDark ? "DARK" : "LIGHT") as "DARK" | "LIGHT",
+              colorVariant: "TONAL_SPOT" as const,
+              customColor: palette.accent || palette.primary || "#10b981",
+              overridePrimaryColor: palette.primary || undefined,
+              overrideSecondaryColor: palette.accent || undefined,
+              backgroundDark: isDark ? palette.background : undefined,
+              backgroundLight: !isDark ? palette.background : undefined,
+              headlineFont: headlineFont as any,
+              bodyFont: bodyFont as any,
+              labelFont: bodyFont as any,
+              roundness: "ROUND_EIGHT" as const,
+              namedColors: {
+                "accent": palette.accent || "#10b981",
+                "primary": palette.primary || "#1a1a2e",
+                "background": palette.background || "#0a0f1a",
+                "surface": palette.surface || "#0f1623",
+                "text": palette.text || "#e2e8f0",
+              },
+            },
+          };
+
+          const project = stitchSdk.project(projectId);
+          const ds = await project.createDesignSystem(designSystemInput);
+          console.log(`[Inngest] STEP 2b DONE: design system created, id=${ds.id}`);
+          return ds.id;
+        } catch (e: any) {
+          console.warn(`[Inngest] STEP 2b: createDesignSystem failed (non-fatal): ${e?.message || String(e)}`);
+          return "";
+        }
+      }) as string;
       // ── STEP 3: Stitch generate + fetch HTML in one blocking step ─────────────
       // generate() is synchronous/blocking — it waits until the screen is fully
       // rendered before returning. We call getHtml() immediately on the returned
@@ -500,6 +593,8 @@ const buildWebsite = inngest.createFunction(
       // ── STEP 5: Code-only fix pass ────────────────────────────────────────────
       const fixedHtml = await step.run("step5-code-fix", async () => {
         let html = rebuiltHtml;  // use Claude's rebuilt HTML instead of raw Stitch
+        // Resolve Stitch design-token utility classes into real CSS so layout renders correctly outside Stitch canvas
+        html = resolveStitchClasses(html);
         const bookingNavTarget = hasBookingFeature ? "booking" : "contact";
 
         if (userInput.businessName) {
@@ -1565,11 +1660,28 @@ const buildWebsite = inngest.createFunction(
         });
         if (!deployRes.ok) { const deployErr = await deployRes.text(); console.error("[Inngest] Deploy failed:", deployErr); appendPipelineLog(jobId, { level: "error", step: "deploy", msg: `Deploy failed: ${deployErr.slice(0,300)}`, businessName: userInput.businessName }).catch(()=>{}); return ""; }
         const deployData = await deployRes.json();
+        const deploymentId = deployData.id || deployData.uid || "";
         const stableUrl = `https://${vercelProjectName}.vercel.app`;
-        // Use the unique per-deployment URL so admin preview shows new content immediately
-        // (stable alias takes ~30-60s to propagate; unique deploy URL is ready in seconds)
         const uniqueDeployUrl = deployData.url ? `https://${deployData.url}` : stableUrl;
-        console.log(`[Inngest] Deploy URL: unique=${uniqueDeployUrl} stable=${stableUrl}`);
+        console.log(`[Inngest] Deploy URL: unique=${uniqueDeployUrl} stable=${stableUrl} deploymentId=${deploymentId}`);
+
+        // ── Assign stable alias so wg-xxx.vercel.app always serves the new build ──
+        // Without this call, the stable alias stays on the old deployment indefinitely.
+        if (deploymentId && vercelProjectName) {
+          try {
+            const aliasUrl = `https://api.vercel.com/v2/deployments/${deploymentId}/aliases${process.env.VERCEL_TEAM_ID ? `?teamId=${process.env.VERCEL_TEAM_ID}` : ""}`;
+            const aliasRes = await fetch(aliasUrl, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ alias: `${vercelProjectName}.vercel.app` }),
+            });
+            const aliasData = await aliasRes.json().catch(() => ({}));
+            console.log(`[Inngest] Alias assign: ${aliasRes.status} — ${JSON.stringify(aliasData).slice(0, 120)}`);
+          } catch (ae: any) {
+            console.error(`[Inngest] Alias assign failed (non-blocking): ${ae?.message}`);
+          }
+        }
+
         // Fire-and-forget Google Indexing API ping — never blocks deploy
         requestGoogleIndexing(stableUrl).catch(() => {});
         return uniqueDeployUrl;
@@ -1724,7 +1836,20 @@ const buildWebsite = inngest.createFunction(
             }),
           });
           if (!deployRes.ok) { console.error("[FailLoop] Redeploy failed:", await deployRes.text()); return loopPreviewUrl; }
-          console.log("[FailLoop] Redeployed attempt " + attempt);
+          const loopDeployData = await deployRes.json();
+          const loopDeployId = loopDeployData.id || loopDeployData.uid || "";
+          console.log("[FailLoop] Redeployed attempt " + attempt + " deploymentId=" + loopDeployId);
+          // Assign stable alias for fail-loop redeploys too
+          if (loopDeployId && vercelProjectName) {
+            try {
+              const aliasUrl2 = `https://api.vercel.com/v2/deployments/${loopDeployId}/aliases${process.env.VERCEL_TEAM_ID ? `?teamId=${process.env.VERCEL_TEAM_ID}` : ""}`;
+              await fetch(aliasUrl2, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ alias: `${vercelProjectName}.vercel.app` }),
+              });
+            } catch {}
+          }
           return "https://" + vercelProjectName + ".vercel.app";
         });
 

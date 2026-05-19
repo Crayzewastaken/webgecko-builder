@@ -172,15 +172,279 @@ export function extractCSS(html: string): string {
       }
     } catch {}
   }
+
   return `/* WebGecko Generated Styles */\n\n${colorVars}\n${styleBlocks.join("\n\n")}`;
 }
 
 // ─── checkAndFixLinks ─────────────────────────────────────────────────────────
 
-// ─── Fix navigateTo targets at HTML level ─────────────────────────────────────
-// Stitch often sets onclick="navigateTo('home')" on ALL nav links regardless of label.
-// This function rewrites navigateTo targets based on the link's visible text content.
-// Also handles window.navigateTo(...) and hyphenated page IDs like 'contact-us'.
+
+/**
+ * resolveStitchClasses — injects a <style> block that defines all Stitch design-token
+ * utility classes (gap-xs, px-margin-desktop, text-secondary, glass-panel etc.) so
+ * the site renders correctly when deployed outside Stitch's canvas.
+ */
+export function resolveStitchClasses(html: string): string {
+  // Extract colours from embedded tailwind config
+  const colors: Record<string, string> = {};
+  const cfgMatch = html.match(/tailwind\.config\s*=\s*\{[\s\S]*?"colors"\s*:\s*(\{[^}]+\})/);
+  if (cfgMatch) {
+    const pairs = cfgMatch[1].matchAll(/"([^"]+)"\s*:\s*"([^"]+)"/g);
+    for (const [, k, v] of pairs) colors[k] = v;
+  }
+
+  // Extract spacing tokens
+  const spacing: Record<string, string> = {
+    base: "4px", xs: "8px", sm: "16px", md: "24px", lg: "40px", xl: "64px",
+    "margin-desktop": "48px", "margin-mobile": "16px", gutter: "20px",
+  };
+  const spMatch = html.match(/"spacing"\s*:\s*(\{[^}]+\})/);
+  if (spMatch) {
+    const pairs = spMatch[1].matchAll(/"([^"]+)"\s*:\s*"([^"]+)"/g);
+    for (const [, k, v] of pairs) spacing[k] = v;
+  }
+
+  // Extract font sizes
+  const fontSizes: Record<string, string> = {};
+  const fszMatch = html.match(/"fontSize"\s*:\s*(\{[\s\S]*?\})\s*\}/);
+  if (fszMatch) {
+    const entries = fszMatch[1].matchAll(/"([^"]+)"\s*:\s*\["([^"]+)"[^}]*?"lineHeight"\s*:\s*"([^"]+)"[^}]*?"letterSpacing"\s*:\s*"([^"]+)"[^}]*?"fontWeight"\s*:\s*"([^"]+)"/g);
+    for (const [, k, size, lh, ls, fw] of entries) {
+      const s = k.replace(/[^a-zA-Z0-9-]/g, "-");
+      fontSizes[s] = "font-size:" + size + ";line-height:" + lh + ";letter-spacing:" + ls + ";font-weight:" + fw;
+    }
+  }
+
+  // Extract font families
+  const fontFamilies: Record<string, string> = {};
+  const ffMatch = html.match(/"fontFamily"\s*:\s*(\{[\s\S]*?\})\s*,\s*"fontSize"/);
+  if (ffMatch) {
+    const pairs = ffMatch[1].matchAll(/"([^"]+)"\s*:\s*\[([^\]]+)\]/g);
+    for (const [, k, arr] of pairs) {
+      const first = arr.match(/"([^"]+)"/);
+      if (first) {
+        const s = k.replace(/[^a-zA-Z0-9-]/g, "-");
+        fontFamilies[s] = first[1] + ", sans-serif";
+      }
+    }
+  }
+
+  const css: string[] = ["/* Stitch token CSS — WebGecko pipeline */"];
+
+  // Spacing utilities
+  for (const [k, v] of Object.entries(spacing)) {
+    const s = k.replace(/[^a-zA-Z0-9-]/g, "-");
+    css.push(".gap-" + s + "{gap:" + v + "}");
+    css.push(".gap-x-" + s + "{column-gap:" + v + "}");
+    css.push(".gap-y-" + s + "{row-gap:" + v + "}");
+    css.push(".p-" + s + "{padding:" + v + "}");
+    css.push(".px-" + s + "{padding-left:" + v + ";padding-right:" + v + "}");
+    css.push(".py-" + s + "{padding-top:" + v + ";padding-bottom:" + v + "}");
+    css.push(".pt-" + s + "{padding-top:" + v + "}");
+    css.push(".pb-" + s + "{padding-bottom:" + v + "}");
+    css.push(".pl-" + s + "{padding-left:" + v + "}");
+    css.push(".pr-" + s + "{padding-right:" + v + "}");
+    css.push(".m-" + s + "{margin:" + v + "}");
+    css.push(".mt-" + s + "{margin-top:" + v + "}");
+    css.push(".mb-" + s + "{margin-bottom:" + v + "}");
+    css.push(".mx-" + s + "{margin-left:" + v + ";margin-right:" + v + "}");
+    css.push(".my-" + s + "{margin-top:" + v + ";margin-bottom:" + v + "}");
+    css.push(".space-y-" + s + ">*+*{margin-top:" + v + "}");
+    css.push(".space-x-" + s + ">*+*{margin-left:" + v + "}");
+  }
+  css.push(".px-margin-desktop{padding-left:48px;padding-right:48px}");
+  css.push(".px-margin-mobile{padding-left:16px;padding-right:16px}");
+  css.push("@media(max-width:768px){.px-margin-desktop{padding-left:20px;padding-right:20px}}");
+
+  // Colour utilities
+  for (const [k, v] of Object.entries(colors)) {
+    const s = k.replace(/[^a-zA-Z0-9-]/g, "-");
+    css.push(".text-" + s + "{color:" + v + "}");
+    css.push(".bg-" + s + "{background-color:" + v + "}");
+    css.push(".border-" + s + "{border-color:" + v + "}");
+    css.push(".hover\\:text-" + s + ":hover{color:" + v + "}");
+    css.push(".hover\\:bg-" + s + ":hover{background-color:" + v + "}");
+    css.push(".hover\\:border-" + s + ":hover{border-color:" + v + "}");
+    css.push(".from-" + s + "{--tw-gradient-from:" + v + "}");
+    css.push(".to-" + s + "{--tw-gradient-to:" + v + "}");
+    css.push(".selection\\:bg-" + s + "::selection{background-color:" + v + "}");
+    css.push(".selection\\:text-" + s + "::selection{color:" + v + "}");
+    if (v.startsWith("#") && v.length >= 7) {
+      const r = parseInt(v.slice(1, 3), 16);
+      const g = parseInt(v.slice(3, 5), 16);
+      const b = parseInt(v.slice(5, 7), 16);
+      for (const op of [5, 10, 20, 30, 40, 60]) {
+        const a = (op / 100).toFixed(2);
+        const rgba = "rgba(" + r + "," + g + "," + b + "," + a + ")";
+        css.push(".bg-" + s + "\\/" + op + "{background-color:" + rgba + "}");
+        css.push(".border-" + s + "\\/" + op + "{border-color:" + rgba + "}");
+        css.push(".text-" + s + "\\/" + op + "{color:" + rgba + "}");
+        css.push(".hover\\:bg-" + s + "\\/" + op + ":hover{background-color:" + rgba + "}");
+      }
+    }
+  }
+
+  // Typography
+  for (const [s, val] of Object.entries(fontSizes)) {
+    css.push(".text-" + s + "{" + val + "}");
+  }
+  for (const [s, fam] of Object.entries(fontFamilies)) {
+    css.push(".font-" + s + "{font-family:" + fam + "}");
+  }
+
+  // Core layout utilities
+  const utils = [
+    ".flex{display:flex}", ".inline-flex{display:inline-flex}", ".grid{display:grid}",
+    ".block{display:block}", ".inline-block{display:inline-block}", ".hidden{display:none!important}",
+    ".flex-col{flex-direction:column}", ".flex-row{flex-direction:row}",
+    ".flex-wrap{flex-wrap:wrap}", ".flex-1{flex:1 1 0%}", ".flex-shrink-0{flex-shrink:0}",
+    ".items-center{align-items:center}", ".items-start{align-items:flex-start}",
+    ".items-end{align-items:flex-end}", ".items-stretch{align-items:stretch}",
+    ".justify-center{justify-content:center}", ".justify-between{justify-content:space-between}",
+    ".justify-start{justify-content:flex-start}", ".justify-end{justify-content:flex-end}",
+    ".justify-around{justify-content:space-around}",
+    ".grid-cols-1{grid-template-columns:repeat(1,minmax(0,1fr))}",
+    ".grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}",
+    ".grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}",
+    ".grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}",
+    ".col-span-2{grid-column:span 2}",
+    "@media(min-width:768px){.md\\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.md\\:grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.md\\:flex{display:flex}.md\\:hidden{display:none}.md\\:block{display:block}}",
+    ".w-full{width:100%}", ".h-full{height:100%}", ".min-h-screen{min-height:100vh}",
+    ".max-w-xs{max-width:20rem}", ".max-w-sm{max-width:24rem}", ".max-w-md{max-width:28rem}",
+    ".max-w-lg{max-width:32rem}", ".max-w-xl{max-width:36rem}", ".max-w-2xl{max-width:42rem}",
+    ".max-w-4xl{max-width:56rem}", ".max-w-6xl{max-width:72rem}", ".max-w-full{max-width:100%}",
+    ".w-2{width:0.5rem}", ".w-4{width:1rem}", ".w-6{width:1.5rem}", ".w-8{width:2rem}",
+    ".h-2{height:0.5rem}", ".h-4{height:1rem}", ".h-6{height:1.5rem}", ".h-8{height:2rem}",
+    ".h-\\[80px\\]{height:80px}", ".pt-\\[80px\\]{padding-top:80px}",
+    ".min-h-\\[921px\\]{min-height:921px}", ".top-\\[80px\\]{top:80px}",
+    ".relative{position:relative}", ".absolute{position:absolute}",
+    ".fixed{position:fixed}", ".sticky{position:sticky;top:0}",
+    ".inset-0{top:0;right:0;bottom:0;left:0}",
+    ".top-0{top:0}", ".bottom-0{bottom:0}", ".left-0{left:0}", ".right-0{right:0}",
+    ".top-10{top:2.5rem}",
+    ".z-10{z-index:10}", ".z-20{z-index:20}", ".z-50{z-index:50}",
+    ".overflow-hidden{overflow:hidden}", ".overflow-x-hidden{overflow-x:hidden}",
+    ".text-xs{font-size:0.75rem}", ".text-sm{font-size:0.875rem}",
+    ".text-base{font-size:1rem}", ".text-lg{font-size:1.125rem}",
+    ".text-xl{font-size:1.25rem}", ".text-2xl{font-size:1.5rem}",
+    ".text-3xl{font-size:1.875rem}", ".text-4xl{font-size:2.25rem}",
+    ".font-normal{font-weight:400}", ".font-medium{font-weight:500}",
+    ".font-semibold{font-weight:600}", ".font-bold{font-weight:700}",
+    ".font-extrabold{font-weight:800}", ".font-black{font-weight:900}",
+    ".text-center{text-align:center}", ".text-left{text-align:left}", ".text-right{text-align:right}",
+    ".uppercase{text-transform:uppercase}", ".capitalize{text-transform:capitalize}",
+    ".tracking-wide{letter-spacing:0.025em}", ".tracking-wider{letter-spacing:0.05em}",
+    ".tracking-widest{letter-spacing:0.1em}",
+    ".leading-tight{line-height:1.25}", ".leading-normal{line-height:1.5}", ".leading-relaxed{line-height:1.625}",
+    ".truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".no-underline{text-decoration:none}", ".underline{text-decoration:underline}",
+    ".opacity-70{opacity:0.7}", ".opacity-80{opacity:0.8}", ".opacity-90{opacity:0.9}",
+    ".border{border-width:1px;border-style:solid}", ".border-2{border-width:2px;border-style:solid}",
+    ".border-0{border-width:0}", ".border-t{border-top-width:1px;border-top-style:solid}",
+    ".border-b{border-bottom-width:1px;border-bottom-style:solid}",
+    ".border-b-2{border-bottom-width:2px;border-bottom-style:solid}",
+    ".border-white\\/5{border-color:rgba(255,255,255,0.05)}",
+    ".border-white\\/10{border-color:rgba(255,255,255,0.1)}",
+    ".border-white\\/20{border-color:rgba(255,255,255,0.2)}",
+    ".rounded{border-radius:4px}", ".rounded-sm{border-radius:2px}",
+    ".rounded-md{border-radius:6px}", ".rounded-lg{border-radius:8px}",
+    ".rounded-xl{border-radius:12px}", ".rounded-2xl{border-radius:16px}",
+    ".rounded-full{border-radius:9999px}",
+    ".shadow{box-shadow:0 1px 3px rgba(0,0,0,0.2)}",
+    ".shadow-lg{box-shadow:0 10px 15px -3px rgba(0,0,0,0.4)}",
+    ".shadow-xl{box-shadow:0 20px 25px -5px rgba(0,0,0,0.5)}",
+    ".shadow-2xl{box-shadow:0 25px 50px -12px rgba(0,0,0,0.6)}",
+    ".backdrop-blur-md{-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}",
+    ".backdrop-blur-sm{-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}",
+    ".transition-colors{transition:color 0.2s,background-color 0.2s,border-color 0.2s}",
+    ".transition-transform{transition:transform 0.2s}", ".transition-all{transition:all 0.2s}",
+    ".duration-200{transition-duration:200ms}", ".duration-300{transition-duration:300ms}",
+    ".duration-500{transition-duration:500ms}",
+    ".hover\\:scale-105:hover{transform:scale(1.05)}", ".active\\:scale-95:active{transform:scale(0.95)}",
+    ".group:hover .group-hover\\:scale-105{transform:scale(1.05)}",
+    ".object-cover{object-fit:cover}", ".object-center{object-position:center}",
+    ".cursor-pointer{cursor:pointer}", ".select-none{user-select:none}",
+    ".pb-1{padding-bottom:0.25rem}", ".pb-2{padding-bottom:0.5rem}",
+    ".p-0{padding:0}", ".m-0{margin:0}", ".w-1\\/2{width:50%}", ".w-1\\/3{width:33.333%}",
+    ".space-y-1>*+*{margin-top:0.25rem}", ".space-y-2>*+*{margin-top:0.5rem}",
+    ".animate-pulse{animation:pulse 2s infinite}",
+    ".animate-bounce{animation:bounce 1s infinite}",
+  ];
+  css.push(...utils);
+
+  // ── Post-processing: generate CSS for arbitrary-value Tailwind classes ──────
+  // Stitch output uses w-[48px], min-h-[100vh], md:grid-cols-3 etc. that aren't
+  // in the static utils list above. Scan all class="..." attributes and generate.
+  const arbitraryPatterns: [RegExp, (m: RegExpMatchArray) => string][] = [
+    [/^w-\[(\d+)px\]$/,        (m) => `.w-\[${m[1]}px\]{width:${m[1]}px}`],
+    [/^h-\[(\d+)px\]$/,        (m) => `.h-\[${m[1]}px\]{height:${m[1]}px}`],
+    [/^min-h-\[(\d+)px\]$/,    (m) => `.min-h-\[${m[1]}px\]{min-height:${m[1]}px}`],
+    [/^min-h-\[(\d+)vh\]$/,    (m) => `.min-h-\[${m[1]}vh\]{min-height:${m[1]}vh}`],
+    [/^pt-\[(\d+)px\]$/,       (m) => `.pt-\[${m[1]}px\]{padding-top:${m[1]}px}`],
+    [/^pb-\[(\d+)px\]$/,       (m) => `.pb-\[${m[1]}px\]{padding-bottom:${m[1]}px}`],
+    [/^pl-\[(\d+)px\]$/,       (m) => `.pl-\[${m[1]}px\]{padding-left:${m[1]}px}`],
+    [/^pr-\[(\d+)px\]$/,       (m) => `.pr-\[${m[1]}px\]{padding-right:${m[1]}px}`],
+    [/^p-\[(\d+)px\]$/,        (m) => `.p-\[${m[1]}px\]{padding:${m[1]}px}`],
+    [/^top-\[(\d+)px\]$/,      (m) => `.top-\[${m[1]}px\]{top:${m[1]}px}`],
+    [/^bottom-\[(\d+)px\]$/,   (m) => `.bottom-\[${m[1]}px\]{bottom:${m[1]}px}`],
+    [/^left-\[(\d+)px\]$/,     (m) => `.left-\[${m[1]}px\]{left:${m[1]}px}`],
+    [/^right-\[(\d+)px\]$/,    (m) => `.right-\[${m[1]}px\]{right:${m[1]}px}`],
+    [/^text-\[(\d+)px\]$/,     (m) => `.text-\[${m[1]}px\]{font-size:${m[1]}px}`],
+    [/^gap-\[(\d+)px\]$/,      (m) => `.gap-\[${m[1]}px\]{gap:${m[1]}px}`],
+    [/^gap-x-\[(\d+)px\]$/,    (m) => `.gap-x-\[${m[1]}px\]{column-gap:${m[1]}px}`],
+    [/^gap-y-\[(\d+)px\]$/,    (m) => `.gap-y-\[${m[1]}px\]{row-gap:${m[1]}px}`],
+    [/^max-w-\[(\d+)px\]$/,    (m) => `.max-w-\[${m[1]}px\]{max-width:${m[1]}px}`],
+    [/^w-\[(\d+)%\]$/,         (m) => `.w-\[${m[1]}\%\]{width:${m[1]}%}`],
+    [/^h-\[(\d+)%\]$/,         (m) => `.h-\[${m[1]}\%\]{height:${m[1]}%}`],
+    [/^rounded-\[(\d+)px\]$/,  (m) => `.rounded-\[${m[1]}px\]{border-radius:${m[1]}px}`],
+    [/^opacity-\[([0-9.]+)\]$/, (m) => `.opacity-\[${m[1]}\]{opacity:${m[1]}}`],
+    // grid-cols-N (static, covers 1-6 that may be in arbitrary slots)
+    [/^grid-cols-([1-6])$/,    (m) => `.grid-cols-${m[1]}{grid-template-columns:repeat(${m[1]},minmax(0,1fr))}`],
+    [/^md:grid-cols-([1-6])$/, (m) => `@media(min-width:768px){.md\:grid-cols-${m[1]}{grid-template-columns:repeat(${m[1]},minmax(0,1fr))}}`],
+    [/^lg:grid-cols-([1-6])$/, (m) => `@media(min-width:1024px){.lg\:grid-cols-${m[1]}{grid-template-columns:repeat(${m[1]},minmax(0,1fr))}}`],
+    [/^sm:grid-cols-([1-6])$/, (m) => `@media(min-width:640px){.sm\:grid-cols-${m[1]}{grid-template-columns:repeat(${m[1]},minmax(0,1fr))}}`],
+    // opacity modifiers with slash: bg-secondary/10 → handled by color loop above, but add shadow variants
+    [/^shadow-\w+\/(\d+)$/,    (m) => ``], // skip — complex to resolve without color name
+  ];
+
+  // Extract all class token strings from HTML
+  const seenArbitrary = new Set<string>();
+  const arbitraryCss: string[] = [];
+  const classAttrRe = /class=["']([^"']+)["']/g;
+  let classMatch: RegExpExecArray | null;
+  while ((classMatch = classAttrRe.exec(html)) !== null) {
+    const tokens = classMatch[1].split(/\s+/);
+    for (const tok of tokens) {
+      if (seenArbitrary.has(tok)) continue;
+      seenArbitrary.add(tok);
+      for (const [pat, gen] of arbitraryPatterns) {
+        const m = tok.match(pat);
+        if (m) {
+          const rule = gen(m as RegExpMatchArray);
+          if (rule) arbitraryCss.push(rule);
+          break;
+        }
+      }
+    }
+  }
+  if (arbitraryCss.length > 0) {
+    css.push("/* Arbitrary-value classes detected in Stitch output */");
+    css.push(...arbitraryCss);
+  }
+
+  // Also add hover transition utilities for all buttons
+  css.push(".hover\:opacity-88:hover{opacity:0.88}", ".hover\:-translate-y-1:hover{transform:translateY(-1px)}");
+  // Shadow opacity modifier patterns (common in Stitch output)
+  css.push(".shadow-lg\/20{box-shadow:0 10px 15px -3px rgba(0,0,0,0.2)}");
+  css.push(".shadow-xl\/30{box-shadow:0 20px 25px -5px rgba(0,0,0,0.3)}");
+
+  const block = "<style data-wg=\"stitch-tokens\">\n" + css.join("\n") + "\n</style>";
+  if (html.includes("</head>")) {
+    return html.replace("</head>", block + "\n</head>");
+  }
+  return block + "\n" + html;
+}
+
 export function fixNavigateToTargets(html: string): string {
   const labelMap: Record<string, string> = {
     "home": "home", "about": "about", "about us": "about",
@@ -1057,6 +1321,18 @@ window.navigateTo = function(pageId) {
       requestAnimationFrame(function() { requestAnimationFrame(function() { target.style.opacity = "1"; }); });
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
+    // Update nav active states
+    document.querySelectorAll("nav a, header a, [data-nav-link], .nav-link").forEach(function(link) {
+      var oc = link.getAttribute("onclick") || "";
+      var isActive = oc.includes("navigateTo(\'"+pageId+"\'") || oc.includes('navigateTo("'+pageId+'"') || oc.includes("navigateTo('"+pageId+"'");
+      if (isActive) {
+        (link as HTMLElement).style.color = "var(--clr-accent, #10b981)";
+        (link as HTMLElement).style.fontWeight = "700";
+      } else if (oc.includes("navigateTo")) {
+        (link as HTMLElement).style.color = "";
+        (link as HTMLElement).style.fontWeight = "500";
+      }
+    });
     return;
   }
 

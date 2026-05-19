@@ -370,6 +370,17 @@ Primary keyword placement: weave "${industry} ${location.split(",")[0]?.trim()}"
 
   const prompt = `You are a world-class web designer. Produce a Site Blueprint JSON for this business.
 
+MANDATORY DESIGN SYSTEM — read and follow these rules exactly before generating anything:
+${(() => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    return fs.readFileSync(path.join(process.cwd(), 'DESIGN.md'), 'utf-8');
+  } catch { return '(DESIGN.md not found — use Inter/Space Grotesk fonts, CSS variables for colours, 14px border-radius on cards, 8px on buttons)'; }
+})()}
+
+END OF DESIGN SYSTEM — now generate the blueprint below.
+
 BUSINESS:
 - Name: ${businessName}
 - Industry: ${industry}
@@ -392,6 +403,18 @@ RULES:
 4. stitchPrompt MUST follow the EXACT STRUCTURE SCAFFOLD below — this is non-negotiable
 
 EXACT STRUCTURE SCAFFOLD — the stitchPrompt MUST describe rendering EXACTLY these elements in this order:
+
+LAYOUT CONSISTENCY RULES — mandatory for every page:
+- Every page MUST use the same sticky nav (copy exact HTML, just highlight active link)
+- Every page MUST have the same footer
+- All buttons use identical styling: padding:14px 28px, border-radius:8px, font-weight:600
+- Primary buttons: background=accent colour, color=#fff
+- Ghost/secondary buttons: border:1.5px solid accent, background:transparent, color=accent
+- All cards: border-radius:14px, same border colour, same padding:28px 32px
+- Section padding: 80px 24px on desktop, 60px 20px on mobile
+- NEVER use different button styles on different pages
+- NEVER use different card styles on different pages
+- The nav must be IDENTICAL on every page — same logo, same links, same styling
 
 [1] STICKY HEADER
   - Logo text "${businessName}" left
@@ -450,6 +473,13 @@ ${contactFormScaffold.replace(/ACCENT/g, "the accent colour")}
   - NO extra fields. NO dropdown. NO checkbox. NO Business Name field. ONLY the 4 fields above.
   ${businessAddress ? `- AFTER the form columns: render a Google Maps embed iframe INSIDE this contact section (NOT after the footer) — use src="https://maps.google.com/maps?q=${encodeURIComponent(businessAddress || "")}&output=embed" width="100%" height="300" style="border:0;border-radius:12px;margin-top:40px"` : ""}
   CRITICAL: The contact section and Google Maps embed must appear ABOVE the footer. NEVER place the map after </footer>.
+
+BUTTON & INTERACTION RULES — mandatory across ALL pages:
+- All nav links MUST call window.navigateTo('pageid') using onclick — NEVER use href='#section' anchors
+- CTA buttons that scroll to sections: onclick='document.getElementById("id").scrollIntoView({behavior:"smooth"})'
+- Hover states on ALL buttons: opacity 0.88 + transform translateY(-1px), transition 0.2s ease
+- Active page nav link: color = accent colour, font-weight:700
+- Non-active nav links: default text colour, font-weight:500
 
 ${bookingInstruction ? `[8] ${bookingInstruction}` : ""}
 ${features.includes("Photo Gallery") ? "[GALLERY] section id=gallery — image grid" : ""}
