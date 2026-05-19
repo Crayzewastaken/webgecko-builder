@@ -303,29 +303,19 @@ const buildWebsite = inngest.createFunction(
           const headlineFont = resolveFont(typography.headingFont || "Space Grotesk");
           const bodyFont = resolveFont(typography.bodyFont || "Inter");
 
+          // Keep designSystemInput minimal — only fields Stitch API accepts without error
           const designSystemInput = {
             displayName: `${spec.projectTitle} Design System`,
             designTokens: tokens,
-            styleGuidelines: designMdContent || undefined,
             theme: {
               colorMode: (isDark ? "DARK" : "LIGHT") as "DARK" | "LIGHT",
-              colorVariant: "TONAL_SPOT" as const,
               customColor: palette.accent || palette.primary || "#10b981",
               overridePrimaryColor: palette.primary || undefined,
               overrideSecondaryColor: palette.accent || undefined,
-              backgroundDark: isDark ? palette.background : undefined,
-              backgroundLight: !isDark ? palette.background : undefined,
               headlineFont: headlineFont as any,
               bodyFont: bodyFont as any,
               labelFont: bodyFont as any,
               roundness: "ROUND_EIGHT" as const,
-              namedColors: {
-                "accent": palette.accent || "#10b981",
-                "primary": palette.primary || "#1a1a2e",
-                "background": palette.background || "#0a0f1a",
-                "surface": palette.surface || "#0f1623",
-                "text": palette.text || "#e2e8f0",
-              },
             },
           };
 
@@ -357,33 +347,27 @@ const buildWebsite = inngest.createFunction(
             const screen = await project.generate(stitchPrompt, "DESKTOP");
             console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
 
-            // generate() returns a Screen — try getHtml() on it first (uses cached downloadUrl if present)
+            // getHtml() may return empty immediately after generate() — retry with backoff
+            // list_screens is unreliable (returns 0 screens) so use direct getHtml() retries instead
             let url = await screen.getHtml();
-            console.log(`[Inngest] STEP 3: getHtml() from generate response — url length=${url?.length ?? 0}`);
+            console.log(`[Inngest] STEP 3: getHtml() attempt 1 — url length=${url?.length ?? 0}`);
 
-            // get_screen NEVER returns htmlCode.downloadUrl — only list_screens does.
-            // Wait 60s after generate() then poll list_screens every 30s (4 polls = 120s more).
-            // Total: generate() time + 60s wait + up to 120s polling, well within 300s.
             if (!url && screen.screenId) {
-              console.log(`[Inngest] STEP 3: waiting 60s for HTML export to become ready...`);
-              await sleep(60000);
-
-              for (let poll = 1; poll <= 4; poll++) {
+              // Poll getHtml() directly: 20s, 20s, 20s, 30s, 30s = max 120s extra
+              const pollDelays = [20000, 20000, 20000, 30000, 30000];
+              for (let poll = 0; poll < pollDelays.length; poll++) {
+                await sleep(pollDelays[poll]);
                 try {
-                  const listRaw = await (stitchSdk as any).client.callTool("list_screens", { projectId });
-                  const screens: any[] = listRaw?.screens || [];
-                  const found = screens.find((s: any) => (s.id || s.name?.split("/screens/").pop()) === screen.screenId);
-                  url = found?.htmlCode?.downloadUrl || "";
-                  console.log(`[Inngest] STEP 3: list_screens poll ${poll} — ${screens.length} screens, htmlUrl length=${url?.length ?? 0}`);
+                  url = await screen.getHtml();
+                  console.log(`[Inngest] STEP 3: getHtml() poll ${poll + 2} — url length=${url?.length ?? 0}`);
                   if (url) break;
                 } catch (pe: any) {
-                  console.log(`[Inngest] STEP 3: list_screens poll ${poll} error: ${pe?.message}`);
+                  console.log(`[Inngest] STEP 3: getHtml() poll ${poll + 2} error: ${pe?.message}`);
                 }
-                if (poll < 4) await sleep(30000);
               }
             }
 
-            if (!url) throw new Error(`Stitch getHtml() returned empty URL (screenId=${screen.screenId})`);
+            if (!url) throw new Error(`Stitch getHtml() returned empty after all retries (screenId=${screen.screenId})`);
 
             const fetchRes = await fetch(url);
             const text = await fetchRes.text();
