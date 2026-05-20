@@ -370,17 +370,6 @@ Primary keyword placement: weave "${industry} ${location.split(",")[0]?.trim()}"
 
   const prompt = `You are a world-class web designer. Produce a Site Blueprint JSON for this business.
 
-MANDATORY DESIGN SYSTEM — read and follow these rules exactly before generating anything:
-${(() => {
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    return fs.readFileSync(path.join(process.cwd(), 'DESIGN.md'), 'utf-8');
-  } catch { return '(DESIGN.md not found — use Inter/Space Grotesk fonts, CSS variables for colours, 14px border-radius on cards, 8px on buttons)'; }
-})()}
-
-END OF DESIGN SYSTEM — now generate the blueprint below.
-
 BUSINESS:
 - Name: ${businessName}
 - Industry: ${industry}
@@ -402,19 +391,30 @@ RULES:
 3. No markdown (** or *) anywhere
 4. stitchPrompt MUST follow the EXACT STRUCTURE SCAFFOLD below — this is non-negotiable
 
-EXACT STRUCTURE SCAFFOLD — the stitchPrompt MUST describe rendering EXACTLY these elements in this order:
+CRITICAL VISUAL & CODE RULES — the stitchPrompt MUST enforce ALL of these:
+A. FONTS: Import and use ONLY 'Space Grotesk' (headings h1-h3) and 'Inter' (body, nav, buttons, forms) from Google Fonts. Never use Arial, Helvetica, system-ui, or any other font.
+B. BUTTONS — ALL buttons on ALL pages must be identical (use the palette.accent colour from this blueprint for ACCENT):
+   - Primary: background:ACCENT;color:#fff;padding:14px 28px;border-radius:8px;font-weight:600;font-size:1rem;border:none;cursor:pointer;transition:opacity 0.2s,transform 0.15s;
+   - Primary hover: opacity:0.88;transform:translateY(-1px);
+   - Ghost/secondary: background:transparent;border:1.5px solid ACCENT;color:ACCENT;padding:13px 27px;border-radius:8px;font-weight:600;font-size:1rem;cursor:pointer;transition:background 0.2s;
+   - Ghost hover: background:ACCENT with 13% opacity;
+   - NEVER use different button styles on different pages. Copy these exact styles verbatim.
+C. CARDS — ALL cards on ALL pages must be identical (SURFACE = palette.surface colour):
+   - background:SURFACE;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:28px 32px;box-shadow:0 4px 24px rgba(0,0,0,0.18);transition:box-shadow 0.2s,transform 0.2s;
+   - Card hover: box-shadow:0 8px 40px rgba(0,0,0,0.28);transform:translateY(-2px);
+D. NAV — The sticky header must be IDENTICAL on every page (BG = palette.background colour):
+   - position:sticky;top:0;z-index:100;background:BG with e8 alpha;backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.07);padding:0 48px;height:68px;display:flex;align-items:center;justify-content:space-between;
+   - Active nav link: color:ACCENT;font-weight:700;border-bottom:2px solid ACCENT;
+   - Nav links call window.navigateTo('pageid') — never use href anchors for page navigation
+E. SECTIONS: padding:80px 48px on desktop. max-width:1200px;margin:0 auto; on inner content.
+F. COLOUR VARIABLES: Use these CSS vars everywhere — define at :root using the palette colours from this blueprint:
+   --clr-bg, --clr-surface, --clr-accent, --clr-text, --clr-border:rgba(255,255,255,0.08)
+G. INTERACTIONS: All nav buttons use window.navigateTo('pageid'). Smooth scroll anchors use document.getElementById('id').scrollIntoView({behavior:'smooth'}). No broken links.
+H. ANIMATIONS: Use CSS only — @keyframes fadeInUp for hero headline (0.6s ease-out). No JS animation libraries.
+I. NO placeholder images: never use picsum.photos, placehold.it, unsplash.com, or any fake image URL in src attributes.
+J. RESPONSIVE: Every section must have @media(max-width:768px) rules reducing padding to 20px and switching grids to single column.
 
-LAYOUT CONSISTENCY RULES — mandatory for every page:
-- Every page MUST use the same sticky nav (copy exact HTML, just highlight active link)
-- Every page MUST have the same footer
-- All buttons use identical styling: padding:14px 28px, border-radius:8px, font-weight:600
-- Primary buttons: background=accent colour, color=#fff
-- Ghost/secondary buttons: border:1.5px solid accent, background:transparent, color=accent
-- All cards: border-radius:14px, same border colour, same padding:28px 32px
-- Section padding: 80px 24px on desktop, 60px 20px on mobile
-- NEVER use different button styles on different pages
-- NEVER use different card styles on different pages
-- The nav must be IDENTICAL on every page — same logo, same links, same styling
+EXACT STRUCTURE SCAFFOLD — the stitchPrompt MUST describe rendering EXACTLY these elements in this order:
 
 [1] STICKY HEADER
   - Logo text "${businessName}" left
@@ -473,13 +473,6 @@ ${contactFormScaffold.replace(/ACCENT/g, "the accent colour")}
   - NO extra fields. NO dropdown. NO checkbox. NO Business Name field. ONLY the 4 fields above.
   ${businessAddress ? `- AFTER the form columns: render a Google Maps embed iframe INSIDE this contact section (NOT after the footer) — use src="https://maps.google.com/maps?q=${encodeURIComponent(businessAddress || "")}&output=embed" width="100%" height="300" style="border:0;border-radius:12px;margin-top:40px"` : ""}
   CRITICAL: The contact section and Google Maps embed must appear ABOVE the footer. NEVER place the map after </footer>.
-
-BUTTON & INTERACTION RULES — mandatory across ALL pages:
-- All nav links MUST call window.navigateTo('pageid') using onclick — NEVER use href='#section' anchors
-- CTA buttons that scroll to sections: onclick='document.getElementById("id").scrollIntoView({behavior:"smooth"})'
-- Hover states on ALL buttons: opacity 0.88 + transform translateY(-1px), transition 0.2s ease
-- Active page nav link: color = accent colour, font-weight:700
-- Non-active nav links: default text colour, font-weight:500
 
 ${bookingInstruction ? `[8] ${bookingInstruction}` : ""}
 ${features.includes("Photo Gallery") ? "[GALLERY] section id=gallery — image grid" : ""}

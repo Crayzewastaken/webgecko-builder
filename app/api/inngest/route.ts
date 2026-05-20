@@ -419,9 +419,9 @@ const buildWebsite = inngest.createFunction(
         // from Stitch is preserved exactly as-is.
         let html = stitchHtml;
 
-        // 1. Inject id="hero" on the first section/div if missing
+        // 1. Inject id="hero" on first <section> only — never <div> (avoids nav/logo elements)
         if (!html.includes('id="hero"') && !html.includes("id='hero'")) {
-          html = html.replace(/(<(?:section|div)\b)(?![^>]*\bid=)/, '$1 id="hero"');
+          html = html.replace(/(<section\b)(?![^>]*\bid=)/, '$1 id="hero"');
         }
 
         // 2. Wire existing hamburger/SVG menu button OR inject our own if missing
@@ -582,7 +582,14 @@ const buildWebsite = inngest.createFunction(
         const bookingNavTarget = hasBookingFeature ? "booking" : "contact";
 
         if (userInput.businessName) {
-          html = html.replace(/<title>[^<]*<\/title>/i, `<title>${userInput.businessName}</title>`);
+          // Preserve Stitch's real title — only replace generic placeholders
+          html = html.replace(/<title>([^<]*)<\/title>/i, (_m: string, existing: string) => {
+            const trimmed = existing.trim();
+            if (trimmed.includes('|') || trimmed.includes(' - ') || trimmed.length > userInput.businessName.length + 5) {
+              return `<title>${trimmed}</title>`;
+            }
+            return `<title>${userInput.businessName}</title>`;
+          });
         }
 
         const clientDomain = clientEmail.split("@")[1] || "";
@@ -774,9 +781,14 @@ const buildWebsite = inngest.createFunction(
           const mapsEmbed = process.env.GOOGLE_MAPS_API_KEY
             ? `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;display:block;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`
             : `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;display:block;" loading="lazy" allowfullscreen src="https://www.openstreetmap.org/export/embed.html?bbox=&layer=mapnik&marker=&query=${encodeURIComponent(businessAddress)}" title="Map"></iframe><small style="display:block;text-align:right;font-size:10px;color:#94a3b8;margin-top:4px;"><a href="https://www.openstreetmap.org/search?query=${encodeURIComponent(businessAddress)}" target="_blank" style="color:#94a3b8;">View larger map</a></small></div>`;
-          // Remove any Stitch-generated map iframes/links first to avoid duplicates
-          html = html.replace(/<div[^>]*>\s*<iframe[^>]*(?:google\.com\/maps|maps\.googleapis|openstreetmap)[^>]*>[\s\S]*?<\/iframe>\s*<\/div>/gi, '');
-          html = html.replace(/<iframe[^>]*(?:google\.com\/maps|maps\.googleapis|openstreetmap)[^>]*>[\s\S]*?<\/iframe>/gi, '');
+          // Skip map injection if Stitch already embedded a real Google Maps iframe
+          const hasRealMap = /<iframe[^>]*(?:google\.com\/maps|maps\.googleapis)[^>]*>/i.test(html);
+          if (hasRealMap) {
+            console.log("[Step5] Stitch already has Google Maps — skipping map injection");
+          } else {
+          // Remove only openstreetmap placeholders
+          html = html.replace(/<div[^>]*>\s*<iframe[^>]*(?:openstreetmap)[^>]*>[\s\S]*?<\/iframe>\s*<\/div>/gi, '');
+          html = html.replace(/<iframe[^>]*(?:openstreetmap)[^>]*>[\s\S]*?<\/iframe>/gi, '');
           // Also strip bare <a href="...maps..."> links Stitch sometimes generates instead of iframes
           html = html.replace(/<a[^>]*href=["'][^"']*(?:google\.com\/maps|maps\.googleapis\.com)[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '');
           // Strip Stitch visual map placeholder boxes — broad catch for all variants:
@@ -855,6 +867,7 @@ const buildWebsite = inngest.createFunction(
               html = html.replace("</body>", mapBlock + "\n</body>");
             }
           }
+          } // end else (no real Google Maps — injected ours)
         }
 
         // ── Video Background injection ──────────────────────────────────────────
@@ -1574,14 +1587,12 @@ const buildWebsite = inngest.createFunction(
           let repaired = repairHtml(prePassHtml, userInput.businessName, new Date().getFullYear());
 
 
-          // Pass 1b: force-inject id="hero" on first section/div if still missing
+          // Pass 1b: force-inject id="hero" on first <section> only (never <div> — avoids nav elements)
           if (!repaired.includes('id="hero"') && !repaired.includes("id='hero'")) {
-            // Simple: insert id="hero" immediately after the opening tag name
-            // e.g. <section class="..."> → <section id="hero" class="...">
             const beforeInject = repaired;
-            repaired = repaired.replace(/(<(?:section|div)\b)(?![^>]*\bid=)/, '$1 id="hero"');
+            repaired = repaired.replace(/(<section\b)(?![^>]*\bid=)/, '$1 id="hero"');
             if (repaired !== beforeInject) {
-              console.warn("[Step7b] Force-injected id=hero on first section/div (simple replace)");
+              console.warn("[Step7b] Force-injected id=hero on first <section>");
             } else {
               // Fallback: wrap body content in a hero section
               repaired = repaired.replace(/(<body[^>]*>)/, '$1<section id="hero" style="display:none"></section>');

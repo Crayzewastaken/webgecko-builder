@@ -652,7 +652,7 @@ export default function ClientPortal() {
   const [socialPlatforms, setSocialPlatforms] = useState<string[]>(["Instagram","Facebook"]);
   const [socialSubmitting, setSocialSubmitting] = useState(false);
   const [socialSubmitted, setSocialSubmitted] = useState(false);
-  const [socialFile, setSocialFile] = useState<File|null>(null);
+  const [socialFiles, setSocialFiles] = useState<File[]>([]);
   // Social upsell / plan selection
   const [socialSelectedPlan, setSocialSelectedPlan] = useState<string|null>(null);
   const [socialUpgradeState, setSocialUpgradeState] = useState<"idle"|"loading"|"done"|"err">("idle");
@@ -3314,14 +3314,21 @@ export default function ClientPortal() {
                           <div style={{ fontSize: 36, marginBottom: 12 }}>🚀</div>
                           <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6 }}>Brief received!</div>
                           <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 18, lineHeight: 1.6 }}>We'll have a draft ready within 24 hours for your review.</div>
-                          <button onClick={() => { setSocialSubmitted(false); setSocialBrief(""); setSocialFile(null); }} style={{ background: C.raised, color: C.textSec, border: `1px solid ${C.border}`, borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Submit another</button>
+                          <button onClick={() => { setSocialSubmitted(false); setSocialBrief(""); setSocialFiles([]); }} style={{ background: C.raised, color: C.textSec, border: `1px solid ${C.border}`, borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Submit another</button>
                         </div>
                       ) : (
                         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                          <label style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: C.raised, border: `2px dashed ${socialFile ? C.accentBlue : C.border}`, borderRadius: 10, cursor: "pointer" }}>
-                            <span style={{ fontSize: 22 }}>🖼️</span>
-                            <div><div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{socialFile ? socialFile.name : "Click to upload photo (optional)"}</div><div style={{ fontSize: 11, color: C.textMuted }}>PNG, JPG, HEIC up to 20MB</div></div>
-                            <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => setSocialFile(e.target.files?.[0] || null)} />
+                          <label
+                            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "18px 14px", background: C.raised, border: `2px dashed ${socialFiles.length > 0 ? C.accentBlue : C.border}`, borderRadius: 10, cursor: "pointer", textAlign: "center" }}
+                            onDragOver={e => e.preventDefault()}
+                            onDrop={e => { e.preventDefault(); const dropped = Array.from(e.dataTransfer.files); setSocialFiles(prev => [...prev, ...dropped].slice(0, 10)); }}
+                          >
+                            <input type="file" accept="image/*,video/*" multiple style={{ display: "none" }} onChange={e => { const picked = Array.from(e.target.files || []); setSocialFiles(prev => [...prev, ...picked].slice(0, 10)); }} />
+                            <div style={{ fontSize: 22 }}>{socialFiles.length > 0 ? "📎" : "📷"}</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
+                              {socialFiles.length > 0 ? `${socialFiles.length} file${socialFiles.length > 1 ? "s" : ""} selected` : "Drop photos or videos here, or click to browse"}
+                            </div>
+                            <div style={{ fontSize: 11, color: C.textMuted }}>Photos, videos, anything • up to 10 files • 50MB each</div>
                           </label>
                           <div>
                             <label style={{ fontSize: 12, fontWeight: 600, color: C.textSec, display: "block", marginBottom: 8 }}>What is this post about? *</label>
@@ -3345,9 +3352,30 @@ export default function ClientPortal() {
                               })}
                             </div>
                           </div>
-                          <button onClick={async () => { if (!socialBrief.trim()) return; setSocialSubmitting(true); try { const fd = new FormData(); if (socialFile) fd.append("photo", socialFile); fd.append("slug", slug); fd.append("brief", socialBrief); fd.append("tone", socialTone); fd.append("platforms", JSON.stringify(socialPlatforms)); await fetch("/api/client/social-upload", { method: "POST", body: fd }); setSocialSubmitted(true); } catch (e) { /* silent */ } finally { setSocialSubmitting(false); } }}
+                          <button onClick={async () => {
+                              if (!socialBrief.trim()) return;
+                              setSocialSubmitting(true);
+                              try {
+                                const fd = new FormData();
+                                socialFiles.forEach(f => fd.append("files", f));
+                                fd.append("slug", slug);
+                                fd.append("brief", socialBrief);
+                                fd.append("tone", socialTone);
+                                fd.append("platforms", JSON.stringify(socialPlatforms.map(p => p.toLowerCase())));
+                                const res = await fetch("/api/client/social-upload", { method: "POST", body: fd });
+                                const data = await res.json();
+                                if (data.ok) {
+                                  setSocialSubmitted(true);
+                                  setSocialFiles([]);
+                                  setSocialBrief("");
+                                } else {
+                                  alert("Something went wrong: " + (data.error || "please try again"));
+                                }
+                              } catch { alert("Upload failed — please try again"); }
+                              finally { setSocialSubmitting(false); }
+                            }}
                             disabled={socialSubmitting || !socialBrief.trim()} style={{ background: (!socialBrief.trim() || socialSubmitting) ? C.raised : `linear-gradient(135deg, ${C.accentBlue}, #7c3aed)`, color: (!socialBrief.trim() || socialSubmitting) ? C.textMuted : "#fff", border: "none", borderRadius: 10, padding: "12px 24px", fontSize: 14, fontWeight: 700, cursor: (!socialBrief.trim() || socialSubmitting) ? "not-allowed" : "pointer", width: "100%", fontFamily: "inherit" }}>
-                            {socialSubmitting ? "Submitting…" : "Request Post →"}
+                            {socialSubmitting ? "Uploading & drafting…" : "Send to AI & Draft Posts →"}
                           </button>
                         </div>
                       )}
