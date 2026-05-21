@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySquareWebhook } from "@/lib/square";
 import { getJob, saveJob, getPaymentState, savePaymentState, getClient, saveClient } from "@/lib/db";
+import { supabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
@@ -24,7 +25,91 @@ export async function POST(req: NextRequest) {
   const eventType: string = event.type || "";
   console.log(`Square webhook received: ${eventType}`);
 
+  // Handle Subscription Updates/Deletions (cancellation/past due etc.)
+  if (eventType === "subscription.updated" || eventType === "subscription.deleted") {
+    const subscription = event.data?.object?.subscription;
+    if (!subscription) return NextResponse.json({ ok: true });
+
+    const subscriptionId = subscription.id;
+    const subscriptionStatus = subscription.status; // CANCELED, DEACTIVATED, PAST_DUE, etc.
+
+    console.log(`[Subscription Webhook] ID=${subscriptionId} Status=${subscriptionStatus}`);
+
+    const isInactive = ["CANCELED", "DEACTIVATED", "PAST_DUE"].includes(subscriptionStatus) || eventType === "subscription.deleted";
+
+    if (isInactive) {
+      const { data: psRow, error: psError } = await supabase
+        .from("payment_state")
+        .select("job_id")
+        .eq("square_subscription_id", subscriptionId)
+        .single();
+
+      if (psError || !psRow) {
+        console.error(`[Subscription Webhook] Payment state not found for subscription ID: ${subscriptionId}`);
+        return NextResponse.json({ ok: true });
+      }
+
+      const jobId = psRow.job_id;
+
+      // Update payment state
+      const existing = await getPaymentState(jobId) || { payments: {} };
+      await savePaymentState(jobId, {
+        ...existing,
+        monthlyActive: false,
+      });
+
+      // Update client: launch_ready = false
+      const { data: clientRow } = await supabase
+        .from("clients")
+        .select("slug, domain")
+        .eq("job_id", jobId)
+        .single();
+
+      if (clientRow) {
+        const client = await getClient(clientRow.slug);
+        if (client) {
+          await saveClient(clientRow.slug, {
+            ...client,
+            launch_ready: false,
+          });
+        }
+
+        // Send API call to Vercel to disconnect custom domain alias
+        const domain = clientRow.domain || (await getJob(jobId))?.domainSlug;
+        const vercelProjectName = (await getJob(jobId))?.vercelProjectName || process.env.VERCEL_PROJECT_NAME;
+
+        if (domain && vercelProjectName && process.env.VERCEL_TOKEN) {
+          try {
+            console.log(`[Subscription Webhook] Disconnecting custom domain: ${domain} from project: ${vercelProjectName}`);
+            const vercelRes = await fetch(
+              `https://api.vercel.com/v10/projects/${vercelProjectName}/domains/${domain}`,
+              {
+                method: "DELETE",
+                headers: {
+                  Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
+                },
+              }
+            );
+            if (!vercelRes.ok) {
+              const errText = await vercelRes.text();
+              console.error(`[Subscription Webhook] Vercel domain disconnect failed: ${errText}`);
+            } else {
+              console.log(`[Subscription Webhook] Successfully disconnected domain ${domain} on Vercel`);
+            }
+          } catch (e) {
+            console.error(`[Subscription Webhook] Error calling Vercel API:`, e);
+          }
+        }
+      }
+
+      console.log(`[Subscription Webhook] Processed inactive subscription ${subscriptionId} for jobId ${jobId}`);
+    }
+
+    return NextResponse.json({ ok: true });
+  }
+
   // Square checkout links fire "payment.created" (status=COMPLETED), not "payment.completed".
+
   // We handle all three as fallbacks; the status check below deduplicates partial updates.
   if (
     eventType === "payment.created" ||

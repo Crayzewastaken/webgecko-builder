@@ -371,8 +371,8 @@ function PreviewFrame({ previewUrl, builtAt, jobId }: { previewUrl:string; built
         <iframe
           key={key}
           src={src}
-          style={{width:IW,height:IH,border:"none",transform:`scale(${SCALE})`,transformOrigin:"top left",pointerEvents:"none"}}
-          sandbox="allow-scripts allow-same-origin"
+          style={{width:IW,height:IH,border:"none",transform:`scale(${SCALE})`,transformOrigin:"top left",pointerEvents:"auto"}}
+          sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin"
           title="Site preview"
         />
       </div>
@@ -3914,7 +3914,7 @@ function AdminDashboard() {
   const [clients, setClients] = useState<ClientAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [view, setView] = useState<"analytics"|"clients"|"logs"|"social"|"history"|"3dorigins">("analytics");
+  const [view, setView] = useState<"workbook"|"analytics"|"clients"|"logs"|"social"|"history"|"3dorigins">("workbook");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all"|"active"|"building"|"unpaid">("all");
   const [sort, setSort] = useState<"views"|"name"|"status">("views");
@@ -4058,7 +4058,8 @@ function AdminDashboard() {
           {/* Nav items */}
           <div style={{ flex:1, padding:"10px 0", overflowY:"auto" as const }}>
             {([
-              { v:"analytics" as const, label:"Analytics",   svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="8" width="3" height="6" rx="1" fill="currentColor"/><rect x="6" y="5" width="3" height="9" rx="1" fill="currentColor"/><rect x="11" y="1" width="3" height="13" rx="1" fill="currentColor"/></svg> },
+              { v:"workbook"  as const, label:"Strategy Board", svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="1" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><line x1="1" y1="5" x2="14" y2="5" stroke="currentColor" strokeWidth="1.5"/><line x1="5" y1="5" x2="5" y2="14" stroke="currentColor" strokeWidth="1.5"/></svg> },
+              { v:"analytics" as const, label:"System Stats",   svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="8" width="3" height="6" rx="1" fill="currentColor"/><rect x="6" y="5" width="3" height="9" rx="1" fill="currentColor"/><rect x="11" y="1" width="3" height="13" rx="1" fill="currentColor"/></svg> },
               { v:"clients"   as const, label:"Clients",      svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="5" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M2 13c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
               { v:"social"    as const, label:"Social Media", svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="3" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="3" r="2" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.5"/><line x1="4.9" y1="6.5" x2="10.1" y2="4" stroke="currentColor" strokeWidth="1.3"/><line x1="4.9" y1="8.5" x2="10.1" y2="11" stroke="currentColor" strokeWidth="1.3"/></svg> },
               { v:"logs"      as const, label:"Pipeline",     svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 4h11M2 7.5h8M2 11h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
@@ -4102,6 +4103,7 @@ function AdminDashboard() {
           </div>
           <div style={{ display:"flex",gap:6,alignItems:"center" }}>
             {([
+              { v:"workbook"  as const, svg:<svg width="14" height="14" viewBox="0 0 15 15" fill="none"><rect x="1" y="1" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><line x1="1" y1="5" x2="14" y2="5" stroke="currentColor" strokeWidth="1.5"/><line x1="5" y1="5" x2="5" y2="14" stroke="currentColor" strokeWidth="1.5"/></svg> },
               { v:"analytics" as const, svg:<svg width="14" height="14" viewBox="0 0 15 15" fill="none"><rect x="1" y="8" width="3" height="6" rx="1" fill="currentColor"/><rect x="6" y="5" width="3" height="9" rx="1" fill="currentColor"/><rect x="11" y="1" width="3" height="13" rx="1" fill="currentColor"/></svg> },
               { v:"clients"   as const, svg:<svg width="14" height="14" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="5" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M2 13c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
               { v:"social"    as const, svg:<svg width="14" height="14" viewBox="0 0 15 15" fill="none"><circle cx="3" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="3" r="2" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.5"/><line x1="4.9" y1="6.5" x2="10.1" y2="4" stroke="currentColor" strokeWidth="1.3"/><line x1="4.9" y1="8.5" x2="10.1" y2="11" stroke="currentColor" strokeWidth="1.3"/></svg> },
@@ -4163,6 +4165,12 @@ function AdminDashboard() {
 
         {/* Global selected-client panel (from Analytics view) */}
         {selectedClient&&<ClientPanel c={selectedClient} secret="" onClose={()=>setSelectedClient(null)} toast={toast}/>}
+
+        {view==="workbook"&&(
+          <div style={{ background:T.surface, borderRadius:12, border:`1px solid ${T.border}`, overflow:"hidden", boxShadow:T.shadowXl, marginBottom:28 }}>
+            <iframe src="/webgecko-analytics-dashboard.html" style={{ width:"100%", height:"820px", border:"none", background:"transparent" }} title="WebGecko Strategy Board"/>
+          </div>
+        )}
 
         {view==="analytics"&&!loading&&!error&&(
           <AnalyticsView clients={clients} onOpenClient={openClient} onClearBuilding={async()=>{ const r=await fetch("/api/admin/clear-building-jobs",{method:"POST"}).then(r=>r.json()).catch(()=>({error:"Failed"})); if(r.error){alert("Error: "+r.error);return;} toast(`Cleared ${r.cleared} stuck job(s)`,"ok"); await loadDashboard(); }}/>

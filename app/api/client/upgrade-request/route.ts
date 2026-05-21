@@ -42,6 +42,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
+    // Authenticate: check client session cookie
+    const cookieSlug = req.cookies.get("wg_client_slug")?.value;
+    if (!cookieSlug || cookieSlug !== slug) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const typeLabel = TYPE_LABELS[type] || type || "Upgrade Request";
     const planLabel = planName
       ? (planPrice ? planName + " -- $" + planPrice + "/mo" : planName)

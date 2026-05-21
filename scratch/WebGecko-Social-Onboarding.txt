@@ -1,0 +1,230 @@
+
+WEBGECKO
+Social Media Package
+Client Onboarding Process — Start to Finish
+Internal Operations Document  ·  WebGecko 2026
+
+Overview
+This document covers the complete process for onboarding a client onto the WebGecko Social Media package — from the first contact through to their first scheduled post going live. It applies to:
+ Clients purchasing Social Media as a standalone package (no website)
+ Existing website clients upgrading to include Social Media
+Follow every step in order. Do not skip the service agreement or setup call steps — they protect both you and the client legally and set clear expectations from day one.
+
+Package Pricing (Quick Reference)
+Package
+Monthly Fee
+Setup Fee
+Includes
+Starter
+$149/mo
+$150 once
+8 posts/mo · 2 platforms (Instagram + Facebook) · we review and post · client uploads photos
+Growth
+$249/mo
+$150 once
+16 posts/mo · 4 platforms · client gets preview tab to approve · branded image overlays
+Done-for-You
+$399/mo
+$200 once
+30 posts/mo · all platforms · AI image generation · no photos needed · monthly analytics report
+⚠ Note
+If the client already has an active website plan, offer a $50/mo discount on the Social bundle as a loyalty incentive. This improves retention and grows per-client revenue.
+
+The 12-Step Onboarding Process
+Step 1  📧  Send Welcome Email + Service Agreement
+1.
+Email the client confirming their social package tier, monthly price, setup fee, and start date.
+2.
+Attach the Social Media Management Agreement (see template in the WebGecko drive). Key clauses: account ownership stays with client; you have manager access; you post on their behalf with authority; 30-day cancellation notice required.
+3.
+Do NOT begin any account creation until the agreement is signed and the setup fee is paid.
+4.
+Use subject line: "Your WebGecko Social Media Package — Next Steps"
+Step 2  📋  Receive Signed Agreement + Setup Payment
+1.
+Client returns the signed agreement (DocuSign, email attachment, or printed scan — all acceptable).
+2.
+Setup fee paid via Stripe link or bank transfer. Do not proceed until both are received.
+3.
+File the signed agreement in the client's folder. Note the date in their record.
+4.
+Reply confirming receipt and send the booking link for the setup call.
+ℹ Info
+Australian law (Australian Consumer Law + Privacy Act 1988) requires you to disclose how you will handle account credentials and personal data. Your agreement must cover this. If in doubt, have Sprintlaw review it — one-time cost ~$300–500.
+Step 3  📅  Book the 15-Minute Setup Call
+1.
+Schedule via Calendly or direct booking. Video (Zoom/Teams) or phone — client's preference.
+2.
+Send a confirmation email with what they need ready: phone (for SMS verification codes), their business email address, and any existing social media passwords if they already have accounts.
+3.
+Keep the call to 15–20 minutes. You drive, they assist when a code is needed.
+Step 4  📧  Create the Dedicated Google Account (With Client Present)
+1.
+Create a new Gmail: businessname.au@gmail.com (e.g. timsplumbing.au@gmail.com). Use their business name, keep it clean and professional.
+2.
+CRITICAL: The client must be present and must type their own password. This means they are the legal account holder under Google's ToS, not you.
+3.
+Set up auto-forwarding: Settings → Forwarding → Add forwarding address → enter their main business email. Every notification, password reset, and platform email will also land in their inbox.
+4.
+If they already have a Google Workspace email (e.g. tim@timsplumbing.com.au), skip Gmail creation and use that — it is cleaner and more professional.
+5.
+Write down the Gmail address. You will use it for every platform in the next steps.
+⚠ Note
+If you are not on a call together, you can create the account on their behalf with written consent in the service agreement, then send them the login details and instruct them to reset the password within 48 hours.
+Step 5  📘  Set Up Facebook Page + Instagram Business Account
+1.
+Go to facebook.com/pages/create — use the new Gmail as the login email. Business name must match exactly what they trade as.
+2.
+Upload their logo as the profile photo and a cover image (can be a placeholder — they can update it later).
+3.
+Enable Instagram: from the Facebook Page settings, connect a new Instagram Business account using the same Gmail.
+4.
+Add your Meta Business Manager as a Partner on their Page: Settings → Page Roles → Add Partner → enter your Meta Business Manager ID. Select: Manage Page + Publish Content.
+5.
+You now have full posting access without ever needing their password again.
+ℹ Info
+Meta occasionally triggers identity verification on new accounts, especially if the IP address changes. If this happens, the client will need to confirm via their phone or email. This is normal — have them on standby for the first 24 hours.
+Step 6  🎵  Set Up TikTok Business Account
+1.
+Go to business.tiktok.com → Create Account → use the Gmail address.
+2.
+Verify the phone number (use the client's mobile — they receive the SMS code on the call).
+3.
+Complete the business profile: category, description, website link.
+4.
+In TikTok Business Center: Settings → Add Team Member → enter your TikTok Business account email. Assign role: Operator (can post, cannot access billing).
+Step 7  💼  Set Up LinkedIn Company Page
+1.
+LinkedIn company pages require a personal profile as admin. Use the client's existing personal LinkedIn if they have one. If not, create a new personal profile using the Gmail.
+2.
+From the personal profile: Work menu → Create a Company Page → fill in company name, URL (businessname), industry, size.
+3.
+Add yourself as Page Admin: Manage Page → Admins → Invite by email.
+4.
+Company page URL format: linkedin.com/company/businessname — note this for the client record.
+Step 8  📍  Activate Google Business Profile + YouTube
+1.
+Both are automatically available under the Gmail account created in Step 4.
+2.
+Google Business Profile: go to business.google.com → Add business → verify via postcard, phone, or video (verification can take 1–14 days). Fill in all details: hours, services, photos, description.
+3.
+YouTube: youtube.com → Create channel → Business/brand channel → name it after the business. Upload a channel icon and banner. This is where any video content will live.
+4.
+Add your agency Gmail as a manager/owner on both so you can post without needing the client's login.
+Step 9  📌  Connect All Platforms to Metricool
+1.
+Log in to your Metricool agency account → Brands → Add Brand → enter client business name.
+2.
+Connect each platform via OAuth: click the platform button, it opens an authorisation pop-up, log in as the account (you have manager access from Steps 5–8), approve.
+3.
+Do NOT send the client a Metricool link — connect the platforms yourself using your agency access. Cleaner, faster, fewer support calls.
+4.
+Test the connection: create a draft post in Metricool for one platform, preview it, then delete it. Confirm all connected platforms show in the schedule.
+5.
+Set the posting timezone: client's local timezone (usually AEST or AEDT).
+Step 10  🗓️  Configure Posting Schedule + Approval Mode
+1.
+Agree on posting frequency: Starter = 2×/week, Growth = 4×/week, Done-for-You = daily.
+2.
+Confirm preferred platforms and any blackout dates (e.g. closed over Christmas).
+3.
+Set posting preference in the client's WebGecko client portal → Social tab: Auto-post (you publish without their input) or Manual approval (they approve each post before it goes live).
+4.
+Default recommendation: Auto-post for trades and retail. Manual approval for professional services (lawyers, accountants, real estate) where brand voice is critical.
+5.
+Note their content preferences: tone, topics they want to avoid, any competitors not to mention.
+Step 11  🤖  Configure AI Brand Voice + First Brief
+1.
+Record in the client's admin panel: industry, tone (professional / friendly / casual / promotional), content themes (e.g. before-and-afters, promotions, tips, reviews), and any restrictions.
+2.
+This seeds the AI caption generator. Better inputs = better first drafts = less editing time for you.
+3.
+Prepare the first batch of 4–8 posts. Use their logo, any photos they have provided, and AI-generated captions.
+4.
+If they are on Done-for-You tier: generate images via DALL·E or Midjourney based on their industry. No client photos needed.
+5.
+If on Manual Approval: send the batch to the client via their portal for review. Give them 2 business days to approve before you publish on their behalf.
+Step 12  🚀  First Posts Live — Confirm and Hand Off
+1.
+Schedule the first batch in Metricool. Stagger across the week — do not dump everything on the same day.
+2.
+Send the client an email: 'Your first posts are scheduled. Here's what's coming up this week.' Include a screenshot of the calendar.
+3.
+Confirm they can log into their WebGecko portal and see the Social tab with their content calendar and platform status.
+4.
+Set a 30-day review reminder: check their analytics, engagement rate, and follower growth. Adjust content mix if needed.
+5.
+Invoice the first month's fee (if not already collected upfront).
+
+Account Credentials & Access Reference
+For each client, maintain a record of the following in their admin panel. Do NOT store passwords in plain text — use your password manager (1Password or Bitwarden recommended).
+
+Platform
+How You Access It
+Client Access Method
+Instagram & Facebook
+Meta Business Manager Partner access (no password needed)
+Client logs in with their Gmail + their own password
+TikTok
+TikTok Business Center team member (Operator role)
+Client logs in with their Gmail + their own password
+LinkedIn
+Page Admin via your personal LinkedIn profile
+Client logs in with their personal LinkedIn
+Google Business Profile
+Manager access added to their Google account
+Client logs in with their Gmail + their own password
+YouTube
+Channel manager added via Gmail
+Client logs in with their Gmail + their own password
+Metricool
+Agency brand workspace — you manage everything
+Not required. Client does not need Metricool access.
+
+Pricing, Legal & Australian Compliance
+What to Charge
+Setup fee: $150–200 one-off. Charged before any work begins. Covers account creation, platform connection, Metricool setup, and the onboarding call.
+Monthly fee: $149–399 depending on tier (see table above). Billed on the 1st of each month via Stripe recurring.
+For existing website clients upgrading to Social: offer $50/month discount as a loyalty incentive. Still charge the full setup fee.
+⚠ Note
+Your tool cost (Metricool Advanced plan) is ~$172/month covering up to 50 brands. At 10 social clients paying $149+/month each, your tool cost is already covered with margin to spare.
+Australian Legal Requirements
+ACL —  Australian Consumer Law (ACL): You must deliver the service as described. Keep records of what was agreed.
+Privacy Act —  Privacy Act 1988: You handle client data (account credentials, follower data). Your privacy policy must disclose this. Update it before launching the social service.
+Spam Act —  Spam Act 2003: Any posts that include a promotional element (deals, offers) must not misrepresent the sender. Posts on behalf of the client must reflect their actual business.
+Ownership —  Account ownership: Accounts must be in the client's name. You are a service provider, not an owner. Your agreement must reflect this.
+ToS compliance —  If the client uses their own credentials (they type the password during setup), Google/Meta/TikTok ToS is fully satisfied. If you create on their behalf with written consent, that is also acceptable as a commercial agency arrangement.
+
+When a Client Cancels (Offboarding)
+30-day notice required per the service agreement. During the notice period:
+Continue managing their accounts as normal until the final day.
+On cancellation: remove yourself as Partner from their Meta Business Manager, remove yourself from TikTok Business Center, remove yourself as LinkedIn Page Admin, remove your agency Gmail as manager on Google Business and YouTube.
+Send a handover document listing every account they own and how to access each one. Confirm they can log in independently.
+Export a final analytics report from Metricool. Send it to the client as a courtesy — it adds professionalism and reduces negative reviews.
+Remove their brand from your Metricool workspace.
+⚠ Note
+Do NOT delete any accounts or post anything on their behalf after the cancellation date. This protects you from any dispute about content published after the relationship ended.
+
+Quick Checklist — Print or Pin This
+Use this per client. Tick each item as it's completed.
+
+□ Welcome email sent + service agreement attached
+□ Agreement signed + setup fee received
+□ Setup call booked
+□ Gmail created (businessname.au@gmail.com) with client present OR consent documented
+□ Auto-forwarding to client's primary email set up
+□ Facebook Page created + Meta Business Manager partner access granted
+□ Instagram Business account connected to Facebook Page
+□ TikTok Business account created + agency team member added
+□ LinkedIn company page created + you added as Page Admin
+□ Google Business Profile activated + manager access granted
+□ YouTube channel activated
+□ All platforms connected in Metricool brand workspace
+□ Posting schedule set (frequency + platforms + approval mode)
+□ AI brand voice configured in client record
+□ First batch of posts (4–8) prepared and scheduled
+□ Client confirmed they can see Social tab in their WebGecko portal
+□ First month invoice sent
+□ 30-day analytics review reminder set
+
+WebGecko  ·  hello@webgecko.au  ·  webgeckofl.vercel.app

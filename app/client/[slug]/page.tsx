@@ -352,8 +352,9 @@ function ClientDashboard() {
                   </a>
                   <div className="border border-white/8 rounded-xl overflow-hidden" style={{ height: 500 }}>
                     <iframe
-                      src={data.previewUrl}
+                      src={data.jobId ? `/api/preview/proxy?slug=${encodeURIComponent(slug)}&_wg=${Date.now()}` : data.previewUrl}
                       className="w-full h-full"
+                      sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin"
                       title="Website Preview"
                     />
                   </div>

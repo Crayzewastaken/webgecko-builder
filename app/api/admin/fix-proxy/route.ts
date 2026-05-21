@@ -7,6 +7,7 @@ import {
   injectEssentials,
   injectImages,
   getServicesForIndustry,
+  ensureMultiPageStructure,
 } from "@/lib/pipeline-helpers";
 import { generateBookingWidget } from "@/lib/booking-widget";
 import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailability, appendPipelineLog } from "@/lib/db";
@@ -56,6 +57,7 @@ export async function GET(req: NextRequest) {
     const clientPhone = userInput?.phone || "";
     const features: string[] = Array.isArray(userInput?.features) ? userInput.features : [];
     const hasBookingFeature = hasBooking || features.includes("Booking System");
+    const isMultiPage = userInput?.siteType === "multi";
 
     let html: string = job.html || "";
     if (!html || html.length < 5000) {
@@ -301,6 +303,20 @@ export async function GET(req: NextRequest) {
         if (attrs.includes("style=")) return m.replace(/style=["']/, (s: string) => s + "margin-top:auto;");
         return `<footer${attrs} style="margin-top:auto;">`;
       });
+    }
+
+    // ── Multi-page Page Structure Verification ─────────────────────────────────
+    if (isMultiPage) {
+      const requestedPageIds = Array.isArray(userInput?.pages) && userInput.pages.length > 0
+        ? userInput.pages.map((p: string) => p.toLowerCase().replace(/[^a-z0-9]/g, ""))
+        : ["home"];
+      const { html: ensuredHtml, report } = ensureMultiPageStructure(html, requestedPageIds, {
+        businessName: userInput?.businessName,
+      });
+      if (report.repairs.length > 0) {
+        console.log("[Fix-Proxy] ensureMultiPageStructure applied " + report.repairs.length + " repairs during fix pass.");
+      }
+      html = ensuredHtml;
     }
 
     // Deploy

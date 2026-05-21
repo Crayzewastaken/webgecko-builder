@@ -3,6 +3,8 @@
 // Drop-in replacements so migration can be done file by file
 
 import { supabase } from "./supabase";
+import { encryptPayload, decryptPayload } from "./encryption";
+
 
 // ============================================================
 // JOBS
@@ -243,17 +245,34 @@ export async function getAnalyticsCount(jobId: string, event: string, period: "d
 }
 
 export async function getTopPages(jobId: string, limit = 5): Promise<{ page: string; views: number }[]> {
-  const { data } = await supabase
-    .from("analytics")
-    .select("page")
-    .eq("job_id", jobId)
-    .eq("event", "page_view")
-    .not("page", "is", null);
-  if (!data) return [];
-  const counts: Record<string, number> = {};
-  for (const row of data) { if (row.page) counts[row.page] = (counts[row.page] || 0) + 1; }
-  return Object.entries(counts).map(([page, views]) => ({ page, views })).sort((a, b) => b.views - a.views).slice(0, limit);
+  try {
+    const { data, error } = await supabase
+      .from("page_analytics_summary")
+      .select("page, views")
+      .eq("job_id", jobId)
+      .order("views", { ascending: false })
+      .limit(limit);
+
+    if (error || !data) {
+      throw error || new Error("No data returned from view");
+    }
+
+    return data.map(row => ({ page: row.page, views: Number(row.views) }));
+  } catch (e) {
+    console.warn("[Analytics View Fallback] Failed to fetch from page_analytics_summary view, falling back to in-memory counting:", e);
+    const { data } = await supabase
+      .from("analytics")
+      .select("page")
+      .eq("job_id", jobId)
+      .eq("event", "page_view")
+      .not("page", "is", null);
+    if (!data) return [];
+    const counts: Record<string, number> = {};
+    for (const row of data) { if (row.page) counts[row.page] = (counts[row.page] || 0) + 1; }
+    return Object.entries(counts).map(([page, views]) => ({ page, views })).sort((a, b) => b.views - a.views).slice(0, limit);
+  }
 }
+
 
 // ============================================================
 // PAYMENT STATE
@@ -278,6 +297,38 @@ export async function savePaymentState(jobId: string, state: Record<string, any>
     payments: state.payments || {},
   }, { onConflict: "job_id" });
   if (error) throw new Error(`savePaymentState failed: ${error.message}`);
+}
+
+// ============================================================
+// Token Encryption / Decryption Helpers (sniffing for backwards compatibility)
+// ============================================================
+
+function encryptToken(token: string | null): string | null {
+  if (!token) return null;
+  if (token.startsWith('{"encrypted":')) return token;
+  try {
+    const encryptedObj = encryptPayload(token);
+    return JSON.stringify(encryptedObj);
+  } catch (e) {
+    console.error("[Token Encryption] Failed to encrypt token:", e);
+    return token;
+  }
+}
+
+function decryptToken(tokenValue: string | null): string | null {
+  if (!tokenValue) return null;
+  if (!tokenValue.startsWith('{"encrypted":')) {
+    return tokenValue;
+  }
+  try {
+    const parsed = JSON.parse(tokenValue);
+    if (parsed && parsed.encrypted && parsed.iv && parsed.tag) {
+      return decryptPayload(parsed.encrypted, parsed.iv, parsed.tag, parsed.v);
+    }
+  } catch (e) {
+    console.error("[Token Decryption] Failed to decrypt token:", e);
+  }
+  return tokenValue;
 }
 
 // ============================================================
@@ -307,15 +358,15 @@ function jobToDbJob(id: string, job: Record<string, any>) {
     // Tawk.to
     tawkto_property_id: job.tawktoPropertyId || null,
     // Square per-client OAuth credentials
-    ...(job.squareAccessToken !== undefined ? { square_access_token: job.squareAccessToken } : {}),
-    ...(job.squareRefreshToken !== undefined ? { square_refresh_token: job.squareRefreshToken } : {}),
+    ...(job.squareAccessToken !== undefined ? { square_access_token: encryptToken(job.squareAccessToken) } : {}),
+    ...(job.squareRefreshToken !== undefined ? { square_refresh_token: encryptToken(job.squareRefreshToken) } : {}),
     ...(job.squareTokenExpiresAt !== undefined ? { square_token_expires_at: job.squareTokenExpiresAt } : {}),
     ...(job.squareMerchantId !== undefined ? { square_merchant_id: job.squareMerchantId } : {}),
     ...(job.squareLocationId !== undefined ? { square_location_id: job.squareLocationId } : {}),
     // Stripe Connect per-client credentials
     ...(job.stripeAccountId !== undefined ? { stripe_account_id: job.stripeAccountId } : {}),
-    ...(job.stripeAccessToken !== undefined ? { stripe_access_token: job.stripeAccessToken } : {}),
-    ...(job.stripeRefreshToken !== undefined ? { stripe_refresh_token: job.stripeRefreshToken } : {}),
+    ...(job.stripeAccessToken !== undefined ? { stripe_access_token: encryptToken(job.stripeAccessToken) } : {}),
+    ...(job.stripeRefreshToken !== undefined ? { stripe_refresh_token: encryptToken(job.stripeRefreshToken) } : {}),
     ...(job.stripeConnectedAt !== undefined ? { stripe_connected_at: job.stripeConnectedAt } : {}),
     // Shop catalogue
     ...(job.shopCatalogue !== undefined ? { shop_catalogue: job.shopCatalogue } : {}),
@@ -350,14 +401,14 @@ function dbJobToJob(row: Record<string, any>) {
     supersaasUrl: row.supersaas_url,
     supersaasId: row.supersaas_id,
     tawktoPropertyId: row.tawkto_property_id,
-    squareAccessToken: row.square_access_token || null,
-    squareRefreshToken: row.square_refresh_token || null,
+    squareAccessToken: decryptToken(row.square_access_token) || null,
+    squareRefreshToken: decryptToken(row.square_refresh_token) || null,
     squareTokenExpiresAt: row.square_token_expires_at || null,
     squareMerchantId: row.square_merchant_id || null,
     squareLocationId: row.square_location_id || null,
     stripeAccountId: row.stripe_account_id || null,
-    stripeAccessToken: row.stripe_access_token || null,
-    stripeRefreshToken: row.stripe_refresh_token || null,
+    stripeAccessToken: decryptToken(row.stripe_access_token) || null,
+    stripeRefreshToken: decryptToken(row.stripe_refresh_token) || null,
     stripeConnectedAt: row.stripe_connected_at || null,
     shopCatalogue: row.shop_catalogue || null,
     shopSyncedAt: row.shop_synced_at || null,
@@ -368,6 +419,7 @@ function dbJobToJob(row: Record<string, any>) {
     metadata: row.metadata || null,
   };
 }
+
 
 function dbAvailToAvail(row: Record<string, any>) {
   return {

@@ -136,12 +136,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Admin auth not configured" }, { status: 500 });
   }
 
-  // Constant-time comparison to prevent timing attacks
+  // Constant-time comparison to prevent timing attacks via hashing
   let match = false;
   try {
-    match =
-      password.length === expected.length &&
-      crypto.timingSafeEqual(Buffer.from(password), Buffer.from(expected));
+    const hashA = crypto.createHash("sha256").update(password).digest();
+    const hashB = crypto.createHash("sha256").update(expected).digest();
+    match = crypto.timingSafeEqual(hashA, hashB);
   } catch {
     match = false;
   }

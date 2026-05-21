@@ -601,6 +601,10 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
 // Non-fatal — a failure here never blocks the deploy.
 
 export async function requestGoogleIndexing(url: string): Promise<void> {
+  if (url && url.includes(".vercel.app")) {
+    console.log(`[Indexing] Skipping indexing request for Vercel deployment alias: ${url}`);
+    return;
+  }
   const saKeyB64 = process.env.GOOGLE_INDEXING_SA_KEY;
   if (!saKeyB64) {
     console.log("[Indexing] GOOGLE_INDEXING_SA_KEY not set — skipping");

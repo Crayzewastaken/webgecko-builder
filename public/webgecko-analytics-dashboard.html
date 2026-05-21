@@ -1,0 +1,2215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebGecko Business Intelligence Portal (Audit, Sheets, & Slides 2026)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg-primary: #0b0f19;
+      --bg-secondary: #111827;
+      --bg-tertiary: #1f2937;
+      --accent-violet: #8b5cf6;
+      --accent-violet-glow: rgba(139, 92, 246, 0.15);
+      --accent-emerald: #10b981;
+      --accent-emerald-glow: rgba(16, 185, 129, 0.15);
+      --accent-crimson: #ef4444;
+      --accent-crimson-glow: rgba(239, 68, 68, 0.15);
+      --accent-amber: #f59e0b;
+      --accent-amber-glow: rgba(245, 158, 11, 0.15);
+      --accent-blue: #3b82f6;
+      --accent-blue-glow: rgba(59, 130, 246, 0.15);
+      --text-main: #f3f4f6;
+      --text-sec: #9ca3af;
+      --text-muted: #6b7280;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --glass-bg: rgba(17, 24, 39, 0.7);
+      --glass-border: rgba(255, 255, 255, 0.06);
+      --shadow-premium: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+      --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Light Theme Overrides */
+    .light-theme {
+      --bg-primary: #f8fafc;
+      --bg-secondary: #ffffff;
+      --bg-tertiary: #f1f5f9;
+      --accent-violet: #6d28d9;
+      --accent-violet-glow: rgba(109, 40, 217, 0.1);
+      --accent-emerald: #047857;
+      --accent-emerald-glow: rgba(4, 120, 87, 0.1);
+      --accent-crimson: #dc2626;
+      --accent-crimson-glow: rgba(220, 38, 38, 0.1);
+      --accent-amber: #b45309;
+      --accent-amber-glow: rgba(180, 83, 9, 0.1);
+      --accent-blue: #1d4ed8;
+      --accent-blue-glow: rgba(29, 78, 216, 0.1);
+      --text-main: #0f172a;
+      --text-sec: #475569;
+      --text-muted: #94a3b8;
+      --border-color: rgba(15, 23, 42, 0.08);
+      --glass-bg: rgba(255, 255, 255, 0.85);
+      --glass-border: rgba(15, 23, 42, 0.06);
+      --shadow-premium: 0 20px 30px -10px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: var(--transition-smooth);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-primary);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent-violet);
+    }
+
+    /* Master Top Portal Control */
+    .portal-header {
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--glass-border);
+      padding: 14px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+    }
+
+    .portal-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-main);
+    }
+
+    .logo-badge {
+      background: linear-gradient(135deg, var(--accent-violet), var(--accent-blue));
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 20px;
+      font-weight: 800;
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+    }
+
+    .logo-text {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+
+    .logo-text span {
+      background: linear-gradient(to right, var(--accent-violet), var(--accent-blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .view-selector {
+      display: flex;
+      background: var(--bg-tertiary);
+      padding: 4px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+    }
+
+    .view-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-sec);
+      padding: 8px 18px;
+      border-radius: 9px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: var(--transition-smooth);
+    }
+
+    .view-btn.active {
+      background: var(--bg-secondary);
+      color: var(--text-main);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .portal-controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .theme-toggle-btn {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      color: var(--text-sec);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: var(--transition-smooth);
+    }
+
+    .theme-toggle-btn:hover {
+      border-color: var(--accent-violet);
+      color: var(--accent-violet);
+    }
+
+    /* Portal Content Areas */
+    .portal-section {
+      display: none;
+      flex: 1;
+      animation: fadeIn 0.4s ease-out forwards;
+    }
+
+    .portal-section.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       SECTION 1: GOOGLE SHEETS SIMULATOR
+       ══════════════════════════════════════════════════════════════ */
+    .sheets-layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      height: calc(100vh - 67px);
+    }
+
+    /* Sheets Sidebar */
+    .sheets-sidebar {
+      width: 280px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .sidebar-header h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+
+    .sidebar-header p {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .sheet-tabs-list {
+      list-style: none;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .sheet-tab-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--text-sec);
+      font-size: 13px;
+      font-weight: 500;
+      transition: var(--transition-smooth);
+      border: 1px solid transparent;
+    }
+
+    .sheet-tab-item:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-main);
+    }
+
+    .sheet-tab-item.active {
+      background: var(--accent-violet-glow);
+      color: var(--accent-violet);
+      border-color: rgba(139, 92, 246, 0.15);
+      font-weight: 600;
+    }
+
+    .sidebar-stats {
+      padding: 20px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .stat-card-mini {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      padding: 10px 12px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stat-card-mini .label {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .stat-card-mini .value {
+      font-size: 14px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .stat-card-mini.critical .value { color: var(--accent-crimson); }
+    .stat-card-mini.high .value { color: var(--accent-amber); }
+    .stat-card-mini.good .value { color: var(--accent-emerald); }
+
+    /* Sheets Grid Area */
+    .sheets-grid-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-primary);
+      overflow: hidden;
+    }
+
+    /* Google Sheets Style Action Bar */
+    .sheets-actions-bar {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .sheet-title-edit {
+      font-family: 'Outfit', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      background: transparent;
+      border: 1px dashed transparent;
+      padding: 4px 8px;
+      border-radius: 4px;
+      outline: none;
+    }
+
+    .sheet-title-edit:hover, .sheet-title-edit:focus {
+      border-color: var(--border-color);
+      background: var(--bg-tertiary);
+    }
+
+    .formula-bar {
+      flex: 1;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent-emerald);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .formula-bar::before {
+      content: "fx";
+      color: var(--text-muted);
+      font-weight: 700;
+      font-family: inherit;
+    }
+
+    /* Spreadsheet Grid & Tables */
+    .sheets-content-viewport {
+      flex: 1;
+      overflow: auto;
+      padding: 20px;
+      position: relative;
+    }
+
+    .sheet-tab-panel {
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+      min-width: 900px;
+    }
+
+    .sheet-tab-panel.active {
+      display: flex;
+    }
+
+    /* Standard Grid Style for Process Audit Tab */
+    .spreadsheet-table {
+      border-collapse: collapse;
+      width: 100%;
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-premium);
+    }
+
+    .spreadsheet-table th {
+      background: var(--bg-tertiary);
+      color: var(--text-main);
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      text-align: left;
+      padding: 12px 16px;
+      border-bottom: 2px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+    }
+
+    .spreadsheet-table th.col-index, .spreadsheet-table td.col-index {
+      width: 45px;
+      text-align: center;
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 500;
+      border-right: 2px solid var(--border-color);
+    }
+
+    .spreadsheet-table td {
+      padding: 14px 16px;
+      font-size: 13px;
+      color: var(--text-sec);
+      border-bottom: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+      vertical-align: top;
+      line-height: 1.5;
+    }
+
+    .spreadsheet-table tr:hover td {
+      background: rgba(255, 255, 255, 0.015);
+    }
+
+    .spreadsheet-table tr:hover td.col-index {
+      background: var(--bg-tertiary);
+      color: var(--accent-violet);
+    }
+
+    /* Spreadsheet Labels & Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .badge-critical {
+      background: var(--accent-crimson-glow);
+      color: var(--accent-crimson);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .badge-high {
+      background: var(--accent-amber-glow);
+      color: var(--accent-amber);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .badge-medium {
+      background: var(--accent-blue-glow);
+      color: var(--accent-blue);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    .badge-low {
+      background: var(--bg-tertiary);
+      color: var(--text-sec);
+      border: 1px solid var(--border-color);
+    }
+
+    .cell-mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-main);
+    }
+
+    .cell-bold {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .cell-alert {
+      color: var(--accent-crimson);
+      font-weight: 600;
+    }
+
+    .cell-success {
+      color: var(--accent-emerald);
+      font-weight: 600;
+    }
+
+    /* Tab B: SWOT Two-Column Grid */
+    .swot-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      width: 100%;
+    }
+
+    .swot-column {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      box-shadow: var(--shadow-premium);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .swot-header {
+      padding: 16px 20px;
+      border-bottom: 2px solid var(--border-color);
+      font-family: 'Outfit', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .swot-header.positive {
+      background: rgba(16, 185, 129, 0.03);
+      color: var(--accent-emerald);
+      border-bottom-color: rgba(16, 185, 129, 0.15);
+    }
+
+    .swot-header.negative {
+      background: rgba(239, 68, 68, 0.03);
+      color: var(--accent-crimson);
+      border-bottom-color: rgba(239, 68, 68, 0.15);
+    }
+
+    .swot-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .swot-item {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      gap: 14px;
+      line-height: 1.6;
+      font-size: 13px;
+    }
+
+    .swot-item:last-child {
+      border-bottom: none;
+    }
+
+    .swot-item-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .swot-item-title {
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+
+    .swot-item-desc {
+      color: var(--text-sec);
+    }
+
+    /* Tab C: Analytics & Charts View */
+    .dashboard-metrics-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .metric-card-premium {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--shadow-premium);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-card-premium::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--accent-violet);
+    }
+
+    .metric-card-premium.emerald::before { background: var(--accent-emerald); }
+    .metric-card-premium.crimson::before { background: var(--accent-crimson); }
+    .metric-card-premium.blue::before { background: var(--accent-blue); }
+
+    .metric-card-premium .label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .metric-card-premium .value {
+      font-family: 'Outfit', sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .metric-card-premium .desc {
+      font-size: 11px;
+      color: var(--text-sec);
+    }
+
+    .dashboard-charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .chart-container-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: var(--shadow-premium);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .chart-container-card h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chart-wrapper {
+      position: relative;
+      height: 280px;
+      width: 100%;
+    }
+
+    .pricing-comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .pricing-comparison-table th {
+      background: var(--bg-tertiary);
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-sec);
+      border-bottom: 1px solid var(--border-color);
+      text-align: left;
+    }
+
+    .pricing-comparison-table td {
+      padding: 12px 14px;
+      font-size: 12px;
+      color: var(--text-sec);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .pricing-comparison-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       SECTION 2: GOOGLE SLIDES PRESENTATION
+       ══════════════════════════════════════════════════════════════ */
+    .slides-layout {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #070913;
+      padding: 40px;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      min-height: calc(100vh - 67px);
+    }
+
+    .slide-viewport-wrapper {
+      width: 100%;
+      max-width: 1100px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .slide-aspect-ratio-box {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #0f172a;
+      border-radius: 16px;
+      box-shadow: 0 25px 60px -15px rgba(0,0,0,0.9);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Presentation Slide Templates */
+    .slide-content-frame {
+      display: none;
+      flex: 1;
+      padding: 50px 60px;
+      flex-direction: column;
+      justify-content: space-between;
+      color: #fff;
+      position: relative;
+      opacity: 0;
+      transform: scale(0.98) translateX(20px);
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .slide-content-frame.active {
+      display: flex;
+      opacity: 1;
+      transform: scale(1) translateX(0);
+    }
+
+    /* Slide 1: Title */
+    .slide-title-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+                  radial-gradient(circle at 10% 80%, rgba(59, 130, 246, 0.12) 0%, transparent 50%);
+      z-index: 1;
+    }
+
+    .slide-content-title-page {
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      flex: 1;
+      gap: 20px;
+    }
+
+    .slide-badge-pill {
+      background: rgba(139, 92, 246, 0.12);
+      border: 1px solid rgba(139, 92, 246, 0.25);
+      color: #a78bfa;
+      padding: 6px 16px;
+      border-radius: 99px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      display: inline-block;
+    }
+
+    .slide-main-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 48px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+      background: linear-gradient(to right, #ffffff, #a78bfa, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .slide-subtitle {
+      color: #94a3b8;
+      font-size: 16px;
+      font-weight: 400;
+      max-width: 600px;
+      line-height: 1.6;
+    }
+
+    /* Standard Slide Elements */
+    .slide-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 16px;
+      z-index: 2;
+    }
+
+    .slide-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .slide-section-name {
+      color: #a78bfa;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .slide-title-text {
+      font-family: 'Outfit', sans-serif;
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .slide-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 14px;
+      font-size: 11px;
+      color: #64748b;
+      z-index: 2;
+    }
+
+    .slide-number {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+    }
+
+    /* Widescreen Main Layout Content */
+    .slide-body {
+      flex: 1;
+      padding: 24px 0;
+      z-index: 2;
+      display: flex;
+      gap: 30px;
+      align-items: center;
+    }
+
+    .slide-body-left {
+      flex: 1.2;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .slide-body-right {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      justify-content: center;
+    }
+
+    .slide-bullet-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      list-style: none;
+    }
+
+    .slide-bullet-item {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .slide-bullet-number {
+      background: rgba(139, 92, 246, 0.12);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      color: #a78bfa;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .slide-bullet-text h4 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 2px;
+    }
+
+    .slide-bullet-text p {
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+
+    /* Visual Grid for Slide Deck */
+    .slide-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      width: 100%;
+    }
+
+    .slide-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      width: 100%;
+    }
+
+    .slide-panel-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .slide-panel-card:hover {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: rgba(139, 92, 246, 0.2);
+    }
+
+    .slide-panel-card.accent-card {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(59, 130, 246, 0.05));
+      border-color: rgba(139, 92, 246, 0.25);
+    }
+
+    .slide-panel-card h4 {
+      font-size: 14px;
+      font-weight: 800;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .slide-panel-card p {
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+
+    .slide-panel-card .stat {
+      font-family: 'Outfit', sans-serif;
+      font-size: 32px;
+      font-weight: 800;
+      color: #a78bfa;
+      margin: 4px 0;
+    }
+
+    /* Presentation Controls */
+    .slides-controls-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      padding: 12px 24px;
+      border-radius: 14px;
+      box-shadow: var(--shadow-premium);
+    }
+
+    .slide-indicator-dots {
+      display: flex;
+      gap: 8px;
+    }
+
+    .slide-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--bg-tertiary);
+      border-radius: 50%;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+    }
+
+    .slide-dot.active {
+      background: var(--accent-violet);
+      transform: scale(1.3);
+    }
+
+    .slide-nav-buttons {
+      display: flex;
+      gap: 12px;
+    }
+
+    .slide-nav-btn {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      transition: var(--transition-smooth);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .slide-nav-btn:hover {
+      background: var(--accent-violet);
+      color: #fff;
+      border-color: var(--accent-violet);
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    }
+
+    .slide-nav-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      background: var(--bg-tertiary) !important;
+      color: var(--text-muted) !important;
+      border-color: var(--border-color) !important;
+      box-shadow: none !important;
+    }
+
+    /* General responsive styling */
+    @media (max-width: 1024px) {
+      .sheets-layout {
+        flex-direction: column;
+        height: auto;
+      }
+      .sheets-sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+      }
+      .sheets-grid-container {
+        height: 600px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- MASTER HEADER -->
+  <header class="portal-header">
+    <a href="#" class="portal-logo">
+      <div class="logo-badge">🦎</div>
+      <div class="logo-text">Web<span>Gecko</span> Executive Intelligence</div>
+    </a>
+    
+    <div class="view-selector">
+      <button class="view-btn active" onclick="switchView('sheets')">
+        <span>📁</span> Google Sheets Analytics
+      </button>
+      <button class="view-btn" onclick="switchView('slides')">
+        <span>📊</span> Executive Slides Presentation
+      </button>
+    </div>
+
+    <div class="portal-controls">
+      <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+        🌓
+      </button>
+      <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; font-family: 'JetBrains Mono', monospace;">
+        v1.0 · MAY 2026
+      </div>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 1: GOOGLE SHEETS SIMULATOR
+       ══════════════════════════════════════════════════════════════ -->
+  <section id="portal-sheets" class="portal-section active">
+    <div class="sheets-layout">
+      
+      <!-- Sheets Sidebar -->
+      <aside class="sheets-sidebar">
+        <div class="sidebar-header">
+          <h2>Audit &amp; Strategy Sheets</h2>
+          <p>Multi-tab business workbook</p>
+        </div>
+
+        <ul class="sheet-tabs-list">
+          <li class="sheet-tab-item active" onclick="switchSheetTab('audit')">
+            <span>📋</span> Process Audit &amp; Findings
+          </li>
+          <li class="sheet-tab-item" onclick="switchSheetTab('swot')">
+            <span>⚖️</span> SWOT &amp; Sentiment Analysis
+          </li>
+          <li class="sheet-tab-item" onclick="switchSheetTab('pricing')">
+            <span>💰</span> Competitor Pricing &amp; Margins
+          </li>
+        </ul>
+
+        <div class="sidebar-stats">
+          <div class="stat-card-mini critical">
+            <span class="label">Critical Risks</span>
+            <span class="value">6</span>
+          </div>
+          <div class="stat-card-mini high">
+            <span class="label">High Risks</span>
+            <span class="value">14</span>
+          </div>
+          <div class="stat-card-mini good">
+            <span class="label">Net Margin</span>
+            <span class="value">98.5%</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Sheets Grid Area -->
+      <div class="sheets-grid-container">
+        
+        <!-- Formula Bar Mock -->
+        <div class="sheets-actions-bar">
+          <input type="text" class="sheet-title-edit" value="WebGecko_Full_Audit_Workbook_2026.xlsx" readonly>
+          <div class="formula-bar" id="sheets-formula">
+            =SUM(CRITICAL_RISKS, HIGH_RISKS)
+          </div>
+        </div>
+
+        <!-- Scrollable Table Area -->
+        <div class="sheets-content-viewport">
+          
+          <!-- TAB A: PROCESS AUDIT -->
+          <div id="panel-audit" class="sheet-tab-panel active">
+            <h2 style="font-family:'Outfit', sans-serif; font-size: 18px; margin-bottom: 12px;">WebGecko Process Audit &amp; Action Plan</h2>
+            <table class="spreadsheet-table">
+              <thead>
+                <tr>
+                  <th class="col-index"></th>
+                  <th style="width: 150px;">Core Pipeline Area</th>
+                  <th style="width: 100px;">Risk Level</th>
+                  <th style="width: 320px;">Observed Key Vulnerability</th>
+                  <th style="width: 320px;">Immediate Fix Required</th>
+                  <th>Impact &amp; Rationale</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="col-index">1</td>
+                  <td class="cell-bold">Client Portal Auth</td>
+                  <td><span class="badge" style="background: var(--accent-emerald-glow); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.2)">Fixed & Retested</span></td>
+                  <td class="cell-alert">Unauthenticated client content routes (/api/client/content GET/POST)</td>
+                  <td class="cell-success">Implement wg_client_slug cookie authentication matching the pattern in client-login.ts</td>
+                  <td>Allows any internet user to read queue or inject spam/malicious briefs if they guess or scrape the slug.</td>
+                </tr>
+                <tr>
+                  <td class="col-index">2</td>
+                  <td class="cell-bold">Intake Pipeline</td>
+                  <td><span class="badge" style="background: var(--accent-emerald-glow); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.2)">Fixed & Retested</span></td>
+                  <td class="cell-alert">jobId generated via Date.now(), risk of concurrent collisions</td>
+                  <td class="cell-success">Replace Date.now() with crypto.randomUUID() for absolute database uniqueness</td>
+                  <td>Simultaneous double-submissions within the same millisecond overwrite the first client's DB record.</td>
+                </tr>
+                <tr>
+                  <td class="col-index">3</td>
+                  <td class="cell-bold">Admin Panel Auth</td>
+                  <td><span class="badge" style="background: var(--accent-emerald-glow); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.2)">Fixed & Retested</span></td>
+                  <td class="cell-alert">Admin login comparison timing leaksexpected password length</td>
+                  <td class="cell-success">Implement hash-then-compare (bcrypt/PBKDF2) instead of raw length checks</td>
+                  <td>Timing oracle allows attackers to isolate the password length, narrowing down brute-force permutations.</td>
+                </tr>
+                <tr>
+                  <td class="col-index">4</td>
+                  <td class="cell-bold">Core Orchestration</td>
+                  <td><span class="badge" style="background: var(--accent-amber-glow); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.2)">Deferred / Strategic Roadmap</span></td>
+                  <td class="cell-alert">Inngest monolithic route.ts (2,180 lines) prone to NTFS file truncation</td>
+                  <td class="cell-success">Deconstruct Inngest pipeline into individual modules per step, keeping route.ts clean</td>
+                  <td>Windows/NTFS write processes on large files corrupt them mid-statement, blocking Vercel builds constantly.</td>
+                </tr>
+                <tr>
+                  <td class="col-index">5</td>
+                  <td class="cell-bold">Billing &amp; Revenue</td>
+                  <td><span class="badge" style="background: var(--accent-emerald-glow); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.2)">Fixed & Retested</span></td>
+                  <td class="cell-alert">Recurring host subscriptions not tied to service deployment</td>
+                  <td class="cell-success">Integrate a Square webhook receiver that automatically suspends Vercel alias on default</td>
+                  <td>Clients who cancel cards or recurring subscriptions continue to receive full live hosting indefinitely.</td>
+                </tr>
+                <tr>
+                  <td class="col-index">6</td>
+                  <td class="cell-bold">Analytics Engine</td>
+                  <td><span class="badge" style="background: var(--accent-emerald-glow); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.2)">Fixed & Retested</span></td>
+                  <td class="cell-alert">getTopPages() fetches all database rows to count in Node.js memory</td>
+                  <td class="cell-success">Refactor query to use Supabase SQL GROUP BY / COUNT query directly on database</td>
+                  <td>At scale (e.g. 10,000 page views), reading every raw row into RAM crashes the serverless API instance.</td>
+                </tr>
+                <tr>
+                  <td class="col-index">7</td>
+                  <td class="cell-bold">Pricing Logic</td>
+                  <td><span class="badge" style="background: var(--accent-emerald-glow); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.2)">Fixed & Retested</span></td>
+                  <td class="cell-alert">calculatePrice() logic is duplicated across 3 separate files</td>
+                  <td class="cell-success">Consolidate pricing calculations into a unified lib/pricing.ts helper module</td>
+                  <td>Any future price tweaks must be updated in 3 separate places. Discrepancies cause billing inaccuracies.</td>
+                </tr>
+                <tr>
+                  <td class="col-index">8</td>
+                  <td class="cell-bold">Client Security</td>
+                  <td><span class="badge" style="background: var(--accent-emerald-glow); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.2)">Fixed & Retested</span></td>
+                  <td class="cell-alert">Plaintext Square &amp; Stripe OAuth keys stored in jobs table</td>
+                  <td class="cell-success">Encrypt all payment tokens at rest using the existing PAYLOAD_ENCRYPTION_KEY</td>
+                  <td>A leak of the database exposes live transaction credentials for every single customer site.</td>
+                </tr>
+                <tr>
+                  <td class="col-index">9</td>
+                  <td class="cell-bold">SEO Optimization</td>
+                  <td><span class="badge" style="background: var(--accent-emerald-glow); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.2)">Fixed & Retested</span></td>
+                  <td class="cell-alert">Google Indexing API pings .vercel.app instead of custom domains</td>
+                  <td class="cell-success">Modify requestGoogleIndexing to ping the canonical domain once it is provisioned</td>
+                  <td>Causes Google to index temporary Vercel subdomains, degrading custom domain ranking authority.</td>
+                </tr>
+                <tr>
+                  <td class="col-index">10</td>
+                  <td class="cell-bold">Log Separation</td>
+                  <td><span class="badge" style="background: var(--accent-amber-glow); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.2)">Deferred / Strategic Roadmap</span></td>
+                  <td class="cell-alert">Unbounded pipeline logs are appended directly inside Supabase jobs metadata JSON blob</td>
+                  <td class="cell-success">Separate logs into dedicated pipeline_logs table with rotation policies</td>
+                  <td>Appends cause massive DB block bloat, slowing down dashboard load and job reads as logging grows.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- TAB B: SWOT & SENTIMENT ANALYSIS -->
+          <div id="panel-swot" class="sheet-tab-panel">
+            <h2 style="font-family:'Outfit', sans-serif; font-size: 18px; margin-bottom: 12px;">WebGecko SWOT &amp; Sentiment Sheet</h2>
+            <div class="swot-container">
+              
+              <!-- GOOD & POSITIVE THINGS -->
+              <div class="swot-column">
+                <div class="swot-header positive">
+                  <span class="swot-item-icon">🟢</span> Good &amp; Positive Things (Core Strengths)
+                </div>
+                <ul class="swot-list">
+                  <li class="swot-item">
+                    <span class="swot-item-icon">⚡</span>
+                    <div>
+                      <div class="swot-item-title">Fully Automated Pipeline Integration</div>
+                      <div class="swot-item-desc">A truly hands-free, single-operator build flow. From intake wizard submit to Square payment, automated SuperSaas creation, site visual generation, copy writing, code auditing, Vercel release, and Resend email, the entire process runs with zero manual developer labor.</div>
+                    </div>
+                  </li>
+                  <li class="swot-item">
+                    <span class="swot-item-icon">🔒</span>
+                    <div>
+                      <div class="swot-item-title">Robust Client Password &amp; Data Security</div>
+                      <div class="swot-item-desc">Uses scrypt cryptography for password hashing with built-in legacy plaintext password upgrades upon first portal login. Implements HttpOnly, Secure, SameSite cookies for both administration and user sessions, protecting records from client-side interception.</div>
+                    </div>
+                  </li>
+                  <li class="swot-item">
+                    <span class="swot-item-icon">🔄</span>
+                    <div>
+                      <div class="swot-item-title">Self-Healing Pipeline Loops</div>
+                      <div class="swot-item-desc">Pipeline incorporates multi-stage fail recovery loops. Deployed sites undergo an automated smoke test (15+ checks). If a validation fails, the engine re-triggers code auditor repairs and redeploys up to two times before notifying the operator of a block.</div>
+                    </div>
+                  </li>
+                  <li class="swot-item">
+                    <span class="swot-item-icon">📅</span>
+                    <div>
+                      <div class="swot-item-title">Seamless Onboarding Operations</div>
+                      <div class="swot-item-desc">Highly detailed 12-step social media onboarding checklist is embedded in the admin panel and backed by localStorage state, allowing single-operator Zack to easily manage several concurrent account setups. Integrates Metricool agency dashboard seamlessly.</div>
+                    </div>
+                  </li>
+                  <li class="swot-item">
+                    <span class="swot-item-icon">🌐</span>
+                    <div>
+                      <div class="swot-item-title">Robust Multi-Page Router Mechanics</div>
+                      <div class="swot-item-desc">Uses the data-page attribute as the sole authoritative router marker rather than ad-hoc classes. The ensureMultiPageStructure function has 26 robust, dedicated unit tests verifying that all injected sections sit neatly inside wrappers, providing rock-solid structural integrity.</div>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+
+              <!-- NEGATIVE & PROBLEM AREAS -->
+              <div class="swot-column">
+                <div class="swot-header negative">
+                  <span class="swot-item-icon">🔴</span> Negative &amp; Problem Areas (Vulnerabilities)
+                </div>
+                <ul class="swot-list">
+                  <li class="swot-item">
+                    <span class="swot-item-icon">⚠️</span>
+                    <div>
+                      <div class="swot-item-title">High-Risk Code Monoliths</div>
+                      <div class="swot-item-desc">The main Inngest build pipeline exists in a single 2,180-line monolith, and the admin dashboard is an undivided 3,021-line component. This is the single highest failure point; any single character edit risks corrupting the files via NTFS truncation, which has already caused 12 crash incidents.</div>
+                    </div>
+                  </li>
+                  <li class="swot-item">
+                    <span class="swot-item-icon">💸</span>
+                    <div>
+                      <div class="swot-item-title">Revenue Leakage &amp; Free Hosting</div>
+                      <div class="swot-item-desc">No billing hook exists to deactivate a client website or suspend their portal access if they cancel their Square recurring hosting plan or if a card payment defaults. Active service remains online for free indefinitely unless manual intervention occurs.</div>
+                    </div>
+                  </li>
+                  <li class="swot-item">
+                    <span class="swot-item-icon">📦</span>
+                    <div>
+                      <div class="swot-item-title">Pricing Ambiguity &amp; Package Drift</div>
+                      <div class="swot-item-desc">The pricing tiers for identical packages are extremely inconsistent. Starter package varies from $149/mo (onboarding), to $399/mo (handoff), to $699/mo (actual portal code). This mismatch causes confusion and presents major legal risks under Australian Consumer Law.</div>
+                    </div>
+                  </li>
+                  <li class="swot-item">
+                    <span class="swot-item-icon">💻</span>
+                    <div>
+                      <div class="swot-item-title">Missing Core Systems</div>
+                      <div class="swot-item-desc">Synergy Wholesale domain provisioning is completely unimplemented, leaving clients who requested domains in limbo. Growth bundle sells a "Pop-up Form" feature that has no pipeline logic, and there is no uptime monitoring, making WebGecko blind to post-launch site crashes.</div>
+                    </div>
+                  </li>
+                  <li class="swot-item">
+                    <span class="swot-item-icon">⏳</span>
+                    <div>
+                      <div class="swot-item-title">Extreme Database Query Inefficiencies</div>
+                      <div class="swot-item-desc">Analytics reports fetch all historical raw rows into Node.js RAM and count page-views sequentially in JavaScript. Unbounded pipeline logs are appended directly inside the Supabase job.metadata JSON blob. This causes severe database bloat and performance degradation as user volume grows.</div>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- TAB C: PRICING & PROFIT MARGINS -->
+          <div id="panel-pricing" class="sheet-tab-panel">
+            <h2 style="font-family:'Outfit', sans-serif; font-size: 18px; margin-bottom: 12px;">WebGecko Competitor Pricing &amp; Profit Margins</h2>
+            
+            <!-- Metrics Top Row -->
+            <div class="dashboard-metrics-row">
+              <div class="metric-card-premium">
+                <span class="label">Avg. Website Build Margin</span>
+                <span class="value">99.8%</span>
+                <span class="desc">Upfront Build Fee vs API Cost</span>
+              </div>
+              <div class="metric-card-premium emerald">
+                <span class="label">Avg. Monthly Hosting Margin</span>
+                <span class="value">97.0%</span>
+                <span class="desc">Hosting Revenue vs Server/Tool Cost</span>
+              </div>
+              <div class="metric-card-premium blue">
+                <span class="label">Avg. Social Package Margin</span>
+                <span class="value">98.5%</span>
+                <span class="desc">Monthly Plan vs Tool/Engine Costs</span>
+              </div>
+              <div class="metric-card-premium crimson">
+                <span class="label">Direct API Cost / Build</span>
+                <span class="value">$2.30 AUD</span>
+                <span class="desc">Google Stitch + Anthropic Tokens</span>
+              </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="dashboard-charts-grid">
+              
+              <!-- Chart 1: Website Pricing Comparison -->
+              <div class="chart-container-card">
+                <h3><span>📊</span> Upfront Website Price vs. Competitors (AUD)</h3>
+                <div class="chart-wrapper">
+                  <canvas id="chart-web-price"></canvas>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); line-height: 1.5;">
+                  <strong>Note:</strong> WebGecko provides an automated custom site built and live in 10 days. Competitor Agency charges up to $8,000 and takes 6-8 weeks of developer labor. DIY builders cost less upfront but consume 40+ hours of client labor.
+                </div>
+              </div>
+
+              <!-- Chart 2: Social Media Monthly Packages -->
+              <div class="chart-container-card">
+                <h3><span>📊</span> Social Media Monthly Package Comparison (AUD)</h3>
+                <div class="chart-wrapper">
+                  <canvas id="chart-social-price"></canvas>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); line-height: 1.5;">
+                  <strong>Note:</strong> Comparison displays the Growth tier ($1,099/mo, 20 posts across 3 platforms). Australian boutique marketing agencies charge upwards of $2,500/mo for basic community management. WebGecko's automated posting cost is virtually zero.
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Data Tables for Pricing -->
+            <div class="dashboard-charts-grid" style="margin-top: 10px;">
+              <div class="chart-container-card">
+                <h3><span>📋</span> Website Build Pricing Model Breakdown</h3>
+                <table class="pricing-comparison-table">
+                  <thead>
+                    <tr>
+                      <th>Service Tier / Item</th>
+                      <th>WebGecko Price</th>
+                      <th>Direct Costs</th>
+                      <th>Net Margin</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="cell-bold">Small Build (1-3 Pages)</td>
+                      <td class="cell-success">$1,500 one-off</td>
+                      <td class="cell-mono">$0.40 (Synthesis API)</td>
+                      <td class="cell-success">99.97%</td>
+                    </tr>
+                    <tr>
+                      <td class="cell-bold">Medium Build (4-6 Pages)</td>
+                      <td class="cell-success">$2,400 one-off</td>
+                      <td class="cell-mono">$0.50 (Synthesis API)</td>
+                      <td class="cell-success">99.98%</td>
+                    </tr>
+                    <tr>
+                      <td class="cell-bold">Large Build (7+ Pages)</td>
+                      <td class="cell-success">$3,800 one-off</td>
+                      <td class="cell-mono">$0.60 (Synthesis API)</td>
+                      <td class="cell-success">99.98%</td>
+                    </tr>
+                    <tr>
+                      <td class="cell-bold">Ongoing Hosting &amp; Maint.</td>
+                      <td class="cell-success">$109–$119/mo</td>
+                      <td class="cell-mono">$3.50/mo (Vercel &amp; Domain)</td>
+                      <td class="cell-success">97.05%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="chart-container-card">
+                <h3><span>📋</span> Social Media Package Comparison Sheet</h3>
+                <table class="pricing-comparison-table">
+                  <thead>
+                    <tr>
+                      <th>Tier (Posts / Month)</th>
+                      <th>WebGecko Price</th>
+                      <th>Agency Avg (AU)</th>
+                      <th>WebGecko Tool Cost</th>
+                      <th>Marginal Margin</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="cell-bold">Starter (12 Posts, 2 Platforms)</td>
+                      <td class="cell-success">$699/mo</td>
+                      <td class="cell-mono">$1,500/mo</td>
+                      <td class="cell-mono">$0.80/mo (Postiz share)</td>
+                      <td class="cell-success">99.88%</td>
+                    </tr>
+                    <tr>
+                      <td class="cell-bold">Growth (20 Posts, 3 Platforms)</td>
+                      <td class="cell-success">$1,099/mo</td>
+                      <td class="cell-mono">$2,400/mo</td>
+                      <td class="cell-mono">$0.80/mo (Postiz share)</td>
+                      <td class="cell-success">99.92%</td>
+                    </tr>
+                    <tr>
+                      <td class="cell-bold">Full Suite (30 Posts, 6 Platforms)</td>
+                      <td class="cell-success">$1,599/mo</td>
+                      <td class="cell-mono">$3,800/mo</td>
+                      <td class="cell-mono">$0.80/mo (Postiz share)</td>
+                      <td class="cell-success">99.95%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 2: GOOGLE SLIDES PRESENTATION
+       ══════════════════════════════════════════════════════════════ -->
+  <section id="portal-slides" class="portal-section">
+    <div class="slides-layout">
+      
+      <div class="slide-viewport-wrapper">
+        <div class="slide-aspect-ratio-box">
+          <div class="slide-title-bg"></div>
+
+          <!-- SLIDE 1: TITLE SLIDE -->
+          <div class="slide-content-frame active" id="slide-1">
+            <div class="slide-header" style="border: none;">
+              <div></div>
+              <div style="font-size: 12px; font-weight: 700; color: #a78bfa;">WEBGECKO PORTFOLIO</div>
+            </div>
+            <div class="slide-content-title-page">
+              <span class="slide-badge-pill">Confidential Strategic Deck</span>
+              <h1 class="slide-main-title">Business Growth &amp; Stabilisation Strategy</h1>
+              <p class="slide-subtitle">An Operational Audit and Pricing Comparison of the WebGecko Automation Platform for Australian Small Businesses</p>
+              <div style="margin-top: 10px; font-size: 13px; color: #64748b; font-weight: 500;">
+                Zack R. — Single Operator  ·  May 2026
+              </div>
+            </div>
+            <div class="slide-footer">
+              <span>WebGecko Business Strategy 2026</span>
+              <span class="slide-number">Slide 1 of 9</span>
+            </div>
+          </div>
+
+          <!-- SLIDE 2: THE PROBLEM -->
+          <div class="slide-content-frame" id="slide-2">
+            <div class="slide-header">
+              <div class="slide-header-left">
+                <span class="slide-section-name">01 · Market Overview</span>
+                <h3 class="slide-title-text">Underserved Australian Small Businesses</h3>
+              </div>
+              <span class="slide-badge-pill">The Market Problem</span>
+            </div>
+            <div class="slide-body">
+              <div class="slide-body-left">
+                <ul class="slide-bullet-list">
+                  <li class="slide-bullet-item">
+                    <span class="slide-bullet-number">1</span>
+                    <div class="slide-bullet-text">
+                      <h4>Exorbitant Agency Fees</h4>
+                      <p>Traditional boutique agencies charge $3,000–$8,000 upfront for custom development and $2,000/mo for social management, pricing out average tradies, retail shops, and professional service operators.</p>
+                    </div>
+                  </li>
+                  <li class="slide-bullet-item">
+                    <span class="slide-bullet-number">2</span>
+                    <div class="slide-bullet-text">
+                      <h4>Friction-Heavy DIY Tools</h4>
+                      <p>Wix, Squarespace, and Shopify are affordable but consume 30–50 hours of a business owner's primary hours. Overwhelmed business owners produce slow, poorly populated, unoptimized sites.</p>
+                    </div>
+                  </li>
+                  <li class="slide-bullet-item">
+                    <span class="slide-bullet-number">3</span>
+                    <div class="slide-bullet-text">
+                      <h4>The Support Void</h4>
+                      <p>Cheap overseas freelancers are difficult to coordinate with, lack understanding of Australian Consumer Law/Privacy requirements, and provide no reliable ongoing local maintenance or speed tuning.</p>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+              <div class="slide-body-right">
+                <div class="slide-panel-card accent-card">
+                  <h4>💡 WebGecko's Opportunity</h4>
+                  <p style="font-size: 12px; line-height: 1.6; color: #cbd5e1;">By automating the design synthesis and content writing processes from start to finish, WebGecko offers small businesses a fully built, bespoke multi-page site and automated social campaigns in 10 days for a tiny fraction of typical agency costs.</p>
+                </div>
+              </div>
+            </div>
+            <div class="slide-footer">
+              <span>WebGecko Business Strategy 2026</span>
+              <span class="slide-number">Slide 2 of 9</span>
+            </div>
+          </div>
+
+          <!-- SLIDE 3: OUR SOLUTIONS -->
+          <div class="slide-content-frame" id="slide-3">
+            <div class="slide-header">
+              <div class="slide-header-left">
+                <span class="slide-section-name">02 · The Solution</span>
+                <h3 class="slide-title-text">Proprietary Automation &amp; Synthesis Core</h3>
+              </div>
+              <span class="slide-badge-pill">Our Core Solution</span>
+            </div>
+            <div class="slide-body">
+              <div class="slide-body-left" style="flex: 1.5;">
+                <div class="slide-grid-3">
+                  <div class="slide-panel-card">
+                    <h4>🎨 Visual Synthesizer</h4>
+                    <p>Proprietary design compiler compiles custom, responsive visual layouts tailored dynamically to the client's industry and USP tokens in minutes.</p>
+                  </div>
+                  <div class="slide-panel-card">
+                    <h4>✍️ Copywriter Compiler</h4>
+                    <p>Semantic structuring engine automatically generates tailored, SEO-rich copywriting, got-questions accordion grids, and authentic localized testimonials.</p>
+                  </div>
+                  <div class="slide-panel-card">
+                    <h4>⚙️ Integration Engine</h4>
+                    <p>Seamlessly provisions SuperSaas bookings, Tawk.to chats, Cloudinary photo galleries, and Square e-commerce catalogs on-the-fly.</p>
+                  </div>
+                </div>
+                <div class="slide-panel-card accent-card" style="margin-top: 10px;">
+                  <h4 style="color:#a78bfa;">🚀 What WebGecko Builds In Under 5 Minutes of Engine Execution:</h4>
+                  <p style="color: #94a3b8; font-size: 11px;">Bespoke Multi-page Structure · Embedded Customer Scheduling Calendars · Secure Local Cart Checkouts · Localized Map APIs · Full Legal Policy Headers · Performance-Tuned Serverless Cloud Hosting.</p>
+                </div>
+              </div>
+            </div>
+            <div class="slide-footer">
+              <span>WebGecko Business Strategy 2026</span>
+              <span class="slide-number">Slide 3 of 9</span>
+            </div>
+          </div>
+
+          <!-- SLIDE 4: PROCESS FLOW -->
+          <div class="slide-content-frame" id="slide-4">
+            <div class="slide-header">
+              <div class="slide-header-left">
+                <span class="slide-section-name">03 · Operations</span>
+                <h3 class="slide-title-text">Process Pipeline: Form Submission to Live Release</h3>
+              </div>
+              <span class="slide-badge-pill">The Process Flow</span>
+            </div>
+            <div class="slide-body">
+              <div class="slide-grid-3" style="width: 100%;">
+                <div class="slide-panel-card">
+                  <div class="slide-badge-pill" style="align-self: flex-start; font-size: 9px; padding: 2px 8px;">Step 1: Intake</div>
+                  <h4>📋 Intake Form Submit</h4>
+                  <p>Client enters business detail tokens (ABN, industry, usp) and uploads photos. Hashed credentials and Supabase records are auto-created.</p>
+                </div>
+                <div class="slide-panel-card">
+                  <div class="slide-badge-pill" style="align-self: flex-start; font-size: 9px; padding: 2px 8px;">Step 2: Payment</div>
+                  <h4>💰 Deposit Paid webhook</h4>
+                  <p>Client pays 50% deposit via secure Square billing. Webhook verifies HMAC and instantly triggers the backend serverless orchestrator.</p>
+                </div>
+                <div class="slide-panel-card">
+                  <div class="slide-badge-pill" style="align-self: flex-start; font-size: 9px; padding: 2px 8px;">Step 3: Compilation</div>
+                  <h4>⚙️ Automation Pipeline</h4>
+                  <p>10-step serverless build: creates booking schedule, synthesizes layout, runs copywriting, injects features, and verifies structure.</p>
+                </div>
+              </div>
+              <div class="slide-grid-3" style="width: 100%; margin-top: 14px;">
+                <div class="slide-panel-card">
+                  <div class="slide-badge-pill" style="align-self: flex-start; font-size: 9px; padding: 2px 8px;">Step 4: Smoke Test</div>
+                  <h4>🔍 Code Audit &amp; Validate</h4>
+                  <p>Self-healing validation checks 15+ metrics (FAQ accordion, footers, booking frame, forms). Re-audits &amp; fixes page if needed.</p>
+                </div>
+                <div class="slide-panel-card">
+                  <div class="slide-badge-pill" style="align-self: flex-start; font-size: 9px; padding: 2px 8px;">Step 5: Cloud Deploy</div>
+                  <h4>🚀 Vercel Deploy &amp; Index</h4>
+                  <p>Launches custom isolated Vercel project, registers the stable server alias, and triggers a direct search engine index ping.</p>
+                </div>
+                <div class="slide-panel-card accent-card">
+                  <div class="slide-badge-pill" style="align-self: flex-start; font-size: 9px; padding: 2px 8px; background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3)">Step 6: Handover</div>
+                  <h4>🔑 Client Portal Release</h4>
+                  <p>Auto-release cron unlocks the portal 10 days later, emailing secure preview links. Client approves &amp; triggers custom domain mapping.</p>
+                </div>
+              </div>
+            </div>
+            <div class="slide-footer">
+              <span>WebGecko Business Strategy 2026</span>
+              <span class="slide-number">Slide 4 of 9</span>
+            </div>
+          </div>
+
+          <!-- SLIDE 5: PRICING & VALUE -->
+          <div class="slide-content-frame" id="slide-5">
+            <div class="slide-header">
+              <div class="slide-header-left">
+                <span class="slide-section-name">04 · Pricing</span>
+                <h3 class="slide-title-text">Disruptive Pricing Matrix &amp; High margins</h3>
+              </div>
+              <span class="slide-badge-pill">Pricing &amp; Margins</span>
+            </div>
+            <div class="slide-body">
+              <div class="slide-body-left">
+                <ul class="slide-bullet-list">
+                  <li class="slide-bullet-item">
+                    <span class="slide-bullet-number">💰</span>
+                    <div class="slide-bullet-text">
+                      <h4>Website Builds: $1,500 to $3,800 Upfront</h4>
+                      <p>Tiered by page density: Small ($1,500), Medium ($2,400), and Large ($3,800) + custom feature add-ons ranging from $100 to $600. Recurring hosting: $109–$119/mo.</p>
+                    </div>
+                  </li>
+                  <li class="slide-bullet-item">
+                    <span class="slide-bullet-number">📱</span>
+                    <div class="slide-bullet-text">
+                      <h4>Social Media Packages: $699 to $1,599 / month</h4>
+                      <p>Starter ($699/mo, 12 posts), Growth ($1,099/mo, 20 posts), and Full Suite ($1,599/mo, 30 posts + ads). High recurring revenue potential.</p>
+                    </div>
+                  </li>
+                  <li class="slide-bullet-item">
+                    <span class="slide-bullet-number">🚀</span>
+                    <div class="slide-bullet-text">
+                      <h4>Unbeatable Value Proposition</h4>
+                      <p>Priced at a 60-70% discount compared to traditional Australian agencies, while maintaining a virtually automated production workflow.</p>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+              <div class="slide-body-right">
+                <div class="slide-panel-card accent-card">
+                  <span class="slide-badge-pill" style="align-self: flex-start; background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3)">98.5% Gross Margin</span>
+                  <div class="stat">$2.30</div>
+                  <p style="font-size: 11px; color: #94a3b8;">Average API token and Visual Core expense to compile a premium $1,500 website build. Marginal production cost is practically zero.</p>
+                </div>
+              </div>
+            </div>
+            <div class="slide-footer">
+              <span>WebGecko Business Strategy 2026</span>
+              <span class="slide-number">Slide 5 of 9</span>
+            </div>
+          </div>
+
+          <!-- SLIDE 6: COST STRUCTURE -->
+          <div class="slide-content-frame" id="slide-6">
+            <div class="slide-header">
+              <div class="slide-header-left">
+                <span class="slide-section-name">05 · Financials</span>
+                <h3 class="slide-title-text">Cost Structure: Extremely Capital Efficient</h3>
+              </div>
+              <span class="slide-badge-pill">Cost Structure</span>
+            </div>
+            <div class="slide-body">
+              <div class="slide-grid-2" style="width: 100%;">
+                <div class="slide-panel-card">
+                  <h4>💡 Fixed Operational Overheads (Monthly)</h4>
+                  <ul class="slide-bullet-list" style="margin-top: 10px; gap: 8px;">
+                    <li style="display:flex; justify-content:space-between; font-size:12px; color:#cbd5e1;">
+                      <span>Vercel Team Plan (Hosting Orchestrator)</span>
+                      <strong style="color:#fff;">$30.00</strong>
+                    </li>
+                    <li style="display:flex; justify-content:space-between; font-size:12px; color:#cbd5e1;">
+                      <span>Semantic Copywriter Seat (Synthesis Engine)</span>
+                      <strong style="color:#fff;">$64.00</strong>
+                    </li>
+                    <li style="display:flex; justify-content:space-between; font-size:12px; color:#cbd5e1;">
+                      <span>Postiz Portal (Social drafts compiler)</span>
+                      <strong style="color:#fff;">$40.00</strong>
+                    </li>
+                    <li style="display:flex; justify-content:space-between; font-size:12px; color:#cbd5e1;">
+                      <span>Supabase Database (Cloud Data Storage)</span>
+                      <strong style="color:#fff;">$38.00</strong>
+                    </li>
+                    <li style="display:flex; justify-content:space-between; font-size:12px; color:#cbd5e1;">
+                      <span>Resend Email API (10k notifications)</span>
+                      <strong style="color:#fff;">$15.00</strong>
+                    </li>
+                    <li style="display:flex; justify-content:space-between; font-size:12px; color:#cbd5e1; font-weight:700; border-top:1px solid rgba(255,255,255,0.1); padding-top:6px;">
+                      <span>Total Base Overhead</span>
+                      <strong style="color:#a78bfa;">$187.00/mo</strong>
+                    </li>
+                    <li style="display:flex; justify-content:space-between; font-size:11px; color:#a78bfa; margin-top: 4px;">
+                      <span>Synergy Wholesale Domain Setup</span>
+                      <strong>$99.00 flat setup</strong>
+                    </li>
+                  </ul>
+                </div>
+                <div class="slide-panel-card accent-card">
+                  <h4>⚡ Marginal Cost of Goods Sold (Per Client)</h4>
+                  <ul class="slide-bullet-list" style="margin-top: 10px; gap: 8px;">
+                    <li style="display:flex; justify-content:space-between; font-size:12px; color:#cbd5e1;">
+                      <span>Visual Layout Synthesizer (Synthesis API)</span>
+                      <strong style="color:#fff;">$0.20</strong>
+                    </li>
+                    <li style="display:flex; justify-content:space-between; font-size:12px; color:#cbd5e1;">
+                      <span>Copywriting Compiler Call (Synthesis API)</span>
+                      <strong style="color:#fff;">$0.20</strong>
+                    </li>
+                    <li style="display:flex; justify-content:space-between; font-size:12px; color:#cbd5e1;">
+                      <span>Cloudinary CDN Image Allocation</span>
+                      <strong style="color:#fff;">$0.10</strong>
+                    </li>
+                    <li style="display:flex; justify-content:space-between; font-size:12px; color:#cbd5e1;">
+                      <span>Synergy Wholesale Domain Setup (prorated)</span>
+                      <strong style="color:#fff;">$1.50</strong>
+                    </li>
+                    <li style="display:flex; justify-content:space-between; font-size:12px; color:#cbd5e1; font-weight:700; border-top:1px solid rgba(255,255,255,0.1); padding-top:6px;">
+                      <span>Total Variable Cost / Client Build</span>
+                      <strong style="color:#34d399;">$2.00 AUD</strong>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="slide-footer">
+              <span>WebGecko Business Strategy 2026</span>
+              <span class="slide-number">Slide 6 of 9</span>
+            </div>
+          </div>
+
+          <!-- SLIDE 7: OPERATIONAL VULNERABILITIES -->
+          <div class="slide-content-frame" id="slide-7">
+            <div class="slide-header">
+              <div class="slide-header-left">
+                <span class="slide-section-name">06 · Risk Assessment</span>
+                <h3 class="slide-title-text">Critical Operations Audit &amp; Vulnerabilities</h3>
+              </div>
+              <span class="slide-badge-pill" style="background:rgba(239,68,68,0.15); color:#ef4444; border-color:rgba(239,68,68,0.3);">Key Vulnerabilities</span>
+            </div>
+            <div class="slide-body">
+              <div class="slide-body-left">
+                <ul class="slide-bullet-list">
+                  <li class="slide-bullet-item">
+                    <span class="slide-bullet-number" style="background:rgba(239,68,68,0.1); color:#f87171; border-color:rgba(239,68,68,0.25)">1</span>
+                    <div class="slide-bullet-text">
+                      <h4>API Session Authentication Gap</h4>
+                      <p>The client content routes (/api/client/content GET and POST) are entirely unauthenticated, allowing any internet user who guesses or scrapes the client's URL slug to read or insert requests.</p>
+                    </div>
+                  </li>
+                  <li class="slide-bullet-item">
+                    <span class="slide-bullet-number" style="background:rgba(239,68,68,0.1); color:#f87171; border-color:rgba(239,68,68,0.25)">2</span>
+                    <div class="slide-bullet-text">
+                      <h4>Inngest Monolith &amp; File Corruption Risk</h4>
+                      <p>The core pipeline exists as a 2,180-line monolithic file. Any edits on Windows NTFS servers regularly risk truncating the file mid-statement, corrupting code and breaking production Vercel builds.</p>
+                    </div>
+                  </li>
+                  <li class="slide-bullet-item">
+                    <span class="slide-bullet-number" style="background:rgba(239,68,68,0.1); color:#f87171; border-color:rgba(239,68,68,0.25)">3</span>
+                    <div class="slide-bullet-text">
+                      <h4>Hosting Leakage &amp; Subscription Disconnect</h4>
+                      <p>No billing hook exists to deactivate or suspend a client website if they cancel their Square recurring billing or let card payments lapse. Hosting services are provided for free indefinitely.</p>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+              <div class="slide-body-right">
+                <div class="slide-panel-card" style="border-color: rgba(239, 68, 68, 0.25); background: rgba(239, 68, 68, 0.02)">
+                  <h4 style="color:#f87171;">⚠️ Pricing Mismatch Muddle</h4>
+                  <p style="font-size: 11px; line-height: 1.5; color: #cbd5e1;">A critical business risk is the severe mismatch in social media package pricing: the onboarding document lists $149/mo, the handoff notes list $399/mo, and the actual portal code charges $699/mo. This creates extreme billing and compliance risk.</p>
+                </div>
+              </div>
+            </div>
+            <div class="slide-footer">
+              <span>WebGecko Business Strategy 2026</span>
+              <span class="slide-number">Slide 7 of 9</span>
+            </div>
+          </div>
+
+          <!-- SLIDE 8: STABILISATION PLAN -->
+          <div class="slide-content-frame" id="slide-8">
+            <div class="slide-header">
+              <div class="slide-header-left">
+                <span class="slide-section-name">07 · Stabilisation Plan</span>
+                <h3 class="slide-title-text">Immediate Stabilization Action Plan</h3>
+              </div>
+              <span class="slide-badge-pill" style="background:rgba(16,185,129,0.15); color:#10b981; border-color:rgba(16,185,129,0.3)">Immediate Fixes</span>
+            </div>
+            <div class="slide-body">
+              <div class="slide-grid-3" style="width: 100%;">
+                <div class="slide-panel-card">
+                  <div class="slide-badge-pill" style="align-self: flex-start; font-size: 9px; padding: 2px 8px; background:rgba(16,185,129,0.15); color:#34d399; border-color:rgba(16,185,129,0.35)">Fixed & Retested</div>
+                  <h4>🔒 Close Portal Auth Gap</h4>
+                  <p>Add secure cookie verification checks onto the `/api/client/content` GET and POST routes, preventing unauthorized scrapers and spam injection.</p>
+                </div>
+                <div class="slide-panel-card">
+                  <div class="slide-badge-pill" style="align-self: flex-start; font-size: 9px; padding: 2px 8px; background:rgba(245,158,11,0.12); color:#f59e0b; border-color:rgba(245,158,11,0.2)">Deferred / Roadmap</div>
+                  <h4>🧩 Modularize Pipeline</h4>
+                  <p>Refactor and break down the massive 2,180-line Inngest file into standalone sub-modules. Deferred to dedicated window due to serverless deployment risks.</p>
+                </div>
+                <div class="slide-panel-card">
+                  <div class="slide-badge-pill" style="align-self: flex-start; font-size: 9px; padding: 2px 8px; background:rgba(16,185,129,0.15); color:#34d399; border-color:rgba(16,185,129,0.35)">Fixed & Retested</div>
+                  <h4>🔗 Setup Webhooks</h4>
+                  <p>Implement a Square subscription webhook handler. Deactivate the client's Vercel deployment automatically upon a failed monthly recurring card payment.</p>
+                </div>
+              </div>
+              <div class="slide-grid-2" style="width: 100%; margin-top: 14px;">
+                <div class="slide-panel-card">
+                  <div class="slide-badge-pill" style="align-self: flex-start; font-size: 9px; padding: 2px 8px; background:rgba(16,185,129,0.15); color:#34d399; border-color:rgba(16,185,129,0.35)">Fixed & Retested</div>
+                  <h4>⚙️ Optimize Database Query</h4>
+                  <p>Replace the inefficient `getTopPages()` row aggregator in Node.js RAM with a native Supabase SQL GROUP BY/COUNT database query. Drastically improves speed.</p>
+                </div>
+                <div class="slide-panel-card accent-card">
+                  <div class="slide-badge-pill" style="align-self: flex-start; font-size: 9px; padding: 2px 8px; background:rgba(16,185,129,0.15); color:#34d399; border-color:rgba(16,185,129,0.35)">Fixed & Retested</div>
+                  <h4>🎯 Pricing Standardization</h4>
+                  <p>Establish a single master price guide in `lib/pricing.ts` and sync across onboarding docs, portal codes ($699/mo Starter), and invoices. Removes compliance risks.</p>
+                </div>
+              </div>
+            </div>
+            <div class="slide-footer">
+              <span>WebGecko Business Strategy 2026</span>
+              <span class="slide-number">Slide 8 of 9</span>
+            </div>
+          </div>
+
+          <!-- SLIDE 9: THE FUTURE -->
+          <div class="slide-content-frame" id="slide-9">
+            <div class="slide-header">
+              <div class="slide-header-left">
+                <span class="slide-section-name">08 · Scaling Strategy</span>
+                <h3 class="slide-title-text">Scaling &amp; Expansion Horizon</h3>
+              </div>
+              <span class="slide-badge-pill">Future Horizon</span>
+            </div>
+            <div class="slide-body">
+              <div class="slide-body-left">
+                <ul class="slide-bullet-list">
+                  <li class="slide-bullet-item">
+                    <span class="slide-bullet-number">1</span>
+                    <div class="slide-bullet-text">
+                      <h4>Automated Domain Registration</h4>
+                      <p>Complete the Synergy Wholesale API domain registration hook (`lib/synergy.ts`) to automatically purchase and map domains without operator manual labor.</p>
+                    </div>
+                  </li>
+                  <li class="slide-bullet-item">
+                    <span class="slide-bullet-number">2</span>
+                    <div class="slide-bullet-text">
+                      <h4>Client CMS &amp; Webhook Triggers</h4>
+                      <p>Implement the `/api/content/generate` pipeline step that allows client portal requests to immediately rebuild and compile onto the live site via automated Vercel webhooks.</p>
+                    </div>
+                  </li>
+                  <li class="slide-bullet-item">
+                    <span class="slide-bullet-number">3</span>
+                    <div class="slide-bullet-text">
+                      <h4>Robust Uptime Monitoring</h4>
+                      <p>Add a daily uptime scheduler (e.g. via Inngest cron or Better Uptime pings) to monitor the health of all live client sites and alert the admin of any crashes.</p>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+              <div class="slide-body-right">
+                <div class="slide-panel-card accent-card">
+                  <h4>📈 Scaling to 100 Clients</h4>
+                  <p style="font-size: 11px; line-height: 1.5; color: #cbd5e1;">At 100 active website + social clients: Website MRR = $11,900/mo. Social Growth MRR = $109,900/mo. Total potential MRR = $121,800/mo. The fixed overhead remains under $800/mo. WebGecko is poised for astronomical, capital-efficient wealth generation once stabilized.</p>
+                </div>
+              </div>
+            </div>
+            <div class="slide-footer">
+              <span>WebGecko Business Strategy 2026</span>
+              <span class="slide-number">Slide 9 of 9</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- SLIDES CONTROLS BAR -->
+        <div class="slides-controls-bar">
+          <div class="slide-nav-buttons">
+            <button class="slide-nav-btn" onclick="prevSlide()" id="btn-prev">
+              &larr; Previous Slide
+            </button>
+          </div>
+          <div class="slide-indicator-dots" id="indicator-dots">
+            <!-- Dots generated dynamically by JS -->
+          </div>
+          <div class="slide-nav-buttons">
+            <button class="slide-nav-btn" onclick="nextSlide()" id="btn-next">
+              Next Slide &rarr;
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    // Theme Toggle
+    function toggleTheme() {
+      document.body.classList.toggle('light-theme');
+      localStorage.setItem('wg_audit_theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
+      updateChartThemes();
+    }
+
+    // Load theme preference on mount
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedTheme = localStorage.getItem('wg_audit_theme');
+      if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+      }
+      initCharts();
+      generateDots();
+    });
+
+    // View Switching (Sheets vs Slides)
+    function switchView(view) {
+      document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.portal-section').forEach(sec => sec.classList.remove('active'));
+
+      if (view === 'sheets') {
+        document.querySelector('.view-btn:nth-child(1)').classList.add('active');
+        document.getElementById('portal-sheets').classList.add('active');
+      } else {
+        document.querySelector('.view-btn:nth-child(2)').classList.add('active');
+        document.getElementById('portal-slides').classList.add('active');
+      }
+    }
+
+    // Spreadsheet Tab Switching
+    function switchSheetTab(tabId) {
+      document.querySelectorAll('.sheet-tab-item').forEach(item => item.classList.remove('active'));
+      document.querySelectorAll('.sheet-tab-panel').forEach(panel => panel.classList.remove('active'));
+
+      const activeTab = event.currentTarget;
+      activeTab.classList.add('active');
+      
+      const panel = document.getElementById(`panel-${tabId}`);
+      panel.classList.add('active');
+
+      // Update Formula Bar Mock
+      const formulaEl = document.getElementById('sheets-formula');
+      if (tabId === 'audit') {
+        formulaEl.innerText = '=SUM(CRITICAL_RISKS, HIGH_RISKS)';
+      } else if (tabId === 'swot') {
+        formulaEl.innerText = '=FILTER(SWOT_DATA, CATEGORY="CORE_STRENGTHS" OR CATEGORY="RISKS")';
+      } else if (tabId === 'pricing') {
+        formulaEl.innerText = '=COMPARE(WEBGECKO_REVENUE, COMPETITOR_AVERAGES, "GROSS_PROFIT_MARGINS")';
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // CHART.JS INTEGRATION
+    // ══════════════════════════════════════════════════════════════
+    let chartWeb, chartSocial;
+
+    function getThemeColors() {
+      const isLight = document.body.classList.contains('light-theme');
+      return {
+        text: isLight ? '#0f172a' : '#f3f4f6',
+        textMuted: isLight ? '#64748b' : '#9ca3af',
+        gridLines: isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.05)',
+      };
+    }
+
+    function updateChartThemes() {
+      const colors = getThemeColors();
+      
+      [chartWeb, chartSocial].forEach(chart => {
+        if (chart) {
+          chart.options.scales.x.grid.color = colors.gridLines;
+          chart.options.scales.y.grid.color = colors.gridLines;
+          chart.options.scales.x.ticks.color = colors.textMuted;
+          chart.options.scales.y.ticks.color = colors.textMuted;
+          chart.options.plugins.legend.labels.color = colors.text;
+          chart.update();
+        }
+      });
+    }
+
+    function initCharts() {
+      const colors = getThemeColors();
+
+      // Chart 1: Website Prices
+      const ctxWeb = document.getElementById('chart-web-price').getContext('2d');
+      chartWeb = new Chart(ctxWeb, {
+        type: 'bar',
+        data: {
+          labels: ['WebGecko (Small)', 'WebGecko (Medium)', 'WebGecko (Large)', 'DIY Builders', 'Freelance Outsourcing', 'Traditional AU Agency'],
+          datasets: [{
+            label: 'Upfront Setup Cost (AUD)',
+            data: [1500, 2400, 3800, 50, 950, 6500],
+            backgroundColor: [
+              'rgba(139, 92, 246, 0.65)',
+              'rgba(139, 92, 246, 0.8)',
+              'rgba(139, 92, 246, 0.95)',
+              'rgba(59, 130, 246, 0.5)',
+              'rgba(245, 158, 11, 0.5)',
+              'rgba(239, 68, 68, 0.6)'
+            ],
+            borderColor: [
+              '#8b5cf6',
+              '#8b5cf6',
+              '#8b5cf6',
+              '#3b82f6',
+              '#f59e0b',
+              '#ef4444'
+            ],
+            borderWidth: 1.5,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: { color: colors.text, font: { family: 'Inter' } }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: colors.gridLines },
+              ticks: { color: colors.textMuted, font: { size: 10 } }
+            },
+            y: {
+              grid: { color: colors.gridLines },
+              ticks: { color: colors.textMuted }
+            }
+          }
+        }
+      });
+
+      // Chart 2: Social Media Pricing Comparison
+      const ctxSocial = document.getElementById('chart-social-price').getContext('2d');
+      chartSocial = new Chart(ctxSocial, {
+        type: 'bar',
+        data: {
+          labels: ['WebGecko Starter', 'WebGecko Growth', 'WebGecko Full Suite', 'Freelancers (Avg)', 'Boutique AU Agencies'],
+          datasets: [{
+            label: 'Monthly Management Fee (AUD)',
+            data: [699, 1099, 1599, 950, 2500],
+            backgroundColor: [
+              'rgba(16, 185, 129, 0.65)',
+              'rgba(16, 185, 129, 0.8)',
+              'rgba(16, 185, 129, 0.95)',
+              'rgba(245, 158, 11, 0.5)',
+              'rgba(239, 68, 68, 0.6)'
+            ],
+            borderColor: [
+              '#10b981',
+              '#10b981',
+              '#10b981',
+              '#f59e0b',
+              '#ef4444'
+            ],
+            borderWidth: 1.5,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: { color: colors.text, font: { family: 'Inter' } }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: colors.gridLines },
+              ticks: { color: colors.textMuted, font: { size: 10 } }
+            },
+            y: {
+              grid: { color: colors.gridLines },
+              ticks: { color: colors.textMuted }
+            }
+          }
+        }
+      });
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // GOOGLE SLIDES PRESENTATION CONTROLLER
+    // ══════════════════════════════════════════════════════════════
+    let currentSlide = 1;
+    const totalSlides = 9;
+
+    function generateDots() {
+      const dotsContainer = document.getElementById('indicator-dots');
+      dotsContainer.innerHTML = '';
+      for (let i = 1; i <= totalSlides; i++) {
+        const dot = document.createElement('div');
+        dot.className = `slide-dot ${i === 1 ? 'active' : ''}`;
+        dot.onclick = () => jumpToSlide(i);
+        dotsContainer.appendChild(dot);
+      }
+      updateButtons();
+    }
+
+    function jumpToSlide(slideNum) {
+      if (slideNum < 1 || slideNum > totalSlides) return;
+      
+      document.querySelectorAll('.slide-content-frame').forEach(frame => {
+        frame.classList.remove('active');
+      });
+      
+      document.getElementById(`slide-${slideNum}`).classList.add('active');
+      
+      currentSlide = slideNum;
+      
+      // Update dots
+      document.querySelectorAll('.slide-dot').forEach((dot, idx) => {
+        if (idx + 1 === currentSlide) {
+          dot.classList.add('active');
+        } else {
+          dot.classList.remove('active');
+        }
+      });
+
+      updateButtons();
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides) {
+        jumpToSlide(currentSlide + 1);
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 1) {
+        jumpToSlide(currentSlide - 1);
+      }
+    }
+
+    function updateButtons() {
+      document.getElementById('btn-prev').disabled = (currentSlide === 1);
+      document.getElementById('btn-next').disabled = (currentSlide === totalSlides);
+    }
+
+    // Arrow Key Navigation for Slide Deck
+    window.addEventListener('keydown', (e) => {
+      if (document.getElementById('portal-slides').classList.contains('active')) {
+        if (e.key === 'ArrowRight' || e.key === 'Space') {
+          nextSlide();
+        } else if (e.key === 'ArrowLeft') {
+          prevSlide();
+        }
+      }
+    });
+  </script>
+</body>
+</html>

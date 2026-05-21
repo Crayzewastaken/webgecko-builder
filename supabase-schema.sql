@@ -171,3 +171,13 @@ create or replace trigger jobs_updated_at before update on jobs
 
 create or replace trigger clients_updated_at before update on clients
   for each row execute function update_updated_at();
+
+-- ============================================================
+-- PERFORMANCE VIEWS
+-- ============================================================
+create or replace view page_analytics_summary as
+select job_id, page, count(*) as views
+from analytics
+where event = 'page_view' and page is not null
+group by job_id, page;
+

@@ -848,9 +848,16 @@ export interface MultiPageRepairReport {
 const FALLBACK_PAGE_CONTENT: Record<string, (businessName: string, accentColor: string) => string> = {
   home: (biz, ac) => `
     <section id="hero" style="min-height:80vh;display:flex;align-items:center;justify-content:center;padding:80px 24px;background:linear-gradient(135deg,#0a0f1a 0%,#1e293b 100%);text-align:center;">
-      <div><h1 style="color:#f1f5f9;font-size:3rem;font-weight:900;margin:0 0 16px;">${biz}</h1>
-      <p style="color:#94a3b8;font-size:1.2rem;margin:0 0 32px;">Quality service you can trust.</p>
-      <a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('contact')" style="display:inline-block;background:${ac};color:#fff;font-weight:700;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:1.1rem;">Get Started</a></div>
+      <div style="max-width:800px;margin:0 auto;">
+        <h1 style="color:#f1f5f9;font-size:3.5rem;font-weight:900;margin:0 0 24px;line-height:1.2;">Welcome to ${biz}</h1>
+        <p style="color:#94a3b8;font-size:1.3rem;line-height:1.8;margin:0 0 40px;max-width:600px;margin-left:auto;margin-right:auto;">
+          Experience professional, high-quality, and completely reliable services customized to your unique needs. We are proud to serve our community with excellence, dedication, and peerless craftsmanship every single day.
+        </p>
+        <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
+          <a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('contact')" style="display:inline-block;background:${ac};color:#fff;font-weight:700;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:1.1rem;transition:all 0.2s;">Get Started Today</a>
+          <a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('services')" style="display:inline-block;background:transparent;color:#f1f5f9;border:1px solid rgba(255,255,255,0.2);font-weight:700;padding:16px 40px;border-radius:10px;text-decoration:none;font-size:1.1rem;transition:all 0.2s;">Our Services</a>
+        </div>
+      </div>
     </section>`,
   about: (_biz, ac) => `
     <div style="padding:80px 24px;background:#0f172a;"><div style="max-width:800px;margin:0 auto;">

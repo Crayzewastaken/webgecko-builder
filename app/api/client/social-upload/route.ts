@@ -47,6 +47,12 @@ export async function POST(req: NextRequest) {
       return Response.json({ ok: false, error: "Missing slug or brief" }, { status: 400 });
     }
 
+    // Authenticate: check client session cookie
+    const cookieSlug = req.cookies.get("wg_client_slug")?.value;
+    if (!cookieSlug || cookieSlug !== slug) {
+      return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+
     // 1. Load client job to get business name + metadata
     const { data: jobRow, error: jobErr } = await supabase
       .from("jobs")

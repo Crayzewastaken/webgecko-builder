@@ -100,6 +100,7 @@ const FAKE_STITCH = `<!DOCTYPE html>
 
   <section id="contact">
     <h2>Contact Us</h2>
+    <p>Have questions or want to request a quote? Get in touch with our friendly team today. We are always ready to assist you with professional advice, customized solutions, and top-tier customer service. Feel free to call us, send an email, or fill out the convenient contact form below and we will get back to you within 24 hours.</p>
     <form>
       <input type="text" placeholder="Your Name" />
       <input type="email" placeholder="your@email.com" />

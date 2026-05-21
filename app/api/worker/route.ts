@@ -195,7 +195,7 @@ export async function POST(req: Request) {
     await Promise.all(uploadPromises);
     console.log(`INTAKE: Uploads done — logo=${!!logoUrl}, hero=${!!heroUrl}, photos=${photoUrls.length}`);
 
-    const jobId = `job_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+    const jobId = `job_${crypto.randomUUID()}`;
     const clientSlug = safeFileName(userInput.businessName) + "-" + crypto.randomBytes(3).toString("hex");
     const clientPasswordPlain = crypto.randomBytes(5).toString("hex");
     const clientPassword = await hashClientPassword(clientPasswordPlain);

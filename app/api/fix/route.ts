@@ -5,6 +5,7 @@ import {
   injectEssentials,
   injectImages,
   getServicesForIndustry,
+  ensureMultiPageStructure,
 } from "@/lib/pipeline-helpers";
 import { auditAndFixSite } from "@/lib/auditor";
 import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailability } from "@/lib/db";
@@ -181,7 +182,20 @@ export async function GET(request: NextRequest) {
       } else {
         html = html.replace("</body>", bookingComponent + "\n</body>");
       }
-      console.log("[Fix] Booking component installed. iframe: " + html.includes("supersaas.com"));
+    }
+
+    // ── Multi-page Page Structure Verification ─────────────────────────────────
+    if (isMultiPage) {
+      const requestedPageIds = Array.isArray(userInput?.pages) && userInput.pages.length > 0
+        ? userInput.pages.map((p: string) => p.toLowerCase().replace(/[^a-z0-9]/g, ""))
+        : ["home"];
+      const { html: ensuredHtml, report } = ensureMultiPageStructure(html, requestedPageIds, {
+        businessName: userInput?.businessName,
+      });
+      if (report.repairs.length > 0) {
+        console.log("[Fix] ensureMultiPageStructure applied " + report.repairs.length + " repairs during fix pass.");
+      }
+      html = ensuredHtml;
     }
 
     // ── Deploy ────────────────────────────────────────────────────────────────

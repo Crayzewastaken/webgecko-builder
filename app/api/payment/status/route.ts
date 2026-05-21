@@ -1,22 +1,8 @@
 // app/api/payment/status/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, getJob, getPaymentState } from "@/lib/db";
+import { calculatePrice } from "@/lib/pricing";
 
-function calculatePrice(input: any): { totalPrice: number; monthlyPrice: number } {
-  const features: string[] = Array.isArray(input?.features) ? input.features : [];
-  const pageCount = Array.isArray(input?.pages) ? input.pages.length : 1;
-  const hasEcommerce = features.includes("Payments / Shop");
-  const hasBooking = features.includes("Booking System");
-  const isMultiPage = input?.siteType === "multi";
-
-  let totalPrice = 1500;
-  if (pageCount >= 7 || (isMultiPage && pageCount >= 5)) totalPrice = 3800;
-  else if (pageCount >= 4 || isMultiPage) totalPrice = 2400;
-  if (hasBooking) totalPrice += 400;
-  if (hasEcommerce) totalPrice += 600;
-
-  return { totalPrice, monthlyPrice: 109 };
-}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);

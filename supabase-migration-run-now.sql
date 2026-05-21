@@ -24,3 +24,11 @@ from information_schema.columns
 where (table_name = 'jobs' and column_name in ('supersaas_url', 'supersaas_id', 'tawkto_property_id', 'metadata'))
    or (table_name = 'clients' and column_name in ('metadata', 'launch_ready', 'has_booking'))
 order by table_name, column_name;
+
+-- ── Create page_analytics_summary performance view ──────────
+create or replace view page_analytics_summary as
+select job_id, page, count(*) as views
+from analytics
+where event = 'page_view' and page is not null
+group by job_id, page;
+
