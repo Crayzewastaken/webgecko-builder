@@ -10,51 +10,53 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
-      --bg-primary: #0b0f19;
-      --bg-secondary: #111827;
-      --bg-tertiary: #1f2937;
-      --accent-violet: #8b5cf6;
-      --accent-violet-glow: rgba(139, 92, 246, 0.15);
-      --accent-emerald: #10b981;
-      --accent-emerald-glow: rgba(16, 185, 129, 0.15);
-      --accent-crimson: #ef4444;
-      --accent-crimson-glow: rgba(239, 68, 68, 0.15);
-      --accent-amber: #f59e0b;
-      --accent-amber-glow: rgba(245, 158, 11, 0.15);
-      --accent-blue: #3b82f6;
-      --accent-blue-glow: rgba(59, 130, 246, 0.15);
+      --bg-primary: #040814;
+      --bg-secondary: rgba(12, 20, 38, 0.65);
+      --bg-tertiary: rgba(24, 39, 71, 0.45);
+      --bg-hover-row: rgba(139, 92, 246, 0.05);
+      --accent-violet: hsl(262, 80%, 65%);
+      --accent-violet-glow: rgba(139, 92, 246, 0.12);
+      --accent-emerald: hsl(162, 80%, 45%);
+      --accent-emerald-glow: rgba(14, 219, 153, 0.12);
+      --accent-crimson: hsl(350, 80%, 55%);
+      --accent-crimson-glow: rgba(246, 46, 85, 0.12);
+      --accent-amber: hsl(38, 90%, 55%);
+      --accent-amber-glow: rgba(252, 160, 28, 0.12);
+      --accent-blue: hsl(210, 90%, 60%);
+      --accent-blue-glow: rgba(60, 149, 255, 0.12);
       --text-main: #f3f4f6;
       --text-sec: #9ca3af;
       --text-muted: #6b7280;
-      --border-color: rgba(255, 255, 255, 0.08);
-      --glass-bg: rgba(17, 24, 39, 0.7);
-      --glass-border: rgba(255, 255, 255, 0.06);
-      --shadow-premium: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
-      --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      --border-color: rgba(255, 255, 255, 0.06);
+      --glass-bg: rgba(12, 20, 38, 0.7);
+      --glass-border: rgba(255, 255, 255, 0.07);
+      --shadow-premium: 0 16px 40px -10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      --transition-smooth: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     /* Light Theme Overrides */
     .light-theme {
-      --bg-primary: #f8fafc;
-      --bg-secondary: #ffffff;
-      --bg-tertiary: #f1f5f9;
-      --accent-violet: #6d28d9;
-      --accent-violet-glow: rgba(109, 40, 217, 0.1);
-      --accent-emerald: #047857;
-      --accent-emerald-glow: rgba(4, 120, 87, 0.1);
-      --accent-crimson: #dc2626;
-      --accent-crimson-glow: rgba(220, 38, 38, 0.1);
-      --accent-amber: #b45309;
-      --accent-amber-glow: rgba(180, 83, 9, 0.1);
-      --accent-blue: #1d4ed8;
-      --accent-blue-glow: rgba(29, 78, 216, 0.1);
+      --bg-primary: #f5f7fb;
+      --bg-secondary: rgba(255, 255, 255, 0.75);
+      --bg-tertiary: rgba(230, 235, 245, 0.7);
+      --bg-hover-row: rgba(99, 102, 241, 0.04);
+      --accent-violet: #6366f1;
+      --accent-violet-glow: rgba(99, 102, 241, 0.08);
+      --accent-emerald: #10b981;
+      --accent-emerald-glow: rgba(16, 185, 129, 0.08);
+      --accent-crimson: #ef4444;
+      --accent-crimson-glow: rgba(239, 68, 68, 0.08);
+      --accent-amber: #f59e0b;
+      --accent-amber-glow: rgba(245, 158, 11, 0.08);
+      --accent-blue: #3b82f6;
+      --accent-blue-glow: rgba(59, 130, 246, 0.08);
       --text-main: #0f172a;
       --text-sec: #475569;
       --text-muted: #94a3b8;
-      --border-color: rgba(15, 23, 42, 0.08);
-      --glass-bg: rgba(255, 255, 255, 0.85);
-      --glass-border: rgba(15, 23, 42, 0.06);
-      --shadow-premium: 0 20px 30px -10px rgba(15, 23, 42, 0.08);
+      --border-color: rgba(15, 23, 42, 0.06);
+      --glass-bg: rgba(255, 255, 255, 0.82);
+      --glass-border: rgba(15, 23, 42, 0.05);
+      --shadow-premium: 0 12px 30px -8px rgba(15, 23, 42, 0.06);
     }
 
     * {
@@ -76,15 +78,15 @@
 
     /* Scrollbar */
     ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
     }
     ::-webkit-scrollbar-track {
       background: var(--bg-primary);
     }
     ::-webkit-scrollbar-thumb {
       background: var(--bg-tertiary);
-      border-radius: 4px;
+      border-radius: 99px;
     }
     ::-webkit-scrollbar-thumb:hover {
       background: var(--accent-violet);
@@ -93,8 +95,8 @@
     /* Master Top Portal Control */
     .portal-header {
       background: var(--glass-bg);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--glass-border);
       padding: 14px 24px;
       position: sticky;
@@ -103,7 +105,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
     }
 
     .portal-logo {
@@ -112,6 +114,10 @@
       gap: 12px;
       text-decoration: none;
       color: var(--text-main);
+      transition: var(--transition-smooth);
+    }
+    .portal-logo:hover {
+      transform: scale(1.02);
     }
 
     .logo-badge {
@@ -125,13 +131,13 @@
       color: #fff;
       font-size: 20px;
       font-weight: 800;
-      box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.35);
     }
 
     .logo-text {
       font-family: 'Outfit', sans-serif;
       font-size: 22px;
-      font-weight: 800;
+      font-weight: 900;
       letter-spacing: -0.04em;
     }
 
@@ -147,6 +153,7 @@
       padding: 4px;
       border-radius: 12px;
       border: 1px solid var(--border-color);
+      backdrop-filter: blur(10px);
     }
 
     .view-btn {
@@ -168,7 +175,13 @@
     .view-btn.active {
       background: var(--bg-secondary);
       color: var(--text-main);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+      border: 1px solid var(--glass-border);
+    }
+
+    .view-btn:hover:not(.active) {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
     }
 
     .portal-controls {
@@ -195,13 +208,14 @@
     .theme-toggle-btn:hover {
       border-color: var(--accent-violet);
       color: var(--accent-violet);
+      transform: scale(1.05);
     }
 
     /* Portal Content Areas */
     .portal-section {
       display: none;
       flex: 1;
-      animation: fadeIn 0.4s ease-out forwards;
+      animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
     .portal-section.active {
@@ -210,7 +224,7 @@
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
+      from { opacity: 0; transform: translateY(12px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
@@ -738,24 +752,38 @@
       flex-direction: column;
     }
 
+    @keyframes slowPulse {
+      0%, 100% {
+        transform: scale(1) translate(0, 0);
+        opacity: 0.9;
+      }
+      50% {
+        transform: scale(1.04) translate(-2%, 1%);
+        opacity: 1;
+      }
+    }
+
     /* Presentation Slide Templates */
     .slide-content-frame {
-      display: none;
-      flex: 1;
+      position: absolute;
+      inset: 0;
       padding: 50px 60px;
+      display: flex;
       flex-direction: column;
       justify-content: space-between;
       color: #fff;
-      position: relative;
       opacity: 0;
-      transform: scale(0.98) translateX(20px);
-      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+      transform: scale(0.96) translateX(30px);
+      transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 1;
     }
 
     .slide-content-frame.active {
-      display: flex;
       opacity: 1;
+      pointer-events: auto;
       transform: scale(1) translateX(0);
+      z-index: 2;
     }
 
     /* Slide 1: Title */
@@ -765,9 +793,11 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
-                  radial-gradient(circle at 10% 80%, rgba(59, 130, 246, 0.12) 0%, transparent 50%);
+      background: radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.18) 0%, transparent 50%),
+                  radial-gradient(circle at 10% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%);
       z-index: 1;
+      animation: slowPulse 12s ease-in-out infinite alternate;
+      pointer-events: none;
     }
 
     .slide-content-title-page {
@@ -1129,17 +1159,17 @@
         </ul>
 
         <div class="sidebar-stats">
-          <div class="stat-card-mini critical">
-            <span class="label">Critical Risks</span>
-            <span class="value">6</span>
+          <div class="stat-card-mini good">
+            <span class="label">Active Risks</span>
+            <span class="value">0</span>
           </div>
           <div class="stat-card-mini high">
-            <span class="label">High Risks</span>
-            <span class="value">14</span>
+            <span class="label">Roadmap Items</span>
+            <span class="value">2</span>
           </div>
           <div class="stat-card-mini good">
             <span class="label">Net Margin</span>
-            <span class="value">98.5%</span>
+            <span class="value">99.8%</span>
           </div>
         </div>
       </aside>
@@ -1361,7 +1391,7 @@
             <div class="dashboard-metrics-row">
               <div class="metric-card-premium">
                 <span class="label">Avg. Website Build Margin</span>
-                <span class="value">99.8%</span>
+                <span class="value">99.98%</span>
                 <span class="desc">Upfront Build Fee vs API Cost</span>
               </div>
               <div class="metric-card-premium emerald">
@@ -1371,13 +1401,13 @@
               </div>
               <div class="metric-card-premium blue">
                 <span class="label">Avg. Social Package Margin</span>
-                <span class="value">98.5%</span>
+                <span class="value">99.9%</span>
                 <span class="desc">Monthly Plan vs Tool/Engine Costs</span>
               </div>
               <div class="metric-card-premium crimson">
                 <span class="label">Direct API Cost / Build</span>
-                <span class="value">$2.30 AUD</span>
-                <span class="desc">Google Stitch + Anthropic Tokens</span>
+                <span class="value">$0.40 AUD</span>
+                <span class="desc">Synthesis API (Layout + Content)</span>
               </div>
             </div>
 
@@ -1701,9 +1731,9 @@
               </div>
               <div class="slide-body-right">
                 <div class="slide-panel-card accent-card">
-                  <span class="slide-badge-pill" style="align-self: flex-start; background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3)">98.5% Gross Margin</span>
-                  <div class="stat">$2.30</div>
-                  <p style="font-size: 11px; color: #94a3b8;">Average API token and Visual Core expense to compile a premium $1,500 website build. Marginal production cost is practically zero.</p>
+                  <span class="slide-badge-pill" style="align-self: flex-start; background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3)">99.97% Gross Margin</span>
+                  <div class="stat">$0.40</div>
+                  <p style="font-size: 11px; color: #94a3b8;">Average Synthesis API token expense ($0.20 for layout, $0.20 for copywriting) to compile a premium $1,500 website build. Marginal production cost is virtually zero.</p>
                 </div>
               </div>
             </div>
@@ -2045,6 +2075,31 @@
 
       // Chart 1: Website Prices
       const ctxWeb = document.getElementById('chart-web-price').getContext('2d');
+      
+      const gradViolet1 = ctxWeb.createLinearGradient(0, 0, 0, 300);
+      gradViolet1.addColorStop(0, 'rgba(139, 92, 246, 0.85)');
+      gradViolet1.addColorStop(1, 'rgba(139, 92, 246, 0.15)');
+
+      const gradViolet2 = ctxWeb.createLinearGradient(0, 0, 0, 300);
+      gradViolet2.addColorStop(0, 'rgba(139, 92, 246, 0.9)');
+      gradViolet2.addColorStop(1, 'rgba(139, 92, 246, 0.2)');
+
+      const gradViolet3 = ctxWeb.createLinearGradient(0, 0, 0, 300);
+      gradViolet3.addColorStop(0, 'rgba(139, 92, 246, 0.98)');
+      gradViolet3.addColorStop(1, 'rgba(139, 92, 246, 0.25)');
+
+      const gradBlue = ctxWeb.createLinearGradient(0, 0, 0, 300);
+      gradBlue.addColorStop(0, 'rgba(59, 130, 246, 0.7)');
+      gradBlue.addColorStop(1, 'rgba(59, 130, 246, 0.1)');
+
+      const gradAmber = ctxWeb.createLinearGradient(0, 0, 0, 300);
+      gradAmber.addColorStop(0, 'rgba(245, 158, 11, 0.7)');
+      gradAmber.addColorStop(1, 'rgba(245, 158, 11, 0.1)');
+
+      const gradCrimson = ctxWeb.createLinearGradient(0, 0, 0, 300);
+      gradCrimson.addColorStop(0, 'rgba(239, 68, 68, 0.7)');
+      gradCrimson.addColorStop(1, 'rgba(239, 68, 68, 0.1)');
+
       chartWeb = new Chart(ctxWeb, {
         type: 'bar',
         data: {
@@ -2053,12 +2108,12 @@
             label: 'Upfront Setup Cost (AUD)',
             data: [1500, 2400, 3800, 50, 950, 6500],
             backgroundColor: [
-              'rgba(139, 92, 246, 0.65)',
-              'rgba(139, 92, 246, 0.8)',
-              'rgba(139, 92, 246, 0.95)',
-              'rgba(59, 130, 246, 0.5)',
-              'rgba(245, 158, 11, 0.5)',
-              'rgba(239, 68, 68, 0.6)'
+              gradViolet1,
+              gradViolet2,
+              gradViolet3,
+              gradBlue,
+              gradAmber,
+              gradCrimson
             ],
             borderColor: [
               '#8b5cf6',
@@ -2069,7 +2124,7 @@
               '#ef4444'
             ],
             borderWidth: 1.5,
-            borderRadius: 6
+            borderRadius: 8
           }]
         },
         options: {
@@ -2077,17 +2132,30 @@
           maintainAspectRatio: false,
           plugins: {
             legend: {
-              labels: { color: colors.text, font: { family: 'Inter' } }
+              labels: { 
+                color: colors.text, 
+                font: { family: 'Outfit', size: 12, weight: '500' } 
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(12, 20, 38, 0.9)',
+              titleFont: { family: 'Outfit', size: 13, weight: '700' },
+              bodyFont: { family: 'Inter', size: 12 },
+              borderColor: 'rgba(255, 255, 255, 0.1)',
+              borderWidth: 1,
+              padding: 12,
+              cornerRadius: 8,
+              displayColors: true
             }
           },
           scales: {
             x: {
-              grid: { color: colors.gridLines },
-              ticks: { color: colors.textMuted, font: { size: 10 } }
+              grid: { color: colors.gridLines, drawBorder: false },
+              ticks: { color: colors.textMuted, font: { family: 'Inter', size: 10 } }
             },
             y: {
-              grid: { color: colors.gridLines },
-              ticks: { color: colors.textMuted }
+              grid: { color: colors.gridLines, drawBorder: false },
+              ticks: { color: colors.textMuted, font: { family: 'Inter' } }
             }
           }
         }
@@ -2095,6 +2163,19 @@
 
       // Chart 2: Social Media Pricing Comparison
       const ctxSocial = document.getElementById('chart-social-price').getContext('2d');
+      
+      const gradEmerald1 = ctxSocial.createLinearGradient(0, 0, 0, 300);
+      gradEmerald1.addColorStop(0, 'rgba(16, 185, 129, 0.85)');
+      gradEmerald1.addColorStop(1, 'rgba(16, 185, 129, 0.15)');
+
+      const gradEmerald2 = ctxSocial.createLinearGradient(0, 0, 0, 300);
+      gradEmerald2.addColorStop(0, 'rgba(16, 185, 129, 0.9)');
+      gradEmerald2.addColorStop(1, 'rgba(16, 185, 129, 0.2)');
+
+      const gradEmerald3 = ctxSocial.createLinearGradient(0, 0, 0, 300);
+      gradEmerald3.addColorStop(0, 'rgba(16, 185, 129, 0.98)');
+      gradEmerald3.addColorStop(1, 'rgba(16, 185, 129, 0.25)');
+
       chartSocial = new Chart(ctxSocial, {
         type: 'bar',
         data: {
@@ -2103,11 +2184,11 @@
             label: 'Monthly Management Fee (AUD)',
             data: [699, 1099, 1599, 950, 2500],
             backgroundColor: [
-              'rgba(16, 185, 129, 0.65)',
-              'rgba(16, 185, 129, 0.8)',
-              'rgba(16, 185, 129, 0.95)',
-              'rgba(245, 158, 11, 0.5)',
-              'rgba(239, 68, 68, 0.6)'
+              gradEmerald1,
+              gradEmerald2,
+              gradEmerald3,
+              gradAmber,
+              gradCrimson
             ],
             borderColor: [
               '#10b981',
@@ -2117,7 +2198,7 @@
               '#ef4444'
             ],
             borderWidth: 1.5,
-            borderRadius: 6
+            borderRadius: 8
           }]
         },
         options: {
@@ -2125,17 +2206,30 @@
           maintainAspectRatio: false,
           plugins: {
             legend: {
-              labels: { color: colors.text, font: { family: 'Inter' } }
+              labels: { 
+                color: colors.text, 
+                font: { family: 'Outfit', size: 12, weight: '500' } 
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(12, 20, 38, 0.9)',
+              titleFont: { family: 'Outfit', size: 13, weight: '700' },
+              bodyFont: { family: 'Inter', size: 12 },
+              borderColor: 'rgba(255, 255, 255, 0.1)',
+              borderWidth: 1,
+              padding: 12,
+              cornerRadius: 8,
+              displayColors: true
             }
           },
           scales: {
             x: {
-              grid: { color: colors.gridLines },
-              ticks: { color: colors.textMuted, font: { size: 10 } }
+              grid: { color: colors.gridLines, drawBorder: false },
+              ticks: { color: colors.textMuted, font: { family: 'Inter', size: 10 } }
             },
             y: {
-              grid: { color: colors.gridLines },
-              ticks: { color: colors.textMuted }
+              grid: { color: colors.gridLines, drawBorder: false },
+              ticks: { color: colors.textMuted, font: { family: 'Inter' } }
             }
           }
         }

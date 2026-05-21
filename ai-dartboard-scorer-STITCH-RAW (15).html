@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AI Dartboard Scorer | Precision Engineering</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=Inter:wght@400;500;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed": "#161c23",
+                    "surface-container-lowest": "#080f11",
+                    "tertiary-container": "#c1c7d0",
+                    "on-error-container": "#ffdad6",
+                    "surface-container": "#1a2123",
+                    "surface-container-highest": "#2f3638",
+                    "surface-dim": "#0e1417",
+                    "primary-fixed-dim": "#00d9ff",
+                    "on-primary-fixed-variant": "#004e5d",
+                    "on-secondary-fixed-variant": "#404562",
+                    "surface-variant": "#2f3638",
+                    "on-primary-container": "#005b6c",
+                    "secondary-fixed-dim": "#c0c4e8",
+                    "on-primary-fixed": "#001f26",
+                    "primary-fixed": "#aeecff",
+                    "outline": "#859398",
+                    "on-error": "#690005",
+                    "inverse-on-surface": "#2a3234",
+                    "background": "#0e1417",
+                    "secondary": "#c0c4e8",
+                    "primary-container": "#00d9ff",
+                    "on-tertiary-fixed-variant": "#41474f",
+                    "secondary-fixed": "#dee1ff",
+                    "primary": "#afecff",
+                    "on-tertiary-container": "#4d535a",
+                    "tertiary-fixed-dim": "#c1c7d0",
+                    "on-secondary": "#2a2f4a",
+                    "on-background": "#dde4e6",
+                    "tertiary-fixed": "#dde3ec",
+                    "secondary-container": "#454a67",
+                    "surface": "#0e1417",
+                    "surface-tint": "#00d9ff",
+                    "on-secondary-container": "#b5badd",
+                    "inverse-primary": "#00687b",
+                    "on-secondary-fixed": "#151a34",
+                    "surface-bright": "#333a3d",
+                    "on-primary": "#003641",
+                    "outline-variant": "#3c494d",
+                    "on-surface": "#dde4e6",
+                    "surface-container-high": "#242b2d",
+                    "inverse-surface": "#dde4e6",
+                    "on-tertiary": "#2b3138",
+                    "error-container": "#93000a",
+                    "tertiary": "#dde3ec",
+                    "surface-container-low": "#161d1f",
+                    "on-surface-variant": "#bbc9ce",
+                    "error": "#ffb4ab"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gutter": "24px",
+                    "md": "24px",
+                    "margin-mobile": "16px",
+                    "xl": "80px",
+                    "sm": "12px",
+                    "lg": "48px",
+                    "xs": "4px",
+                    "base": "8px",
+                    "margin-desktop": "64px"
+            },
+            "fontFamily": {
+                    "headline-xl": ["Space Grotesk"],
+                    "body-lg": ["Inter"],
+                    "headline-lg-mobile": ["Space Grotesk"],
+                    "label-md": ["Inter"],
+                    "headline-lg": ["Space Grotesk"],
+                    "label-sm": ["Inter"],
+                    "headline-md": ["Space Grotesk"],
+                    "body-md": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-xl": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                    "label-md": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        @keyframes meshGradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes orbFloat {
+            0%, 100% { transform: translate(0, 0); opacity: 0.6; }
+            50% { transform: translate(20px, -20px); opacity: 0.9; }
+        }
+
+        .animate-mesh {
+            background: linear-gradient(-45deg, #0e1417, #1a2123, #004e5d, #080f11);
+            background-size: 400% 400%;
+            animation: meshGradient 15s ease infinite;
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.8s ease-out forwards;
+        }
+
+        .glass-card {
+            background: rgba(26, 31, 58, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .neon-glow {
+            box-shadow: 0 0 15px rgba(0, 217, 255, 0.4);
+        }
+
+        .page-section {
+            display: none;
+            min-height: 100vh;
+        }
+
+        .page-section.active {
+            display: block;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        body {
+            background-color: #0e1417;
+            color: #dde4e6;
+            overflow-x: hidden;
+        }
+    </style>
+</head>
+<body class="font-body-md">
+<!-- TopNavBar Navigation Shell -->
+<header class="bg-surface/90 backdrop-blur-xl text-primary font-body-md text-body-md font-headline-md text-headline-md docked full-width top-0 sticky border-b border-primary/30 shadow-sm z-50">
+<nav class="flex justify-between items-center px-margin-desktop max-w-[1200px] mx-auto h-20 w-full">
+<div class="text-headline-md font-headline-md font-bold text-primary cursor-pointer" onclick="navigateTo('home')">
+                AI Dartboard Scorer
+            </div>
+<div class="hidden md:flex gap-lg items-center">
+<button class="nav-link text-primary font-bold border-b-2 border-primary pb-1 transition-all" id="nav-home" onclick="navigateTo('home')">Home</button>
+<button class="nav-link text-on-surface-variant hover:text-primary transition-colors" id="nav-shop" onclick="navigateTo('shop')">Shop</button>
+<button class="nav-link text-on-surface-variant hover:text-primary transition-colors" id="nav-gallery" onclick="navigateTo('gallery')">Gallery</button>
+<button class="nav-link text-on-surface-variant hover:text-primary transition-colors" id="nav-pricing" onclick="navigateTo('pricing')">Pricing</button>
+</div>
+<button class="bg-primary-container text-on-primary-container px-lg py-sm rounded-full font-bold hover:opacity-80 transition-opacity active:scale-95 transition-transform">
+                Get Started
+            </button>
+</nav>
+</header>
+<main>
+<!-- HOME PAGE -->
+<div class="page-section active animate-mesh relative overflow-hidden" data-page="home" id="home">
+<div class="max-w-[1200px] mx-auto px-margin-desktop py-xl grid md:grid-cols-2 gap-lg items-center relative z-10">
+<div class="fade-in-up">
+<div class="flex flex-col gap-sm mb-lg">
+<span class="inline-flex items-center gap-xs text-primary-fixed-dim bg-primary/10 px-md py-xs rounded-full border border-primary/30 font-label-sm text-label-sm w-fit">
+<span class="material-symbols-outlined text-[16px]">check_circle</span> ✓ Auto Scoring
+                        </span>
+<span class="inline-flex items-center gap-xs text-primary-fixed-dim bg-primary/10 px-md py-xs rounded-full border border-primary/30 font-label-sm text-label-sm w-fit">
+<span class="material-symbols-outlined text-[16px]">psychology</span> AI Analytics
+                        </span>
+<span class="inline-flex items-center gap-xs text-primary-fixed-dim bg-primary/10 px-md py-xs rounded-full border border-primary/30 font-label-sm text-label-sm w-fit">
+<span class="material-symbols-outlined text-[16px]">bolt</span> Real-time Sync
+                        </span>
+</div>
+<h1 class="font-headline-xl text-headline-xl text-on-surface leading-none mb-md" style="font-size: 72px;">
+                        Never Miss A Finish Again
+                    </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mb-lg max-w-md">
+                        Experience the future of professional darts. Our AI-powered computer vision system tracks every throw with 99.9% accuracy.
+                    </p>
+<div class="flex gap-md">
+<button class="bg-primary text-on-primary px-lg py-md rounded-lg font-bold hover:shadow-[0_0_20px_rgba(0,217,255,0.4)] transition-all">
+                            Get Started
+                        </button>
+<button class="border border-primary text-primary px-lg py-md rounded-lg font-bold hover:bg-primary/10 transition-all">
+                            How It Works
+                        </button>
+</div>
+</div>
+<div class="relative flex justify-center items-center">
+<!-- Animated SVG Dartboard -->
+<svg class="relative z-10 drop-shadow-[0_0_30px_rgba(0,217,255,0.2)]" height="450" viewbox="0 0 100 100" width="450">
+<circle cx="50" cy="50" fill="none" r="48" stroke="#2f3638" stroke-width="0.5"></circle>
+<circle cx="50" cy="50" fill="none" r="40" stroke="#2f3638" stroke-width="0.5"></circle>
+<circle cx="50" cy="50" fill="#00d9ff" r="2"></circle>
+<!-- Segment wires -->
+<g stroke="#3c494d" stroke-width="0.2">
+<line x1="50" x2="50" y1="2" y2="98"></line>
+<line x1="2" x2="98" y1="50" y2="50"></line>
+</g>
+<!-- Neon Orbs (AI Darts) -->
+<circle class="animate-pulse" cx="45" cy="40" fill="#00d9ff" r="1.5">
+<animate attributename="opacity" dur="2s" repeatcount="indefinite" values="0.4;1;0.4"></animate>
+</circle>
+<circle cx="55" cy="52" fill="#00d9ff" r="1.5">
+<animate attributename="r" dur="3s" repeatcount="indefinite" values="1;2;1"></animate>
+</circle>
+</svg>
+<!-- Floating Atmospheric Orbs -->
+<div class="absolute w-32 h-32 bg-primary/20 rounded-full blur-3xl" style="animation: orbFloat 6s ease-in-out infinite;"></div>
+<div class="absolute w-48 h-48 bg-secondary/10 rounded-full blur-3xl bottom-0 right-0" style="animation: orbFloat 8s ease-in-out infinite reverse;"></div>
+</div>
+</div>
+</div>
+<!-- SHOP PAGE -->
+<div class="page-section bg-background" data-page="shop" id="shop">
+<div class="max-w-[1200px] mx-auto px-margin-desktop py-xl">
+<h2 class="font-headline-xl text-headline-xl text-on-surface mb-lg text-center">Elite Hardware</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md">
+<!-- Product 1 -->
+<div class="glass-card p-md rounded-xl hover:scale-105 transition-transform group cursor-pointer">
+<div class="aspect-square bg-surface-container-highest rounded-lg mb-md overflow-hidden relative">
+<div class="absolute inset-0 bg-gradient-to-tr from-primary/20 to-transparent"></div>
+<img class="w-full h-full object-cover group-hover:opacity-80 transition-opacity" data-alt="A high-end professional smart camera for dart scoring, featuring a sleek carbon fiber finish and glowing cyan indicator rings. The camera is mounted on a minimalist bracket in a high-tech gaming lounge with atmospheric blue lighting. The overall mood is premium, sophisticated, and engineered for precision." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCuwcmpWZJWPqwcPR_3-xd6mJ5ISKQUvipL7JKhfV3r00llf5FdQHDYuxZLtqBzvJCmRxWMk11Csil_mSxa5yxWMf5s61-a7vGG5IWtMxfPDwu9-WHbjMjt1ZSnfcOeh5-SwkF7rvs8XV5vUjpgOpuxO2izFWZN5vuo2tUDpGtF1KGTmgN1S0maZenWb7S0P4_xn4ppB1bYtNXLqXohx7QiKjrI8zAzyoSbh0APv5C-ajMxL52USn1_3DjncjSkMHpV_hSFYDLJVg"/>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-xs">Smart-Scorer Pro</h3>
+<p class="text-on-surface-variant font-label-sm mb-md">4K AI Camera System</p>
+<div class="flex justify-between items-center">
+<span class="text-primary font-bold text-headline-md">$199</span>
+<button class="bg-primary-container text-on-primary-container p-xs rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined">add_shopping_cart</span>
+</button>
+</div>
+</div>
+<!-- Product 2 -->
+<div class="glass-card p-md rounded-xl hover:scale-105 transition-transform group cursor-pointer">
+<div class="aspect-square bg-surface-container-highest rounded-lg mb-md overflow-hidden relative">
+<div class="absolute inset-0 bg-gradient-to-tr from-secondary/20 to-transparent"></div>
+<img class="w-full h-full object-cover group-hover:opacity-80 transition-opacity" data-alt="A compact and portable AI dart scoring sensor, designed with a matte dark surface and a single pulsing blue light. It sits on a polished dark wood desk in a modern home office setting. The lighting is low-key with neon cyan highlights reflecting off the device's edges, emphasizing a futuristic aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBEDX-BydbZ45DgoJrsO7iVfMsOW2ego0lLF8krN_Wakk898OZ0A-U9a1TdtNRkBMOjANEh26IfALRXrm7-sYsPL0YIr-2u3ntryvpAMapFvtL7EE_w6-ugLXBTYso6RuLmkX538kTXClvVWJLaavT-UE5t5QyfRlzob0ZRhw9k7Oq3vAAX-kgPg-cRwVe7qhSk87-9dWGEOKBfAcYSrXIuZNZBRkcDt0tGHsqhz-wjxWP2sCB6NM8j0vV4EYM0FBGABg_wnCvOxg"/>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-xs">Scorer Lite</h3>
+<p class="text-on-surface-variant font-label-sm mb-md">Essential AI Tracking</p>
+<div class="flex justify-between items-center">
+<span class="text-primary font-bold text-headline-md">$129</span>
+<button class="bg-primary-container text-on-primary-container p-xs rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined">add_shopping_cart</span>
+</button>
+</div>
+</div>
+<!-- Product 3 -->
+<div class="glass-card p-md rounded-xl hover:scale-105 transition-transform group cursor-pointer">
+<div class="aspect-square bg-surface-container-highest rounded-lg mb-md overflow-hidden relative">
+<div class="absolute inset-0 bg-gradient-to-tr from-primary/20 to-transparent"></div>
+<img class="w-full h-full object-cover group-hover:opacity-80 transition-opacity" data-alt="A premium set of professional tungsten darts with custom cyan flights featuring the AI Dartboard Scorer logo. The darts are displayed in a velvet-lined luxury case with soft spotlighting that highlights their metallic texture and precision machining. The color palette is dominated by deep navy and electric cyan." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9R43IFeR8oTW1VPXv4udk5K9IVXBaX3sxmZZF2Ztsw7ZwDKM3SDg0dAv7tXG1IcYheHMI-nLEd5GcIBvLKU9mv7u3d3zR2IrKtT5FSPcrssRpBHJzqqYP7gijWkvknXxyrrQImV_VVkivgHEcHFZwUyeF8wzgRxdi3cLyo2pTeUAOfR-TdQTkZTJXDgGm8zFXYEEJHMu2rgqWtTjoon_GsccxFBIZPXchwgh6FZdm57CxgQUlX4AKqrUBVYFgXndoP5g45BRmRw"/>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-xs">Pro Dart Set</h3>
+<p class="text-on-surface-variant font-label-sm mb-md">90% Tungsten Precision</p>
+<div class="flex justify-between items-center">
+<span class="text-primary font-bold text-headline-md">$45</span>
+<button class="bg-primary-container text-on-primary-container p-xs rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined">add_shopping_cart</span>
+</button>
+</div>
+</div>
+<!-- Product 4 -->
+<div class="glass-card p-md rounded-xl hover:scale-105 transition-transform group cursor-pointer">
+<div class="aspect-square bg-surface-container-highest rounded-lg mb-md overflow-hidden relative">
+<div class="absolute inset-0 bg-gradient-to-tr from-secondary/20 to-transparent"></div>
+<img class="w-full h-full object-cover group-hover:opacity-80 transition-opacity" data-alt="A performance athletic t-shirt in deep navy blue with a subtle, glowing cyan geometric pattern across the chest. The shirt is shown in a high-tech fitness studio with minimalist decor and neon accent lighting. The mood is energetic and focused, representing peak athletic performance through technology." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-IZUiYQCpQEkr2wpevaiIMCGk1endw7UQgsOd1G266wxCGLtIFoZzkof8nfNYLT3_HCHIQEduJHgDAghD4sy0O76qw_2LXJ59wuZ6GcdjxjPQJsDx3WPnqLSlFiSfizS2oTtOWzPZeCQbXzNPTncVbvXyMSu3MgfQEtpSb64DKiVoSV0hDCW2MehuW6Ue8X5C1zn3bSFaNs0WxcJsegJdosFEggdGUQTzuFu6gLb-1pVqyiuTVbiYvyU8de9UNKXPJjVJKiDOZQ"/>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-xs">Performance T-Shirt</h3>
+<p class="text-on-surface-variant font-label-sm mb-md">Breathable Tech Fabric</p>
+<div class="flex justify-between items-center">
+<span class="text-primary font-bold text-headline-md">$25</span>
+<button class="bg-primary-container text-on-primary-container p-xs rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined">add_shopping_cart</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- GALLERY PAGE -->
+<div class="page-section bg-surface-dim" data-page="gallery" id="gallery">
+<div class="max-w-[1200px] mx-auto px-margin-desktop py-xl">
+<div class="text-center mb-xl">
+<h2 class="font-headline-xl text-headline-xl text-on-surface">The Precision Gallery</h2>
+<p class="text-on-surface-variant mt-sm">Visualizing the intersection of sport and intelligence.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
+<div class="group relative overflow-hidden rounded-xl border border-primary/20 shadow-[0_0_15px_rgba(0,217,255,0.1)] hover:shadow-[0_0_30px_rgba(0,217,255,0.3)] transition-all">
+<img class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" data-alt="A cinematic shot of a professional dart player in mid-throw, focused intensely. The background is a blurred high-tech arena with cyan and navy light trails. The player's silhouette is sharp against the glow of the AI dartboard interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCS3qGF7j9wF7k38RwjIF-BVuKEy9kNVLIgCrKcpdTv9H5t-I3-gbYjABm7Nf_BsdzhDmpaS0nlow5TBkbfFl5imPlmWKUE6UsAnAJcmkohR5615rbGJaXggYPIfHQseZfqd52MJRiCQWl6zBZeKslYKM4LBYzFXeHx4a8U38qGdvf2fFgVO_vZ-LYTLm1JrK_ahVhp-9PPnT46kaUmOdNmA8VxoBgVg1YWKpIg-ZVrA4bsWDbpSl9ot4_srqD_dnIB7RPz4lhXlg"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-60"></div>
+</div>
+<div class="group relative overflow-hidden rounded-xl border border-primary/20 shadow-[0_0_15px_rgba(0,217,255,0.1)]">
+<img class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" data-alt="A detailed dashboard view of the AI Dartboard Scorer application on a sleek tablet. The UI shows heatmaps of dart landings, statistical graphs, and live match scores in vibrant cyan and white on a deep charcoal background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAYAyUa3Y0xGGRF6RyiBRdoXLqdFrT72Za6siFfJNuynwyL8eldBFTWksnpibHhmjrXkMxvSQ5tHDIce-ZH3_16ZstseTaDCCRwHAcmP-qBHpOqUORJuQgh6znlQ6TYhYqueU8Samu1tHoyR_d6B-g_gPX_sBN5QwWB6zctF_HVJhDHqQ2AtxEziD_HjFekBzeCXNYFE6pT8qSkJ83b9Q9w6m66TozdZDeiDhkWmVpEzAePf-m8vX-vppo8CGhDZcF702T3-tpGlg"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-60"></div>
+</div>
+<div class="group relative overflow-hidden rounded-xl border border-primary/20 shadow-[0_0_15px_rgba(0,217,255,0.1)]">
+<img class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" data-alt="Close-up of a dart landing perfectly in the bullseye. Digital data overlays in neon blue show the exact coordinates and calculated flight path of the dart, demonstrating the precision of the AI tracking system." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDatcLIcxqHbWvxDjUsFwm1jtCKDxB9xUO4qAd9OqVjwDTqwDt3piqk-EtR1ZE916w6lT5ldbhqM-9Yp1r9wl5o5SHybU6kf_hbyMbthKCEzFsMS-2NKV9XR5UVxw9_mLYAGE2v9lmQpdYqTvSULy67cmikiulUn5_TUTzQvFzElvS94gGGk_n8zmB71rT9sL4PRqo9GNvnM9vZIoPyKAHRSKbHRDq20352rVAhZZKZxPJAcqdlBP2Axl_Dl_ZDPJeRcMTyypep8Q"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-60"></div>
+</div>
+<div class="group relative overflow-hidden rounded-xl border border-primary/20 shadow-[0_0_15px_rgba(0,217,255,0.1)]">
+<img class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" data-alt="A wide shot of a modern gaming room with several dartboards. Each board is equipped with the AI Scorer camera system, and the room is bathed in a cool blue and purple ambient glow. Players are seen celebrating a victory." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAmDsDML43xcEQY2GNe1__69-uePad5ND2LAGnVZMxZ_MEsN6u_Yj52RhhOD7g2hNjZDIO97ZeakLlytfl8t1O5i07KBvv3brz1JCl2Ty4nUepKE0tk_eV86pglXeNDNJNCP8KG5tyjonpWkeYqmFXTpj4DF4WDxl0yKDd_KAyeFwRhe55h5qsj2ZdhvFoFVWJ29PPCMxRYHXT4_MTImKRE_FZyn1XQLlPRpJqwdExmk8S0G1LqbohQdZCwQ643iIzVL0NewfvjsQ"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-60"></div>
+</div>
+<div class="group relative overflow-hidden rounded-xl border border-primary/20 shadow-[0_0_15px_rgba(0,217,255,0.1)]">
+<img class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" data-alt="Abstract visualization of the neural network analyzing dart flight. Intricate lines and nodes glow in shades of primary cyan against a pitch-black background, symbolizing the complex AI engine behind the scorer." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBc_9WjafruwkfItmikUwmFHpv4IMoTNi_9F76DmLJ9meZ2Z2iMG2pgMtfZnKBRRtuL_iPeX7ololXKEEJuSEoRGV-jht9IcZ8lz3ZNg285REn8-M4s-sjNsRhXsemOelHmXJCFujpWcG1pEM7nJkFG0a0wB92bsFvbGq_3US572ueftt5yOOtA6w-Hu8eW9Vw1tmKNBCSPRpUVs35tK6l1x_NDugbB2MNmu10g92MkEQ7AbfPPEYN8v-zSw8LGK2EjJ11cQEnROg"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-60"></div>
+</div>
+<div class="group relative overflow-hidden rounded-xl border border-primary/20 shadow-[0_0_15px_rgba(0,217,255,0.1)]">
+<img class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" data-alt="A smartphone held in a hand, showing the mobile version of the AI Dartboard Scorer app. The screen is bright with game stats, and the background is a cozy home dart setup with soft, warm lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBBAKUu2miVbD2gj2hQlMHog_519nU0r_uTwN2Pk0BttYeoI0B-XL2b249ERoicLn1D1f5o4h-9ofhVhXskPts_gTgnKKV9U7PAGNAMyNXM3BcAUZSPeh1Lg_pwXUm79QnHSLCoj330GJ-lHGoAyMnMsdCm-Dxozq3K68277rGKn9sZWZM7rRnZhseO5YW1IyXnLzyWIThUjVo8DKXnJBjSzPu6LIHO_i-pqTgvAZscgqkHUkBkJ_2Ree4xmvf1DC5mhkfjfH9xHg"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-60"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- PRICING PAGE -->
+<div class="page-section bg-background" data-page="pricing" id="pricing">
+<div class="max-w-[1200px] mx-auto px-margin-desktop py-xl">
+<div class="text-center mb-xl">
+<h2 class="font-headline-xl text-headline-xl text-on-surface">Precision Tiers</h2>
+<p class="text-on-surface-variant mt-sm">Choose the level of intelligence for your game.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-lg">
+<!-- Free -->
+<div class="glass-card p-lg rounded-2xl flex flex-col border-white/5">
+<h3 class="font-headline-md text-headline-md mb-xs">Free</h3>
+<div class="text-headline-xl text-on-surface mb-lg">$0<span class="text-label-md">/mo</span></div>
+<ul class="flex flex-col gap-md mb-xl flex-grow">
+<li class="flex items-center gap-sm"><span class="material-symbols-outlined text-primary">check</span> Basic Scoring</li>
+<li class="flex items-center gap-sm text-on-surface-variant"><span class="material-symbols-outlined text-outline">check</span> Single Game Mode</li>
+<li class="flex items-center gap-sm text-on-surface-variant"><span class="material-symbols-outlined text-outline">check</span> Local Save</li>
+</ul>
+<button class="w-full border border-primary text-primary py-md rounded-lg font-bold hover:bg-primary/5 transition-all">Start Free</button>
+</div>
+<!-- Pro -->
+<div class="glass-card p-lg rounded-2xl flex flex-col border-primary/40 relative scale-105 shadow-[0_0_40px_rgba(0,217,255,0.1)]">
+<div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-on-primary px-md py-xs rounded-full font-label-sm uppercase tracking-widest">Most Popular</div>
+<h3 class="font-headline-md text-headline-md mb-xs text-primary">Pro</h3>
+<div class="text-headline-xl text-on-surface mb-lg">$9.99<span class="text-label-md text-on-surface-variant">/mo</span></div>
+<ul class="flex flex-col gap-md mb-xl flex-grow">
+<li class="flex items-center gap-sm"><span class="material-symbols-outlined text-primary">check</span> AI Heatmaps</li>
+<li class="flex items-center gap-sm"><span class="material-symbols-outlined text-primary">check</span> Match History</li>
+<li class="flex items-center gap-sm"><span class="material-symbols-outlined text-primary">check</span> AI Finish Guidance</li>
+<li class="flex items-center gap-sm"><span class="material-symbols-outlined text-primary">check</span> Online Multiplayer</li>
+</ul>
+<button class="w-full bg-primary text-on-primary py-md rounded-lg font-bold shadow-lg hover:shadow-primary/30 transition-all">Get Pro</button>
+</div>
+<!-- Elite -->
+<div class="glass-card p-lg rounded-2xl flex flex-col border-white/5">
+<h3 class="font-headline-md text-headline-md mb-xs">Elite</h3>
+<div class="text-headline-xl text-on-surface mb-lg">$19.99<span class="text-label-md">/mo</span></div>
+<ul class="flex flex-col gap-md mb-xl flex-grow">
+<li class="flex items-center gap-sm"><span class="material-symbols-outlined text-primary">check</span> Everything in Pro</li>
+<li class="flex items-center gap-sm"><span class="material-symbols-outlined text-primary">check</span> Biometric Analytics</li>
+<li class="flex items-center gap-sm"><span class="material-symbols-outlined text-primary">check</span> 4K Cloud Replays</li>
+<li class="flex items-center gap-sm"><span class="material-symbols-outlined text-primary">check</span> Tournament Hosting</li>
+</ul>
+<button class="w-full border border-primary text-primary py-md rounded-lg font-bold hover:bg-primary/5 transition-all">Go Elite</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-surface-dim border-t border-outline-variant py-lg">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-md px-margin-desktop py-lg max-w-[1200px] mx-auto w-full">
+<div class="col-span-2 md:col-span-1">
+<div class="font-headline-md text-headline-md text-primary mb-md">AI Dartboard Scorer</div>
+<p class="text-on-surface-variant text-label-sm">Precision Engineering for the competitive athlete. Track, analyze, and win.</p>
+</div>
+<div class="flex flex-col gap-sm">
+<h4 class="text-on-surface font-bold mb-xs">Product</h4>
+<a class="text-on-surface-variant hover:text-primary transition-colors text-label-sm" href="#">Cameras</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors text-label-sm" href="#">Software</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors text-label-sm" href="#">Enterprise</a>
+</div>
+<div class="flex flex-col gap-sm">
+<h4 class="text-on-surface font-bold mb-xs">Company</h4>
+<a class="text-on-surface-variant hover:text-primary transition-colors text-label-sm" href="#">About Us</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors text-label-sm" href="#">Careers</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors text-label-sm" href="#">Support</a>
+</div>
+<div class="flex flex-col gap-sm">
+<h4 class="text-on-surface font-bold mb-xs">Social</h4>
+<a class="text-on-surface-variant hover:text-primary transition-colors text-label-sm" href="#">Instagram</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors text-label-sm" href="#">Twitter/X</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors text-label-sm" href="#">Discord</a>
+</div>
+</div>
+<div class="max-w-[1200px] mx-auto px-margin-desktop py-md border-t border-outline-variant/30 flex justify-between items-center text-label-sm text-on-surface-variant">
+<span>© 2024 AI Dartboard Scorer. Precision Engineering.</span>
+<div class="flex gap-md">
+<a class="hover:text-primary transition-colors" href="#">Privacy</a>
+<a class="hover:text-primary transition-colors" href="#">Terms</a>
+</div>
+</div>
+</footer>
+<script>
+        function navigateTo(pageId) {
+            // Hide all sections
+            document.querySelectorAll('.page-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Show target section
+            const target = document.getElementById(pageId);
+            if (target) {
+                target.classList.add('active');
+                window.scrollTo(0, 0);
+            }
+
+            // Update nav links styling
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('text-primary', 'font-bold', 'border-b-2', 'border-primary', 'pb-1');
+                link.classList.add('text-on-surface-variant');
+            });
+
+            const activeLink = document.getElementById('nav-' + pageId);
+            if (activeLink) {
+                activeLink.classList.remove('text-on-surface-variant');
+                activeLink.classList.add('text-primary', 'font-bold', 'border-b-2', 'border-primary', 'pb-1');
+            }
+        }
+
+        // Initialize micro-interactions
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+            });
+        });
+    </script>
+</body></html>
