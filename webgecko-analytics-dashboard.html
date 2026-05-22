@@ -1367,7 +1367,7 @@
                     <span class="swot-item-icon">✅</span>
                     <div>
                       <div class="swot-item-title" style="color:#34d399;">Missing Core Systems — FIXED (23 May 2026)</div>
-                      <div class="swot-item-desc">Pop-up Form feature fully wired in <code>lib/pipeline-step5.ts</code> (15-second delay + exit-intent, Beehiiv direct POST). Uptime monitoring live: <code>lib/uptime-monitor.ts</code> + Inngest cron every 30 min pings all <code>launch_ready</code> sites and emails alert on any down event.</div>
+                      <div class="swot-item-desc">Pop-up Form wired in <code>lib/pipeline-step5.ts</code>. Uptime monitoring live (Inngest cron every 30 min). Domain provisioning now fully automated via <code>lib/domain-provisioner.ts</code>: .com.au → Synergy Wholesale; .com/.io/.ai → Cloudflare Registrar (at-cost). All domains get a Cloudflare zone, CNAME records pointing at Vercel, and CDN/DDoS protection automatically.</div>
                     </div>
                   </li>
                   <li class="swot-item">
@@ -1928,10 +1928,10 @@
               <div class="slide-body-left">
                 <ul class="slide-bullet-list">
                   <li class="slide-bullet-item">
-                    <span class="slide-bullet-number">1</span>
+                    <span class="slide-bullet-number" style="background:rgba(16,185,129,0.1); color:#34d399; border-color:rgba(16,185,129,0.25)">1</span>
                     <div class="slide-bullet-text">
-                      <h4>Automated Domain Registration</h4>
-                      <p>Complete the Synergy Wholesale API domain registration hook (`lib/synergy.ts`) to automatically purchase and map domains without operator manual labor.</p>
+                      <h4 style="color:#34d399;">✅ Automated Domain Registration — Implemented</h4>
+                      <p><code>lib/domain-provisioner.ts</code> smart-routes by TLD: .com.au/.net.au → Synergy Wholesale (ABN-eligible, AU-accredited); .com/.io/.ai etc → Cloudflare Registrar (at-cost pricing). All domains automatically get a Cloudflare zone, CNAME records → Vercel, and CDN/DDoS protection. Cancellation auto-pauses the Cloudflare zone.</p>
                     </div>
                   </li>
                   <li class="slide-bullet-item">

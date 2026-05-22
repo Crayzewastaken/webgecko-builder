@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifySquareWebhook } from "@/lib/square";
 import { getJob, saveJob, getPaymentState, savePaymentState, getClient, saveClient } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
+import { suspendDomain } from "@/lib/domain-provisioner";
 
 export const runtime = "nodejs";
 
@@ -28,23 +29,16 @@ export async function suspendClientSite(jobId: string, reason: string) {
     const client = await getClient(clientRow.slug);
     if (client) await saveClient(clientRow.slug, { ...client, launch_ready: false });
 
-    // 3. Disconnect custom domain from Vercel (use correct token)
+    // 3. Suspend domain — removes from Vercel AND pauses Cloudflare zone
     const job = await getJob(jobId);
-    const domain = clientRow.domain || job?.domainSlug;
+    const domain = clientRow.domain || job?.metadata?.domainUrl?.replace(/^https?:\/\//, "") || job?.domainSlug;
     const vercelProjectName = job?.vercelProjectName || process.env.VERCEL_PROJECT_NAME;
 
-    if (domain && vercelProjectName && process.env.VERCEL_API_TOKEN) {
+    if (domain && vercelProjectName) {
       try {
-        const vercelRes = await fetch(
-          `https://api.vercel.com/v10/projects/${vercelProjectName}/domains/${domain}`,
-          { method: "DELETE", headers: { Authorization: `Bearer ${process.env.VERCEL_API_TOKEN}` } }
-        );
-        if (!vercelRes.ok) {
-          console.error(`[Billing] Vercel domain disconnect failed: ${await vercelRes.text()}`);
-        } else {
-          console.log(`[Billing] Disconnected domain ${domain} from Vercel`);
-        }
-      } catch (e) { console.error("[Billing] Vercel API error:", e); }
+        await suspendDomain(domain, vercelProjectName);
+        console.log(`[Billing] Domain ${domain} suspended (Vercel removed + Cloudflare paused)`);
+      } catch (e) { console.error("[Billing] Domain suspension error:", e); }
     }
 
     // 4. Email the client so they know why the site is down

@@ -31,7 +31,7 @@ import { getJob, saveJob, getClient, saveClient, getAvailability, saveAvailabili
 import { supabase } from "@/lib/supabase";
 import { createTawktoProperty } from "@/lib/tawkto";
 import { subscribeToNewsletter } from "@/lib/beehiiv";
-import { provisionClientDomain } from "@/lib/synergy";
+import { provisionDomain } from "@/lib/domain-provisioner";
 import { generateSiteBlueprint, requestGoogleIndexing } from "@/lib/blueprint";
 import { auditAndFixSite } from "@/lib/auditor";
 import { applyStep5CodeFixes } from "@/lib/pipeline-step5";
@@ -1425,37 +1425,53 @@ const buildWebsite = inngest.createFunction(
         }
       });
 
-          // -- STEP 9b: Domain provisioning via Synergy Wholesale (non-blocking) ------
-      // Runs only if client supplied a customDomain. SYNERGY_DEMO=true = dry-run.
+          // -- STEP 9b: Domain provisioning (Cloudflare + Synergy smart router) ----
+      // .com.au / .net.au → Synergy register + Cloudflare DNS
+      // .com / .io / .ai etc → Cloudflare Registrar + Cloudflare DNS
+      // Both paths: Cloudflare zone created, CNAME → Vercel, domain added to project.
       await step.run("step9b-domain", async () => {
         const rawDomain = (userInput.domain || "").trim().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
         if (!rawDomain || !rawDomain.includes(".")) {
-          console.log("[Step9b] No custom domain requested -- skipping");
+          console.log("[Step9b] No custom domain requested — skipping");
           return;
         }
         try {
-          const result = await provisionClientDomain({
-            domainName: rawDomain,
-            businessName: userInput.businessName,
-            contactFirstName: userInput.businessName.split(" ")[0] || "Contact",
-            contactLastName: userInput.businessName.split(" ").slice(1).join(" ") || "Name",
-            contactEmail: clientEmail,
-            contactPhone: clientPhone.replace(/[^0-9+]/g, "").replace(/^0/, "+61") || "+61.400000000",
-            contactAddress: userInput.businessAddress || "Australia",
-            contactCity: (userInput.businessAddress || "").split(",")[0] || "Sydney",
-            contactState: "NSW",
-            contactPostcode: "2000",
-            auEligibilityType: "ABN",
-            auEligibilityName: userInput.businessName,
-            auEligibilityId: userInput.abn || undefined,
+          const vercelProject = job.vercelProjectName || ("wg-" + (job.domainSlug || rawDomain.replace(/\./g, "-")));
+          const result = await provisionDomain({
+            domainName:       rawDomain,
+            businessName:     userInput.businessName || "Client",
+            contactFirstName: (userInput.businessName || "Contact").split(" ")[0],
+            contactLastName:  (userInput.businessName || "Name").split(" ").slice(1).join(" ") || "Name",
+            contactEmail:     clientEmail,
+            contactPhone:     clientPhone || "0400000000",
+            contactAddress:   userInput.businessAddress || "Australia",
+            contactCity:      (userInput.businessAddress || "").split(",")[0]?.trim() || "Sydney",
+            contactState:     "NSW",
+            contactPostcode:  "2000",
+            abn:              userInput.abn || undefined,
+            vercelProjectName: vercelProject,
           });
+
           const latestJob2 = await getJob(jobId) || job;
           await saveJob(jobId, {
             ...latestJob2,
             domain: rawDomain,
-            metadata: { ...(latestJob2.metadata || {}), domainStatus: result.status, domainUrl: result.url },
+            metadata: {
+              ...(latestJob2.metadata || {}),
+              domainStatus:      result.status,
+              domainUrl:         result.url,
+              domainRegistrar:   result.registrar,
+              domainZoneId:      result.zoneId,
+              domainNameservers: result.nameservers,
+              domainExpiryDate:  result.expiryDate,
+              domainVercelAdded: result.vercelAdded,
+            },
           });
-          console.log("[Step9b] Domain provisioned:", result.url, "status:", result.status);
+
+          console.log(`[Step9b] Domain provisioned via ${result.registrar}: ${result.url} (status: ${result.status})`);
+          if (result.nameservers.length > 0) {
+            console.log(`[Step9b] Cloudflare nameservers: ${result.nameservers.join(", ")}`);
+          }
         } catch (e) {
           console.error("[Step9b] Domain provisioning failed (non-fatal):", e);
         }
