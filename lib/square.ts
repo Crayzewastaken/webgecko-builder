@@ -267,10 +267,14 @@ async function createCatalogueItem(params: {
   const data = await squareRequest("POST", "/v2/catalog/batch-upsert", body, accessToken);
   const objects = data?.objects || [];
   const item = objects.find((o: any) => o.type === "ITEM");
-  const variation = objects.find((o: any) => o.type === "ITEM_VARIATION");
+  // Square nests ITEM_VARIATION inside item_data.variations — it is NOT a top-level object
+  // in the response array. Fall back to id_mappings if the nested ID is missing.
+  const variationFromItem: string = item?.item_data?.variations?.[0]?.id || "";
+  const idMappings: { client_object_id: string; object_id: string }[] = data?.id_mappings || [];
+  const variationFromMapping = idMappings.find(m => m.client_object_id === `#var_${index}`)?.object_id || "";
   return {
     itemId: item?.id || "",
-    variationId: variation?.id || "",
+    variationId: variationFromItem || variationFromMapping,
     imageId,
   };
 }

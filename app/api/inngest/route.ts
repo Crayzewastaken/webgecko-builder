@@ -1239,7 +1239,7 @@ const buildWebsite = inngest.createFunction(
     ${siteUrl ? `<meta property="og:url" content="${siteUrl}">` : ""}
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="${pageTitle.replace(/"/g, "&quot;")}">
-    <meta name="twitter:description" content="${metaDesc.replace(/"/g, "&quot;")}`;
+    <meta name="twitter:description" content="${metaDesc.replace(/"/g, "&quot;")}">`;
           // Inject after <head> or <meta charset=...>
           if (html.includes("<head>")) {
             html = html.replace("<head>", "<head>" + seoMeta);
@@ -1716,7 +1716,7 @@ const buildWebsite = inngest.createFunction(
             const aliasUrl = `https://api.vercel.com/v2/deployments/${deploymentId}/aliases${process.env.VERCEL_TEAM_ID ? `?teamId=${process.env.VERCEL_TEAM_ID}` : ""}`;
             const aliasRes = await fetch(aliasUrl, {
               method: "POST",
-              headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}`, "Content-Type": "application/json" },
+              headers: { Authorization: `Bearer ${process.env.VERCEL_API_TOKEN}`, "Content-Type": "application/json" },
               body: JSON.stringify({ alias: `${vercelProjectName}.vercel.app` }),
             });
             const aliasData = await aliasRes.json().catch(() => ({}));
@@ -1749,6 +1749,19 @@ const buildWebsite = inngest.createFunction(
           } catch {}
           console.log("[Smoke] Attempt " + attempt + " failed for " + previewUrl);
           if (attempt < 3) await new Promise(r => setTimeout(r, 10000 + attempt * 5000));
+        }
+
+        // Vercel team unique-deploy URLs can be access-restricted; fall back to stable alias URL
+        if (!liveHtml && vercelProjectName) {
+          const stableUrl = `https://${vercelProjectName}.vercel.app`;
+          if (stableUrl !== previewUrl) {
+            try {
+              await new Promise(r => setTimeout(r, 5000));
+              const res = await fetch(stableUrl, { headers: { "User-Agent": "WebGecko-SmokeTest/1.0" } });
+              if (res.ok) { liveHtml = await res.text(); console.log("[Smoke] Fetched from stable URL: " + stableUrl); }
+              else console.log("[Smoke] Stable URL also failed: " + res.status);
+            } catch (e) { console.log("[Smoke] Stable URL fetch error:", e); }
+          }
         }
 
         if (!liveHtml) return [{ label: "Site reachable", pass: false, severity: "error" as const }];
