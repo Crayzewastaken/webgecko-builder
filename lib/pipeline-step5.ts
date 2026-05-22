@@ -420,6 +420,26 @@ export function applyStep5CodeFixes(params: Step5Params): string {
     else console.warn(`[Step5] ${mdCount} markdown patterns remaining after strip`);
   }
 
+  // ── Strip dead Stitch-generated policy anchor links ───────────────────────
+  // Stitch often outputs <a href="#">Privacy Policy</a> / <a href="#">Terms...</a>
+  // in footers. These are dead. Replace with navigateTo() anchors so they wire
+  // up correctly to the page-section divs injected by auditor.ts.
+  // Only replace anchors that have NO existing onclick (i.e. not already fixed).
+  html = html.replace(
+    /<a([^>]*)href=["']#["']([^>]*)>(Privacy\s*Policy|Privacy)<\/a>/gi,
+    (_m: string, before: string, after: string, label: string) => {
+      if (/onclick/i.test(before) || /onclick/i.test(after)) return _m;
+      return `<a${before}href="#"${after} onclick="event.preventDefault();window.navigateTo&&window.navigateTo('privacy')">${label}</a>`;
+    }
+  );
+  html = html.replace(
+    /<a([^>]*)href=["']#["']([^>]*)>(Terms(?:\s+of\s+Service|\s+&amp;\s+Conditions|\s+and\s+Conditions|\s+Conditions|s)?)<\/a>/gi,
+    (_m: string, before: string, after: string, label: string) => {
+      if (/onclick/i.test(before) || /onclick/i.test(after)) return _m;
+      return `<a${before}href="#"${after} onclick="event.preventDefault();window.navigateTo&&window.navigateTo('terms')">${label}</a>`;
+    }
+  );
+
   // ── SEO meta tags + Open Graph ────────────────────────────────────────────
   if (!html.includes('property="og:title"')) {
     const pageTitle = spec.projectTitle || userInput.businessName;

@@ -26,6 +26,10 @@ _All issues logged here. Format: symptom → root cause → fix → status. Date
 | 019 | Stitch incomplete multi-page: 1 page, no nav, missing sections | ✅ Fixed | 2026-05-03 |
 | 020 | Admin preview iframe shows stale/old site after fix-proxy or deploy-html | ✅ Fixed | 2026-05-10 |
 | 021 | Generated site output too basic / thin content (webgeckoaus) | 🔲 Open | 2026-05-10 |
+| 022 | [data-page] sections injected after footer render below it when active | ✅ Fixed | 2026-05-23 |
+| 023 | Legal pages (privacy/terms) missing class="page-section" | ✅ Fixed | 2026-05-23 |
+| 024 | Dead href="#terms" and href="#privacy-policy" in footer legal links | ✅ Fixed | 2026-05-23 |
+| 025 | Stitch dead href="#" privacy/terms anchor links not upgraded to navigateTo | ✅ Fixed | 2026-05-23 |
 
 ---
 
@@ -252,3 +256,42 @@ _All issues logged here. Format: symptom → root cause → fix → status. Date
 **Root cause:** Blueprint prompt and Stitch prompt don't enforce sufficient section density or content depth for agency/web-design industry types. Stitch generates a minimal layout; Step 4b Claude fill is also thin.
 **Fix needed:** Improve blueprint prompt to require minimum section count (≥6 on home page), add web-agency-specific sections to the industry section map, strengthen Step 4b requirements for agency sites. Also: deploy an improved hand-crafted HTML directly via deploy-html for webgeckoaus specifically.
 **Status:** 🔲 Open — needs blueprint improvements + manual redeploy for webgeckoaus
+
+---
+
+## ISSUE 022 — [data-page] sections injected after footer render below it when active
+**Date:** 2026-05-23
+**Symptom:** Navigating to Contact, Privacy Policy, or Terms of Service pages showed an empty content area above the footer, with the section content appearing BELOW the footer. Nav/header appeared to "disappear" because the visible region was just the sticky nav → empty space → footer → content at bottom.
+**Root cause:** Multiple pipeline steps inject `[data-page]` sections (contact from route.ts + auditor, privacy/terms from `injectLegalPages`) AFTER the `</footer>` tag. The `[data-page]{display:none!important}` CSS correctly hides them until `.active` is added, but when shown they render in their DOM position — after the footer.
+**Fix:**
+  - `lib/auditor.ts:injectLegalPages()`: Now injects privacy/terms BEFORE `<footer` (using `lastIndexOf("<footer")`) instead of before `</body>`.
+  - `lib/pipeline-helpers.ts:ensureMultiPageStructure()`: Added step 6 — scans for any `[data-page]` elements found after the footer's opening tag and relocates them to just before `<footer`. Covers contact, privacy, terms, and any future sections injected to the wrong position. Logs each relocation.
+**Files changed:** `lib/auditor.ts`, `lib/pipeline-helpers.ts`
+**Status:** ✅ Fixed
+
+---
+
+## ISSUE 023 — Legal pages (privacy/terms) missing class="page-section"
+**Date:** 2026-05-23
+**Symptom:** Privacy and Terms page-sections injected by `injectLegalPages()` had `style="display:none"` inline but no `class="page-section"`. While `data-wg-mp` CSS `[data-page]{display:none!important}` still hid them, the Stitch CSS `.page-section { display:none; min-height:calc(100vh - 68px) }` and `.page-section.active { display:block; animation... }` did not apply to them — resulting in no fade-in animation and potential height/flex layout differences.
+**Fix:** `lib/auditor.ts:injectLegalPages()`: Added `class="page-section"` to both privacy and terms divs. Removed redundant `display:none` from inline style (CSS handles it).
+**Files changed:** `lib/auditor.ts`
+**Status:** ✅ Fixed
+
+---
+
+## ISSUE 024 — Dead href="#terms" and href="#privacy-policy" in footer legal links
+**Date:** 2026-05-23
+**Symptom:** Footer legal links injected by route.ts used `href="#terms"` (not a real anchor) and `href="#privacy-policy"` (fallback when no Termly URL). Clicking these did nothing visible — the terms/privacy page-sections couldn't be navigated to via href.
+**Fix:** `app/api/inngest/route.ts`: Changed both links to use `onclick="event.preventDefault();window.navigateTo&&window.navigateTo('privacy|terms')"`. Termly external URL still opens in `_blank` when configured.
+**Files changed:** `app/api/inngest/route.ts`
+**Status:** ✅ Fixed
+
+---
+
+## ISSUE 025 — Stitch dead href="#" privacy/terms anchor links not upgraded to navigateTo
+**Date:** 2026-05-23
+**Symptom:** Stitch AI frequently generates `<a href="#">Privacy Policy</a>` and `<a href="#">Terms of Service</a>` in footer LEGAL sections. These were left as dead links alongside the pipeline's own injected legal links, creating duplicate (one dead, one working) legal link sets.
+**Fix:** `lib/pipeline-step5.ts`: Added regex replacements that find `<a href="#">Privacy Policy</a>` and `<a href="#">Terms...</a>` anchors WITHOUT an existing `onclick` and upgrades them to `onclick="navigateTo('privacy|terms')"` in-place. Anchors that already have `onclick` are left untouched.
+**Files changed:** `lib/pipeline-step5.ts`
+**Status:** ✅ Fixed

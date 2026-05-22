@@ -559,8 +559,11 @@ const buildWebsite = inngest.createFunction(
           const yr4b = new Date().getFullYear();
           // Pull Termly privacy URL if already set via admin checklist
           const termlyPrivacyUrl: string = job.metadata?.checklistLinks?.termly_privacy_embed || "";
-          const privacyHref = termlyPrivacyUrl || "#privacy-policy";
-          const legalLinks = `<span style="margin-top:8px;display:block;font-size:0.8rem;"><a href="${privacyHref}" target="_blank" rel="noopener" style="color:#64748b;text-decoration:underline;margin:0 8px;" data-wg-privacy>Privacy Policy</a><span style="color:#334155;">|</span><a href="#terms" style="color:#64748b;text-decoration:underline;margin:0 8px;" data-wg-terms>Terms of Service</a></span>`;
+          // Privacy: open external Termly page if set, otherwise navigate to local #privacy page-section
+          const privacyAttrs = termlyPrivacyUrl
+            ? `href="${termlyPrivacyUrl}" target="_blank" rel="noopener" onclick=""`
+            : `href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('privacy')"`;
+          const legalLinks = `<span style="margin-top:8px;display:block;font-size:0.8rem;"><a ${privacyAttrs} style="color:#64748b;text-decoration:underline;margin:0 8px;" data-wg-privacy>Privacy Policy</a><span style="color:#334155;">|</span><a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('terms')" style="color:#64748b;text-decoration:underline;margin:0 8px;" data-wg-terms>Terms of Service</a></span>`;
           const footerHtml = `<footer id="wg-footer" style="margin-top:auto;padding:32px 24px;background:#0a0f1a;text-align:center;color:#64748b;font-size:0.875rem;">&copy; ${yr4b} ${userInput.businessName}. All rights reserved.${legalLinks}</footer>`;
           // Detect existing footer broadly (tag OR common id/class patterns)
           const hasExistingFooter = /<footer[\s>]/i.test(html) || /id=["']footer["']/i.test(html) || /class=["'][^"']*footer[^"']*["']/i.test(html);

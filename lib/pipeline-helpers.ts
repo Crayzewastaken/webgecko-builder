@@ -1169,6 +1169,61 @@ export function ensureMultiPageStructure(
     );
   }
 
+  // ── 6. Relocate any [data-page] sections that ended up AFTER </footer> ──────
+  // This happens when Haiku, the auditor, or previous pipeline steps inject page
+  // sections after the footer. When displayed (.active), they render below the
+  // footer instead of inside the content area. Move them to just before <footer.
+  {
+    const footerStart = out.lastIndexOf("<footer");
+    const bodyEnd     = out.lastIndexOf("</body>");
+    if (footerStart !== -1 && bodyEnd > footerStart) {
+      const afterFooter = out.slice(footerStart);
+      // Find all [data-page] opening tags in the region after <footer
+      const dpAfterRe = /<(div|section|main|article)([^>]*\bdata-page=["'][^"']+["'][^>]*)>/gi;
+      const displaced: { full: string; start: number; end: number }[] = [];
+      let dpMatch: RegExpExecArray | null;
+      dpAfterRe.lastIndex = 0;
+      while ((dpMatch = dpAfterRe.exec(afterFooter)) !== null) {
+        const tag   = dpMatch[1].toLowerCase();
+        const start = footerStart + dpMatch.index;
+        // Walk forward to find the matching closing tag
+        let depth = 1, pos = start + dpMatch[0].length, endIdx = -1;
+        const openT  = new RegExp(`<${tag}[\\s>]`, "gi");
+        const closeT = new RegExp(`<\\/${tag}>`, "gi");
+        while (depth > 0 && pos < out.length) {
+          openT.lastIndex = pos; closeT.lastIndex = pos;
+          const nOpen = openT.exec(out); const nClose = closeT.exec(out);
+          if (!nClose) break;
+          if (nOpen && nOpen.index < nClose.index) { depth++; pos = nOpen.index + nOpen[0].length; }
+          else { depth--; pos = nClose.index + nClose[0].length; if (depth === 0) endIdx = pos; }
+        }
+        if (endIdx > 0) {
+          displaced.push({ full: out.slice(start, endIdx), start, end: endIdx });
+        }
+      }
+      if (displaced.length > 0) {
+        // Remove from after-footer position (in reverse order to keep indices stable)
+        let rebuilt = out;
+        for (let i = displaced.length - 1; i >= 0; i--) {
+          const d = displaced[i];
+          rebuilt = rebuilt.slice(0, d.start) + rebuilt.slice(d.end);
+        }
+        // Insert all displaced sections just before <footer
+        const newFooterPos = rebuilt.lastIndexOf("<footer");
+        if (newFooterPos !== -1) {
+          const block = displaced.map(d => d.full).join("\n");
+          rebuilt = rebuilt.slice(0, newFooterPos) + block + "\n" + rebuilt.slice(newFooterPos);
+          displaced.forEach(d => {
+            const pageId = d.full.match(/data-page=["']([^"']+)["']/i)?.[1] || "?";
+            report.repairs.push(`Relocated data-page="${pageId}" section from after-footer to before-footer`);
+            console.log(`[ensureMultiPage] Relocated data-page="${pageId}" section from after-footer to before-footer`);
+          });
+          out = rebuilt;
+        }
+      }
+    }
+  }
+
   console.log(`[ensureMultiPage] Done. Repairs: ${report.repairs.length}, Added pages: [${report.missingPagesAdded.join(',')}], Nav fixes: ${report.navTargetsFixed.length}`);
   return { html: out, report };
 }

@@ -570,7 +570,7 @@ function injectLegalPages(html: string, ctx: {
 
   // ── PRIVACY POLICY ──
   const privacyHtml = !hasPrivacy ? `
-<div id="privacy" data-page="privacy" style="background:${clrBg};display:none;">
+<div id="privacy" data-page="privacy" class="page-section" style="background:${clrBg};">
   <div style="${wrap}">
     <h1 style="color:${clrText};font-size:2rem;font-weight:900;margin-bottom:8px;">Privacy Policy</h1>
     <p style="color:${clrSub};font-size:0.85rem;margin-bottom:32px;">Last updated: ${new Date().toLocaleDateString("en-AU", { day:"numeric", month:"long", year:"numeric" })}</p>
@@ -638,7 +638,7 @@ function injectLegalPages(html: string, ctx: {
 
   // ── TERMS OF SERVICE ──
   const termsHtml = !hasTerms ? `
-<div id="terms" data-page="terms" style="background:${clrBg2};display:none;">
+<div id="terms" data-page="terms" class="page-section" style="background:${clrBg2};">
   <div style="${wrap}">
     <h1 style="color:${clrText};font-size:2rem;font-weight:900;margin-bottom:8px;">Terms of Service</h1>
     <p style="color:${clrSub};font-size:0.85rem;margin-bottom:32px;">Last updated: ${new Date().toLocaleDateString("en-AU", { day:"numeric", month:"long", year:"numeric" })}</p>
@@ -686,21 +686,36 @@ function injectLegalPages(html: string, ctx: {
   let result = html;
 
   if (privacyHtml || termsHtml) {
-    result = result.replace("</body>", privacyHtml + termsHtml + "\n</body>");
+    // Inject BEFORE <footer so the page-sections appear in the correct flex
+    // order (between content and footer) — not after the footer where they
+    // would render below it when navigated to.
+    const footerOpen = result.lastIndexOf("<footer");
+    if (footerOpen !== -1) {
+      result = result.slice(0, footerOpen) + privacyHtml + termsHtml + "\n" + result.slice(footerOpen);
+    } else {
+      result = result.replace("</body>", privacyHtml + termsHtml + "\n</body>");
+    }
     console.log("[Auditor] Injected legal pages: " + [!hasPrivacy && "privacy", !hasTerms && "terms"].filter(Boolean).join(", "));
   }
 
-  // Wire footer links — find the footer and add links if not already there
-  if (!result.includes('navigateTo(\'terms\'') && !result.includes('navigateTo("terms"')) {
-    const legalFooter = `<div style="text-align:center;padding:8px 0 4px;font-size:12px;">` +
+  // Wire footer links — find the footer and add links if not already there.
+  // Guard: skip if the pipeline already injected data-wg-terms links (route.ts step 4),
+  // since those will already have been upgraded to navigateTo by pipeline-step5.
+  const alreadyHasLegalLinks =
+    result.includes('data-wg-terms') ||
+    result.includes("navigateTo('terms')") ||
+    result.includes('navigateTo("terms")');
+  if (!alreadyHasLegalLinks) {
+    const legalFooter =
+      `<div style="text-align:center;padding:8px 0 4px;font-size:12px;">` +
       `<a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('privacy')" style="color:${clrSub};text-decoration:none;margin:0 10px;">Privacy Policy</a>` +
       `<span style="color:${clrBord};">|</span>` +
       `<a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('terms')" style="color:${clrSub};text-decoration:none;margin:0 10px;">Terms of Service</a>` +
       `</div>`;
-    if (result.includes("</footer>")) {
-      result = result.replace(/([\s\S]*?)<\/footer>/i, (m: string, body: string) => body + legalFooter + "</footer>");
+    const lastFooterIdx = result.lastIndexOf("</footer>");
+    if (lastFooterIdx !== -1) {
+      result = result.slice(0, lastFooterIdx) + legalFooter + result.slice(lastFooterIdx);
     } else {
-      // Inject before closing body
       result = result.replace("</body>", legalFooter + "\n</body>");
     }
   }
