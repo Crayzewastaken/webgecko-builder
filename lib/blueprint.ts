@@ -385,78 +385,82 @@ BUSINESS:
 - Images: ${imageSection}
 - Notes: ${additionalNotes || "none"}
 ${serpGuidance}${lsiInstruction}
-RULES:
-1. JSON only — no markdown, no backticks. Start with { end with }
-2. Inside string values use only single quotes
-3. No markdown (** or *) anywhere
-4. stitchPrompt MUST follow the EXACT STRUCTURE SCAFFOLD below — this is non-negotiable
 
-CRITICAL VISUAL & CODE RULES — the stitchPrompt MUST enforce ALL of these:
-A. FONTS & TYPOGRAPHY SCALE:
-   - For 'modern premium' or 'tech' styles: Use ONLY 'Space Grotesk' for headings (h1, h2, h3) and 'Inter' for body, nav, buttons, and forms.
-   - For 'vintage' or 'editorial' styles: Use elegant serif headings ('Playfair Display' or 'Lora') and clean 'Inter' for body text.
-   - Strictly apply this typographic scale: Hero H1 must be exactly 4.5rem (72px) with line-height 1.1; Section H2 must be exactly 2.5rem (40px) with line-height 1.25; H3 subheadings must be exactly 1.5rem (24px); Body copy must be exactly 1.05rem (16.8px) with line-height 1.6 and letter-spacing -0.011em for high-premium legibility. Never use Arial, Helvetica, or browser defaults.
-B. 8px RIGID SPACING SCALE & GRID SYSTEM:
-   - Abandon standard/arbitrary padding. All layouts must strictly map spacing, margins, padding, and grid gaps to an 8px grid system (8px, 16px, 24px, 32px, 48px, 64px, 80px, 96px, 128px).
-   - Section vertical paddings must be exactly 96px desktop (80px mobile). Card inner padding must be exactly 32px (or 24px). Grid gaps must be exactly 32px.
-C. PREMIUM CARD COMPONENT SYSTEM (Shadcn UI style):
-   - SURFACE = palette.surface colour; BACKGROUND = palette.background colour.
-   - All cards on all pages must have: background:SURFACE; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:32px; box-shadow:0 4px 24px rgba(0,0,0,0.18); transition:box-shadow 0.2s ease, transform 0.2s ease.
-   - Card Hover: transform:translateY(-2px); box-shadow:0 12px 32px rgba(0,0,0,0.28); border-color:rgba(255,255,255,0.15).
-   - If style is 'vintage': use sharp card edges (border-radius:0px), high-contrast borders (1px solid palette.accent), and zero shadow.
-D. INTENTIONAL BUTTON SYSTEM:
-   - ALL action buttons across the entire website must be strictly unified (use palette.accent colour for ACCENT):
-   - Primary: background:ACCENT; color:#fff; padding:14px 28px; border-radius:30px (rounded-full); font-weight:600; font-size:1rem; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:opacity 0.2s ease, transform 0.15s ease.
-   - Primary hover: opacity:0.9; transform:translateY(-1px).
-   - Ghost/secondary: background:transparent; border:1.5px solid ACCENT; color:ACCENT; padding:13px 27px; border-radius:30px; font-weight:600; font-size:1rem; cursor:pointer; transition:background 0.2s ease, color 0.2s ease.
-   - Ghost hover: background:rgba(255,255,255,0.05); color:#fff.
-E. NAV — The sticky header must be IDENTICAL on every page (BG = palette.background colour):
+CRITICAL VISUAL, COMPOSITION & CODE RULES — the stitchPrompt MUST enforce ALL of these:
+A. COMPOSITION OVER TEMPLATES: Abandon generic blank-canvas layouts. Every section must use intentional visual compositions:
+   - HERO SECTION: Must use a gorgeous asymmetrical 50/50 split-screen on desktop. Left side: sticky vertical stack with a custom badge, hero text, and a horizontal statistics/social-proof bar. Right side: a visually striking interactive mockup, floating cards/pills (positioned absolutely), or an SVG/HTML canvas/image composition using the specified hero/logo URLs.
+   - ABOUT SECTION: Must use an asymmetrical 50/50 split-screen. Left side: a sticky 600px tall featured image card/collage. Right side: vertical stack for copy and 3 compact list cards detailing the key value metrics.
+   - SERVICES SECTION: Must be rendered as an asymmetrical 3-column Bento Grid (where some columns span 2 units or have different grid row alignments). Each bento card should have a 1px border, padding, and subtle micro-interactions on hover.
+B. SPACING GRID (Strict 8px System): Base all spacing, paddings, margins, and gaps on an exact 8px incremental scale. Specify exact values:
+   - Desktop section padding: exactly 80px top/bottom, 48px left/right.
+   - Grid gaps: exactly 24px (gap-6) or 32px (gap-8).
+   - Inner card padding: exactly 24px (p-6) or 32px (p-8).
+   - Element margins: exactly 16px (m-4) or 32px (m-8). Never use generic or loose padding.
+C. TYPOGRAPHY SCALING: Enforce absolute typographic hierarchy. Set exact heading rules:
+   - Hero Heading: Must be exactly 4.5rem on desktop, using 'Space Grotesk' with line-height 1.1 and letter-spacing -0.02em.
+   - H2 Section Headings: Must be exactly 2.5rem, bold, with line-height 1.25 and letter-spacing -0.01em.
+   - Body Copy: Must be exactly 1.1rem, line-height 1.6, using 'Inter' font family.
+D. FONTS: Import and use ONLY 'Space Grotesk' (headings h1-h3) and 'Inter' (body, nav, buttons, forms) from Google Fonts. Never use Arial, Helvetica, system-ui, or any other font.
+E. BUTTONS — ALL buttons on ALL pages must be identical (use the palette.accent colour from this blueprint for ACCENT):
+   - Primary: background:ACCENT;color:#fff;padding:14px 28px;border-radius:8px;font-weight:600;font-size:1rem;border:none;cursor:pointer;transition:opacity 0.2s,transform 0.15s;
+   - Primary hover: opacity:0.88;transform:translateY(-1px);
+   - Ghost/secondary: background:transparent;border:1.5px solid ACCENT;color:ACCENT;padding:13px 27px;border-radius:8px;font-weight:600;font-size:1rem;cursor:pointer;transition:background 0.2s;
+   - Ghost hover: background:ACCENT with 13% opacity;
+   - NEVER use different button styles on different pages. Copy these exact styles verbatim.
+F. CARDS — ALL cards on ALL pages must be identical (SURFACE = palette.surface colour):
+   - background:SURFACE;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:28px 32px;box-shadow:0 4px 24px rgba(0,0,0,0.18);transition:box-shadow 0.2s,transform 0.2s;
+   - Card hover: box-shadow:0 8px 40px rgba(0,0,0,0.28);transform:translateY(-2px);
+G. NAV — The sticky header must be IDENTICAL on every page (BG = palette.background colour):
    - position:sticky;top:0;z-index:100;background:BG with e8 alpha;backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.07);padding:0 48px;height:68px;display:flex;align-items:center;justify-content:space-between;
    - Active nav link: color:ACCENT;font-weight:700;border-bottom:2px solid ACCENT;
-   - Nav links call window.navigateTo('pageid') — never use href anchors for page navigation.
-F. COLOR VARIABLES & THEMES:
-   - Define custom CSS variables inside :root: --clr-bg (palette.background), --clr-surface (palette.surface), --clr-accent (palette.accent), --clr-text (palette.text), --clr-border: rgba(255,255,255,0.08). Use them dynamically.
-G. NO placeholder images: never use picsum.photos, placehold.it, unsplash.com, or any generic fake image URL in src attributes.
-H. RESPONSIVE CONSTRAINTS: Every single section must include @media(max-width:768px) blocks that collapse columns to a single column, reduce H1 to 2.8rem (44px), and adjust section vertical padding to 64px and card padding to 20px.
+   - Nav links call window.navigateTo('pageid') — never use href anchors for page navigation
+H. COLOUR VARIABLES: Use these CSS vars everywhere — define at :root using the palette colours from this blueprint:
+   --clr-bg, --clr-surface, --clr-accent, --clr-text, --clr-border:rgba(255,255,255,0.08)
+I. INTERACTIONS: All nav buttons use window.navigateTo('pageid'). Smooth scroll anchors use document.getElementById('id').scrollIntoView({behavior:'smooth'}). No broken links.
+J. ANIMATIONS: Use CSS only — @keyframes fadeInUp for hero headline (0.6s ease-out). No JS animation libraries.
+K. NO placeholder images: never use picsum.photos, placehold.it, unsplash.com, or any fake image URL in src attributes.
+L. RESPONSIVE: Every section must have @media(max-width:768px) rules reducing padding to 20px, reducing hero heading to 2.5rem, and switching grids to a single-column layout.
 
 EXACT STRUCTURE SCAFFOLD — the stitchPrompt MUST describe rendering EXACTLY these elements in this order:
 
 [1] STICKY HEADER
-  - Logo text "${businessName}" left (font-weight: 700; font-size: 1.25rem)
+  - Logo text "${businessName}" left
   - Desktop nav links right: ${navPages}
   - Button id=hamburger class=md:hidden (hamburger icon ☰) — toggles mobile menu
   - div id=mobile-menu hidden by default, contains same nav links, close button aria-label=Close menu
 
-[2] SECTION id=hero (full viewport height, visually striking — THIS IS THE MOST IMPORTANT SECTION)
-  MANDATORY HERO COMPOSITIONS — do NOT produce a basic centered template:
-  - Layout: TWO-COLUMN split composition.
-  - Left Column (Text & Action Stack — width: 55%):
-    a) A premium pill-shaped TRUST BADGE above the headline (e.g. "★★★★★ Rated 5.0 on Google" or "✓ AHPRA Registered ✓ Same-Day Appointments") styled with subtle borders and accented text.
-    b) Large, bold headline (benefit-driven, max 8 words, NO address) — font-size: 4.5rem; line-height: 1.1; letter-spacing: -0.02em. Use a subtle @keyframes fadeInUp fade-in animation on load.
-    c) Subheadline (value prop, NO address) — muted colour, 1.15rem, margin-top: 16px.
-    d) TWO CTA buttons side by side (margin-top: 32px): PRIMARY button (accent background, "${ctaText || "Get Started"}") with an SVG arrow icon + SECONDARY ghost button ("Learn More").
-    e) Horizontal SOCIAL PROOF stat bar (margin-top: 48px): 3-4 statistics side-by-side with large accented numbers (e.g., "5k+ Patients", "24/7 Available", "100% Guaranteed").
-  - Right Column (Visual Element Stack — width: 45%):
-    ${heroUrl ? `- Sticky visual card container showing exactly this hero image URL — ${heroUrl}` : "- Dynamic, state-of-the-art interactive element: a floating multi-layered dashboard preview mock, bento-inspired feature cards, or a mesh animated gradient card with floating badge highlights (e.g., 'Next slot: 2pm today') overlapping via absolute positioning. No fakes or generic placeholders."}
-  - Background Layer: Subtle slow-pulsing animated radial backdrop gradient (@keyframes slowPulse) for modern depth.
-  - HERO SECTION HEIGHT: min-height: 100vh with display:flex; align-items:center; justify-content:space-between; gap:48px.
+[2] SECTION id=hero (full viewport height, asymmetric split-screen layout)
+  MANDATORY HERO REQUIREMENTS — do NOT produce a plain centered headline + button:
+  - Layout: TWO-COLUMN split (left: 50% text content stack, right: 50% visual element stack)
+  - Left column MUST contain ALL of:
+    a) A small TRUST BADGE row: e.g. "★★★★★ Trusted by 5,000+ clients" or "✓ Same-Day Bookings" — styled as pill badges with accent colour border
+    b) Large headline (exactly 4.5rem, benefit-driven, max 8 words, NO address) — use CSS animation: fade-in-up on load
+    c) Subheadline (exactly 1.1rem, value prop, NO address) — slightly muted colour
+    d) TWO CTA buttons side by side: PRIMARY button (accent background, "${ctaText || "Get Started"}") + SECONDARY ghost button ("Learn More" or "How It Works")
+    e) A horizontal SOCIAL PROOF bar: 3-4 stats with large numbers and labels (e.g. "5,000+ Clients" / "24/7 Available" / "Same-Day Launch") — use accent colour for numbers
+  - Right column MUST contain:
+    ${heroUrl ? `- Hero image: use exactly this URL as a sticky 600px tall featured image card — ${heroUrl}` : "- Decorative visual: animated CSS gradient orbs/blobs, geometric pattern, or SVG illustration relevant to ${industry} — NO fake image URLs, NO placeholder images"}
+    - Overlapping floating stat cards or feature pills (e.g. "Available: Today" or "100% Guaranteed") — positioned with absolute CSS, 8px grid offset, glassmorphic styling
+  - Add a CSS keyframe animation for the headline: fade-in from bottom over 0.6s
+  - Add a subtle animated background: slow mesh gradient shift, or floating particles (pure CSS)
+  - The section must feel like a premium SaaS product landing page — NOT a basic brochure site
+  HERO SECTION HEIGHT: min-height: 100vh with display:flex align-items:center
 
-[3] SECTION id=about (2-column layout)
-  - Left side: Large elegant H2 heading + 2-3 paragraph copy with high-quality spacing.
-  - Right side: Why Choose Us checklist. 3 beautiful vertical stack feature blocks with custom emoji or icons, small bold subtitles, and 1-sentence value descriptions.
+[3] SECTION id=about (asymmetric split layout)
+  - Left column: sticky 600px tall image or visual collage using ${heroUrl || "custom SVG gradient graphic"} with rounded corners (border-radius: 16px) and subtle 1px border.
+  - Right column: Vertical stack with heading, 2-3 detailed paragraphs about ${businessName}, and 3 compact list cards (each with icon emoji, brief title, description).
 
-[4] SECTION id=services
-  - Heading: "Our Services" (centered or left-aligned, accompanied by a descriptive pill badge).
-  - ASYMMETRICAL COMPOSITION / BENTO GRID: Construct the services layout as a gorgeous bento-grid. Draw 3 columns. Render service cards with asymmetrical widths or heights (e.g., one highlighted 2/3-width primary service card and two smaller 1/3-width cards) OR a pristine 3-column structural layout with sharp or precise border-radius card blocks, 1px border lines instead of soft shadows.
-  - Each card: high-fidelity custom border, custom icon, bold title, elegant description, and an inline chevron text-link ("Explore service →").
+[4] SECTION id=services (Bento Grid layout)
+  - Heading: "Our Services" (exactly 2.5rem)
+  - Bento Grid: Asymmetric 3-column layout. Middle or first service card spans 2 columns to break template repetition.
+  - 3-6 service cards total: each with a distinctive icon, title, detailed description, and subtle 1.02x scale transition on hover.
+  - Content must be highly specific and fully relevant to ${industry}
 ${extraSectionsScaffold}
 [5] SECTION id=testimonials
   - Heading: "What Our Clients Say"
-  - 3 testimonial cards with Australian names, 5-star ★★★★★, quote text
+  - Grid of 3 premium testimonial cards: each with Australian client name, 5-star ★★★★★, and a professional, benefit-oriented quote text
 
 ${(() => {
-  // FAQ placement: only include as a dedicated section if it genuinely adds value
-  // Skip for sites where FAQ is its own page, or very simple portfolio/creative sites
   const faqAsOwnPage = isMultiPage && pages.some((p: string) => /^faq$/i.test(p.trim()));
   const skipFaq = faqAsOwnPage || /portfolio|artist|photographer|creative|gallery/i.test(industry);
   if (skipFaq) return faqAsOwnPage ? `[6] NOTE: FAQ is its own page — do NOT duplicate it as a section on other pages.` : '';
@@ -477,7 +481,7 @@ ${contactFormScaffold.replace(/ACCENT/g, "the accent colour")}
   CRITICAL: The contact section and Google Maps embed must appear ABOVE the footer. NEVER place the map after </footer>.
 
 ${bookingInstruction ? `[8] ${bookingInstruction}` : ""}
-${features.includes("Photo Gallery") ? "[GALLERY] section id=gallery — image grid" : ""}
+${features.includes("Photo Gallery") ? "[GALLERY] section id=gallery — asymmetrical photo masonry grid" : ""}
 ${features.includes("Payments / Shop") ? "[SHOP] section id=shop — product cards with class=wg-buy-btn on purchase buttons" : ""}
 ${features.includes("Newsletter Signup") ? "[NEWSLETTER] section id=newsletter — email input + Subscribe button, id=newsletter-form" : ""}
 ${isMultiPage ? `
