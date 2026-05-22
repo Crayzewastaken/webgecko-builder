@@ -1,7 +1,7 @@
 // app/api/analytics/report/route.ts
 // Returns analytics data for a given jobId. Used by client portal and admin dashboard.
 import { NextRequest } from "next/server";
-import { getClient, getAnalyticsCount, getTopPages, getBookingsForJob } from "@/lib/db";
+import { getClient, getAnalyticsSummary, getTopPages, getBookingsForJob } from "@/lib/db";
 import { isAdminAuthedLegacy } from "@/lib/admin-auth";
 
 export async function GET(req: NextRequest) {
@@ -22,19 +22,9 @@ export async function GET(req: NextRequest) {
   const today = new Date().toISOString().split("T")[0];
   const month = today.slice(0, 7);
 
-  const [
-    monthViews, monthBookingClicks, monthContactClicks,
-    todayViews, todayBookingClicks,
-    totalViews, totalBookingClicks,
-    topPages, allBookings,
-  ] = await Promise.all([
-    getAnalyticsCount(jobId, "page_view", "monthly", month),
-    getAnalyticsCount(jobId, "booking_click", "monthly", month),
-    getAnalyticsCount(jobId, "contact_click", "monthly", month),
-    getAnalyticsCount(jobId, "page_view", "daily", today),
-    getAnalyticsCount(jobId, "booking_click", "daily", today),
-    getAnalyticsCount(jobId, "page_view", "total"),
-    getAnalyticsCount(jobId, "booking_click", "total"),
+  // Single RPC call replaces 7 individual COUNT queries
+  const [summary, topPages, allBookings] = await Promise.all([
+    getAnalyticsSummary(jobId, today, month),
     getTopPages(jobId),
     getBookingsForJob(jobId),
   ]);
@@ -42,9 +32,19 @@ export async function GET(req: NextRequest) {
   const bookingCount = allBookings.filter((b: any) => b.status !== "cancelled").length;
 
   return Response.json({
-    thisMonth: { views: monthViews, bookingClicks: monthBookingClicks, contactClicks: monthContactClicks },
-    today: { views: todayViews, bookingClicks: todayBookingClicks },
-    totals: { views: totalViews, bookingClicks: totalBookingClicks },
+    thisMonth: {
+      views:         summary.month_views,
+      bookingClicks: summary.month_booking_clicks,
+      contactClicks: summary.month_contact_clicks,
+    },
+    today: {
+      views:         summary.today_views,
+      bookingClicks: summary.today_booking_clicks,
+    },
+    totals: {
+      views:         summary.total_views,
+      bookingClicks: summary.total_booking_clicks,
+    },
     topPages,
     bookingCount,
   });

@@ -1,34 +1,21 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { calculatePrice } from "@/lib/pricing";
 
+// Thin adapter so the rest of the page component doesn't need changing.
+// All prices are sourced from lib/pricing.ts — the single source of truth.
 function calculateQuote(pages: string[], features: string[], siteType: string) {
-  const pageCount = pages.length || 1;
-  const hasEcommerce = features.includes('Payments / Shop');
-  const hasBooking = features.includes('Booking System');
-  const hasBlog = features.includes('Blog');
-  const isMultiPage = siteType === 'multi';
-
-  let packageName = 'Starter'; let basePrice = 1500; let competitorPrice = 3000;
-  if (pageCount >= 7 || isMultiPage && pageCount >= 5) { packageName = 'Premium'; basePrice = 3800; competitorPrice = 12000; }
-  else if (pageCount >= 4 || isMultiPage) { packageName = 'Business'; basePrice = 2400; competitorPrice = 6500; }
-
-  let addons = 0;
-  if (hasBooking) addons += 400;
-  if (hasEcommerce) addons += 600;
-  if (hasBlog) addons += 200;
-  if (features.includes('Photo Gallery')) addons += 150;
-  if (features.includes('Reviews & Testimonials')) addons += 100;
-  if (features.includes('Live Chat')) addons += 150;
-  if (features.includes('Newsletter Signup')) addons += 100;
-  if (features.includes('Video Background')) addons += 200;
-
-  const totalPrice = basePrice + addons;
-  const monthlyIntro = 109;
-  const monthlyOngoing = 119;
-  const monthlyPrice = monthlyIntro;
-  const savings = competitorPrice - totalPrice;
-  return { packageName, totalPrice, monthlyPrice, monthlyIntro, monthlyOngoing, savings, competitorPrice };
+  const result = calculatePrice({ pages, features, siteType });
+  return {
+    packageName:     result.packageName,
+    totalPrice:      result.totalPrice,
+    monthlyPrice:    result.monthlyPrice,
+    monthlyIntro:    result.monthlyPrice,
+    monthlyOngoing:  result.monthlyOngoing,
+    savings:         result.savings,
+    competitorPrice: result.competitorPrice,
+  };
 }
 
 async function compressImage(file: File, maxWidthPx = 1200, qualityVal = 0.75): Promise<File> {

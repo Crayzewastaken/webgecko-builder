@@ -1,40 +1,86 @@
 // lib/pricing.ts
+// SINGLE SOURCE OF TRUTH for all WebGecko package pricing.
+// Import from here — never hardcode prices anywhere else.
+
+// ── Base package thresholds ────────────────────────────────────────────────
+export const BASE_PRICES: Record<string, number> = {
+  starter: 1500,   // 1–3 pages
+  business: 2400,  // 4–6 pages
+  premium: 3800,   // 7+ pages
+};
+
+// ── Add-on prices ──────────────────────────────────────────────────────────
+export const ADDON_PRICES: Record<string, number> = {
+  "Booking System":          400,
+  "Payments / Shop":         600,
+  "Blog":                    200,
+  "Photo Gallery":           150,
+  "Reviews & Testimonials":  100,
+  "Live Chat":               150,
+  "Newsletter Signup":       100,
+  "Video Background":        200,
+};
+
+// ── Monthly hosting ────────────────────────────────────────────────────────
+export const MONTHLY_INTRO    = 109;  // first 3 months
+export const MONTHLY_ONGOING  = 119;  // month 4+
+
+// ── Competitor comparison prices (for the calculator display) ──────────────
+export const COMPETITOR_PRICES: Record<string, number> = {
+  starter:  3000,
+  business: 6500,
+  premium:  12000,
+};
+
+// ── Package name map ───────────────────────────────────────────────────────
+export type PackageName = "Starter" | "Business" | "Premium";
 
 export interface PricingDetails {
+  packageName: PackageName;
   totalPrice: number;
   monthlyPrice: number;
   monthlyOngoing: number;
+  competitorPrice: number;
+  savings: number;
 }
 
-export function calculatePrice(userInput: any): PricingDetails {
+export function calculatePrice(userInput: {
+  features?: string[];
+  pages?: string[];
+  siteType?: string;
+  [key: string]: any;
+}): PricingDetails {
   const features: string[] = Array.isArray(userInput?.features) ? userInput.features : [];
   const pageCount = Array.isArray(userInput?.pages) ? userInput.pages.length : 1;
-  const hasEcommerce = features.includes("Payments / Shop");
-  const hasBooking = features.includes("Booking System");
   const isMultiPage = userInput?.siteType === "multi";
 
-  let totalPrice = 1500;
+  let packageName: PackageName = "Starter";
+  let basePrice = BASE_PRICES.starter;
+  let competitorPrice = COMPETITOR_PRICES.starter;
+
   if (pageCount >= 7 || (isMultiPage && pageCount >= 5)) {
-    totalPrice = 3800;
+    packageName = "Premium";
+    basePrice = BASE_PRICES.premium;
+    competitorPrice = COMPETITOR_PRICES.premium;
   } else if (pageCount >= 4 || isMultiPage) {
-    totalPrice = 2400;
+    packageName = "Business";
+    basePrice = BASE_PRICES.business;
+    competitorPrice = COMPETITOR_PRICES.business;
   }
 
-  if (hasBooking) totalPrice += 400;
-  if (hasEcommerce) totalPrice += 600;
+  let addons = 0;
+  for (const f of features) {
+    addons += ADDON_PRICES[f] ?? 0;
+  }
 
-  features.forEach(f => {
-    if (f === "Blog") totalPrice += 200;
-    if (f === "Photo Gallery") totalPrice += 150;
-    if (f === "Reviews & Testimonials") totalPrice += 100;
-    if (f === "Live Chat") totalPrice += 150;
-    if (f === "Newsletter Signup") totalPrice += 100;
-    if (f === "Video Background") totalPrice += 200;
-  });
+  const totalPrice = basePrice + addons;
 
   return {
+    packageName,
     totalPrice,
-    monthlyPrice: 109,
-    monthlyOngoing: 119
+    monthlyPrice: MONTHLY_INTRO,
+    monthlyOngoing: MONTHLY_ONGOING,
+    competitorPrice,
+    savings: competitorPrice - totalPrice,
   };
 }

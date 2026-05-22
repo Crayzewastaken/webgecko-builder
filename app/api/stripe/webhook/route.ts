@@ -1,11 +1,12 @@
 // app/api/stripe/webhook/route.ts
 // Handles Stripe Connect webhook events.
-// Main use: checkout.session.completed → decrement stock in Supabase.
+// Covers: checkout completion (stock), subscription cancellation, and invoice failures.
 
 import { NextRequest, NextResponse } from "next/server";
 import { verifyStripeWebhook } from "@/lib/stripe-connect";
 import { getJob, saveJob } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
+import { suspendClientSite } from "@/app/api/payment/webhook/route";
 
 export const runtime = "nodejs";
 
@@ -95,6 +96,49 @@ export async function POST(req: NextRequest) {
     const jobId = pi.metadata?.webgecko_job_id;
     if (jobId) {
       console.log(`[Stripe Webhook] payment_intent.succeeded job=${jobId} amount=${pi.amount}`);
+    }
+  }
+
+  // ── Subscription cancellation → suspend client site ──────────────────────
+  // Fired when a Stripe subscription is explicitly cancelled or reaches its
+  // end date without renewal.
+  if (event.type === "customer.subscription.deleted") {
+    const sub = event.data.object as {
+      id: string;
+      metadata?: { webgecko_job_id?: string };
+      customer?: string;
+    };
+    const jobId = sub.metadata?.webgecko_job_id;
+    if (jobId) {
+      console.log(`[Stripe Webhook] Subscription cancelled sub=${sub.id} job=${jobId}`);
+      await suspendClientSite(jobId, `Stripe subscription ${sub.id} cancelled`);
+    } else {
+      console.warn(`[Stripe Webhook] customer.subscription.deleted with no webgecko_job_id — sub=${sub.id}`);
+    }
+  }
+
+  // ── Invoice payment failure → suspend after 3 consecutive failures ────────
+  // Stripe retries failed invoices; we suspend on the final dunning failure
+  // (invoice.payment_failed with next_payment_attempt = null).
+  if (event.type === "invoice.payment_failed") {
+    const invoice = event.data.object as {
+      id: string;
+      subscription?: string;
+      next_payment_attempt?: number | null;
+      metadata?: { webgecko_job_id?: string };
+      customer_email?: string;
+    };
+    const jobId = invoice.metadata?.webgecko_job_id;
+    const isFinalFailure = invoice.next_payment_attempt === null;
+
+    if (jobId) {
+      if (isFinalFailure) {
+        console.log(`[Stripe Webhook] Final invoice failure — suspending job=${jobId} invoice=${invoice.id}`);
+        await suspendClientSite(jobId, `Stripe invoice ${invoice.id} failed all retries`);
+      } else {
+        // Intermediate failure — log but don't suspend yet
+        console.warn(`[Stripe Webhook] Invoice payment failed (retrying) job=${jobId} invoice=${invoice.id} next_attempt=${invoice.next_payment_attempt}`);
+      }
     }
   }
 

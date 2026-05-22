@@ -42,6 +42,35 @@ export async function appendPipelineLog(
   jobId: string,
   entry: { level: "info" | "warn" | "error"; step: string; msg: string; businessName?: string }
 ) {
+  // Write to the dedicated pipeline_logs table — O(1) INSERT, no read-modify-write.
+  // Falls back silently to the legacy metadata blob if the table doesn't exist yet
+  // (so deploys before the migration runs don't crash).
+  try {
+    const { error } = await supabase.from("pipeline_logs").insert({
+      job_id:        jobId,
+      level:         entry.level,
+      step:          entry.step,
+      msg:           entry.msg,
+      business_name: entry.businessName ?? null,
+      ts:            new Date().toISOString(),
+    });
+    if (error) {
+      // Table may not exist yet — fall back to legacy metadata append
+      if (error.code === "42P01") {
+        await _legacyAppendPipelineLog(jobId, entry);
+      } else {
+        console.warn("[appendPipelineLog] Insert failed:", error.message);
+      }
+    }
+  } catch { /* non-fatal */ }
+}
+
+// Legacy fallback: read-modify-write on jobs.metadata.logs.
+// Only used while the pipeline_logs table migration is pending.
+async function _legacyAppendPipelineLog(
+  jobId: string,
+  entry: { level: "info" | "warn" | "error"; step: string; msg: string; businessName?: string }
+) {
   try {
     const { data } = await supabase.from("jobs").select("metadata").eq("id", jobId).single();
     const meta = data?.metadata || {};
@@ -51,7 +80,31 @@ export async function appendPipelineLog(
 }
 
 export async function getPipelineLogs(limit = 300) {
-  // Fetch all recent jobs (with and without metadata)
+  // Try new pipeline_logs table first; fall back to legacy metadata scan.
+  try {
+    const { data, error } = await supabase
+      .from("pipeline_logs")
+      .select("job_id, level, step, msg, business_name, ts")
+      .order("ts", { ascending: false })
+      .limit(limit);
+
+    if (!error && data) {
+      return data.map(r => ({
+        jobId:        r.job_id,
+        level:        r.level,
+        step:         r.step,
+        msg:          r.msg,
+        businessName: r.business_name ?? r.job_id,
+        ts:           r.ts,
+      }));
+    }
+    // Table not yet created — fall through to legacy path
+    if (error?.code !== "42P01") throw error;
+  } catch (e: any) {
+    if (e?.code !== "42P01") console.error("[getPipelineLogs] Unexpected error:", e);
+  }
+
+  // ── Legacy path: scan jobs.metadata.logs ─────────────────────────────────
   const { data } = await supabase
     .from("jobs")
     .select("id, status, created_at, metadata, user_input")
@@ -61,23 +114,16 @@ export async function getPipelineLogs(limit = 300) {
   for (const row of data || []) {
     const logs: any[] = row.metadata?.logs || [];
     const name = row.user_input?.businessName || row.id;
-    // Add all existing log entries from metadata.logs
     for (const l of logs) {
       entries.push({ ...l, businessName: l.businessName || name, jobId: l.jobId || row.id });
     }
-    // Synthesize an error entry for failed jobs that have no error-level log entry
-    if (row.status === "failed") {
-      const hasErrorLog = logs.some((l: any) => l.level === "error");
-      if (!hasErrorLog) {
-        entries.push({
-          level: "error",
-          step: "pipeline",
-          msg: "Build failed (no error detail recorded — check Inngest dashboard)",
-          businessName: name,
-          jobId: row.id,
-          ts: row.created_at || new Date().toISOString(),
-        });
-      }
+    if (row.status === "failed" && !logs.some((l: any) => l.level === "error")) {
+      entries.push({
+        level: "error", step: "pipeline",
+        msg: "Build failed (no error detail recorded — check Inngest dashboard)",
+        businessName: name, jobId: row.id,
+        ts: row.created_at || new Date().toISOString(),
+      });
     }
   }
   return entries.sort((a, b) => (b.ts || "").localeCompare(a.ts || "")).slice(0, limit);
@@ -244,6 +290,36 @@ export async function getAnalyticsCount(jobId: string, event: string, period: "d
   return count || 0;
 }
 
+// Batch analytics summary — replaces 7 individual getAnalyticsCount calls with a single
+// Postgres RPC that returns all counts in one round-trip.
+// Falls back to parallel individual queries if the RPC isn't deployed yet.
+export async function getAnalyticsSummary(jobId: string, today: string, month: string) {
+  try {
+    const { data, error } = await supabase.rpc("get_analytics_summary", { p_job_id: jobId, p_today: today, p_month: month });
+    if (!error && data) return data as {
+      month_views: number; month_booking_clicks: number; month_contact_clicks: number;
+      today_views: number; today_booking_clicks: number;
+      total_views: number; total_booking_clicks: number;
+    };
+  } catch { /* rpc not yet deployed — fall through */ }
+
+  // Fallback: parallel individual queries
+  const [mv, mb, mc, tv, tb, totV, totB] = await Promise.all([
+    getAnalyticsCount(jobId, "page_view",      "monthly", month),
+    getAnalyticsCount(jobId, "booking_click",  "monthly", month),
+    getAnalyticsCount(jobId, "contact_click",  "monthly", month),
+    getAnalyticsCount(jobId, "page_view",      "daily",   today),
+    getAnalyticsCount(jobId, "booking_click",  "daily",   today),
+    getAnalyticsCount(jobId, "page_view",      "total"),
+    getAnalyticsCount(jobId, "booking_click",  "total"),
+  ]);
+  return {
+    month_views: mv, month_booking_clicks: mb, month_contact_clicks: mc,
+    today_views: tv, today_booking_clicks: tb,
+    total_views: totV, total_booking_clicks: totB,
+  };
+}
+
 export async function getTopPages(jobId: string, limit = 5): Promise<{ page: string; views: number }[]> {
   try {
     const { data, error } = await supabase
@@ -260,12 +336,15 @@ export async function getTopPages(jobId: string, limit = 5): Promise<{ page: str
     return data.map(row => ({ page: row.page, views: Number(row.views) }));
   } catch (e) {
     console.warn("[Analytics View Fallback] Failed to fetch from page_analytics_summary view, falling back to in-memory counting:", e);
+    // LIMIT the fallback scan to the most recent 10,000 rows — no full table scans.
     const { data } = await supabase
       .from("analytics")
       .select("page")
       .eq("job_id", jobId)
       .eq("event", "page_view")
-      .not("page", "is", null);
+      .not("page", "is", null)
+      .order("id", { ascending: false })
+      .limit(10000);
     if (!data) return [];
     const counts: Record<string, number> = {};
     for (const row of data) { if (row.page) counts[row.page] = (counts[row.page] || 0) + 1; }

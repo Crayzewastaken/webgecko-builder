@@ -7,6 +7,91 @@ import { supabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
+// ── Shared suspension logic ────────────────────────────────────────────────
+// Called by both Square and Stripe webhook handlers when a subscription
+// is cancelled, past-due, or a recurring payment fails.
+export async function suspendClientSite(jobId: string, reason: string) {
+  console.log(`[Billing] Suspending site for jobId=${jobId} reason="${reason}"`);
+
+  // 1. Mark subscription inactive
+  const existing = await getPaymentState(jobId) || { payments: {} };
+  await savePaymentState(jobId, { ...existing, monthlyActive: false });
+
+  // 2. Mark client as not launch-ready
+  const { data: clientRow } = await supabase
+    .from("clients")
+    .select("slug, domain")
+    .eq("job_id", jobId)
+    .single();
+
+  if (clientRow) {
+    const client = await getClient(clientRow.slug);
+    if (client) await saveClient(clientRow.slug, { ...client, launch_ready: false });
+
+    // 3. Disconnect custom domain from Vercel (use correct token)
+    const job = await getJob(jobId);
+    const domain = clientRow.domain || job?.domainSlug;
+    const vercelProjectName = job?.vercelProjectName || process.env.VERCEL_PROJECT_NAME;
+
+    if (domain && vercelProjectName && process.env.VERCEL_API_TOKEN) {
+      try {
+        const vercelRes = await fetch(
+          `https://api.vercel.com/v10/projects/${vercelProjectName}/domains/${domain}`,
+          { method: "DELETE", headers: { Authorization: `Bearer ${process.env.VERCEL_API_TOKEN}` } }
+        );
+        if (!vercelRes.ok) {
+          console.error(`[Billing] Vercel domain disconnect failed: ${await vercelRes.text()}`);
+        } else {
+          console.log(`[Billing] Disconnected domain ${domain} from Vercel`);
+        }
+      } catch (e) { console.error("[Billing] Vercel API error:", e); }
+    }
+
+    // 4. Email the client so they know why the site is down
+    const clientEmail = job?.userInput?.email || "";
+    const businessName = job?.userInput?.businessName || "your website";
+    const base = process.env.NEXT_PUBLIC_APP_URL || "https://webgeckofl.vercel.app";
+    const portalUrl = job?.clientSlug ? `${base}/c/${job.clientSlug}` : base;
+
+    if (clientEmail) {
+      try {
+        const resend = new (await import("resend")).Resend(process.env.RESEND_API_KEY!);
+        await resend.emails.send({
+          from: "WebGecko <hello@webgecko.au>",
+          to: clientEmail,
+          subject: `Action required — your ${businessName} website has been paused`,
+          html: [
+            "<!DOCTYPE html><html><body style='margin:0;padding:0;background:#0a0f1a;font-family:Arial,sans-serif;'>",
+            "<table width='100%' cellpadding='0' cellspacing='0' style='background:#0a0f1a;padding:40px 20px;'><tr><td align='center'>",
+            "<table width='600' cellpadding='0' cellspacing='0' style='background:#0f1623;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);'>",
+            "<tr><td style='background:linear-gradient(135deg,#ef4444,#b91c1c);padding:28px 32px;'>",
+            "<h1 style='margin:0;color:#fff;font-size:22px;'>Your website has been paused</h1>",
+            "</td></tr>",
+            "<tr><td style='padding:32px 32px 24px;'>",
+            "<p style='color:#e2e8f0;margin:0 0 16px;'>Hi <strong style='color:#f87171;'>" + businessName + "</strong>,</p>",
+            "<p style='color:#94a3b8;margin:0 0 20px;'>Your website hosting has been paused because your monthly hosting payment could not be processed.</p>",
+            "<div style='background:#1a0a0a;border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:20px 24px;margin:0 0 24px;'>",
+            "<p style='color:#f87171;font-size:13px;font-weight:700;text-transform:uppercase;margin:0 0 10px;'>What this means</p>",
+            "<p style='color:#94a3b8;font-size:14px;margin:0 0 6px;'>• Your website is currently offline</p>",
+            "<p style='color:#94a3b8;font-size:14px;margin:0 0 6px;'>• Your custom domain has been disconnected</p>",
+            "<p style='color:#94a3b8;font-size:14px;margin:0;'>• Your data is safe and will be restored on payment</p>",
+            "</div>",
+            "<p style='color:#94a3b8;margin:0 0 24px;'>To reactivate your site, please update your payment method or contact us.</p>",
+            "<a href='" + portalUrl + "' style='display:inline-block;background:linear-gradient(135deg,#00c896,#0099ff);color:#000;font-weight:800;padding:16px 32px;border-radius:10px;text-decoration:none;font-size:14px;margin-right:12px;'>Go to Client Portal</a>",
+            "<a href='mailto:hello@webgecko.au' style='display:inline-block;background:transparent;color:#94a3b8;font-weight:600;padding:16px 24px;border-radius:10px;text-decoration:none;font-size:14px;border:1px solid rgba(255,255,255,0.1);'>Email Us</a>",
+            "</td></tr>",
+            "<tr><td style='padding:20px 32px;border-top:1px solid rgba(255,255,255,0.06);'>",
+            "<p style='color:#475569;font-size:12px;margin:0;'>WebGecko — hello@webgecko.au — " + reason + "</p>",
+            "</td></tr>",
+            "</table></td></tr></table></body></html>",
+          ].join(""),
+        });
+        console.log(`[Billing] Suspension email sent to ${clientEmail}`);
+      } catch (e) { console.error("[Billing] Suspension email failed:", e); }
+    }
+  }
+}
+
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signatureHeader = req.headers.get("x-square-hmacsha256-signature") || "";
@@ -50,57 +135,7 @@ export async function POST(req: NextRequest) {
       }
 
       const jobId = psRow.job_id;
-
-      // Update payment state
-      const existing = await getPaymentState(jobId) || { payments: {} };
-      await savePaymentState(jobId, {
-        ...existing,
-        monthlyActive: false,
-      });
-
-      // Update client: launch_ready = false
-      const { data: clientRow } = await supabase
-        .from("clients")
-        .select("slug, domain")
-        .eq("job_id", jobId)
-        .single();
-
-      if (clientRow) {
-        const client = await getClient(clientRow.slug);
-        if (client) {
-          await saveClient(clientRow.slug, {
-            ...client,
-            launch_ready: false,
-          });
-        }
-
-        // Send API call to Vercel to disconnect custom domain alias
-        const domain = clientRow.domain || (await getJob(jobId))?.domainSlug;
-        const vercelProjectName = (await getJob(jobId))?.vercelProjectName || process.env.VERCEL_PROJECT_NAME;
-
-        if (domain && vercelProjectName && process.env.VERCEL_TOKEN) {
-          try {
-            console.log(`[Subscription Webhook] Disconnecting custom domain: ${domain} from project: ${vercelProjectName}`);
-            const vercelRes = await fetch(
-              `https://api.vercel.com/v10/projects/${vercelProjectName}/domains/${domain}`,
-              {
-                method: "DELETE",
-                headers: {
-                  Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
-                },
-              }
-            );
-            if (!vercelRes.ok) {
-              const errText = await vercelRes.text();
-              console.error(`[Subscription Webhook] Vercel domain disconnect failed: ${errText}`);
-            } else {
-              console.log(`[Subscription Webhook] Successfully disconnected domain ${domain} on Vercel`);
-            }
-          } catch (e) {
-            console.error(`[Subscription Webhook] Error calling Vercel API:`, e);
-          }
-        }
-      }
+      await suspendClientSite(jobId, `Square subscription ${subscriptionId} became ${subscriptionStatus}`);
 
       console.log(`[Subscription Webhook] Processed inactive subscription ${subscriptionId} for jobId ${jobId}`);
     }
