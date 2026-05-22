@@ -75,12 +75,25 @@ const buildWebsite = inngest.createFunction(
       // Rebuild regenerates everything including a fresh Stitch generation.
       // BUG-01 FIX: fetch saved HTML from DB so rebuild has access to it.
       let savedHtmlForRebuild: string | null = null;
+      let isUsingRawStitchForRebuild = false;
+      let savedBlueprint: any = null;
       if (isRebuild) {
-        console.log("[Rebuild] Full rebuild from scratch — running complete pipeline including Stitch");
+        console.log("[Rebuild] Rebuild requested — trying to load original raw Stitch HTML first");
         const existingJob = await getJob(jobId);
-        if (existingJob?.html && existingJob.html.length > 1000) {
-          savedHtmlForRebuild = existingJob.html;
-          console.log(`[Rebuild] Loaded saved HTML (${existingJob.html.length} chars) from DB`);
+        if (existingJob?.metadata?.rawStitchHtml && existingJob.metadata.rawStitchHtml.length > 1000) {
+          const rawHtml = existingJob.metadata.rawStitchHtml;
+          savedHtmlForRebuild = rawHtml;
+          isUsingRawStitchForRebuild = true;
+          console.log(`[Rebuild] Loaded saved raw Stitch HTML (${rawHtml.length} chars) from metadata`);
+        } else if (existingJob?.html && existingJob.html.length > 1000) {
+          const finalHtml = existingJob.html;
+          savedHtmlForRebuild = finalHtml;
+          isUsingRawStitchForRebuild = false;
+          console.log(`[Rebuild] Fallback: Loaded final post-processed HTML (${finalHtml.length} chars) from DB`);
+        }
+        if (existingJob?.metadata?.blueprint) {
+          savedBlueprint = existingJob.metadata.blueprint;
+          console.log("[Rebuild] Loaded saved site blueprint from metadata");
         }
       }
 
@@ -195,42 +208,61 @@ const buildWebsite = inngest.createFunction(
         return getExampleHtmlsForIndustry(userInput.industry, 2, jobId);
       });
 
-      const spec = savedHtmlForRebuild
-        ? { projectTitle: job.title || "Website", stitchPrompt: "", palette: { primary: "#1a1a2e", accent: "#10b981", background: "#0a0f1a", surface: "#0f1623", text: "#e2e8f0" }, typography: { headingFont: "Inter", bodyFont: "Inter", heroSize: "72px" }, sections: [] as string[], tone: "", heroHeadline: "", heroSubheadline: "", ctaText: "", uniqueDesignIdea: "" }
-        : await step.run("step1-blueprint", async () => {
-        const blueprint = await generateSiteBlueprint({
-          businessName: userInput.businessName,
-          industry: userInput.industry,
-          targetAudience: userInput.targetAudience || "general public",
-          usp: userInput.usp || "quality service",
-          goal: userInput.goal,
-          style: userInput.style || "modern premium",
-          colorPrefs: userInput.colorPrefs || "professional palette",
-          references: userInput.references || "none",
-          features,
-          clientEmail,
-          clientPhone,
-          businessAddress: userInput.businessAddress || "",
-          facebookPage: userInput.facebookPage || "",
-          additionalNotes: userInput.additionalNotes || "none",
-          pages: Array.isArray(userInput.pages) && userInput.pages.length > 0 ? userInput.pages : ["Home"],
-          isMultiPage,
-          hasBooking: hasBookingFeature,
-          bookingUrl: bookingUrl || undefined,
-          pricingSection,
-          imageSection,
-          productsWithPhotos,
-          exampleHtmls,
-          instagramUrl: userInput.instagramUrl || "",
-          linkedinUrl: userInput.linkedinUrl || "",
-          tiktokUrl: userInput.tiktokUrl || "",
-          realTestimonials: userInput.realTestimonials || "",
-          blogTopics: userInput.blogTopics || "",
-          videoUrl: userInput.videoUrl || "",
-          shopProducts: userInput.shopProducts || "",
+      const spec = savedBlueprint
+        ? savedBlueprint
+        : (savedHtmlForRebuild
+          ? { projectTitle: job.title || "Website", stitchPrompt: "", palette: { primary: "#1a1a2e", accent: "#10b981", background: "#0a0f1a", surface: "#0f1623", text: "#e2e8f0" }, typography: { headingFont: "Inter", bodyFont: "Inter", heroSize: "72px" }, sections: [] as string[], tone: "", heroHeadline: "", heroSubheadline: "", ctaText: "", uniqueDesignIdea: "", lsiKeywords: [] as string[] }
+          : await step.run("step1-blueprint", async () => {
+          const blueprint = await generateSiteBlueprint({
+            businessName: userInput.businessName,
+            industry: userInput.industry,
+            targetAudience: userInput.targetAudience || "general public",
+            usp: userInput.usp || "quality service",
+            goal: userInput.goal,
+            style: userInput.style || "modern premium",
+            colorPrefs: userInput.colorPrefs || "professional palette",
+            references: userInput.references || "none",
+            features,
+            clientEmail,
+            clientPhone,
+            businessAddress: userInput.businessAddress || "",
+            facebookPage: userInput.facebookPage || "",
+            additionalNotes: userInput.additionalNotes || "none",
+            pages: Array.isArray(userInput.pages) && userInput.pages.length > 0 ? userInput.pages : ["Home"],
+            isMultiPage,
+            hasBooking: hasBookingFeature,
+            bookingUrl: bookingUrl || undefined,
+            pricingSection,
+            imageSection,
+            productsWithPhotos,
+            exampleHtmls,
+            instagramUrl: userInput.instagramUrl || "",
+            linkedinUrl: userInput.linkedinUrl || "",
+            tiktokUrl: userInput.tiktokUrl || "",
+            realTestimonials: userInput.realTestimonials || "",
+            blogTopics: userInput.blogTopics || "",
+            videoUrl: userInput.videoUrl || "",
+            shopProducts: userInput.shopProducts || "",
+          });
+          return blueprint;
+          }));
+
+      // Save blueprint to metadata if not already present
+      if (!savedBlueprint) {
+        await step.run("save-blueprint", async () => {
+          const currentJob = await getJob(jobId);
+          if (currentJob) {
+            const meta = currentJob.metadata || {};
+            await saveJob(jobId, {
+              ...currentJob,
+              metadata: {
+                ...meta,
+                blueprint: spec
+              }
+            });
+          }
         });
-        return blueprint;
-        });
+      }
 
 
       console.log(`[Inngest] STEP 1 DONE (Blueprint): ${spec.projectTitle} — palette: ${spec.palette?.primary}`);
@@ -394,13 +426,30 @@ const buildWebsite = inngest.createFunction(
         return html;
       }) as string;
 
+      // Save raw Stitch HTML to database metadata so that subsequent rebuilds can use the fresh raw layout rather than overriding with post-processed final HTML.
+      if (!isRebuild || !isUsingRawStitchForRebuild) {
+        await step.run("save-raw-stitch-html", async () => {
+          const currentJob = await getJob(jobId);
+          if (currentJob) {
+            const meta = currentJob.metadata || {};
+            await saveJob(jobId, {
+              ...currentJob,
+              metadata: {
+                ...meta,
+                rawStitchHtml: stitchHtml
+              }
+            });
+          }
+        });
+      }
+
       // ── STEP 4b: Structural injection into Stitch HTML ──────────────────────────
       // DO NOT rewrite or alter Stitch's design. Inject only what is structurally
       // missing: required IDs, mobile nav, multi-page wrappers, contact form, footer.
       // requestedPageIds at outer scope so step7b-validate and other steps can use it
       const requestedPageIds = (Array.isArray(userInput.pages) ? userInput.pages : ["Home"])
         .map((p: string) => normalizePageId(p));
-      const rebuiltHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step4b-claude-rebuild", async () => {
+      const rebuiltHtml = (savedHtmlForRebuild && !isUsingRawStitchForRebuild) ? savedHtmlForRebuild : await step.run("step4b-claude-rebuild", async () => {
 
         const bookingBlock = hasBookingFeature && bookingUrl
           ? `<section id="booking" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">
@@ -1124,7 +1173,7 @@ const buildWebsite = inngest.createFunction(
         // Skip this on rebuild — the saved HTML already has our authoritative scripts;
         // stripping them causes the router to be missing until Step 6 re-injects it,
         // and any step in between that reads [data-page] count will get wrong results.
-        if (!savedHtmlForRebuild) {
+        if (!savedHtmlForRebuild || isUsingRawStitchForRebuild) {
           html = html.replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, (m: string, body: string) => {
             const definesNavigateTo = /function\s+navigateTo/.test(body) || /window\.navigateTo\s*=/.test(body) || /var\s+navigateTo\s*=/.test(body);
             const definesPageSwitch = /function\s+showPage/.test(body) || /function\s+switchPage/.test(body) || /\.page-section['"\s]*[,{]/.test(body);
@@ -1135,7 +1184,7 @@ const buildWebsite = inngest.createFunction(
             return m;
           });
         } else {
-          console.log("[Step5] Rebuild mode — skipping script strip to preserve injected navigateTo");
+          console.log("[Step5] Rebuild mode (using final post-processed HTML fallback) — skipping script strip to preserve injected navigateTo");
         }
 
         // Replace any showPage('id') calls with navigateTo('id') — all site types.
@@ -1232,8 +1281,8 @@ const buildWebsite = inngest.createFunction(
         // On rebuild, the saved HTML already has our injected scripts (navigateTo, multi-page
         // init, hamburger JS, etc.) from the original build. Re-running injectEssentials would
         // produce double <script> blocks. Skip it and only re-inject images.
-        if (savedHtmlForRebuild) {
-          console.log("[Step6] Rebuild mode — skipping injectEssentials (scripts already present), re-injecting images only");
+        if (savedHtmlForRebuild && !isUsingRawStitchForRebuild) {
+          console.log("[Step6] Rebuild mode (using final post-processed HTML fallback) — skipping injectEssentials (scripts already present), re-injecting images only");
           const html = injectImages(navFixedHtml, logoUrl, effectiveHeroUrl, augmentedPhotoUrls, productsWithPhotos);
           return html;
         }
