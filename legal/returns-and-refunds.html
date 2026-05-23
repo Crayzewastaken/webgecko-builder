@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Returns &amp; Refunds — 3D Origins</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0a0a0f;
+      color: #c8c8d4;
+      line-height: 1.75;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #0d0d14;
+      border-bottom: 1px solid #1e1e2e;
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-hex { width: 36px; height: 36px; }
+
+    .logo-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: #e8e8f0;
+      letter-spacing: -0.3px;
+    }
+
+    .logo-name span { color: #7c6dfa; }
+
+    .container {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 60px 40px 100px;
+    }
+
+    .page-label {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #7c6dfa;
+      background: #7c6dfa18;
+      border: 1px solid #7c6dfa30;
+      border-radius: 20px;
+      padding: 4px 14px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 38px;
+      font-weight: 800;
+      color: #f0f0fa;
+      letter-spacing: -1px;
+      line-height: 1.15;
+      margin-bottom: 10px;
+    }
+
+    .meta {
+      font-size: 13px;
+      color: #555570;
+      margin-bottom: 48px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid #1a1a28;
+    }
+
+    h2 {
+      font-size: 17px;
+      font-weight: 700;
+      color: #e0e0ef;
+      margin-top: 44px;
+      margin-bottom: 14px;
+      padding-left: 14px;
+      border-left: 3px solid #7c6dfa;
+    }
+
+    p {
+      font-size: 14.5px;
+      color: #9494aa;
+      margin-bottom: 14px;
+    }
+
+    ul {
+      margin: 10px 0 14px 0;
+      padding-left: 22px;
+    }
+
+    li {
+      font-size: 14.5px;
+      color: #9494aa;
+      margin-bottom: 8px;
+    }
+
+    strong { color: #c0c0d4; font-weight: 600; }
+
+    a { color: #7c6dfa; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .acl-banner {
+      background: linear-gradient(135deg, #1a1030 0%, #12101e 100%);
+      border: 1px solid #3a2a6a;
+      border-radius: 12px;
+      padding: 22px 26px;
+      margin: 32px 0;
+    }
+
+    .acl-banner .acl-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #a090e8;
+      margin-bottom: 8px;
+    }
+
+    .acl-banner p {
+      font-size: 13.5px;
+      color: #7060b0;
+      margin: 0;
+    }
+
+    .steps-list {
+      list-style: none;
+      padding: 0;
+      margin: 16px 0;
+      counter-reset: step;
+    }
+
+    .steps-list li {
+      counter-increment: step;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 12px 0;
+      border-bottom: 1px solid #14141e;
+      color: #9494aa;
+    }
+
+    .steps-list li:last-child { border-bottom: none; }
+
+    .steps-list li::before {
+      content: counter(step);
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      background: #7c6dfa20;
+      border: 1px solid #7c6dfa40;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #7c6dfa;
+      margin-top: 2px;
+    }
+
+    .highlight-box {
+      background: #12121e;
+      border: 1px solid #1e1e30;
+      border-left: 3px solid #7c6dfa;
+      border-radius: 8px;
+      padding: 18px 22px;
+      margin: 28px 0;
+      font-size: 14px;
+      color: #8888a4;
+    }
+
+    .contact-card {
+      margin-top: 48px;
+      background: #10101c;
+      border: 1px solid #1e1e30;
+      border-radius: 12px;
+      padding: 28px 32px;
+    }
+
+    .contact-card h2 {
+      border-left: none;
+      padding-left: 0;
+      margin-top: 0;
+      font-size: 16px;
+    }
+
+    .contact-card p { margin-bottom: 6px; }
+
+    footer {
+      text-align: center;
+      padding: 30px;
+      font-size: 12px;
+      color: #33334a;
+      border-top: 1px solid #111120;
+    }
+
+    @media (max-width: 540px) {
+      h1 { font-size: 28px; }
+      .container { padding: 40px 20px 80px; }
+      header { padding: 16px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg class="logo-hex" viewBox="0 0 36 36" fill="none">
+    <path d="M18 3L31 10.5v15L18 33 5 25.5v-15L18 3z" stroke="#7c6dfa" stroke-width="1.8"/>
+    <path d="M18 10L25 14.5v9L18 28 11 23.5v-9L18 10z" fill="#7c6dfa" opacity="0.25"/>
+    <path d="M18 10L25 14.5v9L18 28 11 23.5v-9L18 10z" stroke="#7c6dfa" stroke-width="1.2"/>
+  </svg>
+  <span class="logo-name">3D <span>Origins</span></span>
+</header>
+
+<div class="container">
+  <div class="page-label">Legal</div>
+  <h1>Returns &amp; Refunds</h1>
+  <p class="meta">Last updated: 23 May 2026 &nbsp;·&nbsp; Applies to 3dorigins.com.au</p>
+
+  <p>We stand behind the quality of everything we make. If something isn't right, we'll make it right.</p>
+
+  <div class="acl-banner">
+    <div class="acl-title">Australian Consumer Law</div>
+    <p>Our products come with guarantees that cannot be excluded under the Australian Consumer Law. This policy operates alongside — and does not limit — your statutory rights.</p>
+  </div>
+
+  <h2>1. Faulty, Damaged, or Incorrect Items</h2>
+  <p>Contact us within <strong>14 days of delivery</strong> if your item arrives damaged, has a manufacturing defect, or is not what you ordered. We will offer a <strong>repair, replacement, or full refund</strong> once the fault is confirmed.</p>
+
+  <p>Please include in your email:</p>
+  <ul class="steps-list">
+    <li>Your order number</li>
+    <li>A clear description of the issue</li>
+    <li>Photos showing the fault or damage</li>
+  </ul>
+
+  <h2>2. Custom &amp; Made-to-Order Items</h2>
+  <p>Because our products are printed specifically for you, we cannot accept change-of-mind returns on custom items once production has begun. This does not affect your rights if the item is faulty or not as described.</p>
+
+  <h2>3. Minor Variations</h2>
+  <p>Slight differences in colour, texture, layer lines, or dimensions compared to product photos or renders are inherent to the 3D printing process and are not considered defects. We always aim to match your expectations but cannot guarantee results identical to digital previews.</p>
+
+  <h2>4. Change of Mind — Standard Items</h2>
+  <p>For standard (non-custom) stocked items, contact us within <strong>7 days of delivery</strong>. We may, at our discretion, accept a return provided the item is unused and in its original condition. Return postage is the customer's responsibility for change-of-mind returns.</p>
+
+  <h2>5. How Refunds Work</h2>
+  <p>Approved refunds are returned to your original payment method within <strong>5–10 business days</strong> of the return being approved. Shipping costs are non-refundable unless the return is due to our error or a confirmed product fault.</p>
+
+  <div class="highlight-box">
+    Do not send items back without contacting us first — unrequested returns cannot be processed and may be returned to sender at your expense.
+  </div>
+
+  <h2>6. How to Start a Return</h2>
+  <p>Email <a href="mailto:hello@3dorigins.com.au">hello@3dorigins.com.au</a> with your order number and reason for return. We aim to respond within 1–2 business days.</p>
+
+  <div class="contact-card">
+    <h2>Contact Us</h2>
+    <p><strong>Email:</strong> hello@3dorigins.com.au</p>
+    <p><strong>Website:</strong> 3dorigins.com.au</p>
+  </div>
+</div>
+
+<footer>© 2026 3D Origins. All rights reserved.</footer>
+
+</body>
+</html>

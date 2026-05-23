@@ -1396,11 +1396,11 @@ window.navigateTo = function(pageId) {
       var oc = link.getAttribute("onclick") || "";
       var isActive = oc.includes("navigateTo(\'"+pageId+"\'") || oc.includes('navigateTo("'+pageId+'"') || oc.includes("navigateTo('"+pageId+"'");
       if (isActive) {
-        (link as HTMLElement).style.color = "var(--clr-accent, #10b981)";
-        (link as HTMLElement).style.fontWeight = "700";
+        link.style.color = "var(--clr-accent, #10b981)";
+        link.style.fontWeight = "700";
       } else if (oc.includes("navigateTo")) {
-        (link as HTMLElement).style.color = "";
-        (link as HTMLElement).style.fontWeight = "500";
+        link.style.color = "";
+        link.style.fontWeight = "500";
       }
     });
     return;
@@ -1421,7 +1421,10 @@ document.querySelectorAll("a,button").forEach(function(el) {
 });
 // Hamburger — catches id="hamburger", id="menu-toggle", class*=hamburger, aria-label patterns
 document.querySelectorAll("#hamburger,#hamburger-btn,#menu-toggle,[class*='hamburger'],[aria-label='Open menu'],[aria-label='Menu'],[aria-label='Toggle menu']").forEach(function(btn) {
-  if (btn.getAttribute("onclick")) return;
+  var oc = btn.getAttribute("onclick") || "";
+  // Skip if already wired to something real — but allow through Stitch's broken toggleMobileMenu stubs
+  if (oc && !oc.includes("toggleMobileMenu") && !oc.includes("openMenu") && !oc.includes("openNav")) return;
+  if (oc) btn.removeAttribute("onclick"); // strip the broken stub so our listener takes over
   btn.addEventListener("click", function() {
     // Find the drawer/menu — catches id="side-drawer", id="mobile-menu", id="mobile-nav", class patterns
     var drawer = document.getElementById("side-drawer") || document.getElementById("mobile-menu") || document.getElementById("mobile-nav") || document.querySelector("[class*='side-drawer'],[class*='mobile-menu'],[class*='mobile-nav']");
@@ -1462,8 +1465,11 @@ document.querySelectorAll("#close-drawer,#close-menu,#menu-close,#nav-close,[ari
     if (btn.getAttribute("data-wg-wired")) return;
     var ic = btn.querySelector("[data-icon='menu'],[data-icon='menu_open']");
     var txt = (btn.textContent || "").trim().toLowerCase();
-    if (ic || txt === "menu") {
+    var oc2 = btn.getAttribute("onclick") || "";
+    var hasStubOc = oc2.includes("toggleMobileMenu") || oc2.includes("openMenu") || oc2.includes("openNav");
+    if (ic || txt === "menu" || hasStubOc) {
       btn.setAttribute("data-wg-wired", "1");
+      if (hasStubOc) btn.removeAttribute("onclick");
       btn.addEventListener("click", function(e) { e.stopPropagation(); wgToggleDrawer(); });
     }
   });
