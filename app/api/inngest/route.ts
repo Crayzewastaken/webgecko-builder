@@ -1121,7 +1121,9 @@ const buildWebsite = inngest.createFunction(
 
         // Fire-and-forget Google Indexing API ping — never blocks deploy
         requestGoogleIndexing(stableUrl).catch(() => {});
-        return uniqueDeployUrl;
+        // Always return the stable alias URL — the unique deploy URL is not yet propagated
+        // and requires auth to view. The alias is assigned above and smoke test uses stableUrl.
+        return stableUrl;
       });
 
       // ── STEP 8b: Smoke test — fetch live URL and verify critical elements ─────

@@ -450,7 +450,8 @@ export function fixNavigateToTargets(html: string): string {
     "home": "home", "about": "about", "about us": "about",
     "services": "services", "our services": "services", "what we do": "services",
     "booking": "booking", "book": "booking", "book now": "booking",
-    "appointments": "booking", "book an appointment": "booking", "reserve": "booking",
+    "appointments": "booking", "book an appointment": "booking", "reserve": "contact",
+    "reserve elite": "shop", "reserve now": "contact",
     "schedule": "booking", "book a session": "booking", "book online": "booking",
     "contact": "contact", "contact us": "contact", "get in touch": "contact",
     "enquire": "contact", "enquire now": "contact", "reach us": "contact",
@@ -509,6 +510,13 @@ export function checkAndFixLinks(html: string, pages: string[]): { html: string;
   });
 
   for (const pageId of missing) {
+    // Legal pages are handled by the auditor's injectLegalPages with full proper content.
+    // Injecting generic stubs here would block the auditor from running (it checks id existence).
+    if (pageId === 'privacy' || pageId === 'terms') {
+      console.log(`Link Check: skipping generic stub for '${pageId}' — handled by auditor's injectLegalPages`);
+      continue;
+    }
+
     // Strategy A: class/data attribute contains the id name
     const classMatch = new RegExp(
       `(<(?:section|div|article|main)[^>]*?(?:class|data-page|data-section)=["'][^"']*${pageId}[^"']*["'][^>]*>)`, "i"

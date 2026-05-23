@@ -76,9 +76,9 @@ export function applyStep5CodeFixes(params: Step5Params): string {
   // ── Three-tier CTA keyword system ─────────────────────────────────────────
   const bookingCtaKeywords = ['book now','book a session','book a call','book a consult','book consultation','book free','book today','book online','join now','sign up','free trial','try free','reserve','schedule now','schedule a call','claim offer','claim now','apply now','start today','start free','start starter','start business','start premium','start plan','start now'];
   const contactCtaKeywords = ['get in touch','contact us','reach out'];
-  const shopCtaKeywords    = ['shop the setup','shop now','shop','buy the kit','buy kit','buy setup','add to cart','view products','browse products','view shop','shop products','get the kit','grab the kit','order kit'];
+  const shopCtaKeywords    = ['shop the setup','shop now','shop','buy the kit','buy kit','buy setup','buy system','buy now','buy pro','buy elite','buy starter','buy the','add to cart','view products','browse products','view shop','shop products','get the kit','grab the kit','order kit','get pro','get elite','get starter','get the system','get the setup','order now'];
   const demoCtaKeywords    = ['watch demo','watch the demo','see it in action','view demo','demo','see demo','try demo','watch it','watch now'];
-  const generalCtaKeywords = ['get started','get a quote','get free quote','get quote','enquire now','enquire','learn more','find out more','discover more','request a quote','request quote','order now','buy now','explore capability','explore','launch','login','log in','sign in'];
+  const generalCtaKeywords = ['get started','get a quote','get free quote','get quote','enquire now','enquire','learn more','find out more','discover more','request a quote','request quote','explore capability','explore','launch','login','log in','sign in'];
   const allCtaKeywords     = [...bookingCtaKeywords, ...contactCtaKeywords, ...shopCtaKeywords, ...demoCtaKeywords, ...generalCtaKeywords];
 
   const effectiveExternalCta  = ctaExternalUrl || (bookingUrl && !hasBookingFeature ? bookingUrl : "");
