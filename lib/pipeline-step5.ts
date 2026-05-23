@@ -398,6 +398,36 @@ export function applyStep5CodeFixes(params: Step5Params): string {
       }
       return m;
     });
+
+    // ── Strip Stitch page-switch CSS from <style> blocks ─────────────────────
+    // Stitch outputs .page-section{display:none} and [data-page].active{display:block}
+    // in <style> tags. These fight with the pipeline's [data-wg-mp] CSS authority and
+    // cause pages to stay hidden. Strip any <style> that contains these rules.
+    let styleCssStripped = 0;
+    html = html.replace(/<style([^>]*)>([\s\S]*?)<\/style>/gi, (m: string, attrs: string, body: string) => {
+      const hasPageSectionCss = /\.page-section\s*\{/.test(body) || /\[data-page\]\s*\{/.test(body);
+      if (hasPageSectionCss && !attrs.includes("data-wg")) {
+        styleCssStripped++;
+        console.log(`[Step5] Stripped Stitch page-switch CSS from <style> block (${body.length} chars)`);
+        return "";
+      }
+      return m;
+    });
+    if (styleCssStripped === 0) {
+      // Also strip inline .page-section{display:none} rules lodged inside non-stripped style blocks
+      html = html.replace(/(<style[^>]*>)([\s\S]*?)(<\/style>)/gi, (_m: string, open: string, body: string, close: string) => {
+        if (open.includes("data-wg")) return _m;
+        const cleaned = body
+          .replace(/\.page-section\s*\{[^}]*\}/g, "")
+          .replace(/\[data-page\](?::not\([^)]+\))?\s*\{[^}]*display\s*:\s*none[^}]*\}/gi, "")
+          .replace(/\[data-page\]\.active\s*\{[^}]*display\s*:\s*block[^}]*\}/gi, "");
+        if (cleaned !== body) {
+          console.log("[Step5] Stripped inline page-switch CSS rules from <style> block");
+          return open + cleaned + close;
+        }
+        return _m;
+      });
+    }
   } else {
     console.log("[Step5] Rebuild mode — skipping script strip to preserve injected navigateTo");
   }

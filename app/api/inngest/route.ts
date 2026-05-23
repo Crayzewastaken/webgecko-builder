@@ -570,8 +570,12 @@ const buildWebsite = inngest.createFunction(
           if (!hasExistingFooter) {
             html = html.replace(/<\/body>/i, footerHtml + "\n</body>");
           } else {
-            // Inject legal links into the existing footer if not already present
-            if (!html.includes("data-wg-privacy")) {
+            // Inject legal links into the existing footer if not already present.
+            // Check both our injected marker and Stitch-native navigateTo policy links.
+            const hasLegalLinks = html.includes("data-wg-privacy")
+              || /navigateTo\(['"](privacy|terms)['"]\)/i.test(html)
+              || /Privacy\s*Policy/i.test(html.slice(html.lastIndexOf("<footer")));
+            if (!hasLegalLinks) {
               html = html.replace(/(<\/footer>)/i, legalLinks + "$1");
             }
             // Ensure existing footer has margin-top:auto so it sticks to bottom

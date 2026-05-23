@@ -544,9 +544,31 @@ function injectLegalPages(html: string, ctx: {
   dark: boolean; clrBg: string; clrBg2: string; clrCard: string;
   clrText: string; clrSub: string; clrBord: string; clrAcct: string; yr: number;
 }): string {
-  const hasTerms   = /id="terms"|data-page="terms"/i.test(html);
-  const hasPrivacy = /id="privacy"|data-page="privacy"/i.test(html);
-  if (hasTerms && hasPrivacy) return html;
+  // Detect stub content — "Content coming soon." or a thin section with no real policy prose
+  const isStubPrivacy = /id="privacy"[^>]*>[\s\S]{0,600}Content coming soon/i.test(html)
+    || /data-page="privacy"[^>]*>[\s\S]{0,600}Content coming soon/i.test(html);
+  const isStubTerms   = /id="terms"[^>]*>[\s\S]{0,600}Content coming soon/i.test(html)
+    || /data-page="terms"[^>]*>[\s\S]{0,600}Content coming soon/i.test(html);
+
+  const rawHasTerms   = /id="terms"|data-page="terms"/i.test(html);
+  const rawHasPrivacy = /id="privacy"|data-page="privacy"/i.test(html);
+
+  // If Stitch generated stubs, strip them so we can inject proper full policy pages
+  if (isStubPrivacy) {
+    html = html.replace(/<(div|section)[^>]*(?:id="privacy"|data-page="privacy")[^>]*>[\s\S]*?<\/\1>/i, "");
+    console.log("[Auditor] Removed stub privacy section — will inject full policy");
+  }
+  if (isStubTerms) {
+    html = html.replace(/<(div|section)[^>]*(?:id="terms"|data-page="terms")[^>]*>[\s\S]*?<\/\1>/i, "");
+    console.log("[Auditor] Removed stub terms section — will inject full policy");
+  }
+
+  const hasTerms   = !isStubTerms   && rawHasTerms;
+  const hasPrivacy = !isStubPrivacy && rawHasPrivacy;
+  if (hasTerms && hasPrivacy) {
+    console.log("[Auditor] Legal pages already present with real content — skipping injection");
+    return html;
+  }
 
   const { businessName, clientEmail, businessAddress, abn, domain, features, ga4,
           clrBg, clrBg2, clrCard, clrText, clrSub, clrBord, clrAcct, yr } = ctx;

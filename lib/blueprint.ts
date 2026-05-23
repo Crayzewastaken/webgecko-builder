@@ -554,24 +554,59 @@ ${features.includes("Photo Gallery") ? "[GALLERY] section id=gallery — asymmet
 ${features.includes("Payments / Shop") ? "[SHOP] section id=shop — product cards with class=wg-buy-btn on purchase buttons" : ""}
 ${features.includes("Newsletter Signup") ? "[NEWSLETTER] section id=newsletter — email input + Subscribe button, id=newsletter-form" : ""}
 ${isMultiPage ? `
-⚠️ MULTI-PAGE SITE — THIS IS MANDATORY, NOT OPTIONAL ⚠️
+[PRIVACY] REQUIRED — page-section for Privacy Policy (data-page="privacy", id="privacy", class="page-section")
+  - Heading: "Privacy Policy"
+  - Subheading: "Last updated: ${currentYear}"
+  - Sections: Information We Collect | How We Use Your Information | Data Security | Your Rights | Contact Us
+  - Each section: h3 heading + 2-3 paragraphs of real policy prose tailored to ${businessName}
+  - Style: same background/text colours as rest of site. max-width:800px margin:0 auto padding:80px 24px
+
+[TERMS] REQUIRED — page-section for Terms of Service (data-page="terms", id="terms", class="page-section")
+  - Heading: "Terms of Service"
+  - Subheading: "Last updated: ${currentYear}"
+  - Sections: Acceptance of Terms | Services | Payment & Refunds | Intellectual Property | Limitation of Liability | Governing Law
+  - Each section: h3 heading + 2-3 paragraphs of real terms prose tailored to ${businessName} in Australia
+  - Style: same background/text colours as rest of site. max-width:800px margin:0 auto padding:80px 24px
+` : ""}
+${isMultiPage ? `
+⚠️ MULTI-PAGE SITE — CRITICAL STRUCTURE RULES ⚠️
 This site has ${pages.length} SEPARATE PAGES: ${pageList}
-REQUIRED STRUCTURE — every page must be its own top-level div:
-  <div data-page="home" id="home" class="page-section">   ← HOME page content </div>
-  <div data-page="services" id="services" class="page-section">   ← SERVICES page content </div>
-  ... one <div data-page="PAGE_ID"> per page listed above ...
+
+EXACT HTML DOCUMENT ORDER (top to bottom — do NOT deviate):
+  1. <head>...</head>
+  2. <body style='display:flex;flex-direction:column;min-height:100vh;'>
+  3. <header> or <nav>  ← STICKY HEADER — OUTSIDE all data-page divs. ALWAYS VISIBLE on every page.
+  4. <div data-page="home" id="home" class="page-section">   ← hero + home sections here
+${pages.map((p: string) => `  <div data-page="${p.toLowerCase().replace(/\s+/g,'-')}" id="${p.toLowerCase().replace(/\s+/g,'-')}" class="page-section"> ← ${p} content </div>`).join('\n')}
+  <div data-page="privacy" id="privacy" class="page-section"> ← Privacy Policy page </div>
+  <div data-page="terms" id="terms" class="page-section"> ← Terms of Service page </div>
+  5. <footer>  ← FOOTER — OUTSIDE all data-page divs. ALWAYS VISIBLE on every page.
+  6. </body>
+
+⛔ CRITICAL: HEADER AND FOOTER MUST BE OUTSIDE ALL data-page DIVS ⛔
+   The header/nav bar must appear BEFORE the first <div data-page=...>.
+   The footer must appear AFTER the last <div data-page=...>.
+   If the header is placed inside a data-page div it will DISAPPEAR when navigating to other pages.
+   Both are shared chrome — always visible regardless of which page is active.
+
 RULES:
-- Each data-page value must be the lowercase-hyphenated page name (e.g. "about-us", "contact")
-- Nav links MUST use onclick='navigateTo("PAGE_ID")' — NO href="#section" anchors
+- Each data-page value must be the exact lowercase-hyphenated page name
+- Nav links MUST use onclick='navigateTo("PAGE_ID")' — NO href="#section" anchors for page navigation
 - Do NOT place all content in one scroll page — each page-section div is a full separate view
 - Do NOT define navigateTo() or .page-section CSS — these are injected by the pipeline
-- All sections (hero, services, testimonials, contact) go INSIDE the appropriate page div
-- The home page div must contain the hero section
+- The hero section content goes INSIDE data-page="home", NOT outside any div
+- The sticky nav bar goes OUTSIDE and BEFORE the first data-page div
 ` : ""}
 
-[FOOTER]
-  - Copyright © ${currentYear} ${businessName}
+[FOOTER] — render as <footer> element OUTSIDE all data-page divs, always visible
+  - Copyright © ${currentYear} ${businessName}. All rights reserved.
   - Social links: ${[facebookPage, instagramUrl, linkedinUrl].filter(Boolean).join(", ") || "none"}
+  - Legal links row (small text, muted colour): two links side by side —
+      Privacy Policy: onclick='navigateTo("privacy")'
+      Terms of Service: onclick='navigateTo("terms")'
+    Both links use href='#' with onclick to navigate to the policy page-sections.
+    Style: font-size:0.8rem; color:#64748b; text-decoration:underline; margin:0 8px;
+  - Do NOT include the full privacy/terms text in the footer — just the clickable links.
 
 VISUAL DESIGN (stitchPrompt must describe these with hex codes):
 - Primary: pick from colour preferences "${colorPrefs}"
@@ -607,7 +642,7 @@ REFERENCE EXAMPLES (structure/depth inspiration — do NOT copy text):
 ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.slice(0, 4000)}\n---`).join("\n\n")}` : ""}`;
 
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20251001",
+    model: "claude-sonnet-4-5-20250929",
     max_tokens: 10000,
     messages: [{ role: "user", content: prompt }],
   });
