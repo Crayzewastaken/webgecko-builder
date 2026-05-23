@@ -82,7 +82,7 @@ async function fetchSerpInsights(
     ).join("\n\n");
 
     const analysisRes = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-haiku-4-5-20251001", // Haiku is fine for this lightweight SERP JSON extraction
       max_tokens: 400,
       messages: [{
         role: "user",
@@ -155,7 +155,59 @@ Respond ONLY with a JSON array of strings: ["keyword1","keyword2",...]`,
   }
 }
 
-// ── JSON parser (unchanged from original) ────────────────────────────────────
+// ── JSON parser ────────────────────────────────────────────────────────────────
+
+/**
+ * Pre-sanitize: find the stitchPrompt string value and escape any bare double-quotes
+ * inside it. Haiku/Sonnet sometimes outputs HTML attr="value" inside the JSON string
+ * without escaping, breaking all parse attempts downstream.
+ *
+ * Scans FORWARD from the opening quote so CSS `}` characters don't confuse us.
+ */
+function escapeStitchPromptQuotes(s: string): string {
+  const spKey = '"stitchPrompt"';
+  const spIdx = s.indexOf(spKey);
+  if (spIdx === -1) return s;
+  const colonIdx = s.indexOf(":", spIdx + spKey.length);
+  if (colonIdx === -1) return s;
+
+  // Skip whitespace to find the opening `"` of the value
+  let vStart = colonIdx + 1;
+  while (vStart < s.length && s[vStart] !== '"') vStart++;
+  if (vStart >= s.length) return s;
+
+  // Scan forward character by character to find the real closing quote.
+  // A closing quote is one that is immediately followed by optional whitespace
+  // then a `,`, `}`, or end-of-object. We escape all others.
+  let out = s.slice(0, vStart + 1); // everything up to and including the opening "
+  let i = vStart + 1;
+  while (i < s.length) {
+    const ch = s[i];
+    if (ch === "\\" && i + 1 < s.length) {
+      // Already escaped sequence — copy both chars unchanged
+      out += ch + s[i + 1];
+      i += 2;
+      continue;
+    }
+    if (ch === '"') {
+      // Peek ahead (skip whitespace) to see if this terminates the JSON value
+      let j = i + 1;
+      while (j < s.length && (s[j] === " " || s[j] === "\t" || s[j] === "\r" || s[j] === "\n")) j++;
+      if (j >= s.length || s[j] === "," || s[j] === "}") {
+        // Real closing quote — append rest of string as-is and return
+        out += s.slice(i);
+        return out;
+      }
+      // Unescaped interior quote — escape it
+      out += '\\"';
+      i++;
+      continue;
+    }
+    out += ch;
+    i++;
+  }
+  return out;
+}
 
 function parseJson(raw: string): SiteBlueprint {
   // Strip all code fences (multiline-safe)
@@ -166,17 +218,33 @@ function parseJson(raw: string): SiteBlueprint {
   const last = s.lastIndexOf("}");
   if (first !== -1 && last !== -1 && last > first) s = s.slice(first, last + 1);
 
+  // Strategy 1: vanilla parse
   try { return JSON.parse(s) as SiteBlueprint; } catch {}
 
+  // Strategy 2: fix unescaped double-quotes inside stitchPrompt, then parse
+  try {
+    const sanitised2 = escapeStitchPromptQuotes(s);
+    return JSON.parse(sanitised2) as SiteBlueprint;
+  } catch {}
+
+  // Strategy 3: placeholder-swap to surgically extract stitchPrompt
   try {
     const spKey = '"stitchPrompt"';
     const spIdx = s.indexOf(spKey);
     if (spIdx !== -1) {
       const colonIdx = s.indexOf(":", spIdx + spKey.length);
       const quoteOpen = s.indexOf('"', colonIdx + 1);
+      // Scan FORWARD for real closing quote (not backward — CSS } chars break backward scan)
       let quoteClose = -1;
-      for (let i = s.length - 1; i > quoteOpen; i--) {
-        if (s[i] === '"' && s[i - 1] !== "\\") { quoteClose = i; break; }
+      let i = quoteOpen + 1;
+      while (i < s.length) {
+        if (s[i] === "\\" && i + 1 < s.length) { i += 2; continue; }
+        if (s[i] === '"') {
+          let j = i + 1;
+          while (j < s.length && (s[j] === " " || s[j] === "\t" || s[j] === "\r" || s[j] === "\n")) j++;
+          if (j >= s.length || s[j] === "," || s[j] === "}") { quoteClose = i; break; }
+        }
+        i++;
       }
       if (quoteOpen !== -1 && quoteClose > quoteOpen) {
         const stitchPromptRaw = s.slice(quoteOpen + 1, quoteClose);
@@ -191,6 +259,7 @@ function parseJson(raw: string): SiteBlueprint {
     }
   } catch {}
 
+  // Strategy 4: control-character sanitization
   try {
     const sanitised = s.replace(/[\x00-\x1f]/g, (c) => {
       if (c === "\n") return "\\n";
@@ -515,6 +584,11 @@ HERO COPY RULES (strictly enforced):
 - heroHeadline: max 8 words, benefit-driven, NO business name, NO address, NO suburb
 - heroSubheadline: 1-2 sentences, value prop ONLY, NO address or location
 
+⚠️ JSON OUTPUT RULES — STRICTLY ENFORCED:
+1. Return ONLY a single JSON object. No commentary before or after.
+2. The stitchPrompt value MUST use ONLY single quotes ' for ALL HTML attributes and CSS values. NEVER use double-quotes inside the stitchPrompt string — they break JSON parsing. Correct: style='color:#fff;' — Wrong: style="color:#fff;"
+3. The stitchPrompt must be 2000-3000 words minimum with rich, specific content for every section.
+
 Return ONLY this JSON:
 {
   "projectTitle": "${businessName} Website",
@@ -526,15 +600,15 @@ Return ONLY this JSON:
   "heroSubheadline": "1-2 sentences value prop only",
   "ctaText": "${ctaText || "Get Started"}",
   "uniqueDesignIdea": "one sentence visual theme",
-  "stitchPrompt": "DETAILED rendering instructions following the scaffold above — 1000-2000 words, describe every section, all hex colours, fonts, spacing, content. Single quotes inside only."
+  "stitchPrompt": "DETAILED rendering instructions following the scaffold above — 2000-3000 words minimum. Describe EVERY section in full detail: all hex colours, exact font sizes, precise spacing values, complete copy for headings/subheadings/body text, card content, button labels, testimonial names and quotes, FAQ questions and answers, contact details. ⚠️ CRITICAL JSON RULE: the stitchPrompt value is a JSON string — NEVER use double-quotes \" inside it. Use ONLY single quotes ' for all HTML attributes and CSS values. Example correct: style='color:#fff' — NEVER style=\"color:#fff\""
 }${exampleHtmls.length > 0 ? `
 
 REFERENCE EXAMPLES (structure/depth inspiration — do NOT copy text):
 ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.slice(0, 4000)}\n---`).join("\n\n")}` : ""}`;
 
   const response = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 8000,
+    model: "claude-sonnet-4-5-20251001",
+    max_tokens: 10000,
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -548,12 +622,27 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
   } catch (e) {
     console.error("[Blueprint] JSON parse failed:", e instanceof Error ? e.message : String(e));
     const title = (raw.match(/"projectTitle"\s*:\s*"([^"]+)"/) || [])[1] || businessName + " Website";
+    // Extract stitchPrompt by scanning FORWARD from opening quote.
+    // Backward scan breaks when CSS `}` chars inside the string fool lastIndexOf("}").
     const stitchIdx = raw.indexOf('"stitchPrompt"');
-    const stitchOpen = stitchIdx !== -1 ? raw.indexOf('"', raw.indexOf(":", stitchIdx) + 1) : -1;
-    const stitchClose = stitchOpen !== -1 ? raw.lastIndexOf('"', raw.lastIndexOf("}") - 1) : -1;
+    const stitchColonIdx = stitchIdx !== -1 ? raw.indexOf(":", stitchIdx + '"stitchPrompt"'.length) : -1;
+    const stitchOpen = stitchColonIdx !== -1 ? raw.indexOf('"', stitchColonIdx + 1) : -1;
+    let stitchClose = -1;
+    if (stitchOpen !== -1) {
+      let si = stitchOpen + 1;
+      while (si < raw.length) {
+        if (raw[si] === "\\" && si + 1 < raw.length) { si += 2; continue; }
+        if (raw[si] === '"') {
+          let sj = si + 1;
+          while (sj < raw.length && (raw[sj] === " " || raw[sj] === "\t" || raw[sj] === "\r" || raw[sj] === "\n")) sj++;
+          if (sj >= raw.length || raw[sj] === "," || raw[sj] === "}") { stitchClose = si; break; }
+        }
+        si++;
+      }
+    }
     const stitchPrompt = (stitchOpen !== -1 && stitchClose > stitchOpen)
       ? raw.slice(stitchOpen + 1, stitchClose)
-      : raw.slice(0, 4000);
+      : raw.slice(0, 8000);
     blueprint = {
       projectTitle: title,
       palette: { primary: "#1a1a2e", accent: "#00c896", background: "#0a0f1a", surface: "#0f1623", text: "#e2e8f0" },
@@ -570,6 +659,9 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
 
   if (!blueprint.stitchPrompt || blueprint.stitchPrompt.length < 200) {
     throw new Error(`Blueprint stitchPrompt too short (${blueprint.stitchPrompt?.length ?? 0} chars)`);
+  }
+  if (blueprint.stitchPrompt.length < 3000) {
+    console.warn(`[Blueprint] ⚠️ stitchPrompt is only ${blueprint.stitchPrompt.length} chars — may indicate parse fallback truncation. Expected 3000+ for rich output.`);
   }
   if (!blueprint.projectTitle) throw new Error("Blueprint missing projectTitle");
 
