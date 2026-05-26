@@ -3682,6 +3682,18 @@ function OriginsView() {
   const [wooLoading, setWooLoading] = useState(true);
   const [wooError, setWooError] = useState("");
 
+  // Postiz social post state
+  const [postizChannels, setPostizChannels] = useState<Array<{ id: string; name: string; platform: string; picture?: string }>>([]);
+  const [postizLoading, setPostizLoading] = useState(true);
+  const [postizError, setPostizError] = useState("");
+  const [selectedChannels, setSelectedChannels] = useState<Set<string>>(new Set());
+  const [postContent, setPostContent] = useState("");
+  const [postImageUrl, setPostImageUrl] = useState("");
+  const [postType, setPostType] = useState<"now" | "draft" | "schedule">("now");
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [postSubmitting, setPostSubmitting] = useState(false);
+  const [postResult, setPostResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
   // Shipped orders log (localStorage)
   const [shippedOrders, setShippedOrders] = useState<any[]>(() => {
     try { return JSON.parse(localStorage.getItem("wg_origins_shipped") || "[]"); } catch { return []; }
@@ -3726,6 +3738,66 @@ function OriginsView() {
         setWooLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    setPostizLoading(true);
+    fetch("/api/admin/origins-post")
+      .then(r => r.json())
+      .then(data => {
+        setPostizChannels(data.channels || []);
+        if (!data.ok && data.error) setPostizError(data.error);
+        setPostizLoading(false);
+      })
+      .catch(e => {
+        setPostizError(e.message || "Failed to load channels");
+        setPostizLoading(false);
+      });
+  }, []);
+
+  async function handlePostSubmit() {
+    if (selectedChannels.size === 0 || !postContent.trim()) return;
+    setPostSubmitting(true);
+    setPostResult(null);
+    try {
+      const r = await fetch("/api/admin/origins-post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          integrationIds: [...selectedChannels],
+          content: postContent,
+          imageUrl: postImageUrl || undefined,
+          type: postType,
+          scheduledAt: postType === "schedule" && scheduleDate ? new Date(scheduleDate).toISOString() : undefined,
+        }),
+      });
+      const data = await r.json();
+      if (data.ok) {
+        setPostResult({ ok: true, msg: postType === "draft" ? `Saved as draft on ${data.postCount} channel(s).` : postType === "schedule" ? `Scheduled on ${data.postCount} channel(s).` : `Posted to ${data.postCount} channel(s)!` });
+        setPostContent("");
+        setPostImageUrl("");
+        setSelectedChannels(new Set());
+      } else {
+        setPostResult({ ok: false, msg: data.error || "Post failed" });
+      }
+    } catch (e) {
+      setPostResult({ ok: false, msg: e instanceof Error ? e.message : "Unknown error" });
+    }
+    setPostSubmitting(false);
+  }
+
+  const PLATFORM_ICONS: Record<string, string> = {
+    instagram: "📸",
+    facebook: "👤",
+    tiktok: "🎵",
+    linkedin: "💼",
+    "linkedin-page": "🏢",
+    youtube: "▶️",
+    threads: "🧵",
+    x: "✕",
+    twitter: "✕",
+    pinterest: "📌",
+    gmb: "📍",
+  };
 
   function saveShipped(orders: any[]) {
     setShippedOrders(orders);
@@ -3902,6 +3974,144 @@ function OriginsView() {
           </div>
         </div>
       )}
+
+      {/* Postiz Social Post */}
+      <div style={cardS}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+          <div style={{ fontSize: 18 }}>📡</div>
+          <div style={labelS}>Post to Social Media</div>
+          {postizLoading && <div style={{ fontSize: 11, color: T.textMuted, marginLeft: "auto" }}>Loading channels...</div>}
+          {!postizLoading && postizChannels.length > 0 && (
+            <div style={{ fontSize: 11, color: "#00d4a0", marginLeft: "auto" }}>{postizChannels.length} channel{postizChannels.length !== 1 ? "s" : ""} connected</div>
+          )}
+        </div>
+
+        {postizError && !postizLoading && (
+          <div style={{ fontSize: 12, color: "#ff6b6b", background: "#ff6b6b10", border: "1px solid #ff6b6b30", borderRadius: 8, padding: "10px 14px", marginBottom: 14 }}>
+            {postizError}
+          </div>
+        )}
+
+        {!postizLoading && postizChannels.length === 0 && !postizError && (
+          <div style={{ fontSize: 12, color: T.textMuted, textAlign: "center", padding: "16px 0" }}>
+            No channels connected in Postiz yet.
+          </div>
+        )}
+
+        {postizChannels.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {/* Channel selector */}
+            <div>
+              <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 8 }}>Select channels</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {postizChannels.map(ch => {
+                  const active = selectedChannels.has(ch.id);
+                  return (
+                    <button
+                      key={ch.id}
+                      onClick={() => setSelectedChannels(prev => {
+                        const next = new Set(prev);
+                        if (next.has(ch.id)) next.delete(ch.id); else next.add(ch.id);
+                        return next;
+                      })}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 6,
+                        padding: "6px 12px", borderRadius: 20, cursor: "pointer", fontSize: 12, fontWeight: 600,
+                        border: `1.5px solid ${active ? "#4f9eff" : T.border}`,
+                        background: active ? "#4f9eff18" : T.raised,
+                        color: active ? "#4f9eff" : T.textSec,
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      <span>{PLATFORM_ICONS[ch.platform] || "🌐"}</span>
+                      <span>{ch.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Caption */}
+            <div>
+              <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 6 }}>Caption</div>
+              <textarea
+                value={postContent}
+                onChange={e => setPostContent(e.target.value)}
+                placeholder="Write your post caption..."
+                rows={4}
+                style={{ ...inputS, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
+              />
+              <div style={{ fontSize: 10, color: T.textMuted, textAlign: "right", marginTop: 3 }}>
+                {postContent.length} chars
+              </div>
+            </div>
+
+            {/* Image URL */}
+            <div>
+              <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 6 }}>Image URL <span style={{ opacity: 0.6 }}>(optional)</span></div>
+              <input
+                value={postImageUrl}
+                onChange={e => setPostImageUrl(e.target.value)}
+                placeholder="https://..."
+                style={inputS}
+              />
+            </div>
+
+            {/* Post type + schedule date */}
+            <div style={{ display: "grid", gridTemplateColumns: postType === "schedule" ? "1fr 1fr" : "1fr", gap: 10 }}>
+              <div>
+                <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 6 }}>When</div>
+                <select value={postType} onChange={e => setPostType(e.target.value as "now" | "draft" | "schedule")} style={inputS}>
+                  <option value="now">Post now</option>
+                  <option value="draft">Save as draft</option>
+                  <option value="schedule">Schedule for later</option>
+                </select>
+              </div>
+              {postType === "schedule" && (
+                <div>
+                  <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 6 }}>Date &amp; time</div>
+                  <input
+                    type="datetime-local"
+                    value={scheduleDate}
+                    onChange={e => setScheduleDate(e.target.value)}
+                    style={inputS}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Result message */}
+            {postResult && (
+              <div style={{
+                fontSize: 12, padding: "10px 14px", borderRadius: 8,
+                background: postResult.ok ? "#00d4a010" : "#ff6b6b10",
+                border: `1px solid ${postResult.ok ? "#00d4a030" : "#ff6b6b30"}`,
+                color: postResult.ok ? "#00d4a0" : "#ff6b6b",
+              }}>
+                {postResult.ok ? "✓ " : "✕ "}{postResult.msg}
+              </div>
+            )}
+
+            {/* Submit */}
+            <button
+              onClick={handlePostSubmit}
+              disabled={postSubmitting || selectedChannels.size === 0 || !postContent.trim() || (postType === "schedule" && !scheduleDate)}
+              style={{
+                background: (!postSubmitting && selectedChannels.size > 0 && postContent.trim())
+                  ? "linear-gradient(135deg,#4f9eff,#a78bfa)"
+                  : T.raised,
+                border: "none", borderRadius: 9, padding: "11px",
+                fontSize: 13, fontWeight: 700,
+                color: (!postSubmitting && selectedChannels.size > 0 && postContent.trim()) ? "#fff" : T.textMuted,
+                cursor: (!postSubmitting && selectedChannels.size > 0 && postContent.trim()) ? "pointer" : "not-allowed",
+                transition: "all 0.2s ease",
+              }}
+            >
+              {postSubmitting ? "Posting..." : postType === "draft" ? "Save Draft" : postType === "schedule" ? "Schedule Post" : "Post Now"}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
