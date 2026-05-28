@@ -742,5 +742,29 @@
     "lines": 5015,
     "description": "feat: Pricing tab + custom quote + drag-drop image upload",
     "type": "feat"
+  },
+  {
+    "version": "v94",
+    "date": "2026-05-28",
+    "commit": "pending",
+    "lines": 5167,
+    "description": "fix: admin sign-out button — use window.location.replace() instead of href",
+    "type": "fix"
+  },
+  {
+    "version": "v95",
+    "date": "2026-05-28",
+    "commit": "pending",
+    "lines": 5167,
+    "description": "\"Updated admin dashboard\"",
+    "type": "feat"
+  },
+  {
+    "version": "v96",
+    "date": "2026-05-28",
+    "commit": "pending",
+    "lines": 5167,
+    "description": "\"Updated admin dashboard\"",
+    "type": "feat"
   }
 ]

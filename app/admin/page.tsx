@@ -424,6 +424,79 @@ function DeployHtmlLive({ jobId, onDeployed, toast }: { jobId:string; onDeployed
 
 // ── Client HTML upload ─────────────────────────────────────────────────────────
 
+
+// ── Cash Payment Panel ─────────────────────────────────────────────────────────
+function CashPaymentPanel({ jobId, paymentState, toast }: {
+  jobId: string;
+  paymentState: { depositPaid: boolean; finalPaid: boolean; monthlyActive: boolean } | null;
+  toast: (msg: string, t: "ok"|"err"|"info") => void;
+}) {
+  const [cashNote, setCashNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function markPaid(field: "deposit"|"final"|"monthly", value = true) {
+    setSaving(true);
+    try {
+      const body: any = { jobId, note: cashNote || (value ? "Cash payment — recorded by admin" : "Reversed by admin") };
+      if (field === "deposit")  body.depositPaid   = value;
+      if (field === "final")    body.finalPaid      = value;
+      if (field === "monthly")  body.monthlyActive  = value;
+      const r = await fetch("/api/admin/mark-payment", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Failed");
+      toast(value ? `${field} marked as paid` : `${field} reversed`, "ok");
+    } catch(e) { toast((e as Error).message, "err"); }
+    setSaving(false);
+  }
+
+  const ps = paymentState;
+  return (
+    <div style={{display:"flex",flexDirection:"column" as const,gap:10}}>
+      <div>
+        <div style={{fontSize:11,color:T.textMuted,marginBottom:5}}>Payment note (optional)</div>
+        <input
+          value={cashNote} onChange={e=>setCashNote(e.target.value)}
+          placeholder="e.g. Cash received in person 28/05/26, receipt #042"
+          style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"8px 12px",color:T.text,fontSize:12,outline:"none",fontFamily:"inherit"}}
+        />
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+        {!ps?.depositPaid && (
+          <button disabled={saving} onClick={()=>markPaid("deposit")}
+            style={{background:T.green,color:"#000",border:"none",borderRadius:8,padding:"9px 6px",fontSize:12,fontWeight:700,cursor:"pointer",opacity:saving?.6:1}}>
+            ✓ Deposit paid
+          </button>
+        )}
+        {!ps?.finalPaid && (
+          <button disabled={saving} onClick={()=>markPaid("final")}
+            style={{background:T.amber,color:"#000",border:"none",borderRadius:8,padding:"9px 6px",fontSize:12,fontWeight:700,cursor:"pointer",opacity:saving?.6:1}}>
+            ✓ Final paid
+          </button>
+        )}
+        {!ps?.monthlyActive && (
+          <button disabled={saving} onClick={()=>markPaid("monthly")}
+            style={{background:T.blue,color:"#fff",border:"none",borderRadius:8,padding:"9px 6px",fontSize:12,fontWeight:700,cursor:"pointer",opacity:saving?.6:1}}>
+            ✓ Monthly active
+          </button>
+        )}
+        {ps?.depositPaid && ps?.finalPaid && ps?.monthlyActive && (
+          <div style={{gridColumn:"1/-1",fontSize:12,color:T.green,fontWeight:600}}>✓ All payments received</div>
+        )}
+      </div>
+      {(ps?.depositPaid || ps?.finalPaid || ps?.monthlyActive) && (
+        <div style={{borderTop:`1px solid ${T.border}`,paddingTop:10,marginTop:2}}>
+          <div style={{fontSize:10,color:T.textMuted,marginBottom:6}}>Reverse a payment</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap" as const}}>
+            {ps?.depositPaid  && <button disabled={saving} onClick={()=>markPaid("deposit",false)}  style={{background:"none",border:`1px solid ${T.red}40`,color:T.red,borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>Reverse deposit</button>}
+            {ps?.finalPaid    && <button disabled={saving} onClick={()=>markPaid("final",false)}    style={{background:"none",border:`1px solid ${T.red}40`,color:T.red,borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>Reverse final</button>}
+            {ps?.monthlyActive && <button disabled={saving} onClick={()=>markPaid("monthly",false)} style={{background:"none",border:`1px solid ${T.red}40`,color:T.red,borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>Deactivate monthly</button>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Custom Quote card (used inside ClientPanel → Actions tab) ──────────────────
 function ClientCustomQuote({ jobId, slug, secret, existingQuote, toast }: {
   jobId: string;
@@ -1390,37 +1463,102 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               {/* Custom domain */}
               <div style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px"}}>
                 {sectionTitle("Custom Domain")}
-                <div style={{fontSize:13,color:T.textSec,marginBottom:16,lineHeight:1.7}}>
-                  Point the domain A record to Vercel's IP, then assign here to activate it.
-                </div>
-                <div style={{fontSize:11,color:T.blue,background:T.blue+"12",border:`1px solid ${T.blue}30`,borderRadius:7,padding:"7px 12px",marginBottom:14,display:"flex",alignItems:"center",gap:6}}>
-                  <span>&#x1F4BE;</span> Stored in <code style={{fontFamily:"monospace",background:"transparent"}}>metadata.domainUrl</code>
-                </div>
-                <div style={{display:"flex",gap:10,alignItems:"flex-end"}}>
-                  <div style={{flex:1}}>
-                    <label style={{fontSize:12,color:T.textSec,fontWeight:700,display:"block",marginBottom:6}}>Domain</label>
-                    <input value={customDomain} onChange={e=>setCustomDomain(e.target.value)} placeholder="example.com.au"
-                      style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:13,outline:"none",fontFamily:"monospace"}}/>
-                    <div style={{fontSize:11,color:T.textSec,marginTop:4}}>Without https:// or trailing slash</div>
+
+                {/* Current live URL */}
+                {(c.liveUrl||c.domain)&&(
+                  <div style={{display:"flex",alignItems:"center",gap:10,background:T.green+"10",border:`1px solid ${T.green}30`,borderRadius:8,padding:"10px 14px",marginBottom:14}}>
+                    <span style={{fontSize:14}}>🌐</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:10,color:T.textMuted,fontWeight:700,textTransform:"uppercase" as const,letterSpacing:"0.07em"}}>Current live URL</div>
+                      <a href={c.liveUrl||`https://${c.domain}`} target="_blank" rel="noreferrer"
+                        style={{fontSize:13,color:T.green,fontWeight:600,fontFamily:"monospace",textDecoration:"none"}}>
+                        {c.liveUrl||`https://${c.domain}`}
+                      </a>
+                    </div>
+                    <a href={c.liveUrl||`https://${c.domain}`} target="_blank" rel="noreferrer"
+                      style={{fontSize:11,color:T.blue,border:`1px solid ${T.blue}30`,borderRadius:6,padding:"4px 10px",textDecoration:"none",fontWeight:600,flexShrink:0}}>
+                      Open →
+                    </a>
                   </div>
-                  <button disabled={intSaving} onClick={async()=>{
+                )}
+
+                {/* DNS instructions */}
+                <div style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:9,padding:"12px 14px",marginBottom:14}}>
+                  <div style={{fontSize:11,fontWeight:700,color:T.textSec,marginBottom:8}}>📋 DNS setup — tell your client to add these records:</div>
+                  <div style={{display:"flex",flexDirection:"column" as const,gap:4}}>
+                    {[
+                      {type:"A",name:"@",value:"76.76.21.21",note:"Apex / root domain"},
+                      {type:"CNAME",name:"www",value:"cname.vercel-dns.com",note:"www subdomain"},
+                    ].map(r=>(
+                      <div key={r.type} style={{display:"flex",gap:8,alignItems:"center",background:T.surface,borderRadius:6,padding:"7px 10px"}}>
+                        <span style={{fontSize:10,fontWeight:800,color:T.purple,background:T.purple+"18",borderRadius:4,padding:"2px 6px",flexShrink:0}}>{r.type}</span>
+                        <code style={{fontSize:11,color:T.amber,minWidth:40}}>{r.name}</code>
+                        <code style={{fontSize:11,color:T.text,flex:1}}>{r.value}</code>
+                        <span style={{fontSize:10,color:T.textMuted}}>{r.note}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{fontSize:10,color:T.textMuted,marginTop:8}}>DNS changes take up to 24h. Once live, assign below to connect to this client's Vercel project.</div>
+                </div>
+
+                {/* Assign via Vercel API */}
+                <div style={{fontSize:11,fontWeight:700,color:T.textSec,marginBottom:8}}>Connect domain to Vercel project</div>
+                <div style={{display:"flex",gap:10,alignItems:"flex-end",marginBottom:10}}>
+                  <div style={{flex:1}}>
+                    <input value={customDomain} onChange={e=>setCustomDomain(e.target.value)} placeholder="ironcorefitness.com.au"
+                      style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:13,outline:"none",fontFamily:"monospace"}}/>
+                    <div style={{fontSize:10,color:T.textMuted,marginTop:3}}>No https:// or trailing slash. Assigns domain in Vercel + updates DB.</div>
+                  </div>
+                  <button disabled={intSaving||!customDomain.trim()} onClick={async()=>{
                     setIntSaving(true); setIntMsg("");
                     try {
-                      const r=await fetch("/api/admin/assign-domain",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:jid,domain:customDomain})});
+                      const r=await fetch("/api/admin/assign-domain",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:jid,domain:customDomain.trim()})});
                       const d=await r.json();
                       if(!r.ok)throw new Error(d.error||"Failed");
-                      setIntMsg("✓ Domain assigned");
+                      setIntMsg("✓ Domain assigned to Vercel project — DNS may take up to 24h");
                       toast("Domain assigned","ok");
-                    } catch(e){setIntMsg((e as Error).message);toast("Save failed","err");}
+                    } catch(e){setIntMsg((e as Error).message);toast("Failed: "+(e as Error).message,"err");}
                     finally{setIntSaving(false);}
-                  }} style={{background:T.blue,color:"#fff",border:"none",borderRadius:8,padding:"9px 18px",fontSize:12,fontWeight:600,cursor:"pointer",opacity:intSaving?0.6:1}}>
-                    {intSaving?"Assigning…":"Assign domain"}
+                  }} style={{background:(!intSaving&&customDomain.trim())?T.blue:T.raised,color:(!intSaving&&customDomain.trim())?"#fff":T.textMuted,border:"none",borderRadius:8,padding:"9px 18px",fontSize:12,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" as const,flexShrink:0}}>
+                    {intSaving?"Assigning…":"Assign in Vercel"}
                   </button>
                 </div>
+
+                {/* URL-only override (no Vercel API — just update DB) */}
+                <div style={{borderTop:`1px solid ${T.border}`,paddingTop:12,marginTop:4}}>
+                  <div style={{fontSize:11,fontWeight:700,color:T.textSec,marginBottom:6}}>
+                    Or just update the URL in the database
+                    <span style={{fontWeight:400,color:T.textMuted,marginLeft:6}}>— use when domain is already set up elsewhere</span>
+                  </div>
+                  <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                    <input
+                      defaultValue={c.liveUrl||""}
+                      id={`liveurl-${jid}`}
+                      placeholder="https://clientsite.com.au"
+                      style={{flex:1,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"8px 12px",color:T.text,fontSize:12,outline:"none",fontFamily:"monospace",boxSizing:"border-box" as const}}
+                    />
+                    <button onClick={async()=>{
+                      const el=document.getElementById(`liveurl-${jid}`) as HTMLInputElement;
+                      const url=el?.value?.trim();
+                      if(!url)return;
+                      setIntSaving(true);setIntMsg("");
+                      try{
+                        const r=await fetch("/api/admin/clients",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:jid,liveUrl:url})});
+                        if(!r.ok)throw new Error("Failed");
+                        setIntMsg("✓ URL updated in database");
+                        toast("URL saved","ok");
+                      }catch(e){setIntMsg((e as Error).message);toast("Failed","err");}
+                      setIntSaving(false);
+                    }} style={{background:T.purple,color:"#fff",border:"none",borderRadius:8,padding:"8px 16px",fontSize:12,fontWeight:600,cursor:"pointer",flexShrink:0}}>
+                      Save URL
+                    </button>
+                  </div>
+                </div>
+
                 {c.metadata?.domainStatus&&<div style={{fontSize:12,color:c.metadata.domainStatus==="Active"?T.green:T.amber,marginTop:10,display:"flex",alignItems:"center",gap:6}}><span>{c.metadata.domainStatus==="Active"?"✓":"⏳"}</span> Status: <strong>{c.metadata.domainStatus}</strong></div>}
+                {intMsg&&<div style={{fontSize:12,color:intMsg.startsWith("✓")?T.green:T.red,marginTop:10,padding:"8px 12px",background:intMsg.startsWith("✓")?T.green+"10":T.red+"10",borderRadius:7,border:`1px solid ${intMsg.startsWith("✓")?T.green:T.red}30`}}>{intMsg}</div>}
               </div>
 
-              {intMsg&&<div style={{fontSize:13,color:intMsg.startsWith("✓")?T.green:T.red,padding:"10px 14px",background:intMsg.startsWith("✓")?T.green+"12":T.red+"12",borderRadius:8,border:`1px solid ${intMsg.startsWith("✓")?T.green:T.red}30`,fontWeight:500}}>{intMsg}</div>}
             </div>
           )}
 
@@ -1728,8 +1866,9 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
 
           {/* PAYMENTS */}
           {tab==="payments"&&(
-            <>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
+            <div style={{display:"flex",flexDirection:"column" as const,gap:16}}>
+              {/* Status tiles */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
                 {[
                   {label:"Deposit",value:c.paymentState?.depositPaid?"Paid":"Unpaid",color:c.paymentState?.depositPaid?T.green:T.red},
                   {label:"Final payment",value:c.paymentState?.finalPaid?"Paid":"Pending",color:c.paymentState?.finalPaid?T.green:T.amber},
@@ -1741,8 +1880,19 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                   </div>
                 ))}
               </div>
-              <ActionBtn label="Unlock final payment" color={T.amber} confirm="Unlock final payment? Client will be emailed to pay remaining balance." onConfirm={()=>api(`/api/payment/unlock?jobId=${jid}&secret=${sec}`)} toast={toast}/>
-            </>
+
+              {/* Stripe unlock */}
+              <ActionBtn label="Unlock final payment (Stripe)" color={T.amber} confirm="Unlock final payment? Client will be emailed to pay remaining balance." onConfirm={()=>api(`/api/payment/unlock?jobId=${jid}&secret=${sec}`)} toast={toast}/>
+
+              {/* Cash / manual payment override */}
+              <div style={{background:T.raised,border:`1px solid ${T.amber}40`,borderRadius:12,padding:"18px 20px"}}>
+                <div style={{fontSize:12,fontWeight:700,color:T.amber,marginBottom:4}}>💵 Manual / Cash Payment Override</div>
+                <div style={{fontSize:11,color:T.textMuted,marginBottom:14,lineHeight:1.6}}>
+                  Mark payments as received without Stripe — for cash, bank transfer, or any offline payment. Logged with a note.
+                </div>
+                <CashPaymentPanel jobId={jid} paymentState={c.paymentState} toast={toast}/>
+              </div>
+            </div>
           )}
 
           {/* ACTIONS */}
@@ -5013,3 +5163,4 @@ function AdminDashboard() {
 }
 
 export
+ default AdminDashboard;
