@@ -4638,8 +4638,8 @@ function AdminDashboard() {
   }
 
   async function handleLogout() {
-    await fetch("/api/admin/login",{method:"DELETE"});
-    window.location.href="/admin/login";
+    try { await fetch("/api/admin/login", { method: "DELETE" }); } catch {}
+    window.location.replace("/admin/login");
   }
 
   async function loadDashboard() {
@@ -5012,4 +5012,4 @@ function AdminDashboard() {
   );
 }
 
-export default AdminDashboard;
+export
