@@ -710,5 +710,13 @@
     "lines": 4519,
     "description": "\"Updated admin dashboard\"",
     "type": "feat"
+  },
+  {
+    "version": "v90",
+    "date": "2026-05-28",
+    "commit": "pending",
+    "lines": 4717,
+    "description": "feat: add Postiz social post section to 3D Origins dashboard",
+    "type": "feat"
   }
 ]

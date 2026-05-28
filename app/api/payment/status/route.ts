@@ -24,21 +24,44 @@ export async function GET(req: NextRequest) {
   let monthlyPrice = 109;
 
   const [job, ps] = await Promise.all([getJob(jobId), getPaymentState(jobId)]);
+
+  // Admin can override the auto-calculated quote with a custom quote
+  const customQuote = (job as any)?.metadata?.customQuote as
+    | { deposit: number; final: number; monthly: number; total: number }
+    | undefined;
+
+  if (customQuote) {
+    const cDeposit = customQuote.deposit ?? 0;
+    const cFinal   = customQuote.final   ?? 0;
+    const cMonthly = customQuote.monthly ?? 109;
+    const cTotal   = customQuote.total   ?? (cDeposit + cFinal);
+
+    return NextResponse.json({
+      depositPaid:     ps?.deposit_paid   ?? false,
+      finalUnlocked:   ps?.final_unlocked ?? false,
+      finalPaid:       ps?.final_paid     ?? false,
+      monthlyActive:   ps?.monthly_active ?? false,
+      previewUnlocked: ps?.preview_unlocked ?? false,
+      quote: { total: cTotal, monthly: cMonthly, deposit: cDeposit, final: cFinal },
+      isCustomQuote: true,
+    });
+  }
+
   if (job?.userInput) {
     const calc = calculatePrice(job.userInput);
-    totalPrice = calc.totalPrice;
+    totalPrice   = calc.totalPrice;
     monthlyPrice = calc.monthlyPrice;
   }
 
   const deposit = Math.round(totalPrice * 0.5);
-  const final = totalPrice - deposit;
+  const finalAmt = totalPrice - deposit;
 
   return NextResponse.json({
-    depositPaid: ps?.deposit_paid ?? false,
-    finalUnlocked: ps?.final_unlocked ?? false,
-    finalPaid: ps?.final_paid ?? false,
-    monthlyActive: ps?.monthly_active ?? false,
+    depositPaid:     ps?.deposit_paid   ?? false,
+    finalUnlocked:   ps?.final_unlocked ?? false,
+    finalPaid:       ps?.final_paid     ?? false,
+    monthlyActive:   ps?.monthly_active ?? false,
     previewUnlocked: ps?.preview_unlocked ?? false,
-    quote: { total: totalPrice, monthly: monthlyPrice, deposit, final },
+    quote: { total: totalPrice, monthly: monthlyPrice, deposit, final: finalAmt },
   });
 }

@@ -423,6 +423,141 @@ function DeployHtmlLive({ jobId, onDeployed, toast }: { jobId:string; onDeployed
 }
 
 // ── Client HTML upload ─────────────────────────────────────────────────────────
+
+// ── Custom Quote card (used inside ClientPanel → Actions tab) ──────────────────
+function ClientCustomQuote({ jobId, slug, secret, existingQuote, toast }: {
+  jobId: string;
+  slug: string;
+  secret: string;
+  existingQuote?: { deposit: number; final: number; monthly: number; total: number };
+  toast: (msg: string, t: "ok" | "err" | "info") => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [deposit, setDeposit] = useState(existingQuote ? String(existingQuote.deposit) : "");
+  const [final, setFinal] = useState(existingQuote ? String(existingQuote.final) : "");
+  const [monthly, setMonthly] = useState(existingQuote ? String(existingQuote.monthly) : "");
+  const [saving, setSaving] = useState(false);
+  const [clearing, setClearing] = useState(false);
+
+  const total = (parseFloat(deposit) || 0) + (parseFloat(final) || 0);
+
+  async function save() {
+    if (!deposit || !final || !monthly) { toast("Fill in all three amounts", "err"); return; }
+    setSaving(true);
+    try {
+      const r = await fetch("/api/admin/clients", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-process-secret": secret },
+        body: JSON.stringify({
+          jobId,
+          metadata: {
+            customQuote: {
+              deposit: parseFloat(deposit),
+              final: parseFloat(final),
+              monthly: parseFloat(monthly),
+              total: parseFloat(deposit) + parseFloat(final),
+              sentAt: new Date().toISOString(),
+            },
+          },
+        }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      toast("Custom quote saved — client portal will now show these amounts.", "ok");
+      setOpen(false);
+    } catch (e) {
+      toast("Failed: " + String(e), "err");
+    }
+    setSaving(false);
+  }
+
+  async function clearQuote() {
+    if (!confirm("Remove custom quote? Client will revert to auto-calculated price.")) return;
+    setClearing(true);
+    try {
+      const r = await fetch("/api/admin/clients", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-process-secret": secret },
+        body: JSON.stringify({ jobId, metadata: { customQuote: null } }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      toast("Custom quote removed — prices are auto-calculated again.", "ok");
+      setDeposit(""); setFinal(""); setMonthly("");
+    } catch (e) {
+      toast("Failed: " + String(e), "err");
+    }
+    setClearing(false);
+  }
+
+  const inp: React.CSSProperties = { background: T.raised, border: `1px solid ${T.border}`, borderRadius: 7, padding: "7px 10px", color: T.text, fontSize: 13, outline: "none", width: "100%", boxSizing: "border-box" as const };
+
+  return (
+    <div style={{ background: T.raised, border: `1px solid ${existingQuote ? T.amber+"60" : T.border}`, borderRadius: 12, padding: "16px 18px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: open ? 14 : 0 }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: T.amber, marginBottom: 2 }}>
+            💰 Custom Quote{existingQuote ? " (active)" : ""}
+          </div>
+          {!open && (
+            <div style={{ fontSize: 11, color: T.textMuted }}>
+              {existingQuote
+                ? `Deposit $${existingQuote.deposit} · Final $${existingQuote.final} · Monthly $${existingQuote.monthly}/mo`
+                : "Override the auto-calculated price shown in client portal."}
+            </div>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          {existingQuote && !open && (
+            <button
+              onClick={clearQuote}
+              disabled={clearing}
+              style={{ background: "none", border: `1px solid ${T.red}40`, color: T.red, borderRadius: 7, padding: "5px 10px", fontSize: 11, cursor: "pointer", opacity: clearing ? 0.5 : 1 }}
+            >
+              {clearing ? "…" : "Remove"}
+            </button>
+          )}
+          <button
+            onClick={() => setOpen(o => !o)}
+            style={{ background: open ? T.surface : T.amber, color: open ? T.textMuted : "#000", border: `1px solid ${open ? T.border : "transparent"}`, borderRadius: 7, padding: "5px 14px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+          >
+            {open ? "Cancel" : existingQuote ? "Edit →" : "Set quote →"}
+          </button>
+        </div>
+      </div>
+
+      {open && (
+        <div style={{ display: "flex", flexDirection: "column" as const, gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 4, textTransform: "uppercase" as const, letterSpacing: "0.07em" }}>Deposit ($)</div>
+              <input type="number" min="0" step="10" value={deposit} onChange={e => setDeposit(e.target.value)} placeholder="e.g. 750" style={inp} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 4, textTransform: "uppercase" as const, letterSpacing: "0.07em" }}>Final payment ($)</div>
+              <input type="number" min="0" step="10" value={final} onChange={e => setFinal(e.target.value)} placeholder="e.g. 750" style={inp} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 4, textTransform: "uppercase" as const, letterSpacing: "0.07em" }}>Monthly ($)</div>
+              <input type="number" min="0" step="5" value={monthly} onChange={e => setMonthly(e.target.value)} placeholder="e.g. 109" style={inp} />
+            </div>
+          </div>
+          {total > 0 && (
+            <div style={{ fontSize: 11, color: T.textMuted }}>
+              Total: <strong style={{ color: T.text }}>${total.toFixed(0)}</strong> · Client will see Deposit ${deposit || "0"} + Final ${final || "0"}, then ${monthly || "0"}/mo
+            </div>
+          )}
+          <button
+            onClick={save}
+            disabled={saving || !deposit || !final || !monthly}
+            style={{ background: (!saving && deposit && final && monthly) ? T.amber : T.raised, color: (!saving && deposit && final && monthly) ? "#000" : T.textMuted, border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, cursor: (!saving && deposit && final && monthly) ? "pointer" : "not-allowed", transition: "all 0.2s ease" }}
+          >
+            {saving ? "Saving…" : "Save custom quote →"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
   const [files, setFiles] = useState<{name:string;label:string;size:number;createdAt:string}[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -1634,6 +1769,13 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                 ))}
               </div>
               <ClientHtmlUpload jobId={jid} toast={toast}/>
+              <ClientCustomQuote
+                jobId={jid}
+                slug={c.slug}
+                secret={secret}
+                existingQuote={(c as any).metadata?.customQuote}
+                toast={toast}
+              />
               <div style={{background:T.red+"08",border:`1px solid ${T.red}20`,borderRadius:12,padding:"16px 18px"}}>
                 <div style={{fontSize:12,fontWeight:700,color:T.red,marginBottom:4}}>Danger zone</div>
                 <div style={{fontSize:11,color:T.textMuted,marginBottom:12}}>Permanently delete this client and all their data. Cannot be undone.</div>
@@ -3689,6 +3831,8 @@ function OriginsView() {
   const [selectedChannels, setSelectedChannels] = useState<Set<string>>(new Set());
   const [postContent, setPostContent] = useState("");
   const [postImageUrl, setPostImageUrl] = useState("");
+  const [postDropActive, setPostDropActive] = useState(false);
+  const [postImageUploading, setPostImageUploading] = useState(false);
   const [postType, setPostType] = useState<"now" | "draft" | "schedule">("now");
   const [scheduleDate, setScheduleDate] = useState("");
   const [postSubmitting, setPostSubmitting] = useState(false);
@@ -4046,14 +4190,68 @@ function OriginsView() {
               </div>
             </div>
 
-            {/* Image URL */}
+            {/* Image Upload (drag-drop or click) */}
             <div>
-              <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 6 }}>Image URL <span style={{ opacity: 0.6 }}>(optional)</span></div>
+              <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 6 }}>
+                Image <span style={{ opacity: 0.6 }}>(optional)</span>
+                {postImageUploading && <span style={{ marginLeft: 8, color: T.blue }}>Uploading…</span>}
+              </div>
+              {/* Drop zone */}
+              <div
+                onDragOver={e => { e.preventDefault(); setPostDropActive(true); }}
+                onDragLeave={() => setPostDropActive(false)}
+                onDrop={async e => {
+                  e.preventDefault(); setPostDropActive(false);
+                  const file = e.dataTransfer.files[0];
+                  if (!file) return;
+                  setPostImageUploading(true);
+                  try {
+                    const fd = new FormData(); fd.append("file", file);
+                    const r = await fetch("/api/admin/upload-social-image", { method: "POST", body: fd });
+                    const d = await r.json();
+                    if (d.ok) setPostImageUrl(d.url);
+                    else alert("Upload failed: " + (d.error || "unknown"));
+                  } catch (err) { alert("Upload error: " + err); }
+                  setPostImageUploading(false);
+                }}
+                onClick={() => { const inp = document.createElement("input"); inp.type="file"; inp.accept="image/*,video/*"; inp.onchange=async(ev)=>{ const file=(ev.target as HTMLInputElement).files?.[0]; if(!file)return; setPostImageUploading(true); try{ const fd=new FormData(); fd.append("file",file); const r=await fetch("/api/admin/upload-social-image",{method:"POST",body:fd}); const d=await r.json(); if(d.ok)setPostImageUrl(d.url); else alert("Upload failed: "+(d.error||"unknown")); }catch(err){alert("Upload error: "+err);} setPostImageUploading(false); }; inp.click(); }}
+                style={{
+                  border: `2px dashed ${postDropActive ? "#4f9eff" : postImageUrl ? "#00d4a050" : T.border}`,
+                  borderRadius: 10,
+                  padding: postImageUrl ? "8px" : "20px 12px",
+                  textAlign: "center" as const,
+                  cursor: "pointer",
+                  background: postDropActive ? "#4f9eff10" : postImageUrl ? "#00d4a008" : T.raised,
+                  transition: "all 0.15s ease",
+                  position: "relative" as const,
+                }}
+              >
+                {postImageUrl ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <img src={postImageUrl} alt="Preview" style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 7, flexShrink: 0 }}/>
+                    <div style={{ flex: 1, textAlign: "left" as const }}>
+                      <div style={{ fontSize: 11, color: T.text, fontWeight: 600, wordBreak: "break-all" as const }}>{postImageUrl.split("/").pop()?.slice(0,40)}</div>
+                      <div style={{ fontSize: 10, color: T.textMuted, marginTop: 2 }}>Click or drop to replace</div>
+                    </div>
+                    <button
+                      onClick={e => { e.stopPropagation(); setPostImageUrl(""); }}
+                      style={{ background: "none", border: `1px solid ${T.red}40`, color: T.red, borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer", flexShrink: 0 }}
+                    >✕</button>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: 22, marginBottom: 6 }}>🖼️</div>
+                    <div style={{ fontSize: 12, color: T.textSec, fontWeight: 600 }}>Drop image here or click to browse</div>
+                    <div style={{ fontSize: 10, color: T.textMuted, marginTop: 3 }}>PNG, JPG, GIF, MP4 up to 20MB</div>
+                  </div>
+                )}
+              </div>
+              {/* Manual URL fallback */}
               <input
                 value={postImageUrl}
                 onChange={e => setPostImageUrl(e.target.value)}
-                placeholder="https://..."
-                style={inputS}
+                placeholder="Or paste image URL directly…"
+                style={{ ...inputS, marginTop: 6, fontSize: 11, opacity: 0.7 }}
               />
             </div>
 
