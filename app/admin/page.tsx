@@ -4314,6 +4314,302 @@ function OriginsView() {
   );
 }
 
+
+// ── Pricing View ───────────────────────────────────────────────────────────────
+function PricingView() {
+  const [editMode, setEditMode] = useState(false);
+
+  const sectionHead = (label: string, color: string): React.CSSProperties => ({
+    fontSize: 11, fontWeight: 800, color, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 14,
+    paddingBottom: 8, borderBottom: `2px solid ${color}30`,
+  });
+  const card: React.CSSProperties = {
+    background: T.surface, border: `1px solid ${T.border}`, borderRadius: 14, padding: "22px 24px", boxShadow: T.shadow,
+  };
+  const th: React.CSSProperties = {
+    fontSize: 10, fontWeight: 800, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.09em",
+    padding: "8px 14px", textAlign: "left", borderBottom: `1px solid ${T.border}`,
+  };
+  const td: React.CSSProperties = {
+    fontSize: 12, color: T.text, padding: "10px 14px", borderBottom: `1px solid ${T.border}20`,
+    verticalAlign: "top",
+  };
+  const tdMuted: React.CSSProperties = { ...td, color: T.textMuted, fontSize: 11 };
+  const pill = (color: string, text: string) => (
+    <span style={{ fontSize: 10, fontWeight: 700, color, background: color+"18", border: `1px solid ${color}40`, borderRadius: 20, padding: "2px 8px", display: "inline-block" }}>{text}</span>
+  );
+  const money = (n: number) => `$${n.toLocaleString()}`;
+  const strike = (n: number) => <span style={{ textDecoration: "line-through", color: T.red, opacity: 0.7, marginLeft: 6, fontSize: 11 }}>{money(n)}</span>;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column" as const, gap: 28, maxWidth: 1100 }}>
+
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: T.text, letterSpacing: "-0.02em" }}>WebGecko Pricing</div>
+          <div style={{ fontSize: 12, color: T.textMuted, marginTop: 3 }}>Internal reference — all prices in AUD incl. GST</div>
+        </div>
+        <div style={{ fontSize: 11, color: T.textMuted, background: T.raised, border: `1px solid ${T.border}`, borderRadius: 8, padding: "6px 14px" }}>
+          🔒 Admin only
+        </div>
+      </div>
+
+      {/* ── WEBSITE PACKAGES ─────────────────────────────────────────────────── */}
+      <div style={card}>
+        <div style={sectionHead("🌐  Website Build Packages", T.blue)}>🌐  Website Build Packages</div>
+        <table style={{ width: "100%", borderCollapse: "collapse" as const }}>
+          <thead>
+            <tr>
+              <th style={th}>Package</th>
+              <th style={th}>Pages</th>
+              <th style={{ ...th, color: T.green }}>Our Price</th>
+              <th style={{ ...th, color: T.red, opacity: 0.7 }}>Competitor</th>
+              <th style={{ ...th, color: T.amber }}>Client Saves</th>
+              <th style={th}>Deposit (50%)</th>
+              <th style={th}>Final (50%)</th>
+              <th style={th}>Includes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              { name: "Starter", badge: T.green, pages: "1–3", price: 1500, competitor: 3000, includes: "AI build, hosting setup, analytics, contact form, mobile responsive" },
+              { name: "Business", badge: T.blue, pages: "4–6", price: 2400, competitor: 6500, includes: "All Starter + multi-page nav, booking or gallery, SEO optimised" },
+              { name: "Premium", badge: T.purple, pages: "7+", price: 3800, competitor: 12000, includes: "All Business + shop/payments, full feature suite, priority support" },
+            ].map(p => (
+              <tr key={p.name} style={{ transition: "background 0.1s" }} onMouseEnter={e=>(e.currentTarget.style.background=T.raised)} onMouseLeave={e=>(e.currentTarget.style.background="")}>
+                <td style={td}><span style={{ fontWeight: 700, color: p.badge }}>{p.name}</span></td>
+                <td style={tdMuted}>{p.pages} pages</td>
+                <td style={{ ...td, fontWeight: 800, color: T.green }}>{money(p.price)}</td>
+                <td style={{ ...td, color: T.red, opacity: 0.7, textDecoration: "line-through" }}>{money(p.competitor)}</td>
+                <td style={{ ...td, fontWeight: 700, color: T.amber }}>{money(p.competitor - p.price)}</td>
+                <td style={td}>{money(Math.round(p.price * 0.5))}</td>
+                <td style={td}>{money(p.price - Math.round(p.price * 0.5))}</td>
+                <td style={{ ...tdMuted, maxWidth: 260, lineHeight: 1.5 }}>{p.includes}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Add-ons */}
+        <div style={{ marginTop: 20 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.09em", marginBottom: 10 }}>Add-ons (bolt-on to any package)</div>
+          <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 8 }}>
+            {[
+              ["Booking System", 400],
+              ["Payments / Shop", 600],
+              ["Blog", 200],
+              ["Photo Gallery", 150],
+              ["Reviews & Testimonials", 100],
+              ["Live Chat", 150],
+              ["Newsletter Signup", 100],
+              ["Video Background", 200],
+            ].map(([name, price]) => (
+              <div key={name as string} style={{ background: T.raised, border: `1px solid ${T.border}`, borderRadius: 8, padding: "7px 14px", display: "flex", gap: 10, alignItems: "center" }}>
+                <span style={{ fontSize: 12, color: T.text, fontWeight: 600 }}>{name}</span>
+                <span style={{ fontSize: 12, color: T.amber, fontWeight: 800 }}>+{money(price as number)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── MONTHLY HOSTING ──────────────────────────────────────────────────── */}
+      <div style={card}>
+        <div style={sectionHead("📅  Monthly Hosting & Maintenance", T.cyan)}>📅  Monthly Hosting & Maintenance</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+          {[
+            { label: "Months 1–3 (Intro rate)", price: 109, note: "Charged after build is live", color: T.green },
+            { label: "Month 4+ (Ongoing)", price: 119, note: "Auto-billing, cancel anytime", color: T.blue },
+            { label: "Floor / minimum", price: 99, note: "Never quote below this — covers hosting + SSL", color: T.amber },
+          ].map(m => (
+            <div key={m.label} style={{ background: T.raised, border: `1px solid ${m.color}30`, borderRadius: 10, padding: "16px 18px" }}>
+              <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 6, fontWeight: 600 }}>{m.label}</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: m.color }}>{money(m.price)}<span style={{ fontSize: 12, fontWeight: 500, color: T.textMuted }}>/mo</span></div>
+              <div style={{ fontSize: 10, color: T.textMuted, marginTop: 6, lineHeight: 1.5 }}>{m.note}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── SOCIAL MEDIA PACKAGES ─────────────────────────────────────────────── */}
+      <div style={card}>
+        <div style={sectionHead("📱  Social Media Management", T.purple)}>📱  Social Media Management</div>
+        <table style={{ width: "100%", borderCollapse: "collapse" as const }}>
+          <thead>
+            <tr>
+              <th style={th}>Plan</th>
+              <th style={th}>Monthly Price</th>
+              <th style={th}>Posts / Week</th>
+              <th style={th}>Platforms</th>
+              <th style={th}>AI Generation</th>
+              <th style={th}>Reporting</th>
+              <th style={th}>Extras</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              {
+                name: "Social Starter", color: T.green, price: 299,
+                posts: "3×/week", platforms: "1 platform", ai: "Captions + hashtags",
+                reporting: "Monthly PDF report", extras: "Post approval via portal",
+              },
+              {
+                name: "Social Growth", color: T.blue, price: 499,
+                posts: "5×/week", platforms: "Up to 3 platforms", ai: "Captions, hashtags, schedule times",
+                reporting: "Bi-weekly report + analytics", extras: "Client media uploads, competitor hashtags",
+              },
+              {
+                name: "Social Pro", color: T.purple, price: 799,
+                posts: "Daily + stories", platforms: "5+ platforms", ai: "AI + human review",
+                reporting: "Weekly + live dashboard", extras: "Ad management, reel scripting, influencer brief",
+              },
+            ].map(p => (
+              <tr key={p.name} onMouseEnter={e=>(e.currentTarget.style.background=T.raised)} onMouseLeave={e=>(e.currentTarget.style.background="")}>
+                <td style={td}><span style={{ fontWeight: 700, color: p.color }}>{p.name}</span></td>
+                <td style={{ ...td, fontWeight: 800, color: T.green }}>{money(p.price)}<span style={{ fontSize: 10, color: T.textMuted, fontWeight: 400 }}>/mo</span></td>
+                <td style={tdMuted}>{p.posts}</td>
+                <td style={tdMuted}>{p.platforms}</td>
+                <td style={tdMuted}>{p.ai}</td>
+                <td style={tdMuted}>{p.reporting}</td>
+                <td style={{ ...tdMuted, lineHeight: 1.5 }}>{p.extras}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ marginTop: 12, fontSize: 11, color: T.textMuted, fontStyle: "italic" }}>
+          * Social setup fee (one-time): $149 — covers channel audit, bio optimisation, content calendar setup. Waived for Website + Social bundles.
+        </div>
+      </div>
+
+      {/* ── BUNDLE (PERFORMANCE PLAN) ─────────────────────────────────────────── */}
+      <div style={{ ...card, border: `1px solid ${T.amber}40`, background: `linear-gradient(135deg,${T.surface},${T.amber}08)` }}>
+        <div style={sectionHead("⚡  Performance Plan Bundles (Website + Social)", T.amber)}>⚡  Performance Plan Bundles (Website + Social)</div>
+        <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 16, lineHeight: 1.6 }}>
+          Clients who take both website + social get a <strong style={{ color: T.amber }}>15% discount on monthly social</strong> and the social setup fee is waived. Position this as the "done-for-you growth system".
+        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse" as const }}>
+          <thead>
+            <tr>
+              <th style={th}>Bundle</th>
+              <th style={th}>Build Cost (one-time)</th>
+              <th style={th}>Monthly (incl. social disc.)</th>
+              <th style={th}>vs. buying separately</th>
+              <th style={th}>Best for</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              {
+                name: "Starter + Social Starter",
+                build: 1500, standardMonthly: 109 + 299, discountedMonthly: Math.round((109 + 299 * 0.85)),
+                bestFor: "New small businesses, tradies, solo operators",
+              },
+              {
+                name: "Business + Social Growth",
+                build: 2400, standardMonthly: 109 + 499, discountedMonthly: Math.round((109 + 499 * 0.85)),
+                bestFor: "Growing businesses wanting leads + brand presence",
+              },
+              {
+                name: "Premium + Social Pro",
+                build: 3800, standardMonthly: 119 + 799, discountedMonthly: Math.round((119 + 799 * 0.85)),
+                bestFor: "Established businesses, restaurants, clinics, agencies",
+              },
+            ].map(b => (
+              <tr key={b.name} onMouseEnter={e=>(e.currentTarget.style.background=T.raised)} onMouseLeave={e=>(e.currentTarget.style.background="")}>
+                <td style={td}><span style={{ fontWeight: 700, color: T.amber }}>{b.name}</span></td>
+                <td style={{ ...td, fontWeight: 700, color: T.text }}>{money(b.build)}</td>
+                <td style={{ ...td, fontWeight: 800, color: T.green }}>
+                  {money(b.discountedMonthly)}/mo
+                  <span style={{ marginLeft: 6, fontSize: 10, color: T.amber, fontWeight: 700 }}>-15% social</span>
+                </td>
+                <td style={tdMuted}>
+                  vs. {money(b.standardMonthly)}/mo separately
+                  <span style={{ display: "block", color: T.green, fontSize: 10, fontWeight: 600 }}>
+                    Save {money(b.standardMonthly - b.discountedMonthly)}/mo
+                  </span>
+                </td>
+                <td style={{ ...tdMuted, lineHeight: 1.5 }}>{b.bestFor}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── DISCOUNTS & FLOORS ────────────────────────────────────────────────── */}
+      <div style={card}>
+        <div style={sectionHead("🏷️  Discounts & Floor Pricing", T.green)}>🏷️  Discounts & Floor Pricing</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          {/* Discounts */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: T.textSec, marginBottom: 10 }}>Available discounts</div>
+            <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
+              {[
+                { label: "Referral discount", value: "10% off build", note: "When referred client signs up — applied to referrer's next renewal" },
+                { label: "Annual social upfront", value: "15% off social", note: "Client pays 12 months social upfront — better retention, better margin" },
+                { label: "Bundle (Website + Social)", value: "15% off social monthly", note: "Automatic when both services active" },
+                { label: "Multi-site / franchise", value: "Custom — call it", note: "2+ sites from same owner — negotiate but never below floor" },
+                { label: "Early bird / promo", value: "Up to 20% off build", note: "Limited time only — flag to admin before applying" },
+              ].map(d => (
+                <div key={d.label} style={{ background: T.raised, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 14px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: T.text }}>{d.label}</span>
+                    {pill(T.green, d.value)}
+                  </div>
+                  <div style={{ fontSize: 10, color: T.textMuted, lineHeight: 1.5 }}>{d.note}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Floors */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: T.textSec, marginBottom: 10 }}>Floor pricing — never quote below these</div>
+            <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
+              {[
+                { label: "Build floor (1-page)", value: "$1,200", note: "One-pager only — no add-ons. Covers AI time + deploy + support." },
+                { label: "Build floor (multi-page)", value: "$1,500", note: "Starter package minimum, no negotiation." },
+                { label: "Monthly hosting floor", value: "$99/mo", note: "Covers Vercel + Supabase + domain + support margin." },
+                { label: "Social floor", value: "$249/mo", note: "2–3 posts/week, 1 platform — below this is unprofitable." },
+                { label: "Social setup fee floor", value: "$99 one-time", note: "Only waive for bundles or referrals — not as a default." },
+              ].map(f => (
+                <div key={f.label} style={{ background: T.raised, border: `1px solid ${T.red}20`, borderRadius: 8, padding: "10px 14px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: T.text }}>{f.label}</span>
+                    {pill(T.red, f.value)}
+                  </div>
+                  <div style={{ fontSize: 10, color: T.textMuted, lineHeight: 1.5 }}>{f.note}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── QUICK QUOTE CHEATSHEET ────────────────────────────────────────────── */}
+      <div style={{ ...card, border: `1px solid ${T.cyan}30` }}>
+        <div style={sectionHead("⚡  Quick Quote Cheatsheet", T.cyan)}>⚡  Quick Quote Cheatsheet (use in calls)</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+          {[
+            { scenario: "Tradie / 1-3 page site", quote: "$1,500 build + $109/mo", position: "Half of what a web agency charges. AI-built in 24 hrs, looks premium." },
+            { scenario: "Small business + social", quote: "$2,400 build + $525/mo bundle", position: "Full growth system: website + daily social content for less than one employee's weekly cost." },
+            { scenario: "Restaurant / cafe", quote: "$2,400 build + add-ons + social", position: "Menu page, bookings, Google Maps, reviews widget. Social does the marketing." },
+            { scenario: "Healthcare / clinic", quote: "$3,800 Premium + booking", position: "Fully custom look, HIPAA-friendly contact forms, online booking, SEO optimised." },
+            { scenario: "E-commerce / shop", quote: "$2,400+ with shop add-on $600", position: "Stripe payments, product pages, order confirmation — up in 48 hrs." },
+            { scenario: "Client wants to negotiate", quote: "Max 10% off — never below floor", position: "Hold the price. Emphasise speed (24hr), quality, vs $6k+ agency alternative." },
+          ].map(s => (
+            <div key={s.scenario} style={{ background: T.raised, border: `1px solid ${T.border}`, borderRadius: 10, padding: "14px 16px" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: T.cyan, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 6 }}>{s.scenario}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: T.text, marginBottom: 8 }}>{s.quote}</div>
+              <div style={{ fontSize: 11, color: T.textMuted, lineHeight: 1.6 }}>{s.position}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
 function AdminDashboard() {
   const [dark, setDark] = useState(true);
   useEffect(()=>{ const s=localStorage.getItem("wg_admin_theme"); setDark(s!=="light"); },[]);
@@ -4322,7 +4618,7 @@ function AdminDashboard() {
   const [clients, setClients] = useState<ClientAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [view, setView] = useState<"workbook"|"analytics"|"clients"|"logs"|"social"|"history"|"3dorigins">("workbook");
+  const [view, setView] = useState<"workbook"|"analytics"|"clients"|"logs"|"social"|"history"|"3dorigins"|"pricing">("workbook");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all"|"active"|"building"|"unpaid">("all");
   const [sort, setSort] = useState<"views"|"name"|"status">("views");
@@ -4473,6 +4769,7 @@ function AdminDashboard() {
               { v:"logs"      as const, label:"Pipeline",     svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 4h11M2 7.5h8M2 11h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
               { v:"history"   as const, label:"History",      svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" strokeWidth="1.5"/><path d="M7.5 4.5v3.5l2.5 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
               { v:"3dorigins" as const, label:"3D Origins", svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 1L13 4.5v6L7.5 14 2 10.5v-6L7.5 1z" stroke="currentColor" strokeWidth="1.4"/><path d="M7.5 5L11 7.5 7.5 10 4 7.5 7.5 5z" fill="currentColor" opacity="0.6"/></svg> },
+              { v:"pricing"   as const, label:"Pricing",      svg:<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" strokeWidth="1.5"/><path d="M5.5 9.5c0 1.1.9 2 2 2s2-.9 2-2-.9-1.5-2-1.5S5.5 7.4 5.5 6.5c0-1 .9-2 2-2s2 1 2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><line x1="7.5" y1="3.5" x2="7.5" y2="4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><line x1="7.5" y1="10.5" x2="7.5" y2="11.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg> },
             ]).map(({v,svg,label}) => (
               <button key={v} onClick={()=>setView(v)} className={`wg-sidebar-item${view===v?" active":""}`}
                 style={{ color: view===v ? T.purple : T.textMuted }}>
@@ -4518,6 +4815,7 @@ function AdminDashboard() {
               { v:"logs"      as const, svg:<svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M2 4h11M2 7.5h8M2 11h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
               { v:"history"   as const, svg:<svg width="14" height="14" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" strokeWidth="1.5"/><path d="M7.5 4.5v3.5l2.5 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> },
               { v:"3dorigins" as const, svg:<svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M7.5 1L13 4.5v6L7.5 14 2 10.5v-6L7.5 1z" stroke="currentColor" strokeWidth="1.4"/><path d="M7.5 5L11 7.5 7.5 10 4 7.5 7.5 5z" fill="currentColor" opacity="0.6"/></svg> },
+              { v:"pricing"   as const, svg:<svg width="14" height="14" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" strokeWidth="1.5"/><path d="M5.5 9.5c0 1.1.9 2 2 2s2-.9 2-2-.9-1.5-2-1.5S5.5 7.4 5.5 6.5c0-1 .9-2 2-2s2 1 2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><line x1="7.5" y1="3.5" x2="7.5" y2="4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><line x1="7.5" y1="10.5" x2="7.5" y2="11.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg> },
             ]).map(({v,svg}) => (
               <button key={v} onClick={()=>setView(v)} style={{ background:view===v?T.raised:"transparent", border:`1px solid ${view===v?T.border:"transparent"}`, borderRadius:7, width:32,height:30, display:"flex",alignItems:"center",justifyContent:"center", cursor:"pointer", color:view===v?T.text:T.textMuted }}>{svg}</button>
             ))}
@@ -4588,6 +4886,7 @@ function AdminDashboard() {
         {view==="social"&&<SocialView clients={clients}/>}
         {view==="history"&&<HistoryView/>}
         {view==="3dorigins"&&<OriginsView/>}
+        {view==="pricing"&&<PricingView/>}
 
         {view==="clients"&&(<>
         {/* Client grid header with service-type sub-tabs */}
