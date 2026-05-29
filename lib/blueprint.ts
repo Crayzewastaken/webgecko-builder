@@ -453,6 +453,7 @@ BUSINESS:
 - Pricing: ${pricingSection}
 - Images: ${imageSection}
 - Notes: ${additionalNotes || "none"}
+- Client content brief: ${(context as any).businessDescription || "not provided"}
 ${serpGuidance}${lsiInstruction}
 
 CRITICAL VISUAL, COMPOSITION & CODE RULES — the stitchPrompt MUST enforce ALL of these:
@@ -742,5 +743,61 @@ export async function requestGoogleIndexing(url: string): Promise<void> {
   if (!saKeyB64) {
     console.log("[Indexing] GOOGLE_INDEXING_SA_KEY not set — skipping");
     return;
+  }
+
+  try {
+    const saKey = JSON.parse(Buffer.from(saKeyB64, "base64").toString("utf-8")) as {
+      client_email: string;
+      private_key: string;
+    };
+
+    const now = Math.floor(Date.now() / 1000);
+    const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url");
+    const payload = Buffer.from(JSON.stringify({
+      iss: saKey.client_email,
+      sub: saKey.client_email,
+      aud: "https://oauth2.googleapis.com/token",
+      iat: now,
+      exp: now + 3600,
+      scope: "https://www.googleapis.com/auth/indexing",
+    })).toString("base64url");
+
+    const { createSign } = await import("crypto");
+    const sign = createSign("RSA-SHA256");
+    sign.update(`${header}.${payload}`);
+    const sig = sign.sign(saKey.private_key, "base64url");
+    const jwt = `${header}.${payload}.${sig}`;
+
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        assertion: jwt,
+      }),
+    });
+    if (!tokenRes.ok) {
+      console.warn(`[Indexing] Token exchange failed: ${tokenRes.status}`);
+      return;
+    }
+    const { access_token } = await tokenRes.json() as { access_token: string };
+
+    const indexRes = await fetch("https://indexing.googleapis.com/v3/urlNotifications:publish", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${access_token}`,
+      },
+      body: JSON.stringify({ url, type: "URL_UPDATED" }),
+    });
+
+    if (indexRes.ok) {
+      console.log(`[Indexing] ✅ Submitted ${url} to Google Indexing API`);
+    } else {
+      const errText = await indexRes.text();
+      console.warn(`[Indexing] API returned ${indexRes.status}: ${errText.slice(0, 200)}`);
+    }
+  } catch (e) {
+    console.warn("[Indexing] Failed (non-fatal):", e instanceof Error ? e.message : String(e));
   }
 }

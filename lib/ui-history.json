@@ -766,5 +766,13 @@
     "lines": 5167,
     "description": "\"Updated admin dashboard\"",
     "type": "feat"
+  },
+  {
+    "version": "v97",
+    "date": "2026-05-29",
+    "commit": "pending",
+    "lines": 5292,
+    "description": "feat: cash payment bypass, pricing tab, custom domain tools",
+    "type": "feat"
   }
 ]

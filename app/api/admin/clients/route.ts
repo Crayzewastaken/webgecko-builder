@@ -162,6 +162,7 @@ export async function GET(req: NextRequest) {
         facebookPage: userInput.facebookPage || "",
         instagramUrl: userInput.instagramUrl || "",
         linkedinUrl: userInput.linkedinUrl || "",
+        businessDescription: userInput.businessDescription || "",
       },
       shopCatalogue: userInput.shopCatalogue || null,
       tawktoPropertyId: job.tawkto_property_id || job.tawktoPropertyId || "",
@@ -179,23 +180,32 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   if (!isAdminAuthedLegacy(req)) return Response.json({ error: "Forbidden" }, { status: 403 });
-  const { jobId, metadata } = await req.json();
+  const { jobId, metadata, userInput } = await req.json();
   if (!jobId) return Response.json({ error: "Missing jobId" }, { status: 400 });
 
-  // Fetch current job metadata
   const { data: jobRow, error: fetchErr } = await supabase
     .from("jobs")
-    .select("metadata")
+    .select("metadata, user_input")
     .eq("id", jobId)
     .single();
 
   if (fetchErr || !jobRow) return Response.json({ error: "Not found" }, { status: 404 });
 
-  const merged = { ...(jobRow.metadata || {}), ...metadata };
+  const updates: Record<string, unknown> = {};
+
+  if (metadata !== undefined) {
+    updates.metadata = { ...((jobRow as any).metadata || {}), ...metadata };
+  }
+
+  if (userInput !== undefined) {
+    updates.user_input = { ...((jobRow as any).user_input || {}), ...userInput };
+  }
+
+  if (Object.keys(updates).length === 0) return Response.json({ ok: true });
 
   const { error: updateErr } = await supabase
     .from("jobs")
-    .update({ metadata: merged })
+    .update(updates)
     .eq("id", jobId);
 
   if (updateErr) return Response.json({ error: updateErr.message }, { status: 500 });

@@ -23,7 +23,7 @@ interface ClientAnalytics {
   logoUrl?: string; heroUrl?: string; photoUrls?: string[];
   squareAccessToken?: string; squareLocationId?: string; ga4Id?: string;
   stripeAccountId?: string; stripeConnectedAt?: string; shopPlatform?: string;
-  userInput?: { features?: string[]; pages?: string[]; siteType?: string; style?: string; colorPrefs?: string; usp?: string; goal?: string; additionalNotes?: string; abn?: string; businessAddress?: string; facebookPage?: string; instagramUrl?: string; linkedinUrl?: string; bookingServices?: string; };
+  userInput?: { features?: string[]; pages?: string[]; siteType?: string; style?: string; colorPrefs?: string; usp?: string; goal?: string; additionalNotes?: string; abn?: string; businessAddress?: string; facebookPage?: string; instagramUrl?: string; linkedinUrl?: string; bookingServices?: string; businessDescription?: string; };
   metadata?: { scheduledReleaseAt?: string; scheduledReleaseDays?: number; checklistCompletedAt?: string; alreadyReleased?: boolean; seo?: SeoData; domainStatus?: string; domainUrl?: string; lastGoodAt?: string; lastGoodUrl?: string; lastGoodHtml?: string; rolledBackAt?: string; };
 }
 
@@ -625,6 +625,123 @@ function ClientCustomQuote({ jobId, slug, secret, existingQuote, toast }: {
           >
             {saving ? "Saving…" : "Save custom quote →"}
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// ── Client Content Brief — paste raw client content to feed the AI ──────────
+function ClientContentBrief({ jobId, existing, toast }: {
+  jobId: string;
+  existing: { additionalNotes?: string; usp?: string; goal?: string; businessDescription?: string };
+  toast: (msg: string, t: "ok"|"err"|"info") => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [notes, setNotes]   = useState(existing?.additionalNotes || "");
+  const [usp, setUsp]       = useState(existing?.usp || "");
+  const [goal, setGoal]     = useState(existing?.goal || "");
+  const [desc, setDesc]     = useState(existing?.businessDescription || "");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/clients", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobId,
+          userInput: {
+            additionalNotes: notes,
+            usp,
+            goal,
+            businessDescription: desc,
+          },
+        }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      toast("Content brief saved — rebuild the site to apply", "ok");
+    } catch {
+      toast("Failed to save content brief", "err");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={{ background: T.raised, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", cursor: "pointer" }}
+      >
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: T.cyan }}>📋 Client Content Brief</div>
+          <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>Paste client-supplied text — descriptions, USP, goals — to feed the AI rebuild</div>
+        </div>
+        <div style={{ fontSize: 16, color: T.textMuted }}>{open ? "▲" : "▼"}</div>
+      </div>
+      {open && (
+        <div style={{ padding: "0 18px 18px", display: "flex", flexDirection: "column" as const, gap: 14 }}>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: T.textSec, marginBottom: 6 }}>Business description / About us</div>
+            <textarea
+              rows={5}
+              value={desc}
+              onChange={e => setDesc(e.target.value)}
+              placeholder={"Paste the client's business description, about us text, or anything they sent about what they do…"}
+              style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, color: T.text, resize: "vertical" as const, fontFamily: "inherit", lineHeight: 1.6, boxSizing: "border-box" as const }}
+            />
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: T.textSec, marginBottom: 6 }}>Unique selling point / Why choose them</div>
+            <textarea
+              rows={3}
+              value={usp}
+              onChange={e => setUsp(e.target.value)}
+              placeholder={"What makes them different? E.g. 'Family-owned, 20 years experience, free quotes, same-day service'"}
+              style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, color: T.text, resize: "vertical" as const, fontFamily: "inherit", lineHeight: 1.6, boxSizing: "border-box" as const }}
+            />
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: T.textSec, marginBottom: 6 }}>Goal / Call-to-action</div>
+            <textarea
+              rows={2}
+              value={goal}
+              onChange={e => setGoal(e.target.value)}
+              placeholder={"What's the main goal of the site? E.g. 'Get people to call for a free quote' or 'Drive bookings via the online form'"}
+              style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, color: T.text, resize: "vertical" as const, fontFamily: "inherit", lineHeight: 1.6, boxSizing: "border-box" as const }}
+            />
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: T.textSec, marginBottom: 6 }}>Additional notes / Raw client content</div>
+            <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 6, lineHeight: 1.5 }}>
+              Dump anything else here — service descriptions, team bios, testimonials, page copy, tone preferences. The AI will use all of it.
+            </div>
+            <textarea
+              rows={10}
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder={"Paste anything the client gave you — service list, team descriptions, testimonials, FAQ answers, raw notes…"}
+              style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, color: T.text, resize: "vertical" as const, fontFamily: "inherit", lineHeight: 1.6, boxSizing: "border-box" as const }}
+            />
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              onClick={save}
+              disabled={saving}
+              style={{ padding: "9px 20px", background: T.cyan, color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}
+            >
+              {saving ? "Saving…" : "Save content brief"}
+            </button>
+            <div style={{ fontSize: 11, color: T.textMuted }}>After saving, use Actions → Rebuild to apply to the site</div>
+          </div>
         </div>
       )}
     </div>
@@ -1924,6 +2041,16 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                 slug={c.slug}
                 secret={secret}
                 existingQuote={(c as any).metadata?.customQuote}
+                toast={toast}
+              />
+              <ClientContentBrief
+                jobId={jid}
+                existing={{
+                  additionalNotes: c.userInput?.additionalNotes,
+                  usp: c.userInput?.usp,
+                  goal: c.userInput?.goal,
+                  businessDescription: (c as any).userInput?.businessDescription,
+                }}
                 toast={toast}
               />
               <div style={{background:T.red+"08",border:`1px solid ${T.red}20`,borderRadius:12,padding:"16px 18px"}}>
@@ -5161,6 +5288,4 @@ function AdminDashboard() {
     </div>
   );
 }
-
-export
- default AdminDashboard;
+export default AdminDashboard;
