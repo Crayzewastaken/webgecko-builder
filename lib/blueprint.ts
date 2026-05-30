@@ -210,46 +210,67 @@ function escapeStitchPromptQuotes(s: string): string {
 }
 
 function parseJson(raw: string): SiteBlueprint {
-  // Strip all code fences (multiline-safe)
-  let s = raw.replace(/```json[\s\S]*?```/g, m => m.replace(/```json\s*/g, "").replace(/```/g, ""))
-             .replace(/```[\s\S]*?```/g, m => m.replace(/```\s*/g, ""))
-             .replace(/^```json\s*/im, "").replace(/^```\s*/im, "").replace(/```\s*$/gm, "").trim();
-  const first = s.indexOf("{");
-  const last = s.lastIndexOf("}");
-  if (first !== -1 && last !== -1 && last > first) s = s.slice(first, last + 1);
+  // Strip code fences — handle both wrapped and inline fence styles
+  let s = raw
+    .replace(/^```json\s*/im, "")
+    .replace(/^```\s*/im, "")
+    .replace(/```\s*$/gm, "")
+    .trim();
 
-  // Strategy 1: vanilla parse
-  try { return JSON.parse(s) as SiteBlueprint; } catch {}
+  // Find first { then walk forward counting braces to find the real outermost }
+  // (lastIndexOf("}") is wrong when stitchPrompt contains CSS/HTML with } chars)
+  const first = s.indexOf("{");
+  let extracted = s;
+  if (first !== -1) {
+    let depth = 0;
+    let inString = false;
+    let escaping = false;
+    let last = -1;
+    for (let i = first; i < s.length; i++) {
+      const ch = s[i];
+      if (escaping) { escaping = false; continue; }
+      if (ch === "\\" && inString) { escaping = true; continue; }
+      if (ch === '"') { inString = !inString; continue; }
+      if (inString) continue;
+      if (ch === "{") depth++;
+      else if (ch === "}") { depth--; if (depth === 0) { last = i; break; } }
+    }
+    if (last !== -1) extracted = s.slice(first, last + 1);
+    else extracted = s.slice(first); // truncated — try anyway
+  }
+
+  // Strategy 1: vanilla parse of brace-extracted JSON
+  try { return JSON.parse(extracted) as SiteBlueprint; } catch {}
 
   // Strategy 2: fix unescaped double-quotes inside stitchPrompt, then parse
   try {
-    const sanitised2 = escapeStitchPromptQuotes(s);
+    const sanitised2 = escapeStitchPromptQuotes(extracted);
     return JSON.parse(sanitised2) as SiteBlueprint;
   } catch {}
 
   // Strategy 3: placeholder-swap to surgically extract stitchPrompt
   try {
     const spKey = '"stitchPrompt"';
-    const spIdx = s.indexOf(spKey);
+    const spIdx = extracted.indexOf(spKey);
     if (spIdx !== -1) {
-      const colonIdx = s.indexOf(":", spIdx + spKey.length);
-      const quoteOpen = s.indexOf('"', colonIdx + 1);
+      const colonIdx = extracted.indexOf(":", spIdx + spKey.length);
+      const quoteOpen = extracted.indexOf('"', colonIdx + 1);
       // Scan FORWARD for real closing quote (not backward — CSS } chars break backward scan)
       let quoteClose = -1;
       let i = quoteOpen + 1;
-      while (i < s.length) {
-        if (s[i] === "\\" && i + 1 < s.length) { i += 2; continue; }
-        if (s[i] === '"') {
+      while (i < extracted.length) {
+        if (extracted[i] === "\\" && i + 1 < extracted.length) { i += 2; continue; }
+        if (extracted[i] === '"') {
           let j = i + 1;
-          while (j < s.length && (s[j] === " " || s[j] === "\t" || s[j] === "\r" || s[j] === "\n")) j++;
-          if (j >= s.length || s[j] === "," || s[j] === "}") { quoteClose = i; break; }
+          while (j < extracted.length && (extracted[j] === " " || extracted[j] === "\t" || extracted[j] === "\r" || extracted[j] === "\n")) j++;
+          if (j >= extracted.length || extracted[j] === "," || extracted[j] === "}") { quoteClose = i; break; }
         }
         i++;
       }
       if (quoteOpen !== -1 && quoteClose > quoteOpen) {
-        const stitchPromptRaw = s.slice(quoteOpen + 1, quoteClose);
+        const stitchPromptRaw = extracted.slice(quoteOpen + 1, quoteClose);
         const placeholder = "STITCH_PLACEHOLDER_XYZ";
-        const sWithPlaceholder = s.slice(0, quoteOpen + 1) + placeholder + s.slice(quoteClose);
+        const sWithPlaceholder = extracted.slice(0, quoteOpen + 1) + placeholder + extracted.slice(quoteClose);
         const obj = JSON.parse(sWithPlaceholder) as SiteBlueprint;
         obj.stitchPrompt = stitchPromptRaw
           .replace(/\\n/g, "\n").replace(/\\t/g, "\t")
@@ -261,7 +282,7 @@ function parseJson(raw: string): SiteBlueprint {
 
   // Strategy 4: control-character sanitization
   try {
-    const sanitised = s.replace(/[\x00-\x1f]/g, (c) => {
+    const sanitised = extracted.replace(/[\x00-\x1f]/g, (c) => {
       if (c === "\n") return "\\n";
       if (c === "\r") return "\\r";
       if (c === "\t") return "\\t";
@@ -270,6 +291,8 @@ function parseJson(raw: string): SiteBlueprint {
     return JSON.parse(sanitised) as SiteBlueprint;
   } catch {}
 
+  // Strategy 5: log what we actually got to help debug
+  console.error("[Blueprint] All parse strategies failed. extracted[:500]:", extracted.slice(0, 500));
   throw new Error("parseJson: all strategies failed");
 }
 
