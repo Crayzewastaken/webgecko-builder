@@ -50,6 +50,30 @@ async function logPipelineError(jobId: string, step: string, type: string, messa
   } catch { /* non-fatal */ }
 }
 
+// ── replacePageSection ────────────────────────────────────────────────────────
+// Replaces the ENTIRE data-page="X" (or id="X") wrapper with newHtml,
+// using a depth counter so we match the real outer closing tag, not the first inner one.
+function replacePageSection(html: string, pageId: string, newHtml: string): string {
+  const openRe = new RegExp(`<(section|div|article|main)[^>]*(?:data-page|id)=["']${pageId}["'][^>]*>`, 'i');
+  const m = openRe.exec(html);
+  if (!m) return html; // nothing to replace — caller can append instead
+  const tagName = m[1].toLowerCase();
+  let depth = 1, pos = m.index + m[0].length, endIdx = -1;
+  const openT = new RegExp(`<${tagName}[\s>]`, 'gi');
+  const closeT = new RegExp(`<\/${tagName}>`, 'gi');
+  while (depth > 0 && pos < html.length) {
+    openT.lastIndex = pos; closeT.lastIndex = pos;
+    const nOpen = openT.exec(html); const nClose = closeT.exec(html);
+    if (!nClose) { endIdx = html.length; break; }
+    if (nOpen && nOpen.index < nClose.index) { depth++; pos = nOpen.index + nOpen[0].length; }
+    else { depth--; pos = nClose.index + nClose[0].length; if (depth === 0) endIdx = pos; }
+  }
+  if (endIdx === -1) return html;
+  console.log(`[Pipeline] replacePageSection: replaced data-page="${pageId}" (${endIdx - m.index} chars)`);
+  return html.slice(0, m.index) + newHtml + html.slice(endIdx);
+}
+
+
 // ─── Build Website ─────────────────────────────────────────────────────────────
 
 const buildWebsite = inngest.createFunction(
@@ -337,15 +361,17 @@ const buildWebsite = inngest.createFunction(
           const headlineFont = resolveFont(typography.headingFont || "Space Grotesk");
           const bodyFont = resolveFont(typography.bodyFont || "Inter");
 
-          // Keep designSystemInput minimal — only fields Stitch API accepts without error
+          // Keep designSystemInput minimal — only fields Stitch API accepts without error.
+          // Do NOT pass overridePrimaryColor/overrideSecondaryColor alongside customColor —
+          // Stitch rejects the call with "invalid argument" when all three are set.
+          // Strip undefined values to avoid serialisation issues.
+          const accentHex = (palette.accent || palette.primary || "#10b981").replace(/[^#0-9a-fA-F]/g, "") || "#10b981";
           const designSystemInput = {
             displayName: `${spec.projectTitle} Design System`,
             designTokens: tokens,
             theme: {
               colorMode: (isDark ? "DARK" : "LIGHT") as "DARK" | "LIGHT",
-              customColor: palette.accent || palette.primary || "#10b981",
-              overridePrimaryColor: palette.primary || undefined,
-              overrideSecondaryColor: palette.accent || undefined,
+              customColor: accentHex,
               headlineFont: headlineFont as any,
               bodyFont: bodyFont as any,
               labelFont: bodyFont as any,
@@ -891,9 +917,9 @@ const buildWebsite = inngest.createFunction(
                 return `<div style="background:${cardBg};border-radius:12px;overflow:hidden;display:flex;flex-direction:column;">${photoHtml}<div style="padding:20px 20px 24px;flex:1;display:flex;flex-direction:column;gap:8px;"><h3 style="color:${textCol};font-size:1.05rem;font-weight:700;margin:0;">${p.name}</h3>${price}<a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('contact')" style="display:inline-block;background:${btnCol};color:#fff;font-weight:700;padding:12px 20px;border-radius:8px;text-decoration:none;text-align:center;margin-top:auto;">Enquire Now</a></div></div>`;
               }).join('\n');
               const shopSection = `<section id="shop" data-page="shop" style="padding:80px 24px;background:${bg};"><div style="max-width:1100px;margin:0 auto;"><h2 style="color:${textCol};font-size:2rem;font-weight:900;text-align:center;margin:0 0 48px;">Shop</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:28px;">${cards}</div></div></section>`;
-              const shopRe = /<(?:section|div)[^>]*(?:id|data-page)=["']shop["'][^>]*>[\s\S]*?<\/(?:section|div)>/gi;
-              if (shopRe.test(html)) {
-                html = html.replace(/<(?:section|div)[^>]*(?:id|data-page)=["']shop["'][^>]*>[\s\S]*?<\/(?:section|div)>/gi, shopSection);
+              const replaced1 = replacePageSection(html, 'shop', shopSection);
+              if (replaced1 !== html) {
+                html = replaced1;
                 console.log(`[Step7] No-payment shop: replaced Stitch shop section with ${shopProducts.length} real product(s)`);
               } else {
                 html = html.replace('</body>', shopSection + '\n</body>');
@@ -979,10 +1005,10 @@ const buildWebsite = inngest.createFunction(
               const newShopSection = `<section id="shop" data-page="shop" style="padding:80px 24px;background:#0f172a;"><div style="max-width:1200px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;text-align:center;margin:0 0 48px;">Shop</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:24px;">${cards}</div></div></section>`;
               // Replace existing Stitch shop section if present (it has wrong/placeholder products)
               // This prevents a double shop section (Stitch placeholder + our real one)
-              const stitchShopRe = /<(?:section|div)[^>]*(?:id|data-page)=["']shop["'][^>]*>[\s\S]*?<\/(?:section|div)>/gi;
-              if (stitchShopRe.test(html)) {
+              const replaced2 = replacePageSection(html, 'shop', newShopSection);
+              if (replaced2 !== html) {
                 console.log("[Step7] Replacing existing Stitch shop section with real products");
-                html = html.replace(/<(?:section|div)[^>]*(?:id|data-page)=["']shop["'][^>]*>[\s\S]*?<\/(?:section|div)>/gi, newShopSection);
+                html = replaced2;
               } else {
                 // No existing shop section — insert before </body>
                 html = html.replace("</body>", newShopSection + "\n</body>");
