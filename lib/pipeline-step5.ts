@@ -31,7 +31,12 @@ export function applyStep5CodeFixes(params: Step5Params): string {
     requestedPageIds, spec, savedHtmlForRebuild, isUsingRawStitchForRebuild,
   } = params;
 
-  let html = resolveStitchClasses(params.html);
+  // Only inject stitch-token CSS if Tailwind CDN is not already present.
+  // Stitch always ships with Tailwind CDN which resolves all classes at runtime — injecting
+  // a redundant 1900-line CSS blob on top breaks the visual output.
+  let html = (params.html.includes('cdn.tailwindcss.com') || params.html.includes('tailwindcss'))
+    ? params.html
+    : resolveStitchClasses(params.html);
   const bookingNavTarget = hasBookingFeature ? "booking" : "contact";
 
   // ── Title ─────────────────────────────────────────────────────────────────
@@ -128,8 +133,7 @@ export function applyStep5CodeFixes(params: Step5Params): string {
     const hrefMatch = attrs.match(/href=["']([^"']+)["']/i);
     const href = hrefMatch ? hrefMatch[1] : '';
     if (href.startsWith('#') && href.length > 1) {
-      const sectionId = href.slice(1);
-      if (html.includes(`id="${sectionId}"`) || html.includes(`id='${sectionId}'`)) return match;
+      // Don't bail — anchor hrefs like #services still need to be rewritten to navigateTo() below
     }
     if (rawDomain && href.startsWith('http')) {
       const hrefDomain = href.replace(/^https?:\/\/(?:www\.)?/, '').split('/')[0].toLowerCase();
@@ -158,6 +162,9 @@ export function applyStep5CodeFixes(params: Step5Params): string {
   html = html.replace(/(?:Start Your Project|Launch Your Project|Begin Your Project|Project Inquiry|Project Brief|Start a Project)/gi, 'Get in Touch');
 
   // ── Nav link wiring ───────────────────────────────────────────────────────
+  // Rewrites both bare href="#" AND anchor href="#section" links in nav/header
+  // into navigateTo() calls. Stitch generates href="#services" style anchors
+  // which look fine but break multi-page navigation entirely.
   const navLinkMap: Record<string, string> = {
     "home":"home","about":"about","about us":"about","services":"services","our services":"services",
     "what we do":"services","gallery":"gallery","portfolio":"gallery","our work":"gallery",
@@ -166,13 +173,29 @@ export function applyStep5CodeFixes(params: Step5Params): string {
     "booking":"booking","testimonials":"testimonials","reviews":"testimonials",
     "view portfolio":"gallery","view all work":"gallery","our projects":"gallery",
   };
-  html = html.replace(/<a([^>]*href=["']#["'][^>]*)>([\s\S]*?)<\/a>/gi, (match: string, attrs: string, inner: string) => {
+  // Match both href="#" and href="#anything"
+  html = html.replace(/<a([^>]*href=["']#[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi, (match: string, attrs: string, inner: string) => {
     if (attrs.includes('navigateTo') || attrs.includes('scrollIntoView')) return match;
+    if (/href=["'](?:mailto:|tel:)/i.test(attrs)) return match;
     const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
-    const target = navLinkMap[txt] || Object.entries(navLinkMap).find(([k]) => txt.includes(k))?.[1];
+
+    // First: try to resolve by link text via navLinkMap
+    let target = navLinkMap[txt] || Object.entries(navLinkMap).find(([k]) => txt.includes(k))?.[1];
+
+    // Second: if text didn't match, try the anchor fragment itself (href="#services" → "services")
+    if (!target) {
+      const hrefMatch = attrs.match(/href=["']#([^"']+)["']/i);
+      if (hrefMatch) {
+        const fragment = hrefMatch[1].toLowerCase();
+        target = navLinkMap[fragment] || Object.entries(navLinkMap).find(([k]) => fragment.includes(k))?.[1] || fragment;
+      }
+    }
+
     if (!target) return match;
+    // Only wire if the target page/section actually exists in the HTML
     if (!html.includes(`id="${target}"`) && !html.includes(`data-page="${target}"`)) return match;
-    return `<a${attrs} onclick="event.preventDefault();window.navigateTo&&window.navigateTo('${target}')">${inner}</a>`;
+    const attrsNoHref = attrs.replace(/\s*href=["'][^"']*["']/gi, '');
+    return `<a${attrsNoHref} href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('${target}')">${inner}</a>`;
   });
 
   // ── Maps injection ────────────────────────────────────────────────────────
