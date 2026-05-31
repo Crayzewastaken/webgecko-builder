@@ -185,12 +185,23 @@ export function extractCSS(html: string): string {
  * the site renders correctly when deployed outside Stitch's canvas.
  */
 export function resolveStitchClasses(html: string): string {
-  // Extract colours from embedded tailwind config
+  // Extract colours from embedded tailwind config.
+  // The config has deeply nested objects so [^}]+ regex fails — use brace-counting instead.
   const colors: Record<string, string> = {};
-  const cfgMatch = html.match(/tailwind\.config\s*=\s*\{[\s\S]*?"colors"\s*:\s*(\{[^}]+\})/);
-  if (cfgMatch) {
-    const pairs = cfgMatch[1].matchAll(/"([^"]+)"\s*:\s*"([^"]+)"/g);
-    for (const [, k, v] of pairs) colors[k] = v;
+  const cfgStart = html.indexOf('"colors"');
+  if (cfgStart !== -1) {
+    const braceStart = html.indexOf("{", cfgStart);
+    if (braceStart !== -1) {
+      let depth = 0, i = braceStart, end = -1;
+      while (i < html.length) {
+        if (html[i] === "{") depth++;
+        else if (html[i] === "}") { depth--; if (depth === 0) { end = i; break; } }
+        i++;
+      }
+      const colorBlock = end !== -1 ? html.slice(braceStart, end + 1) : html.slice(braceStart, braceStart + 8000);
+      const pairs = colorBlock.matchAll(/"([^"]+)"\s*:\s*"(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))"/g);
+      for (const [, k, v] of pairs) colors[k] = v;
+    }
   }
 
   // Extract spacing tokens
@@ -1886,7 +1897,7 @@ export async function getExampleHtmlsForIndustry(
       if (!data) continue;
       const html = await data.text();
       const label = (f.name.split("__")[1] || f.name).replace(/\.html?$/i, "");
-      results.push({ label, html: html.slice(0, 8000) }); // cap at 8k chars per example
+      results.push({ label, html: html.slice(0, 8000) });
     }
     return results;
   } catch (e) {

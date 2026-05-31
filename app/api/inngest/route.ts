@@ -471,6 +471,17 @@ const buildWebsite = inngest.createFunction(
         });
       }
 
+      // ── STEP 4a: Inject Stitch token CSS ─────────────────────────────────────
+      // resolveStitchClasses reads the embedded tailwind.config from the Stitch HTML
+      // and generates a <style> block with every bg-*, text-*, border-*, gap-* class.
+      // Without this, Tailwind CDN can't resolve Stitch's custom design tokens and
+      // all colours/spacing come out broken or invisible.
+      const stitchHtmlWithCss = await step.run("step4a-inject-token-css", async () => {
+        const resolved = resolveStitchClasses(stitchHtml);
+        console.log(`[Inngest] STEP 4a: token CSS injected (${resolved.length - stitchHtml.length > 0 ? "+" : ""}${resolved.length - stitchHtml.length} chars)`);
+        return resolved;
+      }) as string;
+
       // ── STEP 4b: Structural injection into Stitch HTML ──────────────────────────
       // DO NOT rewrite or alter Stitch's design. Inject only what is structurally
       // missing: required IDs, mobile nav, multi-page wrappers, contact form, footer.
@@ -494,7 +505,7 @@ const buildWebsite = inngest.createFunction(
         // ── Pure injection: DO NOT rewrite the Stitch design. ─────────────────────
         // Only inject structural IDs and missing elements. All CSS, layout, content
         // from Stitch is preserved exactly as-is.
-        let html = stitchHtml;
+        let html = stitchHtmlWithCss;
 
         // 1. Inject id="hero" on first <section> only — never <div> (avoids nav/logo elements)
         if (!html.includes('id="hero"') && !html.includes("id='hero'")) {
@@ -1887,11 +1898,9 @@ const featureGoLive = inngest.createFunction(
       const existingFeatures: string[] = Array.isArray(userInput.features) ? userInput.features : [];
       const newFeatures = [...new Set([...existingFeatures, requestId])];
 
-      // Persist the new feature into userInput
       await saveJob(jobId, { userInput: { ...userInput, features: newFeatures } });
     });
 
-    // BUG-03 FIX: trigger a rebuild so the new feature is actually built into the site
     await inngest.send({
       name: "build/website",
       data: { jobId: jobId, isRebuild: true },
