@@ -640,10 +640,16 @@ const buildWebsite = inngest.createFunction(
           }
         }
 
-        // 5. Multi-page: wrap Stitch content in page-section divs if needed
+        // 5. Multi-page: wrap Stitch content in page-section divs if needed.
+        // Check that EACH requested page ID actually exists — not just that there
+        // are enough data-page attributes (Stitch sometimes sets all of them to "home").
         if (isMultiPage) {
-          const hasDataPages = (html.match(/\bdata-page=/g) || []).length >= requestedPageIds.length;
-          if (!hasDataPages) {
+          const missingPageIds = requestedPageIds.filter(
+            (id: string) => !html.includes(`data-page="${id}"`) && !html.includes(`data-page='${id}'`)
+          );
+          const needsRepair = missingPageIds.length > 0;
+          if (needsRepair) {
+            console.log("[Step4b] Missing or wrong data-page IDs: [" + missingPageIds.join(",") + "] — running ensureMultiPageStructure");
             const { html: ensuredHtml, report } = ensureMultiPageStructure(html, requestedPageIds, {
               businessName: userInput.businessName,
             });
