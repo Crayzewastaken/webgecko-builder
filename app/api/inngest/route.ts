@@ -652,12 +652,11 @@ const buildWebsite = inngest.createFunction(
               return `<body${attrs} style="display:flex;flex-direction:column;min-height:100vh;">`;
             });
           }
-          // Also inject a <style> for footer flex layout only.
-          // DO NOT add display:none/block rules for [data-page] here —
-          // Stitch already manages page visibility via .page-section / .page-section.active.
-          // Adding [data-page]{display:none!important} overrides Stitch's active class and breaks nav buttons.
+          // Inject page visibility + footer layout styles.
+          // [data-page]{display:none!important} hides all pages; [data-page].active{display:block!important}
+          // shows the active one. Step5 strips Stitch's .page-section CSS so these rules are the authority.
           if (!html.includes("wg-footer-fix")) {
-            const footerFixStyle = `<style data-wg="wg-footer-fix">body{display:flex;flex-direction:column;min-height:100vh;}[data-page]{flex:1 0 auto;}footer,#wg-footer{margin-top:auto;flex-shrink:0;}</style>`;
+            const footerFixStyle = `<style data-wg="wg-footer-fix">body{display:flex;flex-direction:column;min-height:100vh;}[data-page]{display:none!important;opacity:0;}[data-page].active{display:block!important;opacity:1;}[data-page]{flex:1 0 auto;}footer,#wg-footer{margin-top:auto;flex-shrink:0;}</style>`;
             html = html.replace(/<\/head>/i, footerFixStyle + "\n</head>");
           }
         }
