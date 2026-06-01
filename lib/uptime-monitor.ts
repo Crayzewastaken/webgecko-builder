@@ -49,7 +49,7 @@ export async function checkAllSites(): Promise<UptimeResult[]> {
   if (!clients || clients.length === 0) return [];
 
   // Also grab vercel project names from jobs for clients without a custom domain
-  const jobIds = clients.map(c => c.job_id).filter(Boolean);
+  const jobIds = clients.map((c: any) => c.job_id).filter(Boolean);
   const { data: jobs } = await supabase
     .from("jobs")
     .select("id, preview_url, vercel_project_name")
@@ -64,7 +64,7 @@ export async function checkAllSites(): Promise<UptimeResult[]> {
   const checkedAt = new Date().toISOString();
 
   await Promise.allSettled(
-    clients.map(async (client) => {
+    clients.map(async (client: any) => {
       const job = jobMap[client.job_id] || {};
       const url =
         (client.domain ? `https://${client.domain}` : null) ||
