@@ -507,6 +507,19 @@ const buildWebsite = inngest.createFunction(
         // from Stitch is preserved exactly as-is.
         let html = stitchHtmlWithCss;
 
+        // 0. Strip Tailwind's "hidden" class from data-page wrappers.
+        // Stitch sets non-active pages to class="... hidden" which competes with
+        // our [data-page].active{display:block!important} CSS and wins if the
+        // Stitch token CSS comes after our multipage style. The navigateTo() JS
+        // manages visibility via the .active class — "hidden" is redundant and harmful.
+        html = html.replace(
+          /(<(?:div|section|article|main)[^>]*\bdata-page=["'][^"']+["'][^>]*)\bclass="([^"]*)"/gi,
+          (_m: string, before: string, cls: string) => {
+            const cleaned = cls.split(/\s+/).filter((c: string) => c !== 'hidden').join(' ').trim();
+            return `${before}class="${cleaned}"`;
+          }
+        );
+
         // 1. Inject id="hero" on first <section> only — never <div> (avoids nav/logo elements)
         if (!html.includes('id="hero"') && !html.includes("id='hero'")) {
           html = html.replace(/(<section\b)(?![^>]*\bid=)/, '$1 id="hero"');
@@ -1899,14 +1912,11 @@ const featureGoLive = inngest.createFunction(
     await step.run("update-job-features-and-rebuild", async () => {
       const job = await getJob(jobId);
       if (!job) throw new Error("Job not found");
-
       const userInput = job.userInput || {};
       const existingFeatures: string[] = Array.isArray(userInput.features) ? userInput.features : [];
       const newFeatures = [...new Set([...existingFeatures, requestId])];
-
       await saveJob(jobId, { userInput: { ...userInput, features: newFeatures } });
     });
-
     await inngest.send({
       name: "build/website",
       data: { jobId: jobId, isRebuild: true },
