@@ -1095,7 +1095,7 @@ export default function ClientHub() {
           </div>
           <div style={{flex:1,padding:24,overflowY:"auto",lineHeight:1.8,fontSize:14,color:DIM}}>
             <div style={{fontSize:11,color:DIM,marginBottom:16,fontWeight:600}}>Updated: {LEGAL[legalDoc].updated}</div>
-            <p>{LEGAL[legalDoc].body}</p>
+            <div>{LEGAL[legalDoc].body}</div>
           </div>
         </div>
       )}
