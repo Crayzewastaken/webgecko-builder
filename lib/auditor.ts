@@ -740,11 +740,13 @@ function injectLegalPages(html: string, ctx: {
   // Wire footer links — find the footer and add links if not already there.
   // Guard: skip if the pipeline already injected data-wg-terms links (route.ts step 4),
   // since those will already have been upgraded to navigateTo by pipeline-step5.
+  // Legal links are already present if: WG marker, navigateTo wiring, or Privacy text in footer
+  const footerChunk = result.slice(Math.max(0, result.lastIndexOf('<footer')));
   const alreadyHasLegalLinks =
     result.includes('data-wg-terms') ||
     result.includes("navigateTo('terms')") ||
     result.includes('navigateTo("terms")') ||
-    /Privacy\s*Policy/i.test(result.slice(result.lastIndexOf('<footer'))) ||
+    /Privacy\s*Policy/i.test(footerChunk) ||
     /data-wg-privacy/i.test(result);
   if (!alreadyHasLegalLinks) {
     const legalFooter =

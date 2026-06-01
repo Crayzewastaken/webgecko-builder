@@ -483,8 +483,13 @@ const buildWebsite = inngest.createFunction(
       // DO NOT rewrite or alter Stitch's design. Inject only what is structurally
       // missing: required IDs, mobile nav, multi-page wrappers, contact form, footer.
       // requestedPageIds at outer scope so step7b-validate and other steps can use it
-      const requestedPageIds = (Array.isArray(userInput.pages) ? userInput.pages : ["Home"])
-        .map((p: string) => normalizePageId(p));
+      const requestedPageIds = (() => {
+        const ids = (Array.isArray(userInput.pages) ? userInput.pages : ["Home"])
+          .map((p: string) => normalizePageId(p));
+        // Always include a contact page so clients can always be reached
+        if (!ids.includes("contact")) ids.push("contact");
+        return ids;
+      })();
       const rebuiltHtml = (savedHtmlForRebuild && !isUsingRawStitchForRebuild) ? savedHtmlForRebuild : await step.run("step4b-claude-rebuild", async () => {
 
         const bookingBlock = hasBookingFeature && bookingUrl
