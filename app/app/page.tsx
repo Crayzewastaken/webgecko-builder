@@ -249,10 +249,47 @@ const Toggle = ({ on, onToggle }: { on: boolean; onToggle: () => void }) => (
 // ─────────────────────────────────────────────────────────────
 //  LEGAL DOCS
 // ─────────────────────────────────────────────────────────────
-const LEGAL: Record<string, { title: string; updated: string; body: string }> = {
-  tos:       { title: "Terms of Service",              updated: "1 June 2026", body: "These Terms govern your use of the WebGecko Client Hub. Each post is published only after your explicit approval, which authorises us to publish on your behalf and logs a flat $100 AUD charge." },
-  privacy:   { title: "Privacy Policy",                updated: "1 June 2026", body: "We collect and process the minimum data needed to deliver your social media service. Your content is never sold to third parties. We comply with the Australian Privacy Act 1988." },
-  agreement: { title: "Social Media Service Agreement",updated: "1 June 2026", body: "A flat $100 AUD fee applies per approved and published post. Fees are invoiced on approval. Refunds for unpublished posts may be requested within 7 days of charge." },
+const LEGAL: Record<string, { title: string; updated: string; body: React.ReactNode }> = {
+  tos: {
+    title: "Terms of Service",
+    updated: "1 June 2026",
+    body: (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <p><strong>1. Acceptance of Terms</strong><br/>By accessing and using the WebGecko Client Hub ("Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Service.</p>
+        <p><strong>2. Description of Service</strong><br/>WebGecko provides a social media management and publishing platform. We utilise artificial intelligence to generate captions based on the media and briefs you provide.</p>
+        <p><strong>3. User Responsibilities</strong><br/>You are solely responsible for the content you upload, including photos, videos, and voice notes. You represent that you own or have the necessary rights to use all content submitted to the Service.</p>
+        <p><strong>4. Post Approval & Billing</strong><br/>A flat fee of $100 AUD is charged per post immediately upon your explicit approval of a draft. By clicking "Approve", you authorise WebGecko to publish the content on your linked social media accounts and log the associated charge.</p>
+        <p><strong>5. Limitation of Liability</strong><br/>WebGecko shall not be liable for any indirect, incidental, special, or consequential damages resulting from the use or inability to use the Service or from any content published on your behalf.</p>
+        <p><strong>6. Termination</strong><br/>We reserve the right to suspend or terminate your access to the Service at any time for violations of these Terms.</p>
+      </div>
+    ),
+  },
+  privacy: {
+    title: "Privacy Policy",
+    updated: "1 June 2026",
+    body: (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <p><strong>1. Information We Collect</strong><br/>We collect personal information that you provide to us, such as your name, business name, email address, and phone number. We also collect the content you upload (images, videos, voice notes) for the purpose of generating social media posts.</p>
+        <p><strong>2. How We Use Your Information</strong><br/>We use your information to provide, maintain, and improve our services; to process your social media posts; to handle billing; and to communicate with you about your account.</p>
+        <p><strong>3. AI Processing</strong><br/>Your briefs and media are processed using artificial intelligence to generate drafts. We do not claim ownership over your raw media, and we ensure third-party AI providers do not use your private data to train public models.</p>
+        <p><strong>4. Data Sharing & Security</strong><br/>We do not sell your personal data. We only share data with integrated platforms (e.g., Facebook, Instagram, LinkedIn) to publish your approved posts. We implement industry-standard security measures to protect your information.</p>
+        <p><strong>5. Your Rights</strong><br/>Under the Australian Privacy Act 1988, you have the right to access, correct, or request deletion of your personal information. Contact us at privacy@webgecko.au for inquiries.</p>
+      </div>
+    ),
+  },
+  agreement: {
+    title: "Social Media Service Agreement",
+    updated: "1 June 2026",
+    body: (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <p><strong>1. Services Provided</strong><br/>WebGecko agrees to provide social media drafting, scheduling, and publishing services ("Services") as requested through the Client Hub.</p>
+        <p><strong>2. Fees and Invoicing</strong><br/>The Client agrees to pay a flat fee of $100 AUD for each social media post approved through the portal. This fee covers AI drafting, review, scheduling, and publishing across selected platforms.</p>
+        <p><strong>3. Approval Process</strong><br/>WebGecko will not publish any content without the explicit approval of the Client. Once approved, the post is queued, the fee is incurred, and the action cannot be reversed without contacting support immediately.</p>
+        <p><strong>4. Intellectual Property</strong><br/>The Client retains all intellectual property rights to the original assets provided. Upon publication, WebGecko grants the Client full rights to the generated captions and composite post formats.</p>
+        <p><strong>5. Dispute Resolution</strong><br/>Any disputes arising out of this agreement will be resolved through good faith negotiations. If unresolved, disputes will be subject to the exclusive jurisdiction of the courts of Victoria, Australia.</p>
+      </div>
+    ),
+  },
 };
 
 // ─────────────────────────────────────────────────────────────
