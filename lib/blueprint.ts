@@ -307,7 +307,16 @@ function parseJson(raw: string): SiteBlueprint {
     return JSON.parse(sanitised) as SiteBlueprint;
   } catch {}
 
-  // Strategy 5: log what we actually got to help debug
+  // Strategy 5: strip stitchPrompt entirely, parse rest, then re-extract raw
+  try {
+    const noStitch = extracted.replace(/"stitchPrompt"\s*:\s*"(?:[^"\\]|\\.)*"/gs, '"stitchPrompt":""');
+    const obj = JSON.parse(noStitch) as SiteBlueprint;
+    const spMatch = extracted.match(/"stitchPrompt"\s*:\s*"([\s\S]*?)"\s*[,}]/);
+    if (spMatch) obj.stitchPrompt = spMatch[1].replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\"/g, '"');
+    return obj;
+  } catch {}
+
+  // Strategy 6: log what we actually got to help debug
   console.error("[Blueprint] All parse strategies failed. extracted[:500]:", extracted.slice(0, 500));
   throw new Error("parseJson: all strategies failed");
 }
