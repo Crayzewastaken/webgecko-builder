@@ -764,7 +764,22 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
       const pid = p.toLowerCase().replace(/\s+/g, "-");
       return '  <div data-page="' + pid + '" id="' + pid + '" class="page-section">...</div>';
     }).join("\n");
-    const multiPagePrefix = "⚠️ MULTI-PAGE SITE — MANDATORY STRUCTURE ⚠️\nThis is a " + pages.length + "-page site. You MUST output " + pages.length + " separate top-level divs:\n" + multiPageDivs + "\nNav links use onclick='navigateTo(\"" + pageIds.split(", ")[0] + "\")' etc. NO anchor scroll links. Do NOT define navigateTo() or .page-section CSS.\n\n";
+    const multiPagePrefix = [
+      "⚠️ MULTI-PAGE SITE — MANDATORY STRUCTURE ⚠️",
+      "This is a " + pages.length + "-page site. You MUST output " + pages.length + " SEPARATE wrappers, each with BOTH data-page= AND id= attributes:",
+      multiPageDivs,
+      "CRITICAL: Every wrapper needs data-page=\"pageid\" id=\"pageid\" class=\"page-section\" — both data-page AND id required on the same element.",
+      "Nav links: onclick=\'navigateTo(\"home\")\' etc. NO anchor scroll links. Do NOT define navigateTo() or .page-section CSS.",
+      "",
+      "CONTENT DENSITY — minimum requirements per section:",
+      "- Home: hero headline + subheadline + 2 CTAs + stats row + 6-card features grid + 3 testimonial cards",
+      "- Shop: product grid with images, names, prices, descriptions, Buy Now buttons",
+      "- Gallery: 6-9 image cards with captions",
+      "- Pricing: 3 tiers with full feature bullet lists and CTAs",
+      "- Every section: real business-specific copy — NO placeholder text",
+      "Target output: 35KB+ HTML. Each page section must be substantial.",
+      "",
+    ].join("\n")
     blueprint.stitchPrompt = multiPagePrefix + blueprint.stitchPrompt;
   }
 

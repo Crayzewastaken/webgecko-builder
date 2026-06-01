@@ -429,8 +429,8 @@ const buildWebsite = inngest.createFunction(
             const fetchRes = await fetch(url);
             const text = await fetchRes.text();
             console.log(`[Inngest] STEP 3: fetched HTML — status=${fetchRes.status} length=${text.length}`);
-            if (text.length > 5000 && text.includes("<")) { html = text; break; }
-            throw new Error(`Stitch HTML too short or not HTML (${text.length} chars, status=${fetchRes.status})`);
+            if (text.length > 25000 && text.includes("<")) { html = text; break; }
+            throw new Error(`Stitch HTML too short (${text.length} chars — need 25KB+ for rich output), status=${fetchRes.status}`);
           } catch (e: any) {
             const msg = e?.message || String(e);
             console.warn(`[Inngest] STEP 3: attempt ${attempt} failed: ${msg}`);
@@ -440,7 +440,7 @@ const buildWebsite = inngest.createFunction(
           }
         }
 
-        if (html.length < 5000) throw new Error(`Stitch HTML too short (${html.length} chars)`);
+        if (html.length < 25000) throw new Error(`Stitch HTML too short (${html.length} chars — need 25KB+)`);
         if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton");
         const styleLen = (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
         const inlineStyleCount = (html.match(/\bstyle=/gi) || []).length;
