@@ -196,7 +196,7 @@ const CSS = `
   .div { height: 1px; background: rgba(255,255,255,0.05); }
 
   /* ── Tour ── */
-  .tour-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(2px); z-index: 200; pointer-events: none; }
+  .tour-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 200; pointer-events: none; }
   .tour-card {
     position: fixed; z-index: 300;
     left: 50%; transform: translateX(-50%);
