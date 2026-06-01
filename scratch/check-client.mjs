@@ -17,25 +17,20 @@ const supabaseServiceKey = envVars.SUPABASE_SERVICE_ROLE_KEY;
 if (supabaseUrl && supabaseServiceKey) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   
-  // Get webgeckofl client
   const { data: client } = await supabase.from('clients').select('*').eq('slug', 'webgeckofl').single();
-  console.log('Client info:', client);
+  console.log('Client info:', JSON.stringify(client, null, 2));
   
   if (client) {
-    // Get job
     const { data: job } = await supabase.from('jobs').select('*').eq('id', client.job_id).single();
-    console.log('Job info:', job);
+    console.log('Job metadata:', JSON.stringify(job?.metadata, null, 2));
     
-    // Get payment state
     const { data: payment } = await supabase.from('payment_state').select('*').eq('job_id', client.job_id).single();
-    console.log('Payment state:', payment);
+    console.log('Payment state payments:', JSON.stringify(payment?.payments, null, 2));
     
-    // Get bookings count
     const { count: bookingsCount } = await supabase.from('bookings').select('id', { count: 'exact' }).eq('client_slug', 'webgeckofl');
     console.log('Bookings count:', bookingsCount);
 
-    // Get analytics
-    const { data: analytics } = await supabase.from('analytics').select('*').eq('job_id', client.job_id).limit(10);
-    console.log('Analytics sample:', analytics);
+    const { data: analytics } = await supabase.from('analytics').select('*').eq('job_id', client.job_id).limit(5);
+    console.log('Analytics sample:', JSON.stringify(analytics, null, 2));
   }
 }
