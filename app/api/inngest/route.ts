@@ -945,7 +945,6 @@ const buildWebsite = inngest.createFunction(
             console.warn(`[Step7] No payment provider for ${jobId} — injecting contact-linked shop cards`);
             if (shopProducts.length > 0) {
               const dark = html.includes('#0f172a') || html.includes('background:#0a0f1a') || html.includes("background: #0");
-              const bg = dark ? '#0f172a' : '#f8fafc';
               const cardBg = dark ? '#1e293b' : '#ffffff';
               const textCol = dark ? '#f1f5f9' : '#0f172a';
               const priceCol = dark ? '#10b981' : '#059669';
@@ -955,14 +954,17 @@ const buildWebsite = inngest.createFunction(
                 const price = p.price ? `<p style="color:${priceCol};font-weight:700;font-size:1.2rem;margin:0 0 12px;">$${String(p.price).replace(/[^0-9.]/g,'')} AUD</p>` : '';
                 return `<div style="background:${cardBg};border-radius:12px;overflow:hidden;display:flex;flex-direction:column;">${photoHtml}<div style="padding:20px 20px 24px;flex:1;display:flex;flex-direction:column;gap:8px;"><h3 style="color:${textCol};font-size:1.05rem;font-weight:700;margin:0;">${p.name}</h3>${price}<a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('contact')" style="display:inline-block;background:${btnCol};color:#fff;font-weight:700;padding:12px 20px;border-radius:8px;text-decoration:none;text-align:center;margin-top:auto;">Enquire Now</a></div></div>`;
               }).join('\n');
-              const shopSection = `<section id="shop" data-page="shop" style="padding:80px 24px;background:${bg};"><div style="max-width:1100px;margin:0 auto;"><h2 style="color:${textCol};font-size:2rem;font-weight:900;text-align:center;margin:0 0 48px;">Shop</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:28px;">${cards}</div></div></section>`;
-              const replaced1 = replacePageSection(html, 'shop', shopSection);
-              if (replaced1 !== html) {
-                html = replaced1;
-                console.log(`[Step7] No-payment shop: replaced Stitch shop section with ${shopProducts.length} real product(s)`);
+              const innerGrid = `<div style="max-width:1100px;margin:0 auto;padding:80px 24px;"><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:28px;">${cards}</div></div>`;
+              // Inject real products INTO the existing Stitch shop section (preserve wrapper + page-section class)
+              const shopInnerRe = /(<(?:div|section)[^>]*data-page=["'"]shop["'][^>]*>)([\s\S]*?)(<\/(?:div|section)>)/i;
+              if (shopInnerRe.test(html)) {
+                html = html.replace(shopInnerRe, (_m: string, open: string, _inner: string, close: string) => `${open}${innerGrid}${close}`);
+                console.log(`[Step7] No-payment shop: injected ${shopProducts.length} real product(s) into existing Stitch shop section`);
               } else {
+                const bg = dark ? '#0f172a' : '#f8fafc';
+                const shopSection = `<div class="page-section" data-page="shop" id="shop" style="background:${bg};">${innerGrid}</div>`;
                 html = html.replace('</body>', shopSection + '\n</body>');
-                console.log(`[Step7] No-payment shop: injected ${shopProducts.length} real product(s) before </body>`);
+                console.log(`[Step7] No-payment shop: injected ${shopProducts.length} real product(s) as new shop section`);
               }
             }
             return html;
@@ -1041,16 +1043,15 @@ const buildWebsite = inngest.createFunction(
             }).join("\n");
             if (cards.length === 0) console.warn("[Step7] No products have payment links (variationId missing for all) — skipping shop injection");
             if (cards.length > 0) {
-              const newShopSection = `<section id="shop" data-page="shop" style="padding:80px 24px;background:#0f172a;"><div style="max-width:1200px;margin:0 auto;"><h2 style="color:#f1f5f9;font-size:2rem;font-weight:900;text-align:center;margin:0 0 48px;">Shop</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:24px;">${cards}</div></div></section>`;
-              // Replace existing Stitch shop section if present (it has wrong/placeholder products)
-              // This prevents a double shop section (Stitch placeholder + our real one)
-              const replaced2 = replacePageSection(html, 'shop', newShopSection);
-              if (replaced2 !== html) {
-                console.log("[Step7] Replacing existing Stitch shop section with real products");
-                html = replaced2;
+              const innerGrid2 = `<div style="max-width:1200px;margin:0 auto;padding:80px 24px;"><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:24px;">${cards}</div></div>`;
+              // Inject real products INTO the existing Stitch shop section (preserve wrapper + page-section class)
+              const shopInnerRe2 = /(<(?:div|section)[^>]*data-page=["'"]shop["'][^>]*>)([\s\S]*?)(<\/(?:div|section)>)/i;
+              if (shopInnerRe2.test(html)) {
+                html = html.replace(shopInnerRe2, (_m: string, open: string, _inner: string, close: string) => `${open}${innerGrid2}${close}`);
+                console.log("[Step7] Injected real products into existing Stitch shop section (preserved design wrapper)");
               } else {
-                // No existing shop section — insert before </body>
-                html = html.replace("</body>", newShopSection + "\n</body>");
+                const fallbackSection = `<div class="page-section" data-page="shop" id="shop" style="background:#0f172a;">${innerGrid2}</div>`;
+                html = html.replace("</body>", fallbackSection + "\n</body>");
               }
               console.log(`[Step7] Injected ${catalogueItems.filter((i: any) => !!i.paymentLinkUrl).length} real products into shop section`);
             }
