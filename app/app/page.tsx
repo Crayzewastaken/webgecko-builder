@@ -949,7 +949,7 @@ export default function ClientHub() {
         {tab==="stats"&&(
           <div style={{display:"flex",flexDirection:"column",gap:14}}>
             <div><h1 className="page-h">Brand Accounts</h1><p className="page-sub">Connected social channels.</p></div>
-            <div className="card" style={{padding:18}}>
+            <div style={{background:CARD,borderRadius:16,border:`1px solid ${LINE}`,padding:"0 18px"}}>
               {[{p:"Instagram",h:"@webgecko",s:"Linked",c:"#E1306C"},{p:"Facebook",h:"WebGecko Business",s:"Linked",c:"#1877F2"},{p:"LinkedIn",h:"WebGecko Corp",s:"Linked",c:"#0A66C2"},{p:"TikTok",h:"@webgecko",s:"Awaiting auth",c:"#333"},{p:"X",h:"@webgecko_au",s:"Awaiting auth",c:"#000"}].map((a,i,arr)=>(
                 <div key={a.p} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"13px 0",borderBottom:i<arr.length-1?`1px solid ${LINE}`:"none"}}>
                   <div style={{display:"flex",gap:12,alignItems:"center"}}>
@@ -976,8 +976,8 @@ export default function ClientHub() {
               </div>
             </div>
 
-            <div className="card" style={{padding:18}}>
-              <div className="sec-lbl" style={{marginBottom:12}}>Account Details</div>
+            <div style={{background:CARD,borderRadius:16,border:`1px solid ${LINE}`,padding:"12px 18px"}}>
+              <div className="sec-lbl" style={{marginBottom:8}}>Account Details</div>
               {[{label:"Email",value:client?.email||"—"},{label:"Phone",value:client?.phone||"—"},{label:"Plan",value:client?.plan||"Starter"},{label:"Job Ref",value:client?.job_id,mono:true}].map(row=>(
                 <div key={row.label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${LINE}`}}>
                   <span style={{fontSize:12,color:DIM,fontWeight:600}}>{row.label}</span>
@@ -986,8 +986,8 @@ export default function ClientHub() {
               ))}
             </div>
 
-            <div className="card" style={{padding:18}}>
-              <div className="sec-lbl" style={{marginBottom:12}}>More</div>
+            <div style={{background:CARD,borderRadius:16,border:`1px solid ${LINE}`,padding:"6px 18px"}}>
+              <div className="sec-lbl" style={{marginTop:12,marginBottom:4}}>More</div>
               {[{label:"Monthly Reports",icon:ic.chart,action:()=>setTab("reports")},{label:"Brand Accounts",icon:ic.shield,action:()=>setTab("stats")}].map(r=>(
                 <button key={r.label} onClick={r.action} style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"13px 0",background:"transparent",border:"none",borderBottom:`1px solid ${LINE}`,color:INK,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>
                   <span style={{display:"flex",alignItems:"center",gap:10}}><Ico d={r.icon} size={16} color={DIM}/>{r.label}</span><Ico d={ic.chevron} size={16} color={DIM}/>
@@ -995,8 +995,8 @@ export default function ClientHub() {
               ))}
             </div>
 
-            <div className="card" style={{padding:18}}>
-              <div className="sec-lbl" style={{marginBottom:12}}>Legal</div>
+            <div style={{background:CARD,borderRadius:16,border:`1px solid ${LINE}`,padding:"6px 18px"}}>
+              <div className="sec-lbl" style={{marginTop:12,marginBottom:4}}>Legal</div>
               {Object.keys(LEGAL).map(k=>(
                 <button key={k} onClick={()=>setLegalDoc(k)} style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"13px 0",background:"transparent",border:"none",borderBottom:`1px solid ${LINE}`,color:INK,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>
                   <span style={{display:"flex",alignItems:"center",gap:10}}><Ico d={ic.doc} size={16} color={DIM}/>{LEGAL[k].title}</span><Ico d={ic.chevron} size={16} color={DIM}/>
