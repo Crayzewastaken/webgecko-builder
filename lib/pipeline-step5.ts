@@ -89,12 +89,24 @@ export function applyStep5CodeFixes(params: Step5Params): string {
   if (!features.includes("Newsletter Signup")) {
     html = html.replace(/<section[^>]*id=["']newsletter["'][^>]*>[\s\S]*?<\/section>/gi, '');
     html = html.replace(/<div[^>]*id=["']newsletter["'][^>]*>[\s\S]*?<\/div>/gi, '');
-    // Also strip newsletter sections detected by heading text (no explicit id)
-    html = html.replace(/<section[^>]*>[\s\S]{0,200}?(?:Stay in the Loop|Subscribe to Our Newsletter|Join Our Newsletter|Newsletter Signup)[\s\S]*?<\/section>/gi, (m: string) => {
-      if (m.includes('id="newsletter-form"') || m.includes("newsletter-form")) return '';
-      return m;
+    // Strip newsletter sections by heading text
+    html = html.replace(/<section[^>]*>[\s\S]{0,200}?(?:Stay in the Loop|Subscribe to Our Newsletter|Join Our Newsletter|Newsletter Signup)[\s\S]*?<\/section>/gi, '');
+    // Strip newsletter input blocks inside footer (Stitch often puts email input in footer)
+    html = html.replace(/<(?:div|section)[^>]*>[\s\S]{0,300}?(?:Newsletter|Your email|Stay.*loop)[\s\S]{0,400}?<input[^>]*type=["']email["'][^>]*>[\s\S]{0,200}?<\/(?:div|section)>/gi, (m: string) => {
+      // Only strip if it's not inside a named contact form  
+      if (m.includes('id="contact"') || m.includes('id="newsletter-form"')) return m;
+      return '';
     });
   }
+
+  // ── Wire "Connect" CTA to contact page ──────────────────────────────────────
+  html = html.replace(/<(button|a)([^>]*)>\s*Connect\s*<\/(button|a)>/gi, (_m: string, tag: string, attrs: string) => {
+    if (/onclick|href=["'][^#]/i.test(attrs)) return _m; // already wired
+    if (tag.toLowerCase() === 'a') {
+      return `<a${attrs} href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('contact')">Connect</a>`;
+    }
+    return `<button${attrs} onclick="event.preventDefault();window.navigateTo&&window.navigateTo('contact')">Connect</button>`;
+  });
 
   // ── Strip Stitch "Sign In" / "Log In" buttons client didn't request ──────────
   // Stitch sometimes generates auth buttons. Remove any that aren't wired to real pages.
@@ -107,21 +119,25 @@ export function applyStep5CodeFixes(params: Step5Params): string {
 
   // ── Wire Stitch footer href="#" Privacy/Terms links to navigateTo ──────────
   // Stitch outputs <a href="#">Privacy Policy</a> etc. in the footer. Wire them.
-  html = html.replace(/<a([^>]*)href=["']#["']([^>]*)>\s*(Privacy Policy|Privacy)\s*<\/a>/gi,
-    (_m: string, before: string, after: string, label: string) => {
-      if (/onclick/i.test(before) || /onclick/i.test(after)) return _m;
-      return `<a${before}href="#"${after} onclick="event.preventDefault();window.navigateTo&&window.navigateTo('privacy')">${label}</a>`;
-    });
-  html = html.replace(/<a([^>]*)href=["']#["']([^>]*)>\s*(Terms(?:\s+of\s+Service|\s+&amp;\s+Conditions|\s+and\s+Conditions|s)?)\s*<\/a>/gi,
-    (_m: string, before: string, after: string, label: string) => {
-      if (/onclick/i.test(before) || /onclick/i.test(after)) return _m;
-      return `<a${before}href="#"${after} onclick="event.preventDefault();window.navigateTo&&window.navigateTo('terms')">${label}</a>`;
-    });
-  html = html.replace(/<a([^>]*)href=["']#["']([^>]*)>\s*Contact\s*<\/a>/gi,
-    (_m: string, before: string, after: string) => {
-      if (/onclick/i.test(before) || /onclick/i.test(after)) return _m;
-      return `<a${before}href="#"${after} onclick="event.preventDefault();window.navigateTo&&window.navigateTo('contact')">Contact</a>`;
-    });
+  // Wire all href="#" footer/nav links to correct pages
+  const linkMap: [RegExp, string][] = [
+    [/Privacy\s*Policy|Privacy/i, 'privacy'],
+    [/Terms\s+of\s+Service|Terms\s*&amp;\s*Conditions|Terms/i, 'terms'],
+    [/^Contact$/i, 'contact'],
+    [/^Shipping$/i, 'contact'],
+    [/^Support$/i, 'contact'],
+    [/^Brisbane\s*HQ$/i, 'contact'],
+  ];
+  html = html.replace(/<a([^>]*)href=["']#["']([^>]*)>([\s\S]*?)<\/a>/gi, (m: string, before: string, after: string, inner: string) => {
+    if (/onclick/i.test(before) || /onclick/i.test(after)) return m;
+    const text = inner.replace(/<[^>]+>/g, '').trim();
+    for (const [pattern, target] of linkMap) {
+      if (pattern.test(text)) {
+        return `<a${before}href="#"${after} onclick="event.preventDefault();window.navigateTo&&window.navigateTo('${target}')">${inner}</a>`;
+      }
+    }
+    return m;
+  });
 
   // ── Contact form cleanup ──────────────────────────────────────────────────
   html = html.replace(/<(?:div|p|label|tr)[^>]*>[^<]*(?:Business Name|Company Name|Organisation|Organization|Project (?:Goals?|Type|Details?|Description)|Subject|Username|Password|Confirm Password|Account Type|Service Type|Service Interest|How did you hear)[^<]*<\/(?:div|p|label|tr)>\s*/gi, '');
@@ -222,13 +238,36 @@ export function applyStep5CodeFixes(params: Step5Params): string {
         }
       }
       if (!mapInjected) {
-        // Inject map inside the contact section if possible, before footer otherwise
-        const contactSectionRe = /(<(?:section|div)[^>]*id=["']contact["'][^>]*>)([\s\S]*?)(<\/(?:section|div)>)/i;
-        if (contactSectionRe.test(html)) {
-          html = html.replace(contactSectionRe, (_m: string, open: string, body: string, close: string) => open + body + mapBlock + close);
-          mapInjected = true;
-        } else {
-          html = html.includes("<footer") ? html.replace(/<footer/i, mapBlock + "\n<footer") : html.replace("</body>", mapBlock + "\n</body>");
+        // Only inject map inside a data-page wrapper (contact page preferred).
+        // NEVER inject before footer — it shows on every page.
+        const contactPageRe = /data-page=["']contact["']/i;
+        if (contactPageRe.test(html)) {
+          // Find the contact data-page wrapper and inject map inside it
+          const dpIdx = html.search(/data-page=["']contact["']/i);
+          const tagStart = html.lastIndexOf('<', dpIdx);
+          if (tagStart !== -1) {
+            const tagEnd = html.indexOf('>', tagStart) + 1;
+            const tagName = (html.slice(tagStart, tagEnd).match(/^<(\w+)/) || [])[1] || 'div';
+            // Find matching close tag using depth counting
+            let depth = 1, pos = tagEnd, closePos = -1;
+            const openRe2 = new RegExp('<' + tagName + '[\s>]', 'gi');
+            const closeRe2 = new RegExp('<\/' + tagName + '>', 'gi');
+            while (depth > 0 && pos < html.length) {
+              openRe2.lastIndex = pos; closeRe2.lastIndex = pos;
+              const nO = openRe2.exec(html), nC = closeRe2.exec(html);
+              if (!nC) break;
+              if (nO && nO.index < nC.index) { depth++; pos = nO.index + nO[0].length; }
+              else { depth--; pos = nC.index + nC[0].length; if (depth === 0) closePos = nC.index; }
+            }
+            if (closePos !== -1) {
+              html = html.slice(0, closePos) + '\n' + mapBlock + '\n' + html.slice(closePos);
+              mapInjected = true;
+              console.log("[Step5] Map injected inside contact data-page wrapper");
+            }
+          }
+        }
+        if (!mapInjected) {
+          console.log("[Step5] Map skipped — no contact page found to inject into");
         }
       }
     }
