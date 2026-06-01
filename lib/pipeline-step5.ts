@@ -78,83 +78,6 @@ export function applyStep5CodeFixes(params: Step5Params): string {
     html = html.replace(/MAP PLACEHOLDER[:\s]*[A-Z\s]+/gi, businessAddress);
   }
 
-  // ── Three-tier CTA keyword system ─────────────────────────────────────────
-  const bookingCtaKeywords = ['book now','book a session','book a call','book a consult','book consultation','book free','book today','book online','join now','sign up','free trial','try free','reserve','schedule now','schedule a call','claim offer','claim now','apply now','start today','start free','start starter','start business','start premium','start plan','start now'];
-  const contactCtaKeywords = ['get in touch','contact us','reach out'];
-  const shopCtaKeywords    = ['shop the setup','shop now','shop','buy the kit','buy kit','buy setup','buy system','buy now','buy pro','buy elite','buy starter','buy the','add to cart','view products','browse products','view shop','shop products','get the kit','grab the kit','order kit','get pro','get elite','get starter','get the system','get the setup','order now'];
-  const demoCtaKeywords    = ['watch demo','watch the demo','see it in action','view demo','demo','see demo','try demo','watch it','watch now'];
-  const generalCtaKeywords = ['get started','get a quote','get free quote','get quote','enquire now','enquire','learn more','find out more','discover more','request a quote','request quote','explore capability','explore','launch','login','log in','sign in'];
-  const allCtaKeywords     = [...bookingCtaKeywords, ...contactCtaKeywords, ...shopCtaKeywords, ...demoCtaKeywords, ...generalCtaKeywords];
-
-  const effectiveExternalCta  = ctaExternalUrl || (bookingUrl && !hasBookingFeature ? bookingUrl : "");
-  const ctaExternalDomain     = effectiveExternalCta ? effectiveExternalCta.replace(/^https?:\/\/(?:www\.)?/, "").split("/")[0].toLowerCase() : "";
-  const hasShopPage            = features.includes("Payments / Shop") || (userInput.pages || []).some((p: string) => normalizePageId(p) === "shop");
-
-  const bookingCtaOnclick = effectiveExternalCta
-    ? `window.open('${effectiveExternalCta}','_blank')`
-    : `event.preventDefault();window.navigateTo&&window.navigateTo('${hasBookingFeature ? "booking" : "contact"}')`;
-  const contactCtaOnclick = `event.preventDefault();window.navigateTo&&window.navigateTo('contact')`;
-  const shopCtaOnclick    = `event.preventDefault();window.navigateTo&&window.navigateTo('${hasShopPage ? "shop" : "contact"}')`;
-  const demoCtaOnclick    = effectiveExternalCta
-    ? `window.open('${effectiveExternalCta}','_blank')`
-    : `event.preventDefault();window.navigateTo&&window.navigateTo('${hasShopPage ? "shop" : "contact"}')`;
-  const generalCtaOnclick = effectiveExternalCta
-    ? `window.open('${effectiveExternalCta}','_blank')`
-    : hasShopPage
-      ? `event.preventDefault();window.navigateTo&&window.navigateTo('shop')`
-      : `event.preventDefault();window.navigateTo&&window.navigateTo('${bookingNavTarget}')`;
-
-  const getCtaOnclick = (txt: string): string => {
-    if (shopCtaKeywords.some((k: string)    => txt.includes(k))) return shopCtaOnclick;
-    if (demoCtaKeywords.some((k: string)    => txt.includes(k))) return demoCtaOnclick;
-    if (bookingCtaKeywords.some((k: string) => txt.includes(k))) return bookingCtaOnclick;
-    if (contactCtaKeywords.some((k: string) => txt.includes(k))) return contactCtaOnclick;
-    return generalCtaOnclick;
-  };
-
-  // Hard sweep: replace vercel/webgecko domain links
-  html = html.replace(/<a([^>]*)href=["'](https?:\/\/(?:[\w-]+\.)?(?:webgecko-builder|vercel)\.(?:app|com|io)[^"']*)["']([^>]*)>([\s\S]*?)<\/a>/gi, (_m: string, pre: string, href: string, post: string, inner: string) => {
-    const hrefDomain = href.replace(/^https?:\/\/(?:www\.)?/, "").split("/")[0].toLowerCase();
-    if (ctaExternalDomain && hrefDomain === ctaExternalDomain) return _m;
-    const txt = inner.replace(/<[^>]+>/g, "").trim().toLowerCase();
-    const onclick = getCtaOnclick(txt);
-    const cleanPre = pre.replace(/\s*onclick=["'][^"']*["']/gi, "");
-    const cleanPost = post.replace(/\s*onclick=["'][^"']*["']/gi, "");
-    return `<a${cleanPre}${cleanPost} href="#" onclick="${onclick}">${inner}</a>`;
-  });
-
-  // Wire <a> CTA links
-  html = html.replace(/<a([^>]*)>([\s\S]*?)<\/a>/gi, (match: string, attrs: string, inner: string) => {
-    const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
-    if (!allCtaKeywords.some((k: string) => txt.includes(k))) return match;
-    if (attrs.includes('navigateTo') || attrs.includes('scrollIntoView')) return match;
-    if (attrs.includes('type="submit"')) return match;
-    if (/href=["'](?:mailto:|tel:)/i.test(attrs)) return match;
-    const hrefMatch = attrs.match(/href=["']([^"']+)["']/i);
-    const href = hrefMatch ? hrefMatch[1] : '';
-    if (href.startsWith('#') && href.length > 1) {
-      // Don't bail — anchor hrefs like #services still need to be rewritten to navigateTo() below
-    }
-    if (rawDomain && href.startsWith('http')) {
-      const hrefDomain = href.replace(/^https?:\/\/(?:www\.)?/, '').split('/')[0].toLowerCase();
-      if (hrefDomain === rawDomain || hrefDomain.endsWith('.' + rawDomain)) return match;
-    }
-    const cleanAttrs = attrs.replace(/\s*onclick=["'][^"']*(?:alert|return false|void\(0\))[^"']*["']/gi, '');
-    const attrsNoHref = cleanAttrs.replace(/\s*href=["'][^"']*["']/gi, '');
-    const onclick = getCtaOnclick(txt);
-    return `<a${attrsNoHref} href="#" onclick="${onclick}">${inner}</a>`;
-  });
-
-  // Wire <button> CTA tags
-  html = html.replace(/<button([^>]*)>([\s\S]*?)<\/button>/gi, (match: string, attrs: string, inner: string) => {
-    const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
-    if (!allCtaKeywords.some((k: string) => txt.includes(k))) return match;
-    if (attrs.includes('type="submit"') || attrs.includes('navigateTo') || attrs.includes('scrollIntoView')) return match;
-    const cleanAttrs = attrs.replace(/\s*onclick=["'][^"']*(?:alert|return false|void\(0\))[^"']*["']/gi, '');
-    const onclick = getCtaOnclick(txt);
-    return `<button${cleanAttrs} onclick="${onclick}">${inner}</button>`;
-  });
-
   // ── Contact form cleanup ──────────────────────────────────────────────────
   html = html.replace(/<(?:div|p|label|tr)[^>]*>[^<]*(?:Business Name|Company Name|Organisation|Organization|Project (?:Goals?|Type|Details?|Description)|Subject|Username|Password|Confirm Password|Account Type|Service Type|Service Interest|How did you hear)[^<]*<\/(?:div|p|label|tr)>\s*/gi, '');
   html = html.replace(/<(?:input|select|textarea)[^>]*(?:name=["'](?:business|company|organisation|organization|subject|username|password|confirm|project_type|service_type|how_hear)[^"']*["']|placeholder=["'][^"']*(?:Business Name|Company|Organization|Project Type|Service Type|Password|Username)[^"']*["'])[^>]*>(?:<\/(?:input|select|textarea)>)?/gi, '');
@@ -377,35 +300,6 @@ export function applyStep5CodeFixes(params: Step5Params): string {
         if (!/<(section|div|iframe)\b/i.test(orphaned)) return _m;
         console.log("[Step5] Moving orphaned sections from below footer to above it");
         return pre + orphaned + "\n" + ftClose + "\n" + bodyClose;
-      });
-    }
-  }
-
-  // ── Wire dead CTA buttons ─────────────────────────────────────────────────
-  {
-    const servicesTarget = requestedPageIds.includes("services") ? "services" : requestedPageIds.includes("about") ? "about" : "contact";
-    const contactTarget  = requestedPageIds.includes("contact")  ? "contact"  : requestedPageIds.includes("booking") ? "booking" : "home";
-    const bookingTarget  = requestedPageIds.includes("booking")  ? "booking"  : contactTarget;
-    html = html.replace(/<(button|a)([^>]*)>(\s*(?:<[^>]+>\s*)*)(Learn More|learn more|View Services|view services|Explore Services|See Services|Our Services)(\s*(?:<\/[^>]+>\s*)*)<\/(button|a)>/gi,
-      (_m: string, tag: string, attrs: string, pre: string, label: string, post: string) => {
-        if (attrs.includes("onclick") || attrs.includes("navigateTo") || (attrs.includes("href") && !attrs.includes('href="#"') && !attrs.includes("href='#'"))) return _m;
-        const nav = "window.navigateTo&&window.navigateTo('" + servicesTarget + "')";
-        if (tag.toLowerCase() === "a") return "<a" + attrs + ' href="#" onclick="event.preventDefault();' + nav + '">' + pre + label + post + "</a>";
-        return "<button" + attrs + ' onclick="' + nav + '">' + pre + label + post + "</button>";
-      });
-    html = html.replace(/<(button|a)([^>]*)>(\s*)(Get Started|Get in Touch|Contact Us|Book Now|Book Appointment|Book an Appointment)(\s*)<\/(button|a)>/gi,
-      (_m: string, tag: string, attrs: string, pre: string, label: string, post: string) => {
-        if (attrs.includes("onclick") || attrs.includes("navigateTo") || (attrs.includes("href") && !attrs.includes('href="#"') && !attrs.includes("href='#'"))) return _m;
-        const tgt = /book/i.test(label) ? bookingTarget : contactTarget;
-        const nav = "window.navigateTo&&window.navigateTo('" + tgt + "')";
-        if (tag.toLowerCase() === "a") return "<a" + attrs + ' href="#" onclick="event.preventDefault();' + nav + '">' + pre + label + post + "</a>";
-        return "<button" + attrs + ' onclick="' + nav + '">' + pre + label + post + "</button>";
-      });
-    const portalSlug = (userInput.slug || "").trim();
-    if (portalSlug) {
-      html = html.replace(/(<span[^>]*)>(\s*account_circle\s*)<\/span>/gi, (_m: string, attrs: string, inner: string) => {
-        if (attrs.includes("data-wg-portal")) return _m;
-        return `<a href="/c/${portalSlug}" title="Client Portal" style="text-decoration:none"><span${attrs} data-wg-portal="1">${inner}</span></a>`;
       });
     }
   }
