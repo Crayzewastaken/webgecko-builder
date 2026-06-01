@@ -307,7 +307,7 @@ const TOUR = [
   { tab:"profile",  anchor:"t-profile",  emoji:"⚙️", title:"Profile & Legal",              desc:"Account details and service agreements. You're all set — let's go! 🎉" },
 ];
 
-type Tab = "home"|"create"|"review"|"calendar"|"billing"|"reports"|"stats"|"profile";
+type Tab = "home"|"create"|"review"|"calendar"|"billing"|"reports"|"stats"|"profile"|"menu";
 
 // ─────────────────────────────────────────────────────────────
 //  MAIN
@@ -878,7 +878,10 @@ export default function ClientHub() {
         {/* ══ BILLING ══ */}
         {tab==="billing"&&(
           <div id="t-billing" style={{display:"flex",flexDirection:"column",gap:14}}>
-            <div><h1 className="page-h">Billing</h1><p className="page-sub">$100 flat fee per approved post.</p></div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div><h1 className="page-h">Billing</h1><p className="page-sub">$100 flat fee per approved post.</p></div>
+              <button onClick={()=>setTab("menu")} className="btn-sm-outline">← Back</button>
+            </div>
 
             <div style={{display:"flex",gap:10}}>
               <div style={{flex:1,background:DARK,borderRadius:16,padding:"16px 18px"}}>
@@ -919,7 +922,10 @@ export default function ClientHub() {
         {/* ══ REPORTS ══ */}
         {tab==="reports"&&(
           <div style={{display:"flex",flexDirection:"column",gap:14}}>
-            <div><h1 className="page-h">Reports</h1><p className="page-sub">Monthly performance summaries.</p></div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div><h1 className="page-h">Reports</h1><p className="page-sub">Monthly performance summaries.</p></div>
+              <button onClick={()=>setTab("menu")} className="btn-sm-outline">← Back</button>
+            </div>
             <div style={{background:DARK,borderRadius:16,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div><div style={{fontSize:12,color:"#ffffff55",marginBottom:2}}>Next report</div><div style={{fontWeight:700,fontSize:15,color:"#fff"}}>June 2026</div><div style={{fontSize:12,color:"#ffffff44",marginTop:2}}>Auto-emailed Jul 1</div></div>
               <div style={{background:`${G}22`,borderRadius:10,padding:"10px 14px",textAlign:"center"}}><div style={{fontWeight:900,fontSize:20,color:G}}>2</div><div style={{fontSize:11,color:G,fontWeight:600}}>days</div></div>
@@ -948,8 +954,11 @@ export default function ClientHub() {
         {/* ══ BRAND ACCOUNTS ══ */}
         {tab==="stats"&&(
           <div style={{display:"flex",flexDirection:"column",gap:14}}>
-            <div><h1 className="page-h">Brand Accounts</h1><p className="page-sub">Connected social channels.</p></div>
-            <div style={{background:CARD,borderRadius:16,border:`1px solid ${LINE}`,padding:"0 18px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div><h1 className="page-h">Brand Accounts</h1><p className="page-sub">Connected social channels.</p></div>
+              <button onClick={()=>setTab("menu")} className="btn-sm-outline">← Back</button>
+            </div>
+            <div className="card" style={{padding:18}}>
               {[{p:"Instagram",h:"@webgecko",s:"Linked",c:"#E1306C"},{p:"Facebook",h:"WebGecko Business",s:"Linked",c:"#1877F2"},{p:"LinkedIn",h:"WebGecko Corp",s:"Linked",c:"#0A66C2"},{p:"TikTok",h:"@webgecko",s:"Awaiting auth",c:"#333"},{p:"X",h:"@webgecko_au",s:"Awaiting auth",c:"#000"}].map((a,i,arr)=>(
                 <div key={a.p} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"13px 0",borderBottom:i<arr.length-1?`1px solid ${LINE}`:"none"}}>
                   <div style={{display:"flex",gap:12,alignItems:"center"}}>
@@ -966,8 +975,34 @@ export default function ClientHub() {
         {/* ══ PROFILE ══ */}
         {tab==="profile"&&(
           <div id="t-profile" style={{display:"flex",flexDirection:"column",gap:14}}>
-            <div><h1 className="page-h">Profile</h1><p className="page-sub">Account details & agreements.</p></div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div><h1 className="page-h">Profile</h1><p className="page-sub">Your account details.</p></div>
+              <button onClick={()=>setTab("menu")} className="btn-sm-outline">← Back</button>
+            </div>
+            <div className="card" style={{padding:20,display:"flex",gap:14,alignItems:"center"}}>
+              <div style={{width:52,height:52,borderRadius:"50%",background:G,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:800,color:"#fff",flexShrink:0}}>{client?.business_name?.[0]?.toUpperCase()||"C"}</div>
+              <div>
+                <div style={{fontSize:16,fontWeight:800,color:INK}}>{client?.business_name||client?.slug}</div>
+                <div style={{fontSize:12,color:hasSocial?G:DIM,fontWeight:600,marginTop:2}}>{hasSocial?"✦ Social Bundle Active":"Starter Plan"}</div>
+              </div>
+            </div>
+            <div className="card" style={{padding:18}}>
+              <div className="sec-lbl" style={{marginBottom:12}}>Account Details</div>
+              {[{label:"Email",value:client?.email||"—"},{label:"Phone",value:client?.phone||"—"},{label:"Plan",value:client?.plan||"Starter"},{label:"Job Ref",value:client?.job_id,mono:true}].map(row=>(
+                <div key={row.label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${LINE}`}}>
+                  <span style={{fontSize:12,color:DIM,fontWeight:600}}>{row.label}</span>
+                  <span style={{fontSize:13,fontWeight:600,color:INK,fontFamily:row.mono?"monospace":"inherit",maxWidth:"60%",textAlign:"right",wordBreak:"break-all"}}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
+      {/* ── MENU (Hamburger) ── */}
+        {tab==="menu"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div><h1 className="page-h">Menu</h1><p className="page-sub">Account, billing & settings.</p></div>
+            
             <div className="card" style={{padding:20,display:"flex",gap:14,alignItems:"center"}}>
               <div style={{width:52,height:52,borderRadius:"50%",background:G,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:800,color:"#fff",flexShrink:0}}>{client?.business_name?.[0]?.toUpperCase()||"C"}</div>
               <div>
@@ -976,18 +1011,19 @@ export default function ClientHub() {
               </div>
             </div>
 
-            <div style={{background:CARD,borderRadius:16,border:`1px solid ${LINE}`,padding:"12px 18px"}}>
-              <div className="sec-lbl" style={{marginBottom:8}}>Account Details</div>
-              {[{label:"Email",value:client?.email||"—"},{label:"Phone",value:client?.phone||"—"},{label:"Plan",value:client?.plan||"Starter"},{label:"Job Ref",value:client?.job_id,mono:true}].map(row=>(
-                <div key={row.label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${LINE}`}}>
-                  <span style={{fontSize:12,color:DIM,fontWeight:600}}>{row.label}</span>
-                  <span style={{fontSize:13,fontWeight:600,color:INK,fontFamily:row.mono?"monospace":"inherit",maxWidth:"60%",textAlign:"right",wordBreak:"break-all"}}>{row.value}</span>
-                </div>
-              ))}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <button onClick={()=>go("profile")} style={{background:CARD,border:`1px solid ${LINE}`,borderRadius:16,padding:16,display:"flex",flexDirection:"column",alignItems:"center",gap:8,cursor:"pointer"}}>
+                <div style={{width:40,height:40,borderRadius:"50%",background:`${G}12`,display:"flex",alignItems:"center",justifyContent:"center"}}><Ico d={ic.profile} size={20} color={G}/></div>
+                <span style={{fontSize:13,fontWeight:700,color:INK}}>Profile</span>
+              </button>
+              <button onClick={()=>go("billing")} style={{background:CARD,border:`1px solid ${LINE}`,borderRadius:16,padding:16,display:"flex",flexDirection:"column",alignItems:"center",gap:8,cursor:"pointer"}}>
+                <div style={{width:40,height:40,borderRadius:"50%",background:`${G}12`,display:"flex",alignItems:"center",justifyContent:"center"}}><Ico d={ic.bill} size={20} color={G}/></div>
+                <span style={{fontSize:13,fontWeight:700,color:INK}}>Billing</span>
+              </button>
             </div>
 
-            <div style={{background:CARD,borderRadius:16,border:`1px solid ${LINE}`,padding:"6px 18px"}}>
-              <div className="sec-lbl" style={{marginTop:12,marginBottom:4}}>More</div>
+            <div className="card" style={{padding:18}}>
+              <div className="sec-lbl" style={{marginBottom:12}}>More</div>
               {[{label:"Monthly Reports",icon:ic.chart,action:()=>setTab("reports")},{label:"Brand Accounts",icon:ic.shield,action:()=>setTab("stats")}].map(r=>(
                 <button key={r.label} onClick={r.action} style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"13px 0",background:"transparent",border:"none",borderBottom:`1px solid ${LINE}`,color:INK,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>
                   <span style={{display:"flex",alignItems:"center",gap:10}}><Ico d={r.icon} size={16} color={DIM}/>{r.label}</span><Ico d={ic.chevron} size={16} color={DIM}/>
@@ -995,8 +1031,8 @@ export default function ClientHub() {
               ))}
             </div>
 
-            <div style={{background:CARD,borderRadius:16,border:`1px solid ${LINE}`,padding:"6px 18px"}}>
-              <div className="sec-lbl" style={{marginTop:12,marginBottom:4}}>Legal</div>
+            <div className="card" style={{padding:18}}>
+              <div className="sec-lbl" style={{marginBottom:12}}>Legal</div>
               {Object.keys(LEGAL).map(k=>(
                 <button key={k} onClick={()=>setLegalDoc(k)} style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"13px 0",background:"transparent",border:"none",borderBottom:`1px solid ${LINE}`,color:INK,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>
                   <span style={{display:"flex",alignItems:"center",gap:10}}><Ico d={ic.doc} size={16} color={DIM}/>{LEGAL[k].title}</span><Ico d={ic.chevron} size={16} color={DIM}/>
@@ -1011,12 +1047,18 @@ export default function ClientHub() {
 
       {/* ── Bottom Nav ── */}
       <nav className="bnav">
-        {NAV.map(n=>{
-          const active=tab===n.id;
+        {[
+          {id:"home",   icon:ic.home,   label:"Hub"},
+          {id:"create", icon:ic.camera, label:"Post",  locked:!hasSocial},
+          {id:"review", icon:ic.review, label:"Review",locked:!hasSocial},
+          {id:"calendar",icon:ic.queue, label:"Queue", locked:!hasSocial},
+          {id:"menu",   icon:"M3 12h18M3 6h18M3 18h18", label:"Menu"}
+        ].map(n=>{
+          const active=tab===n.id || (n.id==="menu" && ["billing","profile","reports","stats"].includes(tab));
           return (
             <button key={n.id} onClick={()=>go(n.id as Tab)} className={`nbtn${active?" on":""}`}>
               <span className="nbtn-icon" style={{position:"relative"}}>
-                <Ico d={n.icon} size={20} color={active?G:DIM} sw={active?2.2:1.6}/>
+                {n.icon.startsWith("M") ? <Ico d={n.icon} size={20} color={active?G:DIM} sw={active?2.2:1.6}/> : <Ico d={n.icon} size={20} color={active?G:DIM} sw={active?2.2:1.6}/>}
                 {n.locked&&<span className="nbtn-lock">🔒</span>}
                 {active&&<span style={{position:"absolute",bottom:-5,left:"50%",transform:"translateX(-50%)",width:4,height:4,borderRadius:"50%",background:G}}/>}
               </span>
