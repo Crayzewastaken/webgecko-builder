@@ -309,7 +309,7 @@ function parseJson(raw: string): SiteBlueprint {
 
   // Strategy 5: strip stitchPrompt entirely, parse rest, then re-extract raw
   try {
-    const noStitch = extracted.replace(/"stitchPrompt"\s*:\s*"(?:[^"\\]|\\.)*"/gs, '"stitchPrompt":""');
+    const noStitch = extracted.replace(/"stitchPrompt"\s*:\s*"(?:[^"\\]|\\.)*"/g, '"stitchPrompt":""');
     const obj = JSON.parse(noStitch) as SiteBlueprint;
     const spMatch = extracted.match(/"stitchPrompt"\s*:\s*"([\s\S]*?)"\s*[,}]/);
     if (spMatch) obj.stitchPrompt = spMatch[1].replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\"/g, '"');
