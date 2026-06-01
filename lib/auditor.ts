@@ -282,8 +282,10 @@ export async function auditAndFixSite(
   }
 
   // Fix 4: contact section
-  if (has(AuditErrorType.MISSING_CONTACT)) {
-    const onsubmit = "event.preventDefault();this.innerHTML='<p style=\"color:#22c55e;font-weight:bold;\">Thank you!</p>'";
+  if (has(AuditErrorType.MISSING_CONTACT) && !/<form[\s>]/i.test(fixed)) {
+    // Only inject if there is genuinely NO form anywhere — Stitch usually has one
+    // Wire to real contact API — jobId injected by injectEssentials tracker script
+    const onsubmit = "(function(f){f.querySelector('button[type=submit]').textContent='Sending...';var nm=(f.querySelector('input[name=name],input[placeholder*=Name]')||{}).value||'';var em=(f.querySelector('input[type=email]')||{}).value||'';var ph=(f.querySelector('input[type=tel]')||{}).value||'';var mg=(f.querySelector('textarea')||{}).value||'';fetch('/api/contact/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jobId:typeof WG_JOB!=='undefined'?WG_JOB:'',name:nm,email:em,phone:ph,message:mg})}).catch(function(){});var s=document.createElement('p');s.style.cssText='color:#22c55e;font-weight:bold;margin-top:12px;';s.textContent='Thank you! We will be in touch within 24 hours.';f.appendChild(s);f.querySelectorAll('input,textarea,button').forEach(function(el){el.setAttribute('disabled','true');});})(this);return false";
     const fb = [
       `<section id="contact" style="padding:80px 24px;background:${clrBg};">`,
       `<div style="max-width:640px;margin:0 auto;">`,

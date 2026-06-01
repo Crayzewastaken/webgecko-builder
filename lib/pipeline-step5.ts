@@ -177,7 +177,14 @@ export function applyStep5CodeFixes(params: Step5Params): string {
         }
       }
       if (!mapInjected) {
-        html = html.includes("<footer") ? html.replace(/<footer/i, mapBlock + "\n<footer") : html.replace("</body>", mapBlock + "\n</body>");
+        // Inject map inside the contact section if possible, before footer otherwise
+        const contactSectionRe = /(<(?:section|div)[^>]*id=["']contact["'][^>]*>)([\s\S]*?)(<\/(?:section|div)>)/i;
+        if (contactSectionRe.test(html)) {
+          html = html.replace(contactSectionRe, (_m: string, open: string, body: string, close: string) => open + body + mapBlock + close);
+          mapInjected = true;
+        } else {
+          html = html.includes("<footer") ? html.replace(/<footer/i, mapBlock + "\n<footer") : html.replace("</body>", mapBlock + "\n</body>");
+        }
       }
     }
   }
