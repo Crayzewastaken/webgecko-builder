@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await supabase.storage.from(BUCKET).list("", { limit: 200, sortBy: { column: "created_at", order: "desc" } });
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
-  let files = (data || []).map(f => ({
+  let files = (data || []).map((f: any) => ({
     name: f.name,
     size: f.metadata?.size || 0,
     createdAt: f.created_at,
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   }));
 
   // If jobId provided, return only files for that client
-  if (jobId) files = files.filter(f => f.jobId === jobId);
+  if (jobId) files = files.filter((f: any) => f.jobId === jobId);
 
   return Response.json({ files });
 }
