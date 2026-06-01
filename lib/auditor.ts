@@ -513,14 +513,18 @@ export async function auditAndFixSite(
       let om: RegExpExecArray | null;
       openRe.lastIndex = 0;
       while ((om = openRe.exec(fixed)) !== null) {
-        // Check if this section is inside a data-page wrapper:
-        // scan backward from om.index for the nearest data-page= attribute
+        // Check if this section is inside a data-page wrapper by scanning backwards
+        // for the most recent data-page= opening. If found and unclosed, we're inside it.
         const before = fixed.slice(0, om.index);
         const lastDpPos = before.lastIndexOf('data-page=');
-        const lastDpClosePos = before.lastIndexOf('</div>');
-        // If there's no data-page at all before this, or the last data-page closed before this section
-        const isOutsideDataPage = lastDpPos === -1 || (lastDpClosePos > lastDpPos && lastDpClosePos > om.index - 5000);
-        if (!isOutsideDataPage) continue;
+        if (lastDpPos !== -1) {
+          // Count depth between lastDpPos and om.index — if net depth > 0, we're inside
+          const between = before.slice(lastDpPos);
+          const opens = (between.match(/<(?:div|section|article|main)[\s>]/gi) || []).length;
+          const closes = (between.match(/<\/(?:div|section|article|main)>/gi) || []).length;
+          if (opens > closes) continue; // we are inside an unclosed data-page wrapper
+        }
+        const isOutsideDataPage = lastDpPos === -1 || true; // fallthrough: remove it
         // Also skip if the tag itself has data-page (it's a wrapper, not an orphan)
         if (/\bdata-page=/i.test(om[0])) continue;
         // Remove this orphaned section
