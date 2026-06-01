@@ -89,7 +89,7 @@ export async function getPipelineLogs(limit = 300) {
       .limit(limit);
 
     if (!error && data) {
-      return data.map(r => ({
+      return data.map((r: any) => ({
         jobId:        r.job_id,
         level:        r.level,
         step:         r.step,
@@ -333,7 +333,7 @@ export async function getTopPages(jobId: string, limit = 5): Promise<{ page: str
       throw error || new Error("No data returned from view");
     }
 
-    return data.map(row => ({ page: row.page, views: Number(row.views) }));
+    return data.map((row: any) => ({ page: row.page, views: Number(row.views) }));
   } catch (e) {
     console.warn("[Analytics View Fallback] Failed to fetch from page_analytics_summary view, falling back to in-memory counting:", e);
     // LIMIT the fallback scan to the most recent 10,000 rows — no full table scans.
