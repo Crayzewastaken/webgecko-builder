@@ -548,6 +548,31 @@ function WebsiteScreen({ client, C }: { client: ClientData | null; C: any }) {
   const [round, setRound] = useState(1);
   const [revisionSent, setRevisionSent] = useState(false);
 
+  // Responsive device simulation preview states
+  const [deviceMode, setDeviceMode] = useState<"mobile" | "tablet" | "desktop">("mobile");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(340);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width || 340);
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const DIMENSIONS = {
+    mobile: { w: 375, h: 667 },
+    tablet: { w: 768, h: 1024 },
+    desktop: { w: 1280, h: 800 },
+  };
+
+  const target = DIMENSIONS[deviceMode];
+  const scale = containerWidth / target.w;
+
   useEffect(() => {
     loadFeedback();
   }, []);
@@ -624,8 +649,47 @@ function WebsiteScreen({ client, C }: { client: ClientData | null; C: any }) {
               {client.previewUrl}
             </div>
           </div>
-          <div style={{ width: "100%", height: 380, overflow: "hidden", position: "relative" }}>
-            <iframe src={client.previewUrl} style={{ width: "100%", height: "100%", border: "none" }} />
+          {/* Device Selection Bar */}
+          <div style={{ display: "flex", justifyContent: "center", gap: 8, padding: "8px 12px", borderBottom: `1px solid ${C.border}`, background: C.raised }}>
+            {(["mobile", "tablet", "desktop"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setDeviceMode(mode)}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: deviceMode === mode ? "#00C896" : "transparent",
+                  color: deviceMode === mode ? "#fff" : C.textSec,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4
+                }}
+              >
+                {mode === "mobile" && "📱 Mobile"}
+                {mode === "tablet" && "📟 Tablet"}
+                {mode === "desktop" && "💻 Desktop"}
+              </button>
+            ))}
+          </div>
+          {/* Iframe Viewport Container */}
+          <div ref={containerRef} style={{ width: "100%", height: 380, overflow: "hidden", position: "relative", background: "#0c1526" }}>
+            <iframe
+              src={client.previewUrl}
+              style={{
+                width: target.w,
+                height: 380 / scale,
+                transform: `scale(${scale})`,
+                transformOrigin: "top left",
+                border: "none",
+                position: "absolute",
+                top: 0,
+                left: 0
+              }}
+            />
           </div>
           <div style={{ padding: 12, borderTop: `1px solid ${C.border}`, textAlign: "center" }}>
             <a href={client.previewUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", color: "#00C896", fontSize: 12, fontWeight: 700 }}>
@@ -689,25 +753,320 @@ function WebsiteScreen({ client, C }: { client: ClientData | null; C: any }) {
 }
 
 // ── 3. Socials Screen (Social Poster) ──
-function SocialsScreen({ client, C }: { client: ClientData | null; C: any }) {
-  const [subTab, setSubTab] = useState<"create" | "queue" | "setup">("create");
-  const [files, setFiles] = useState<File[]>([]);
-  const [brief, setBrief] = useState("");
-  const [tone, setTone] = useState("friendly");
-  const [platforms, setPlatforms] = useState<string[]>(["Instagram", "Facebook"]);
-  const [linkUrl, setLinkUrl] = useState("");
-  const [showLink, setShowLink] = useState(false);
-  const [showVoice, setShowVoice] = useState(false);
-  
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [drafts, setDrafts] = useState<any[]>([]);
-  const [generatedMediaUrls, setGeneratedMediaUrls] = useState<string[]>([]);
-  const [approving, setApproving] = useState(false);
-  const [approveDone, setApproveDone] = useState(false);
-  
-  const [history, setHistory] = useState<any[]>([]);
+// ── Helper Subcomponents for Socials Screen ──
+function VoiceRecorder({ onDone, onCancel, C }: { onDone: (blob: Blob) => void; onCancel: () => void; C: any }) {
+  const [phase, setPhase] = useState("starting");
+  const [secs, setSecs] = useState(0);
+  const [url, setUrl] = useState<string | null>(null);
+  const [blob, setBlob] = useState<Blob | null>(null);
+  const mr = useRef<MediaRecorder | null>(null), chunks = useRef<Blob[]>([]), timer = useRef<any>(null);
+
+  const start = async () => {
+    if (typeof window === "undefined" || !navigator.mediaDevices) {
+      setPhase("error");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      mr.current = rec; chunks.current = [];
+      rec.ondataavailable = e => chunks.current.push(e.data);
+      rec.onstop = () => {
+        const b = new Blob(chunks.current, { type: "audio/webm" });
+        setBlob(b); setUrl(URL.createObjectURL(b)); setPhase("done");
+        stream.getTracks().forEach(t => t.stop());
+      };
+      rec.start(); setPhase("rec"); setSecs(0);
+      timer.current = setInterval(() => setSecs(s => s + 1), 1000);
+    } catch { setPhase("error"); }
+  };
+
+  const booted = useRef(false);
+  useEffect(() => {
+    if (!booted.current) {
+      booted.current = true;
+      start();
+    }
+    return () => {
+      clearInterval(timer.current);
+    };
+  }, []);
+
+  const stop = () => { clearInterval(timer.current); mr.current?.stop(); };
+  const fmt = (s: number) => `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
+
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10, boxShadow: C.shadow }}>
+      {phase === "starting" && <p style={{ margin: 0, color: C.textMuted, fontSize: 13 }}>Requesting microphone…</p>}
+      {phase === "error"    && <p style={{ margin: 0, color: "#EF4444", fontSize: 13 }}>Microphone access denied.</p>}
+      {phase === "rec" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#EF4444", flexShrink: 0 }} />
+          <span style={{ flex: 1, fontWeight: 700, color: C.text }}>{fmt(secs)}</span>
+          <button onClick={stop} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: "#EF4444", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Stop</button>
+          <button onClick={onCancel} style={{ padding: "7px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.textMuted, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+        </div>
+      )}
+      {phase === "done" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <audio src={url || undefined} controls style={{ width: "100%", borderRadius: 8 }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => { setPhase("starting"); setUrl(null); setBlob(null); setSecs(0); start(); }} style={{ flex: 1, padding: 9, borderRadius: 9, border: `1px solid ${C.border}`, background: "transparent", color: C.textMuted, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>Re-record</button>
+            <button onClick={() => blob && onDone(blob)} style={{ flex: 1, padding: 9, borderRadius: 9, border: "none", background: "#00C896", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Use this</button>
+          </div>
+        </div>
+      )}
+      {phase === "error" && <button onClick={onCancel} style={{ padding: 9, borderRadius: 9, border: `1px solid ${C.border}`, background: "transparent", color: C.textMuted, fontWeight: 600, fontSize: 13, cursor: "pointer" }}>Dismiss</button>}
+    </div>
+  );
+}
+
+function FileChip({ file, onRemove, C }: { file: File; onRemove: () => void; C: any }) {
+  const url = URL.createObjectURL(file);
+  return (
+    <div style={{ position: "relative", width: 76, height: 76, borderRadius: 12, overflow: "hidden", border: `1px solid ${C.border}`, flexShrink: 0 }}>
+      {file.type.startsWith("video/")
+        ? <video src={url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        : <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+      <button onClick={onRemove} style={{ position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: "50%", background: "rgba(0,0,0,.55)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Ico d={ic.x} size={11} color="#fff" />
+      </button>
+    </div>
+  );
+}
+
+function NewPostScreen({ onSubmit, C }: { onSubmit: (desc: string, files: File[], link: string, schedDate: string, schedTime: string) => void; C: any }) {
   const uploadRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+  const [files,     setFiles]     = useState<File[]>([]);
+  const [desc,      setDesc]      = useState("");
+  const [link,      setLink]      = useState("");
+  const [addon,     setAddon]     = useState<null | "link" | "voice">(null);
+  const [schedDate, setSchedDate] = useState("");
+  const [schedTime, setSchedTime] = useState("");
+  const [showSched, setShowSched] = useState(false);
+
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+  const minDate  = tomorrow.toISOString().split("T")[0];
+  const addFiles = (f: FileList | null) => {
+    if (!f) return;
+    setFiles(p => [...p, ...Array.from(f)]);
+  };
+  const hasContent = files.length > 0 || desc.trim() || link.trim();
+
+  const submit = () => {
+    if (!hasContent) return;
+    onSubmit(desc, files, link, schedDate, schedTime);
+  };
+
+  const inputStyle = { width: "100%", background: C.raised, border: `1.5px solid ${C.border}`, borderRadius: 12, padding: "11px 14px", color: C.text, fontSize: 14, outline: "none", fontFamily: "inherit", boxSizing: "border-box" as const };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 22, paddingBottom: 24 }}>
+      <div>
+        <h1 style={{ margin: "0 0 3px", fontSize: 22, fontWeight: 800, color: C.text, letterSpacing: "-0.4px" }}>New post</h1>
+        <p style={{ margin: 0, color: C.textMuted, fontSize: 13 }}>Upload your content and we'll handle the rest.</p>
+      </div>
+
+      {/* Upload buttons */}
+      <input ref={uploadRef} type="file" multiple accept="image/*,video/*" hidden onChange={e => addFiles(e.target.files)} />
+      <input ref={cameraRef} type="file" accept="image/*,video/*" capture="environment" hidden onChange={e => addFiles(e.target.files)} />
+      <div style={{ display: "flex", gap: 10 }}>
+        <button onClick={() => cameraRef.current?.click()} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 9, padding: "20px 12px", borderRadius: 18, border: "none", background: "#0F1117", cursor: "pointer" }}>
+          <div style={{ width: 46, height: 46, borderRadius: "50%", background: "rgba(0, 200, 150, 0.22)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Ico d={ic.camera} size={22} color="#00C896" />
+          </div>
+          <span style={{ color: "#fff", fontWeight: 700, fontSize: 13 }}>Take photo</span>
+        </button>
+        <button onClick={() => uploadRef.current?.click()} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 9, padding: "20px 12px", borderRadius: 18, border: `1.5px solid ${C.border}`, background: C.surface, cursor: "pointer" }}>
+          <div style={{ width: 46, height: 46, borderRadius: "50%", background: "rgba(0, 200, 150, 0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Ico d={ic.upload} size={22} color="#00C896" />
+          </div>
+          <span style={{ color: C.text, fontWeight: 700, fontSize: 13 }}>Upload file</span>
+        </button>
+      </div>
+
+      {/* File previews */}
+      {files.length > 0 && (
+        <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
+          {files.map((f, i) => <FileChip key={i} file={f} onRemove={() => setFiles(p => p.filter((_, j) => j !== i))} C={C} />)}
+        </div>
+      )}
+
+      {/* Description */}
+      <div style={{ position: "relative" }}>
+        <textarea value={desc} onChange={e => setDesc(e.target.value.slice(0, 500))}
+          placeholder="Description (optional) — context, tone, anything useful…"
+          rows={4}
+          style={{ ...inputStyle, resize: "none", lineHeight: 1.6, paddingBottom: 28, borderRadius: 14 }} />
+        <span style={{ position: "absolute", bottom: 9, right: 12, fontSize: 11, color: desc.length > 450 ? "#F59E0B" : C.textMuted }}>{desc.length}/500</span>
+      </div>
+
+      {/* Add-ons row */}
+      {addon === null && (
+        <div style={{ display: "flex", gap: 10 }}>
+          {[{ key: "link", icon: ic.link, label: "Add link" }, { key: "voice", icon: ic.mic, label: "Voice note" } as const].map(a => (
+            <button key={a.key} onClick={() => setAddon(a.key)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 0", borderRadius: 12, border: `1.5px solid ${C.border}`, background: C.surface, color: C.textMuted, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              <Ico d={a.icon} size={15} color={C.textMuted} sw={2} />{a.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {addon === "link" && (
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input type="url" value={link} onChange={e => setLink(e.target.value)} placeholder="https://…"
+            style={{ ...inputStyle, flex: 1, borderColor: "#00C896", borderRadius: 12 }} autoFocus />
+          <button onClick={() => { setLink(""); setAddon(null); }} style={{ padding: "11px 14px", borderRadius: 12, border: `1px solid ${C.border}`, background: "transparent", color: C.textMuted, cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}>Cancel</button>
+        </div>
+      )}
+
+      {addon === "voice" && (
+        <VoiceRecorder
+          onDone={b => { setFiles(p => [...p, new File([b], `voice-${Date.now()}.webm`, { type: b.type })]); setAddon(null); }}
+          onCancel={() => setAddon(null)}
+          C={C}
+        />
+      )}
+
+      {/* Schedule row */}
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: C.shadow }}>
+        <div onClick={() => setShowSched(v => !v)} style={{ padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+          <div>
+            <span style={{ fontWeight: 600, fontSize: 14, color: C.text }}>Schedule for later</span>
+            {schedDate && <span style={{ marginLeft: 8, fontSize: 13, color: "#00C896" }}>{new Date(schedDate).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}{schedTime ? ` at ${schedTime}` : ""}</span>}
+          </div>
+          <Toggle on={showSched} onToggle={() => setShowSched(v => !v)} />
+        </div>
+        {showSched && (
+          <div style={{ padding: "0 16px 14px", display: "flex", gap: 10, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
+            <input type="date" min={minDate} value={schedDate} onChange={e => setSchedDate(e.target.value)}
+              style={{ ...inputStyle, flex: 1 }} />
+            <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)}
+              style={{ ...inputStyle, flex: 1 }} />
+          </div>
+        )}
+      </div>
+
+      <button onClick={submit} disabled={!hasContent} style={{ width: "100%", padding: "15px 0", borderRadius: 14, border: "none", background: !hasContent ? C.border : "#00C896", color: !hasContent ? C.textMuted : "#fff", fontWeight: 700, fontSize: 15, cursor: !hasContent ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: !hasContent ? .5 : 1, boxShadow: !hasContent ? "none" : "0 4px 14px rgba(0,200,150,0.3)" }}>
+        {schedDate ? `Schedule for ${new Date(schedDate).toLocaleDateString("en-AU", { day: "numeric", month: "short" })} →` : "Submit to Web Gecko →"}
+      </button>
+    </div>
+  );
+}
+
+function PostSheet({
+  post,
+  onClose,
+  onApprove,
+  onRevision,
+  onDelete,
+  C,
+}: {
+  post: any;
+  onClose: () => void;
+  onApprove: (id: string) => void;
+  onRevision: (id: string, text: string) => void;
+  onDelete: (id: string) => void;
+  C: any;
+}) {
+  const [revText, setRevText] = useState("");
+  const [revMode, setRevMode] = useState(false);
+  const [sent,    setSent]    = useState(false);
+
+  const sendRev = () => {
+    if (!revText.trim()) return;
+    setSent(true);
+    setTimeout(() => { onRevision(post.id, revText); onClose(); }, 700);
+  };
+
+  const inputStyle = { width: "100%", background: C.raised, border: `1.5px solid ${C.border}`, borderRadius: 12, padding: "11px 14px", color: C.text, fontSize: 14, outline: "none", fontFamily: "inherit", boxSizing: "border-box" as const };
+
+  return (
+    <div style={{ position: "absolute", inset: 0, zIndex: 150, background: C.bg, display: "flex", flexDirection: "column", overflowY: "auto" }}>
+      <div style={{ padding: "13px 20px", display: "flex", alignItems: "center", gap: 12, borderBottom: `1px solid ${C.border}`, background: C.surface }}>
+        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+          <Ico d={ic.back} size={20} color="#00C896" />
+        </button>
+        <span style={{ flex: 1, fontWeight: 700, fontSize: 16, color: C.text }}>Post preview</span>
+        <Badge platform={post.platform} />
+      </div>
+
+      <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* Mock preview */}
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: C.shadow }}>
+          {post.mediaUrls && post.mediaUrls.length > 0 ? (
+            <div style={{ height: 180, overflow: "hidden", background: C.raised }}>
+              {post.mediaUrls[0].includes(".webm") || post.mediaUrls[0].includes(".mp4") ? (
+                <video src={post.mediaUrls[0]} controls style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                <img src={post.mediaUrls[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              )}
+            </div>
+          ) : (
+            <div style={{ background: C.raised, height: 130, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>🖼️</div>
+          )}
+          
+          <div style={{ padding: 16 }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#00C896", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Ico d={ic.user} size={16} color="#000" />
+              </div>
+              <div>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: C.text }}>Your Business Account</p>
+                <p style={{ margin: 0, fontSize: 11, color: C.textMuted }}>{post.date}</p>
+              </div>
+            </div>
+            <p style={{ margin: 0, color: C.text, fontSize: 14, lineHeight: 1.7 }}>{post.preview}</p>
+            {post.hashtags && <p style={{ margin: "8px 0 0", color: "#00C896", fontSize: 13 }}>{post.hashtags}</p>}
+          </div>
+        </div>
+
+        {post.scheduledFor && (
+          <div style={{ background: "rgba(0, 200, 150, 0.1)", borderRadius: 12, padding: "10px 14px", border: "1px solid rgba(0, 200, 150, 0.25)", display: "flex", alignItems: "center", gap: 8 }}>
+            <Ico d={ic.cal} size={15} color="#00C896" />
+            <span style={{ color: C.text, fontSize: 14 }}>Scheduled for <strong>{post.scheduledFor}</strong></span>
+          </div>
+        )}
+
+        {post.status === "ready" && !revMode && !sent && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <button onClick={() => onApprove(post.id)} style={{ width: "100%", padding: "15px 0", borderRadius: 14, border: "none", background: "#00C896", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 14px rgba(0,200,150,0.3)" }}>Approve & post</button>
+            <button onClick={() => setRevMode(true)} style={{ width: "100%", padding: "15px 0", borderRadius: 14, border: `1.5px solid ${C.border}`, background: "transparent", color: C.text, fontWeight: 600, fontSize: 15, cursor: "pointer", fontFamily: "inherit" }}>Request a revision</button>
+            <button onClick={() => onDelete(post.id)} style={{ width: "100%", padding: "14px 0", borderRadius: 14, border: "1px solid rgba(239,68,68,.25)", background: "rgba(239,68,68,.05)", color: "#EF4444", fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Delete draft</button>
+          </div>
+        )}
+
+        {revMode && !sent && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <textarea value={revText} onChange={e => setRevText(e.target.value)}
+              placeholder="What needs changing? e.g. More casual tone, mention the June promo…" rows={4}
+              style={{ ...inputStyle, resize: "none", lineHeight: 1.6, borderRadius: 12 }} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setRevMode(false)} style={{ flex: 1, padding: "12px 0", borderRadius: 14, border: `1.5px solid ${C.border}`, background: "transparent", color: C.text, fontWeight: 600, fontSize: 15, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+              <button onClick={sendRev} style={{ flex: 1, padding: "12px 0", borderRadius: 14, border: "none", background: "#00C896", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 14px rgba(0,200,150,0.3)" }}>Send feedback</button>
+            </div>
+          </div>
+        )}
+
+        {sent && <p style={{ textAlign: "center", color: "#00C896", fontWeight: 700, fontSize: 15, margin: 0 }}>✓ Revision sent — we'll update and notify you.</p>}
+        {post.status === "approved" && (
+          <div style={{ background: "rgba(0,200,150,0.1)", borderRadius: 12, padding: 14, textAlign: "center", border: "1px solid rgba(0,200,150,0.25)" }}>
+            <p style={{ margin: 0, color: "#00C896", fontWeight: 700 }}>✓ This post is live</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── 3. Socials Screen (AI Posting briefs & scheduling list) ──
+function SocialsScreen({ client, C }: { client: ClientData | null; C: any }) {
+  const [view, setView] = useState<"list" | "create" | "setup">("list");
+  const [posts, setPosts] = useState<any[]>([]);
+  const [selPostId, setSelPostId] = useState<string | number | null>(null);
+  const [filter, setFilter] = useState("all");
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Setup options
   const [socialBrief, setSocialBrief] = useState("");
@@ -717,7 +1076,7 @@ function SocialsScreen({ client, C }: { client: ClientData | null; C: any }) {
 
   useEffect(() => {
     loadSocialData();
-  }, []);
+  }, [client]);
 
   async function loadSocialData() {
     if (!client?.jobId) return;
@@ -727,27 +1086,59 @@ function SocialsScreen({ client, C }: { client: ClientData | null; C: any }) {
         .select("metadata")
         .eq("id", client.jobId)
         .single();
-      if (jobRow?.metadata?.approvedPosts) {
-        setHistory(jobRow.metadata.approvedPosts.reverse());
-      }
+      const approved = jobRow?.metadata?.approvedPosts || [];
+      const historyPosts = approved.map((p: any) => ({
+        id: p.id || Math.random().toString(),
+        status: "approved",
+        date: p.approvedAt ? formatDate(p.approvedAt.slice(0, 10)) : "Live",
+        preview: p.caption || "",
+        platform: p.platform,
+        hashtags: Array.isArray(p.hashtags) ? p.hashtags.join(" ") : p.hashtags || "",
+        scheduledFor: p.scheduledAt ? formatDate(p.scheduledAt.slice(0, 10)) + " at " + p.scheduledAt.slice(11, 16) : "",
+        mediaUrls: p.mediaUrls || [],
+      })).reverse();
+
+      const cached = localStorage.getItem(`wg_app_drafts_${client.slug}`);
+      const draftPosts = cached ? JSON.parse(cached) : [];
+
+      setPosts([...draftPosts, ...historyPosts]);
     } catch {}
   }
 
-  const addFiles = (fList: FileList | null) => {
-    if (!fList) return;
-    setFiles(prev => [...prev, ...Array.from(fList)]);
+  const saveDraftsToCache = (allPosts: any[]) => {
+    if (!client?.slug) return;
+    const draftsOnly = allPosts.filter(p => p.status !== "approved");
+    localStorage.setItem(`wg_app_drafts_${client.slug}`, JSON.stringify(draftsOnly));
   };
 
-  async function generateDrafts() {
-    if (!brief.trim() && files.length === 0 || !client) return;
+  async function handleCreatePost(desc: string, files: File[], linkUrl: string, schedDate: string, schedTime: string) {
+    if (!client) return;
     setIsGenerating(true);
-    setDrafts([]);
+    
+    // Default platforms to generate drafts for (Instagram, Facebook)
+    const activePlatforms = ["Instagram", "Facebook"];
+    
+    // Add temp generating placeholders to posts list
+    const genIds = activePlatforms.map(() => `gen_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`);
+    const placeholders = activePlatforms.map((p, idx) => ({
+      id: genIds[idx],
+      status: "generating",
+      date: "Just now",
+      preview: "",
+      platform: p,
+      eta: "~1 min",
+      mediaUrls: []
+    }));
+    
+    setPosts(prev => [...placeholders, ...prev]);
+    setView("list");
+
     try {
       const fd = new FormData();
       fd.append("slug", client.slug || "");
-      fd.append("brief", brief);
-      fd.append("tone", tone);
-      fd.append("platforms", JSON.stringify(platforms));
+      fd.append("brief", desc);
+      fd.append("tone", "friendly");
+      fd.append("platforms", JSON.stringify(activePlatforms.map(p => p.toLowerCase())));
       if (linkUrl) fd.append("linkUrl", linkUrl);
       files.forEach(f => fd.append("files", f));
 
@@ -756,30 +1147,60 @@ function SocialsScreen({ client, C }: { client: ClientData | null; C: any }) {
         body: fd
       });
       const data = await res.json();
+      
       if (res.ok) {
-        setDrafts(data.drafts || []);
-        setGeneratedMediaUrls(data.mediaUrls || []);
+        const newDrafts = (data.drafts || []).map((d: any) => {
+          let schedString = "";
+          if (schedDate) {
+            schedString = schedDate + (schedTime ? `T${schedTime}:00` : "T09:00:00");
+          } else if (d.scheduledAt) {
+            schedString = d.scheduledAt;
+          }
+          return {
+            id: `draft_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            status: "ready",
+            date: "Just now",
+            preview: d.caption,
+            platform: d.platform.charAt(0).toUpperCase() + d.platform.slice(1),
+            hashtags: Array.isArray(d.hashtags) ? d.hashtags.join(" ") : d.hashtags || "",
+            scheduledFor: schedString ? formatDate(schedString.slice(0, 10)) + (schedString.includes("T") ? " at " + schedString.slice(11, 16) : "") : "",
+            mediaUrls: data.mediaUrls || [],
+          };
+        });
+
+        setPosts(prev => {
+          const filtered = prev.filter(p => !genIds.includes(p.id));
+          const updated = [...newDrafts, ...filtered];
+          saveDraftsToCache(updated);
+          return updated;
+        });
       } else {
         alert(data.error || "Failed to generate captions.");
+        setPosts(prev => prev.filter(p => !genIds.includes(p.id)));
       }
     } catch {
       alert("Error contacting generating endpoint.");
-    } finally { setIsGenerating(false); }
+      setPosts(prev => prev.filter(p => !genIds.includes(p.id)));
+    } finally {
+      setIsGenerating(false);
+    }
   }
 
-  async function approveSocial() {
+  async function handleApprovePost(postId: string) {
     if (!client) return;
-    setApproving(true);
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+    
     try {
       const payload = {
         slug: client.slug,
-        posts: drafts.map(d => ({
-          platform: d.platform,
-          caption: d.caption,
-          hashtags: d.hashtags,
-          scheduledAt: d.scheduledAt,
-          mediaUrls: generatedMediaUrls,
-        }))
+        posts: [{
+          platform: post.platform,
+          caption: post.preview,
+          hashtags: post.hashtags ? post.hashtags.split(" ").filter(Boolean) : [],
+          scheduledAt: post.scheduledFor || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          mediaUrls: post.mediaUrls,
+        }]
       };
       const res = await fetch("/api/client/social-approve", {
         method: "POST",
@@ -787,18 +1208,48 @@ function SocialsScreen({ client, C }: { client: ClientData | null; C: any }) {
         body: JSON.stringify(payload)
       });
       if (res.ok) {
-        setApproveDone(true);
+        const updated = posts.map(p => p.id === postId ? { ...p, status: "approved", date: "Just now" } : p);
+        setPosts(updated);
+        saveDraftsToCache(updated);
+        setSelPostId(null);
         loadSocialData();
-        setTimeout(() => {
-          setApproveDone(false);
-          setDrafts([]);
-          setFiles([]);
-          setBrief("");
-          setSubTab("queue");
-        }, 2200);
+      } else {
+        alert("Failed to approve post. Contact support.");
       }
-    } finally { setApproving(false); }
+    } catch {
+      alert("Error approving post.");
+    }
   }
+
+  async function handleRevisionPost(postId: string, feedbackText: string) {
+    if (!client) return;
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+
+    try {
+      await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug: client.slug,
+          topics: ["Social Media Revision Request"],
+          details: `Revision request for draft ID: ${postId} (${post.platform})\nOriginal Caption: ${post.preview}\n\nClient Notes: "${feedbackText}"`
+        })
+      });
+      const updated = posts.map(p => p.id === postId ? { ...p, status: "revision" } : p);
+      setPosts(updated);
+      saveDraftsToCache(updated);
+    } catch {
+      alert("Error submitting revision request.");
+    }
+  }
+
+  const handleDeletePost = (postId: string) => {
+    const updated = posts.filter(p => p.id !== postId);
+    setPosts(updated);
+    saveDraftsToCache(updated);
+    setSelPostId(null);
+  };
 
   async function submitSetupBrief() {
     if (!client) return;
@@ -816,175 +1267,41 @@ function SocialsScreen({ client, C }: { client: ClientData | null; C: any }) {
     } catch {}
   }
 
-  return (
-    <div className="wg-fade" style={{ display: "flex", flexDirection: "column", gap: 16, paddingBottom: 24 }}>
-      <div>
-        <h2 style={{ fontSize: 20, fontWeight: 900, color: C.text, letterSpacing: "-0.4px" }}>Social Poster</h2>
-        <p style={{ margin: "2px 0 0", color: C.textSec, fontSize: 13 }}>Schedule platform updates via AI briefs.</p>
-      </div>
+  const STATUS = {
+    ready:     { label: "Ready to review", color: "#00C896", bg: "rgba(0, 200, 150, 0.15)" },
+    generating:{ label: "Generating…",     color: "#F59E0B", bg: "#FEF9EC" },
+    approved:  { label: "Live",            color: C.textMuted, bg: C.raised },
+    revision:  { label: "Revision sent",   color: "#8B5CF6", bg: "#F5F3FF" },
+  };
 
-      {/* Mini Tabbar */}
-      <div style={{ display: "flex", background: C.raised, borderRadius: 12, padding: 3, border: `1px solid ${C.border}`, gap: 4 }}>
-        {[
-          { id: "create", label: "Create Post" },
-          { id: "queue", label: "Queue / History" },
-          { id: "setup", label: "Setup brief" },
-        ].map(t => (
-          <button key={t.id} onClick={() => setSubTab(t.id as any)} style={{ flex: 1, padding: 8, border: "none", borderRadius: 9, cursor: "pointer", fontSize: 11, fontWeight: subTab === t.id ? 700 : 500, background: subTab === t.id ? "#00C896" : "transparent", color: subTab === t.id ? "#fff" : C.textMuted, fontFamily: "inherit" }}>
-            {t.label}
+  const shown = filter === "all" ? posts : posts.filter(p => p.status === filter);
+  const readyN = posts.filter(p => p.status === "ready").length;
+  const activePost = posts.find(p => p.id === selPostId);
+
+  if (view === "create") {
+    return (
+      <div className="wg-fade">
+        {/* Back header for create */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <button onClick={() => setView("list")} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+            <Ico d={ic.back} size={20} color="#00C896" />
           </button>
-        ))}
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.textSec }}>Back to posts</span>
+        </div>
+        <NewPostScreen onSubmit={handleCreatePost} C={C} />
       </div>
+    );
+  }
 
-      {subTab === "create" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {drafts.length === 0 ? (
-            <>
-              {/* Media upload zone */}
-              <input ref={uploadRef} type="file" multiple accept="image/*,video/*" hidden onChange={e => addFiles(e.target.files)} />
-              <input ref={cameraRef} type="file" accept="image/*,video/*" capture="environment" hidden onChange={e => addFiles(e.target.files)} />
-              <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => cameraRef.current?.click()} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: 18, borderRadius: 16, border: "none", background: "#0F1117", cursor: "pointer" }}>
-                  <div style={{ width: 44, height: 44, borderRadius: "50%", background: "rgba(0,200,150,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <Ico d={ic.camera} size={20} color="#00C896" />
-                  </div>
-                  <span style={{ color: "#fff", fontWeight: 700, fontSize: 12 }}>Snap Photo</span>
-                </button>
-                <button onClick={() => uploadRef.current?.click()} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: 18, borderRadius: 16, border: `1.5px solid ${C.border}`, background: C.surface, cursor: "pointer" }}>
-                  <div style={{ width: 44, height: 44, borderRadius: "50%", background: "rgba(0,200,150,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <Ico d={ic.upload} size={20} color="#00C896" />
-                  </div>
-                  <span style={{ color: C.text, fontWeight: 700, fontSize: 12 }}>Upload File</span>
-                </button>
-              </div>
-
-              {files.length > 0 && (
-                <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
-                  {files.map((f, i) => (
-                    <FileChip key={i} file={f} onRemove={() => setFiles(prev => prev.filter((_, idx) => idx !== i))} />
-                  ))}
-                </div>
-              )}
-
-              {/* Text brief */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 12, color: C.textSec, fontWeight: 700 }}>Post description / brief</label>
-                <textarea value={brief} onChange={e => setBrief(e.target.value.slice(0, 500))} rows={4} placeholder="Describe the post goal, e.g., Restoration of brick siding finished today in Sydney, offering 10% off enquiries in June..." style={{ width: "100%", background: C.surface, border: `1.5px solid ${C.border}`, borderRadius: 12, padding: 12, color: C.text, fontSize: 13, resize: "none", outline: "none", lineHeight: 1.6 }} />
-                <span style={{ fontSize: 10, color: C.textMuted, alignSelf: "flex-end" }}>{brief.length}/500</span>
-              </div>
-
-              {/* Action Toggles */}
-              <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => setShowLink(!showLink)} style={{ flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${showLink ? "#00C896" : C.border}`, background: showLink ? "rgba(0,200,150,0.06)" : C.surface, color: showLink ? "#00C896" : C.textSec, fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer" }}>
-                  <Ico d={ic.link} size={14} color={showLink ? "#00C896" : C.textSec} /> Add link
-                </button>
-                <button onClick={() => setShowVoice(!showVoice)} style={{ flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${showVoice ? "#00C896" : C.border}`, background: showVoice ? "rgba(0,200,150,0.06)" : C.surface, color: showVoice ? "#00C896" : C.textSec, fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer" }}>
-                  <Ico d={ic.mic} size={14} color={showVoice ? "#00C896" : C.textSec} /> Voice Brief
-                </button>
-              </div>
-
-              {showVoice && <VoiceRecorder onDone={(blob: Blob) => { setFiles(prev => [...prev, new File([blob], `brief-audio-${Date.now()}.webm`, { type: blob.type })]); setShowVoice(false); }} />}
-              {showLink && <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://..." style={{ width: "100%", background: C.surface, border: `1.5px solid ${C.border}`, borderRadius: 10, padding: 10, color: C.text, fontSize: 13, outline: "none" }} />}
-
-              {/* Tone & Platforms */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <label style={{ fontSize: 11, color: C.textMuted, fontWeight: 600, display: "block", marginBottom: 5 }}>Tone profile</label>
-                  <select value={tone} onChange={e => setTone(e.target.value)} style={{ width: "100%", background: C.surface, border: `1.5px solid ${C.border}`, borderRadius: 10, padding: 10, color: C.text, fontSize: 13 }}>
-                    <option value="friendly">Friendly & casual</option>
-                    <option value="professional">Professional</option>
-                    <option value="promotional">Promotional</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.textMuted, fontWeight: 600, display: "block", marginBottom: 5 }}>Estimate Cost</label>
-                  <div style={{ display: "flex", alignItems: "center", background: "rgba(0,200,150,0.08)", border: "1px solid rgba(0,200,150,0.2)", borderRadius: 10, padding: 10, height: 38, fontSize: 12, fontWeight: 700, color: "#00C896" }}>
-                    $100.00 Flat fee
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: 11, color: C.textMuted, fontWeight: 600, display: "block", marginBottom: 6 }}>Social channels</label>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {["Instagram", "Facebook", "LinkedIn", "TikTok"].map(p => {
-                    const active = platforms.includes(p);
-                    return (
-                      <button key={p} onClick={() => setPlatforms(prev => active ? prev.filter(x => x !== p) : [...prev, p])} style={{ padding: "5px 12px", borderRadius: 20, border: `1.5px solid ${active ? "#00C896" : C.border}`, background: active ? "rgba(0,200,150,0.08)" : "transparent", color: active ? "#00C896" : C.textMuted, fontWeight: 600, fontSize: 11, cursor: "pointer" }}>{p}</button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <button onClick={generateDrafts} disabled={isGenerating || (!brief.trim() && files.length === 0)} style={{ width: "100%", padding: 14, background: (brief.trim() || files.length > 0) ? "#00C896" : C.border, color: (brief.trim() || files.length > 0) ? "#fff" : C.textMuted, border: "none", borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: (brief.trim() || files.length > 0) ? "pointer" : "not-allowed" }}>
-                {isGenerating ? "AI Writing Captions..." : "Generate AI Post Drafts →"}
-              </button>
-            </>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {drafts.map((d, index) => (
-                <div key={d.platform} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden", boxShadow: C.shadow }}>
-                  <div style={{ padding: "10px 14px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontWeight: 700, fontSize: 13 }}>{d.platform}</span>
-                    <Badge platform={d.platform} />
-                  </div>
-                  <div style={{ padding: 14 }}>
-                    <textarea value={d.caption} onChange={e => {
-                      const updated = [...drafts];
-                      updated[index].caption = e.target.value;
-                      setDrafts(updated);
-                    }} rows={3} style={{ width: "100%", border: "none", background: "transparent", color: C.text, fontSize: 13, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.5 }} />
-                    <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 4 }}>
-                      {d.hashtags?.map((t: string) => <span key={t} style={{ color: "#00C896", fontSize: 11, fontWeight: 600 }}>{t}</span>)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              <div style={{ padding: 14, background: "rgba(0,200,150,0.06)", borderRadius: 12, border: "1px solid rgba(0,200,150,0.2)" }}>
-                {approveDone ? (
-                  <p style={{ margin: 0, textAlign: "center", color: "#00C896", fontWeight: 700, fontSize: 13 }}>✓ Post Approved & Sent to Queue</p>
-                ) : (
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-                    <div>
-                      <p style={{ margin: 0, fontSize: 11, color: C.textMuted }}>Draft flat-fee charge</p>
-                      <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: C.text }}>$100.00 AUD</p>
-                    </div>
-                    <button onClick={approveSocial} disabled={approving} style={{ padding: "10px 20px", background: "#00C896", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
-                      {approving ? "Approving..." : "Confirm & Schedule"}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+  if (view === "setup") {
+    return (
+      <div className="wg-fade">
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <button onClick={() => setView("list")} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+            <Ico d={ic.back} size={20} color="#00C896" />
+          </button>
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.textSec }}>Back to posts</span>
         </div>
-      )}
-
-      {subTab === "queue" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {history.length === 0 ? (
-            <p style={{ textAlign: "center", color: C.textMuted, fontSize: 13, padding: 32 }}>No posts scheduled or posted yet.</p>
-          ) : history.map(post => (
-            <div key={post.approvedAt || post.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, boxShadow: C.shadow }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 4, background: "rgba(0,200,150,0.12)", color: "#00C896", fontWeight: 700 }}>Scheduled</span>
-                <span style={{ fontSize: 11, color: C.textMuted }}>{formatDate(post.scheduledAt)}</span>
-              </div>
-              <p style={{ margin: 0, fontSize: 13, color: C.text, lineHeight: 1.5 }}>{post.caption}</p>
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 6 }}>
-                {post.hashtags?.map((t: string) => <span key={t} style={{ color: "#00C896", fontSize: 11 }}>{t}</span>)}
-              </div>
-              <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 10, paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Badge platform={post.platform} />
-                <span style={{ fontSize: 10, color: C.textMuted }}>Charge ID: {post.chargeId?.slice(0, 8)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {subTab === "setup" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {setupSubmitted ? (
             <div style={{ background: "rgba(0,200,150,0.06)", border: "1px solid rgba(0,200,150,0.2)", borderRadius: 12, padding: 16, textAlign: "center" }}>
@@ -1009,7 +1326,93 @@ function SocialsScreen({ client, C }: { client: ClientData | null; C: any }) {
             </div>
           )}
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="wg-fade" style={{ display: "flex", flexDirection: "column", gap: 14, position: "relative" }}>
+      {activePost && (
+        <PostSheet
+          post={activePost}
+          onClose={() => setSelPostId(null)}
+          onApprove={handleApprovePost}
+          onRevision={handleRevisionPost}
+          onDelete={handleDeletePost}
+          C={C}
+        />
       )}
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h1 style={{ margin: "0 0 3px", fontSize: 22, fontWeight: 800, color: C.text, letterSpacing: "-0.4px" }}>Posts</h1>
+          {readyN > 0 && <p style={{ margin: 0, color: "#00C896", fontSize: 12, fontWeight: 600 }}>{readyN} ready to review</p>}
+        </div>
+        
+        <button
+          onClick={() => setView("create")}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "8px 14px",
+            borderRadius: 10,
+            border: "none",
+            background: "#00C896",
+            color: "#fff",
+            fontWeight: 700,
+            fontSize: 12,
+            cursor: "pointer"
+          }}
+        >
+          <Ico d={ic.plus} size={14} color="#fff" /> New Post
+        </button>
+      </div>
+
+      <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+        {[
+          { id: "all", label: "All" },
+          { id: "ready", label: "To review" },
+          { id: "generating", label: "In progress" },
+          { id: "approved", label: "Live" }
+        ].map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)} style={{ padding: "5px 12px", borderRadius: 20, border: `1.5px solid ${filter === f.id ? "#00C896" : C.border}`, background: filter === f.id ? "rgba(0, 200, 150, 0.08)" : "transparent", color: filter === f.id ? "#00C896" : C.textMuted, fontWeight: filter === f.id ? 700 : 500, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>{f.label}</button>
+        ))}
+      </div>
+
+      {shown.length === 0 && <p style={{ textAlign: "center", color: C.textMuted, padding: "32px 0", margin: 0, fontSize: 13 }}>Nothing here yet.</p>}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {shown.map(p => {
+          const s = STATUS[p.status as keyof typeof STATUS] || STATUS.generating;
+          return (
+            <div key={p.id} onClick={() => p.status !== "generating" && setSelPostId(p.id)}
+              style={{ background: C.surface, border: `1px solid ${p.status === "ready" ? "rgba(0, 200, 150, 0.3)" : C.border}`, borderRadius: 16, padding: 16, cursor: p.status !== "generating" ? "pointer" : "default", boxShadow: C.shadow }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 20, color: s.color, background: s.bg }}>{s.label}</span>
+                <span style={{ color: C.textMuted, fontSize: 11 }}>{p.date}</span>
+              </div>
+              {p.status === "generating"
+                ? <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: C.textMuted, fontSize: 13 }}>Generating your post…</span>
+                    {p.eta && <span style={{ color: C.textMuted, fontSize: 11 }}>ETA {p.eta}</span>}
+                  </div>
+                : <p style={{ margin: "0 0 10px", color: C.text, fontSize: 13, lineHeight: 1.6 }}>{p.preview}</p>}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Badge platform={p.platform} />
+                {p.status !== "generating" && <span style={{ color: C.textMuted, fontSize: 11 }}>Tap to review →</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Setup Support link */}
+      <div style={{ textAlign: "center", marginTop: 14 }}>
+        <button onClick={() => setView("setup")} style={{ background: "none", border: "none", color: "#00C896", fontSize: 12, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>
+          Need to connect or create social accounts? Request setup →
+        </button>
+      </div>
     </div>
   );
 }
@@ -1237,7 +1640,7 @@ function BookingsScreen({ slug, client, paymentStatus, C }: { slug: string; clie
 }
 
 // ── 5. Billing Screen ──
-function BillingScreen({ slug, client, paymentStatus, C }: { slug: string; client: ClientData | null; paymentStatus: PaymentStatus | null; C: any }) {
+function BillingScreen({ slug, client, paymentStatus, C, onOpenDoc }: { slug: string; client: ClientData | null; paymentStatus: PaymentStatus | null; C: any; onOpenDoc: (type: "terms" | "privacy" | "refunds") => void }) {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [payLoading, setPayLoading] = useState<string | null>(null);
 
@@ -1262,6 +1665,8 @@ function BillingScreen({ slug, client, paymentStatus, C }: { slug: string; clien
     paymentStatus?.depositPaid && { id: "INV-003", label: "Final Build & Hands-on Deliverables", amount: paymentStatus?.quote?.final || 100, status: paymentStatus?.finalPaid ? "paid" : "due", stage: "final" }
   ].filter(Boolean);
 
+  const linkSt = { background: "none", border: "none", color: "#00C896", padding: 0, font: "inherit", cursor: "pointer", textDecoration: "underline", fontWeight: 600, display: "inline" };
+
   return (
     <div className="wg-fade" style={{ display: "flex", flexDirection: "column", gap: 14, paddingBottom: 24 }}>
       <div>
@@ -1285,7 +1690,7 @@ function BillingScreen({ slug, client, paymentStatus, C }: { slug: string; clien
           <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
             <input type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} style={{ width: 18, height: 18, accentColor: "#00C896", cursor: "pointer", marginTop: 2 }} />
             <label style={{ fontSize: 12, color: C.textSec, lineHeight: 1.5 }}>
-              I accept the <a href="/legal/terms" target="_blank" style={{ color: "#00C896", textDecoration: "none", fontWeight: 600 }}>Terms of Service</a>, <a href="/legal/privacy" target="_blank" style={{ color: "#00C896", textDecoration: "none", fontWeight: 600 }}>Privacy Policy</a>, and <a href="/legal/refunds" target="_blank" style={{ color: "#00C896", textDecoration: "none", fontWeight: 600 }}>Refund Policy</a>.
+              I accept the <button onClick={() => onOpenDoc("terms")} style={linkSt}>Terms of Service</button>, <button onClick={() => onOpenDoc("privacy")} style={linkSt}>Privacy Policy</button>, and <button onClick={() => onOpenDoc("refunds")} style={linkSt}>Refund Policy</button>.
             </label>
           </div>
           <button onClick={() => handlePay(paymentStatus?.depositPaid ? "final" : "deposit")} disabled={payLoading !== null} style={{ width: "100%", padding: 14, border: "none", borderRadius: 12, background: "linear-gradient(135deg, #00C896, #00d4a0)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", boxShadow: "0 3px 10px rgba(0,200,150,0.25)" }}>
@@ -1318,10 +1723,26 @@ function BillingScreen({ slug, client, paymentStatus, C }: { slug: string; clien
   );
 }
 
-// ── 6. Account Screen ──
-function AccountScreen({ slug, client, onSignOut, C }: { slug: string; client: ClientData | null; onSignOut: () => void; C: any }) {
-  const [subTab, setSubTab] = useState<"profile" | "upgrades" | "support">("profile");
-
+// ── 6. Manage Screen ──
+function ManageScreen({
+  slug,
+  client,
+  paymentStatus,
+  onSignOut,
+  C,
+  subTab,
+  setSubTab,
+  onOpenDoc,
+}: {
+  slug: string;
+  client: ClientData | null;
+  paymentStatus: PaymentStatus | null;
+  onSignOut: () => void;
+  C: any;
+  subTab: "bookings" | "billing" | "profile" | "upgrades" | "support";
+  setSubTab: (t: any) => void;
+  onOpenDoc: (type: "terms" | "privacy" | "refunds") => void;
+}) {
   // Profile Edit
   const [profile, setProfile] = useState({ name: "", email: "", phone: "", address: "", abn: "", domain: "", ga4Id: "" });
   const [editing, setEditing] = useState(false);
@@ -1392,26 +1813,43 @@ function AccountScreen({ slug, client, onSignOut, C }: { slug: string; client: C
 
   return (
     <div className="wg-fade" style={{ display: "flex", flexDirection: "column", gap: 16, paddingBottom: 24 }}>
-      <div style={{ textAlign: "center", padding: "12px 0 0" }}>
-        <div style={{ width: 62, height: 62, borderRadius: "50%", background: "#00C896", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px" }}>
-          <Ico d={ic.user} size={28} color="#000" />
+      {/* Business Identity Card */}
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, boxShadow: C.shadow }}>
+        <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#00C896", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Ico d={ic.user} size={22} color="#000" />
         </div>
-        <p style={{ margin: 0, fontWeight: 900, fontSize: 16, color: C.text }}>{profile.name}</p>
-        <p style={{ margin: "2px 0 0", fontSize: 11, color: C.textMuted }}>Job Ref: {client?.jobId?.slice(0, 10)}</p>
+        <div style={{ flex: 1 }}>
+          <p style={{ margin: 0, fontWeight: 900, fontSize: 15, color: C.text }}>{profile.name}</p>
+          <p style={{ margin: "2px 0 0", fontSize: 10, color: C.textMuted }}>Job Ref: {client?.jobId?.slice(0, 10)}</p>
+        </div>
       </div>
 
       {/* Internal Mini Tabbar */}
-      <div style={{ display: "flex", background: C.raised, borderRadius: 12, padding: 3, border: `1px solid ${C.border}`, gap: 4 }}>
+      <div style={{ display: "flex", background: C.raised, borderRadius: 12, padding: 3, border: `1px solid ${C.border}`, gap: 2, overflowX: "auto", whiteSpace: "nowrap" }}>
         {[
-          { id: "profile", label: "Profile Settings" },
-          { id: "upgrades", label: "Request Upgrades" },
-          { id: "support", label: "Support Desk" },
-        ].map(t => (
-          <button key={t.id} onClick={() => setSubTab(t.id as any)} style={{ flex: 1, padding: 8, border: "none", borderRadius: 9, cursor: "pointer", fontSize: 11, fontWeight: subTab === t.id ? 700 : 500, background: subTab === t.id ? "#00C896" : "transparent", color: subTab === t.id ? "#fff" : C.textMuted, fontFamily: "inherit" }}>
-            {t.label}
-          </button>
-        ))}
+          { id: "bookings", label: "Bookings", icon: ic.cal },
+          { id: "billing", label: "Billing", icon: ic.dollar },
+          { id: "profile", label: "Profile", icon: ic.user },
+          { id: "upgrades", label: "Upgrades", icon: ic.zap },
+          { id: "support", label: "Support", icon: ic.message },
+        ].map(t => {
+          const on = subTab === t.id;
+          return (
+            <button key={t.id} onClick={() => setSubTab(t.id as any)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "6px 8px", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 11, fontWeight: on ? 700 : 500, background: on ? "#00C896" : "transparent", color: on ? "#fff" : C.textMuted, fontFamily: "inherit" }}>
+              <Ico d={t.icon} size={11} color={on ? "#fff" : C.textMuted} />
+              {t.label}
+            </button>
+          );
+        })}
       </div>
+
+      {subTab === "bookings" && (
+        <BookingsScreen slug={slug} client={client} paymentStatus={paymentStatus} C={C} />
+      )}
+
+      {subTab === "billing" && (
+        <BillingScreen slug={slug} client={client} paymentStatus={paymentStatus} C={C} onOpenDoc={onOpenDoc} />
+      )}
 
       {subTab === "profile" && (
         <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 16, display: "flex", flexDirection: "column", gap: 12, boxShadow: C.shadow }}>
@@ -1598,7 +2036,8 @@ export default function SocialApp() {
   const [slug, setSlug] = useState("");
   const [client, setClient] = useState<ClientData | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
-  const [activeTab, setActiveTab] = useState<"home" | "website" | "socials" | "bookings" | "billing" | "account">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "website" | "socials" | "manage">("home");
+  const [manageSubTab, setManageSubTab] = useState<"bookings" | "billing" | "profile" | "upgrades" | "support">("bookings");
 
   // Dynamic Theme (Light / Dark)
   const [dark, setDark] = useState<boolean>(false);
@@ -1655,6 +2094,52 @@ export default function SocialApp() {
     setPaymentStatus(null);
   }
 
+  // Legal document viewing overlay states
+  const [activeDoc, setActiveDoc] = useState<"terms" | "privacy" | "refunds" | null>(null);
+  const [docHtml, setDocHtml] = useState("");
+  const [docLoading, setDocLoading] = useState(false);
+
+  async function handleOpenDoc(type: "terms" | "privacy" | "refunds") {
+    setActiveDoc(type);
+    setDocHtml("");
+    setDocLoading(true);
+    try {
+      const res = await fetch(`/api/legal?doc=${type}`);
+      if (res.ok) {
+        const html = await res.text();
+        setDocHtml(html);
+      } else {
+        setDocHtml("<p style='padding:20px;color:red;font-family:sans-serif;'>Failed to load document.</p>");
+      }
+    } catch {
+      setDocHtml("<p style='padding:20px;color:red;font-family:sans-serif;'>Error fetching document.</p>");
+    } finally {
+      setDocLoading(false);
+    }
+  }
+
+  // Intercept redirection paths to match the combined Manage tab architecture
+  function handleNav(tab: string) {
+    if (tab === "bookings") {
+      setActiveTab("manage");
+      setManageSubTab("bookings");
+    } else if (tab === "billing") {
+      setActiveTab("manage");
+      setManageSubTab("billing");
+    } else if (tab === "account" || tab === "profile" || tab === "settings") {
+      setActiveTab("manage");
+      setManageSubTab("profile");
+    } else if (tab === "upgrades") {
+      setActiveTab("manage");
+      setManageSubTab("upgrades");
+    } else if (tab === "support") {
+      setActiveTab("manage");
+      setManageSubTab("support");
+    } else {
+      setActiveTab(tab as any);
+    }
+  }
+
   if (!authed) {
     return (
       <div style={{ width: "100%", maxWidth: 430, margin: "0 auto", minHeight: "100vh", display: "flex", flexDirection: "column", background: C.bg }}>
@@ -1665,12 +2150,10 @@ export default function SocialApp() {
   }
 
   const screenMap = {
-    home:     <DashboardScreen client={client} paymentStatus={paymentStatus} onNav={setActiveTab} C={C} />,
+    home:     <DashboardScreen client={client} paymentStatus={paymentStatus} onNav={handleNav} C={C} />,
     website:  <WebsiteScreen client={client} C={C} />,
     socials:  <SocialsScreen client={client} C={C} />,
-    bookings: <BookingsScreen slug={slug} client={client} paymentStatus={paymentStatus} C={C} />,
-    billing:  <BillingScreen slug={slug} client={client} paymentStatus={paymentStatus} C={C} />,
-    account:  <AccountScreen slug={slug} client={client} onSignOut={handleSignOut} C={C} />,
+    manage:   <ManageScreen slug={slug} client={client} paymentStatus={paymentStatus} onSignOut={handleSignOut} C={C} subTab={manageSubTab} setSubTab={setManageSubTab} onOpenDoc={handleOpenDoc} />,
   };
 
   return (
@@ -1700,15 +2183,13 @@ export default function SocialApp() {
         {screenMap[activeTab]}
       </div>
 
-      {/* Sticky Bottom Nav Bar */}
+      {/* Sticky Bottom Nav Bar (Simplified from 6 to 4 menus) */}
       <nav style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, background: C.surface, borderTop: `1px solid ${C.border}`, paddingBottom: "env(safe-area-inset-bottom, 8px)", zIndex: 95, display: "flex" }}>
         {[
           { id: "home",     label: "Home",     icon: ic.home },
-          { id: "website",  label: "Preview",  icon: ic.globe },
+          { id: "website",  label: "Website",  icon: ic.globe },
           { id: "socials",  label: "Socials",  icon: ic.send },
-          { id: "bookings", label: "Bookings", icon: ic.cal },
-          { id: "billing",  label: "Billing",  icon: ic.dollar },
-          { id: "account",  label: "Settings",  icon: ic.user },
+          { id: "manage",   label: "Manage",   icon: ic.user },
         ].map(t => {
           const on = activeTab === t.id;
           return (
@@ -1719,6 +2200,98 @@ export default function SocialApp() {
           );
         })}
       </nav>
+
+      {/* Local Legal Document Viewer Modal */}
+      {activeDoc && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: "100%",
+          maxWidth: 430,
+          bottom: 0,
+          zIndex: 9999,
+          background: C.bg,
+          display: "flex",
+          flexDirection: "column",
+          boxShadow: "0 0 40px rgba(0,0,0,0.3)"
+        }}>
+          {/* Header */}
+          <div style={{
+            padding: "14px 16px",
+            borderBottom: `1px solid ${C.border}`,
+            background: C.surface,
+            display: "flex",
+            alignItems: "center",
+            gap: 12
+          }}>
+            <button
+              onClick={() => setActiveDoc(null)}
+              style={{
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                color: C.text,
+                fontSize: 14,
+                fontWeight: 700,
+                gap: 6
+              }}
+            >
+              <Ico d={ic.back} size={18} color={C.text} /> Back
+            </button>
+            <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>
+              {activeDoc === "terms" && "Terms of Service"}
+              {activeDoc === "privacy" && "Privacy Policy"}
+              {activeDoc === "refunds" && "Refund Policy"}
+            </span>
+          </div>
+
+          {/* Document Content Area */}
+          {docLoading ? (
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: C.textMuted, fontSize: 13, background: C.bg }}>
+              Loading document...
+            </div>
+          ) : (
+            <iframe
+              srcDoc={(() => {
+                let styledHtml = docHtml;
+                if (!dark) {
+                  // Light mode transformations
+                  styledHtml = styledHtml
+                    .replace(/background:\s*#0a0a0f;/gi, "background: #ffffff; color: #1e293b;")
+                    .replace(/color:\s*#c8c8d4;/gi, "color: #1e293b;")
+                    .replace(/background:\s*#0d0d14;/gi, "background: #f1f5f9; border-bottom: 1px solid #e2e8f0;")
+                    .replace(/color:\s*#9494aa;/gi, "color: #475569;")
+                    .replace(/color:\s*#e0e0ef;/gi, "color: #0f172a;")
+                    .replace(/color:\s*#f0f0fa;/gi, "color: #0f172a;")
+                    .replace(/color:\s*#c0c0d4;/gi, "color: #0f172a;")
+                    .replace(/background:\s*#12121e;/gi, "background: #f8fafc; border: 1px solid #e2e8f0;")
+                    .replace(/border-left:\s*3px\s+solid\s+#7c6dfa;/gi, "border-left: 3px solid #00C896;")
+                    .replace(/color:\s*#7c6dfa;/gi, "color: #00C896;")
+                    .replace(/stroke="#7c6dfa"/gi, 'stroke="#00C896"')
+                    .replace(/fill="#7c6dfa"/gi, 'fill="#00C896"');
+                } else {
+                  // Dark mode branding color adjustments (purple -> WebGecko green)
+                  styledHtml = styledHtml
+                    .replace(/border-left:\s*3px\s+solid\s+#7c6dfa;/gi, "border-left: 3px solid #00C896;")
+                    .replace(/color:\s*#7c6dfa;/gi, "color: #00C896;")
+                    .replace(/stroke="#7c6dfa"/gi, 'stroke="#00C896"')
+                    .replace(/fill="#7c6dfa"/gi, 'fill="#00C896"');
+                }
+                return styledHtml;
+              })()}
+              style={{
+                flex: 1,
+                border: "none",
+                background: dark ? "#0a0a0f" : "#ffffff"
+              }}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
