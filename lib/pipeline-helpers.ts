@@ -306,7 +306,7 @@ export function resolveStitchClasses(html: string): string {
   // Core layout utilities
   const utils = [
     ".flex{display:flex}", ".inline-flex{display:inline-flex}", ".grid{display:grid}",
-    ".block{display:block}", ".inline-block{display:inline-block}", ".hidden{display:none!important}",
+    ".block{display:block}", ".inline-block{display:inline-block}", ".hidden{display:none}",
     ".flex-col{flex-direction:column}", ".flex-row{flex-direction:row}",
     ".flex-wrap{flex-wrap:wrap}", ".flex-1{flex:1 1 0%}", ".flex-shrink-0{flex-shrink:0}",
     ".items-center{align-items:center}", ".items-start{align-items:flex-start}",
