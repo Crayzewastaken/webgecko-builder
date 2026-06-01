@@ -989,46 +989,19 @@ const buildWebsite = inngest.createFunction(
             const replacement = `<a href="${item.paymentLinkUrl}" target="_blank" rel="noopener" class="wg-buy-btn" data-product-index="${i}" style="display:inline-block;background:#006aff;color:#fff;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:0.95rem;">Buy Now — $${(item.priceCents / 100).toFixed(2)}</a>`;
             html = html.replace(btnPattern, replacement).replace(anchorPattern, replacement);
           });
-          // Strategy 2: use jsdom to find the product card structurally and wire its buy button
-          try {
-            const { JSDOM } = await import("jsdom");
-            const dom = new JSDOM(html);
-            const doc = dom.window.document;
-            const buyBtnTextRe = /^(Buy Now|Add to Cart|Order Now|Shop Now|Purchase|Buy)$/i;
-
-            catalogueItems.forEach((item: any, i: number) => {
-              if (!item.paymentLinkUrl || html.includes(`data-product-index="${i}"`)) return;
-              // Find any element whose text contains the product name
-              const allEls = Array.from(doc.querySelectorAll("h2,h3,h4,p,span,div"));
-              const nameEl = allEls.find(el => el.textContent?.trim().toLowerCase().includes(item.name.toLowerCase()));
-              if (!nameEl) return;
-              // Walk up to find the card container (parent that contains a buy button)
-              let card: Element | null = nameEl;
-              let buyBtn: Element | null = null;
-              for (let depth = 0; depth < 6 && card; depth++) {
-                const btns = Array.from(card.querySelectorAll("button,a"));
-                buyBtn = btns.find(b => buyBtnTextRe.test(b.textContent?.trim() || "")) || null;
-                if (buyBtn) break;
-                card = card.parentElement;
-              }
-              if (!buyBtn) return;
-              // Replace the button with a proper payment link
-              const link = doc.createElement("a");
-              link.href = item.paymentLinkUrl;
-              link.target = "_blank";
-              link.rel = "noopener";
-              link.className = "wg-buy-btn";
-              link.setAttribute("data-product-index", String(i));
-              link.setAttribute("style", "display:inline-block;background:#006aff;color:#fff;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:0.95rem;");
-              link.textContent = `Buy Now — $${(item.priceCents / 100).toFixed(2)}`;
-              buyBtn.replaceWith(link);
-              console.log(`[Step7] jsdom wired buy button for product: ${item.name}`);
+          // Strategy 2: regex-based buy button wiring (replaces jsdom which fails in Vercel/Turbopack)
+          catalogueItems.forEach((item: any, i: number) => {
+            if (!item.paymentLinkUrl || html.includes(`data-product-index="${i}"`)) return;
+            // Find a <button> or <a> with buy-like text near the product name
+            const buyBtnRe = /<(button|a)([^>]*)>\s*(?:Buy Now|Add to Cart|Order Now|Shop Now|Purchase|Buy)\s*<\/(button|a)>/gi;
+            let replaced = false;
+            html = html.replace(buyBtnRe, (_m: string, tag: string, attrs: string, closeTag: string) => {
+              if (replaced || attrs.includes('data-product-index')) return _m;
+              replaced = true;
+              return `<a href="${item.paymentLinkUrl}" target="_blank" rel="noopener" class="wg-buy-btn" data-product-index="${i}" style="display:inline-block;background:#006aff;color:#fff;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:0.95rem;">Buy Now — $${(item.priceCents / 100).toFixed(2)}</a>`;
             });
-
-            html = dom.serialize();
-          } catch (jsdomErr) {
-            console.warn("[Step7] jsdom strategy 2 failed, skipping:", jsdomErr);
-          }
+            if (replaced) console.log(`[Step7] regex wired buy button for product: ${item.name}`);
+          });
           // Strategy 3: inject fallback shop section for unmatched products
           const unlinked = catalogueItems.filter((_: any, i: number) => !html.includes(`data-product-index="${i}"`));
           if (unlinked.length > 0) {
