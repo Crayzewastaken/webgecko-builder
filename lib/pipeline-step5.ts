@@ -96,6 +96,33 @@ export function applyStep5CodeFixes(params: Step5Params): string {
     });
   }
 
+  // ── Strip Stitch "Sign In" / "Log In" buttons client didn't request ──────────
+  // Stitch sometimes generates auth buttons. Remove any that aren't wired to real pages.
+  html = html.replace(/<(?:button|a)([^>]*)>\s*(?:Sign In|Log In|Login|Sign Up|Register|Create Account)\s*<\/(?:button|a)>/gi, (m: string, attrs: string) => {
+    // Keep if it has a real href (not #) or a real onclick to a known page
+    if (/href=["'](?!#)[^"']+["']/i.test(attrs)) return m;
+    if (/navigateTo|window\.open/i.test(attrs)) return m;
+    return ''; // strip placeholder auth buttons
+  });
+
+  // ── Wire Stitch footer href="#" Privacy/Terms links to navigateTo ──────────
+  // Stitch outputs <a href="#">Privacy Policy</a> etc. in the footer. Wire them.
+  html = html.replace(/<a([^>]*)href=["']#["']([^>]*)>\s*(Privacy Policy|Privacy)\s*<\/a>/gi,
+    (_m: string, before: string, after: string, label: string) => {
+      if (/onclick/i.test(before) || /onclick/i.test(after)) return _m;
+      return `<a${before}href="#"${after} onclick="event.preventDefault();window.navigateTo&&window.navigateTo('privacy')">${label}</a>`;
+    });
+  html = html.replace(/<a([^>]*)href=["']#["']([^>]*)>\s*(Terms(?:\s+of\s+Service|\s+&amp;\s+Conditions|\s+and\s+Conditions|s)?)\s*<\/a>/gi,
+    (_m: string, before: string, after: string, label: string) => {
+      if (/onclick/i.test(before) || /onclick/i.test(after)) return _m;
+      return `<a${before}href="#"${after} onclick="event.preventDefault();window.navigateTo&&window.navigateTo('terms')">${label}</a>`;
+    });
+  html = html.replace(/<a([^>]*)href=["']#["']([^>]*)>\s*Contact\s*<\/a>/gi,
+    (_m: string, before: string, after: string) => {
+      if (/onclick/i.test(before) || /onclick/i.test(after)) return _m;
+      return `<a${before}href="#"${after} onclick="event.preventDefault();window.navigateTo&&window.navigateTo('contact')">Contact</a>`;
+    });
+
   // ── Contact form cleanup ──────────────────────────────────────────────────
   html = html.replace(/<(?:div|p|label|tr)[^>]*>[^<]*(?:Business Name|Company Name|Organisation|Organization|Project (?:Goals?|Type|Details?|Description)|Subject|Username|Password|Confirm Password|Account Type|Service Type|Service Interest|How did you hear)[^<]*<\/(?:div|p|label|tr)>\s*/gi, '');
   html = html.replace(/<(?:input|select|textarea)[^>]*(?:name=["'](?:business|company|organisation|organization|subject|username|password|confirm|project_type|service_type|how_hear)[^"']*["']|placeholder=["'][^"']*(?:Business Name|Company|Organization|Project Type|Service Type|Password|Username)[^"']*["'])[^>]*>(?:<\/(?:input|select|textarea)>)?/gi, '');

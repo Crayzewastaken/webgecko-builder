@@ -917,7 +917,8 @@ const buildWebsite = inngest.createFunction(
       })();
 
       const finalHtmlWithShop = await step.run("step7-shop", async () => {
-        if (!hasShopFeature || shopProducts.length === 0) {
+        const hasShopPage = requestedPageIds.includes('shop') || (userInput.pages || []).map((p: string) => p.toLowerCase()).includes('shop');
+        if ((!hasShopFeature && !hasShopPage) || shopProducts.length === 0) {
           console.log("[Step7] Shop skipped: hasShopFeature=" + hasShopFeature + " products=" + shopProducts.length);
           // If the site has a shop page but no products were provided, any "Buy Now" / shop CTA
           // buttons that navigate to 'shop' would create an empty-shop loop. Rewire them to 'contact'.
