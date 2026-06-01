@@ -658,10 +658,27 @@ const buildWebsite = inngest.createFunction(
           }
         }
 
-        // 5. Multi-page: wrap Stitch content in page-section divs if needed.
-        // Check that EACH requested page ID actually exists — not just that there
-        // are enough data-page attributes (Stitch sometimes sets all of them to "home").
+        // 5. Multi-page: add data-page attributes to Stitch sections that only have id=.
+        // Stitch sometimes outputs <section id="shop"> without data-page="shop".
+        // We normalise these FIRST so the rest of the pipeline sees data-page everywhere.
         if (isMultiPage) {
+          // Pass 1: promote id-only page-section elements to have data-page as well
+          requestedPageIds.forEach((id: string) => {
+            if (!html.includes(`data-page="${id}"`) && !html.includes(`data-page='${id}'`)) {
+              // Match <section ... id="home" ...> or <div class="page-section ... id="home" ...>
+              const idRe = new RegExp(`(<(?:section|div|article|main)([^>]*\bid=["']${id}["'][^>]*))>`, 'i');
+              const promoted = html.replace(idRe, (_m: string, tag: string) => {
+                if (tag.includes('data-page')) return _m; // already has it
+                return `${tag} data-page="${id}">`;
+              });
+              if (promoted !== html) {
+                html = promoted;
+                console.log(`[Step4b] Promoted id="${id}" to data-page="${id}"`);
+              }
+            }
+          });
+
+          // Pass 2: check if any are still missing after promotion
           const missingPageIds = requestedPageIds.filter(
             (id: string) => !html.includes(`data-page="${id}"`) && !html.includes(`data-page='${id}'`)
           );
