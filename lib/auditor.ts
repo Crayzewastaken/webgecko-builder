@@ -743,7 +743,9 @@ function injectLegalPages(html: string, ctx: {
   const alreadyHasLegalLinks =
     result.includes('data-wg-terms') ||
     result.includes("navigateTo('terms')") ||
-    result.includes('navigateTo("terms")');
+    result.includes('navigateTo("terms")') ||
+    /Privacy\s*Policy/i.test(result.slice(result.lastIndexOf('<footer'))) ||
+    /data-wg-privacy/i.test(result);
   if (!alreadyHasLegalLinks) {
     const legalFooter =
       `<div style="text-align:center;padding:8px 0 4px;font-size:12px;">` +

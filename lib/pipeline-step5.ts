@@ -78,6 +78,24 @@ export function applyStep5CodeFixes(params: Step5Params): string {
     html = html.replace(/MAP PLACEHOLDER[:\s]*[A-Z\s]+/gi, businessAddress);
   }
 
+  // ── Strip Stitch placeholder footer links (Discord, Community, etc.) ─────────
+  // Stitch generates generic social/community footer links that aren't real for the client.
+  // Remove nav items linking to generic platforms client didn't set up.
+  html = html.replace(/<li[^>]*>\s*<a[^>]*href=["']#["'][^>]*>\s*(Discord|Community|Forum|Reddit|Twitch|Slack|WhatsApp Group)\s*<\/a>\s*<\/li>/gi, '');
+  html = html.replace(/<a[^>]*href=["']#["'][^>]*>\s*(Discord|Community|Forum|Reddit|Twitch)\s*<\/a>/gi, '');
+
+  // ── Strip newsletter section if client did not request it ─────────────────
+  // Stitch sometimes generates a newsletter/email signup section unprompted.
+  if (!features.includes("Newsletter Signup")) {
+    html = html.replace(/<section[^>]*id=["']newsletter["'][^>]*>[\s\S]*?<\/section>/gi, '');
+    html = html.replace(/<div[^>]*id=["']newsletter["'][^>]*>[\s\S]*?<\/div>/gi, '');
+    // Also strip newsletter sections detected by heading text (no explicit id)
+    html = html.replace(/<section[^>]*>[\s\S]{0,200}?(?:Stay in the Loop|Subscribe to Our Newsletter|Join Our Newsletter|Newsletter Signup)[\s\S]*?<\/section>/gi, (m: string) => {
+      if (m.includes('id="newsletter-form"') || m.includes("newsletter-form")) return '';
+      return m;
+    });
+  }
+
   // ── Contact form cleanup ──────────────────────────────────────────────────
   html = html.replace(/<(?:div|p|label|tr)[^>]*>[^<]*(?:Business Name|Company Name|Organisation|Organization|Project (?:Goals?|Type|Details?|Description)|Subject|Username|Password|Confirm Password|Account Type|Service Type|Service Interest|How did you hear)[^<]*<\/(?:div|p|label|tr)>\s*/gi, '');
   html = html.replace(/<(?:input|select|textarea)[^>]*(?:name=["'](?:business|company|organisation|organization|subject|username|password|confirm|project_type|service_type|how_hear)[^"']*["']|placeholder=["'][^"']*(?:Business Name|Company|Organization|Project Type|Service Type|Password|Username)[^"']*["'])[^>]*>(?:<\/(?:input|select|textarea)>)?/gi, '');
