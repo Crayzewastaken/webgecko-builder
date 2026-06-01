@@ -239,10 +239,26 @@ function parseJson(raw: string): SiteBlueprint {
     else extracted = s.slice(first); // truncated — try anyway
   }
 
-  // Strategy 1: vanilla parse of brace-extracted JSON
+  // Strategy 0: control-character sanitization first (newlines inside strings break JSON.parse)
+  let extracted0 = extracted;
+  try {
+    extracted0 = extracted.replace(/[\x00-\x1f]/g, (c) => {
+      if (c === "\n") return "\\n";
+      if (c === "\r") return "\\r";
+      if (c === "\t") return "\\t";
+      return "";
+    });
+  } catch {}
+
+  // Strategy 1: vanilla parse of brace-extracted JSON (with control chars sanitized)
+  try { return JSON.parse(extracted0) as SiteBlueprint; } catch {}
   try { return JSON.parse(extracted) as SiteBlueprint; } catch {}
 
   // Strategy 2: fix unescaped double-quotes inside stitchPrompt, then parse
+  try {
+    const sanitised2 = escapeStitchPromptQuotes(extracted0);
+    return JSON.parse(sanitised2) as SiteBlueprint;
+  } catch {}
   try {
     const sanitised2 = escapeStitchPromptQuotes(extracted);
     return JSON.parse(sanitised2) as SiteBlueprint;

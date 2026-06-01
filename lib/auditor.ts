@@ -298,11 +298,15 @@ export async function auditAndFixSite(
       '</form></div></section>',
     ].join("");
     if (isMultiPage) {
-      // For multi-page: inject inside contact page wrapper, or home as fallback
-      fixed = injectIntoPageWrapper(fixed, fb, ["contact", "home"]);
-      if (!fixed.includes('id="contact"')) {
-        // If no wrapper found yet, stamp id on the wrapper we just inserted into
-        fixed = fixed.replace(/(<(?:div|section)[^>]*data-page=["']contact["'][^>]*>)/, (m: string) => m.replace(/>$/, ' id="contact-page">'));
+      // For multi-page: inject inside contact page wrapper if it exists,
+      // otherwise create a new data-page="contact" wrapper before </body>
+      if (fixed.includes('data-page="contact"') || fixed.includes("data-page='contact'")) {
+        fixed = injectIntoPageWrapper(fixed, fb, ["contact"]);
+      } else {
+        // No contact page — create one rather than dumping into home
+        const contactWrapper = `<div data-page="contact" id="contact-page" style="min-height:100vh;">${fb}</div>`;
+        fixed = fixed.replace('</body>', contactWrapper + '\n</body>');
+        console.log('[Auditor] Created new data-page="contact" wrapper');
       }
     } else {
       fixed = addSectionIdSmart(fixed, "contact", [/contact|get-in-touch|contactus|reach-us/i], [/contact us|get in touch|reach us|enquire|send.*message/i], fb);
@@ -364,8 +368,14 @@ export async function auditAndFixSite(
     ).join("");
     const faqSection = `<section id="faq" style="padding:80px 24px;background:${clrBg2};"><div style="max-width:800px;margin:0 auto;"><h2 style="color:${clrText};font-size:2rem;font-weight:900;margin:0 0 40px;">Frequently Asked Questions</h2>${faqHtml}</div></section>`;
     if (isMultiPage) {
-      // For multi-page: inject into faq page wrapper, or home as fallback
-      fixed = injectIntoPageWrapper(fixed, faqSection, ["faq", "home"]);
+      // For multi-page: inject into faq page wrapper if it exists, else create one
+      if (fixed.includes('data-page="faq"') || fixed.includes("data-page='faq'")) {
+        fixed = injectIntoPageWrapper(fixed, faqSection, ["faq"]);
+      } else {
+        const faqWrapper = `<div data-page="faq" id="faq-page" style="min-height:100vh;">${faqSection}</div>`;
+        fixed = fixed.replace('</body>', faqWrapper + '\n</body>');
+        console.log('[Auditor] Created new data-page="faq" wrapper');
+      }
     } else {
       fixed = addSectionIdSmart(fixed, "faq", [/faq|frequently|accordion|faqs|questions|q-and-a|qa-section|q_a/i], [/faq|frequently asked|common questions|have a question/i], faqSection);
     }
