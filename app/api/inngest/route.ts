@@ -951,11 +951,17 @@ const buildWebsite = inngest.createFunction(
                 return `<div style="background:${cardBg};border-radius:12px;overflow:hidden;display:flex;flex-direction:column;">${photoHtml}<div style="padding:20px 20px 24px;flex:1;display:flex;flex-direction:column;gap:8px;"><h3 style="color:${textCol};font-size:1.05rem;font-weight:700;margin:0;">${p.name}</h3>${price}<a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('contact')" style="display:inline-block;background:${btnCol};color:#fff;font-weight:700;padding:12px 20px;border-radius:8px;text-decoration:none;text-align:center;margin-top:auto;">Enquire Now</a></div></div>`;
               }).join('\n');
               const innerGrid = `<div style="max-width:1100px;margin:0 auto;padding:80px 24px;"><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:28px;">${cards}</div></div>`;
-              // Inject real products INTO the existing Stitch shop section (preserve wrapper + page-section class)
-              const shopInnerRe = /(<(?:div|section)[^>]*data-page=["'"]shop["'][^>]*>)([\s\S]*?)(<\/(?:div|section)>)/i;
-              if (shopInnerRe.test(html)) {
-                html = html.replace(shopInnerRe, (_m: string, open: string, _inner: string, close: string) => `${open}${innerGrid}${close}`);
-                console.log(`[Step7] No-payment shop: injected ${shopProducts.length} real product(s) into existing Stitch shop section`);
+              // Use replacePageSection (depth-counting) to replace shop content fully,
+              // then re-wrap with the original Stitch opening tag to preserve page-section class.
+              const shopOpenRe = /<(section|div|article|main)([^>]*data-page=["']shop["'][^>]*)>/i;
+              const shopOpenM = shopOpenRe.exec(html);
+              if (shopOpenM) {
+                const openTag = shopOpenM[0];
+                const replaced = replacePageSection(html, 'shop', openTag + innerGrid + `</${shopOpenM[1]}>`);
+                if (replaced !== html) {
+                  html = replaced;
+                  console.log(`[Step7] No-payment shop: replaced Stitch shop content with ${shopProducts.length} real product(s)`);
+                }
               } else {
                 const bg = dark ? '#0f172a' : '#f8fafc';
                 const shopSection = `<div class="page-section" data-page="shop" id="shop" style="background:${bg};">${innerGrid}</div>`;
@@ -1013,11 +1019,16 @@ const buildWebsite = inngest.createFunction(
             if (cards.length === 0) console.warn("[Step7] No products have payment links (variationId missing for all) — skipping shop injection");
             if (cards.length > 0) {
               const innerGrid2 = `<div style="max-width:1200px;margin:0 auto;padding:80px 24px;"><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:24px;">${cards}</div></div>`;
-              // Inject real products INTO the existing Stitch shop section (preserve wrapper + page-section class)
-              const shopInnerRe2 = /(<(?:div|section)[^>]*data-page=["'"]shop["'][^>]*>)([\s\S]*?)(<\/(?:div|section)>)/i;
-              if (shopInnerRe2.test(html)) {
-                html = html.replace(shopInnerRe2, (_m: string, open: string, _inner: string, close: string) => `${open}${innerGrid2}${close}`);
-                console.log("[Step7] Injected real products into existing Stitch shop section (preserved design wrapper)");
+              // Use depth-counting replacePageSection, preserve original opening tag
+              const shopOpenRe2 = /<(section|div|article|main)([^>]*data-page=["']shop["'][^>]*)>/i;
+              const shopOpenM2 = shopOpenRe2.exec(html);
+              if (shopOpenM2) {
+                const openTag2 = shopOpenM2[0];
+                const replaced2 = replacePageSection(html, 'shop', openTag2 + innerGrid2 + `</${shopOpenM2[1]}>`);
+                if (replaced2 !== html) {
+                  html = replaced2;
+                  console.log("[Step7] Replaced Stitch shop content with real products (preserved wrapper)");
+                }
               } else {
                 const fallbackSection = `<div class="page-section" data-page="shop" id="shop" style="background:#0f172a;">${innerGrid2}</div>`;
                 html = html.replace("</body>", fallbackSection + "\n</body>");
