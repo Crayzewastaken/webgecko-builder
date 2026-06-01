@@ -361,20 +361,17 @@ const buildWebsite = inngest.createFunction(
           const headlineFont = resolveFont(typography.headingFont || "Space Grotesk");
           const bodyFont = resolveFont(typography.bodyFont || "Inter");
 
-          // Keep designSystemInput minimal — only fields Stitch API accepts without error.
-          // Do NOT pass overridePrimaryColor/overrideSecondaryColor alongside customColor —
-          // Stitch rejects the call with "invalid argument" when all three are set.
-          // Strip undefined values to avoid serialisation issues.
-          const accentHex = (palette.accent || palette.primary || "#10b981").replace(/[^#0-9a-fA-F]/g, "") || "#10b981";
+          // Only pass theme — do NOT pass designTokens alongside theme (triggers "invalid argument").
+          // customColor must be exactly #RRGGBB (6-digit hex with hash).
+          const rawAccent = palette.accent || palette.primary || "#10b981";
+          const accentHex = /^#[0-9a-fA-F]{6}$/.test(rawAccent) ? rawAccent : "#10b981";
           const designSystemInput = {
             displayName: `${spec.projectTitle} Design System`,
-            designTokens: tokens,
             theme: {
               colorMode: (isDark ? "DARK" : "LIGHT") as "DARK" | "LIGHT",
               customColor: accentHex,
               headlineFont: headlineFont as any,
               bodyFont: bodyFont as any,
-              labelFont: bodyFont as any,
               roundness: "ROUND_EIGHT" as const,
             },
           };
