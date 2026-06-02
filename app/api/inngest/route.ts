@@ -385,52 +385,40 @@ const buildWebsite = inngest.createFunction(
           return "";
         }
       }) as string;
-      // ── STEP 3: Stitch generate + fetch HTML in one blocking step ─────────────
-      // generate() is synchronous/blocking — it waits until the screen is fully
-      // rendered before returning. We call getHtml() immediately on the returned
-      // screen object (no sleep, no polling needed).
-      const stitchHtml = savedHtmlForRebuild ? savedHtmlForRebuild : await step.run("step3-stitch-generate", async () => {
-        const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-        const stitchPrompt = (spec.stitchPrompt || "")
-          .replace(/https?:\/\/[^\s"',)>]+/g, "[URL]")
-          .replace(/\s{3,}/g, "  ");
-        // Do NOT slice stitchPrompt — truncation breaks multipage and section instructions
+      // ── STEP 3: Stitch generate with edit loop for quality control ──────────
+      const stitchHtml = await step.run("step3-stitch-generate", async () => {
+        const stitchPrompt = blueprint.stitchPrompt;
         console.log(`[Inngest] STEP 3: Stitch generate (prompt: ${stitchPrompt.length} chars, projectId=${projectId})`);
 
+        async function fetchScreenHtml(screen: any): Promise<string> {
+          let url = await screen.getHtml();
+          if (!url) {
+            const delays = [20000, 20000, 20000, 30000, 30000];
+            for (const d of delays) {
+              await sleep(d);
+              try { url = await screen.getHtml(); if (url) break; } catch {}
+              console.log(`[Inngest] STEP 3: getHtml() poll — url length=${url?.length ?? 0}`);
+            }
+          }
+          if (!url) throw new Error(`getHtml() empty after retries (screenId=${screen.screenId})`);
+          const res = await fetch(url);
+          const text = await res.text();
+          console.log(`[Inngest] STEP 3: fetched HTML — status=${res.status} length=${text.length}`);
+          if (!text.includes("<")) throw new Error(`Not HTML (${text.length} chars)`);
+          return text;
+        }
+
         let html = "";
+        let screen: any = null;
+
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
             const project = stitchSdk.project(projectId);
-            const screen = await project.generate(stitchPrompt, "DESKTOP");
+            screen = await project.generate(stitchPrompt, "DESKTOP");
             console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
-
-            // getHtml() may return empty immediately after generate() — retry with backoff
-            // list_screens is unreliable (returns 0 screens) so use direct getHtml() retries instead
-            let url = await screen.getHtml();
-            console.log(`[Inngest] STEP 3: getHtml() attempt 1 — url length=${url?.length ?? 0}`);
-
-            if (!url && screen.screenId) {
-              // Poll getHtml() directly: 20s, 20s, 20s, 30s, 30s = max 120s extra
-              const pollDelays = [20000, 20000, 20000, 30000, 30000];
-              for (let poll = 0; poll < pollDelays.length; poll++) {
-                await sleep(pollDelays[poll]);
-                try {
-                  url = await screen.getHtml();
-                  console.log(`[Inngest] STEP 3: getHtml() poll ${poll + 2} — url length=${url?.length ?? 0}`);
-                  if (url) break;
-                } catch (pe: any) {
-                  console.log(`[Inngest] STEP 3: getHtml() poll ${poll + 2} error: ${pe?.message}`);
-                }
-              }
-            }
-
-            if (!url) throw new Error(`Stitch getHtml() returned empty after all retries (screenId=${screen.screenId})`);
-
-            const fetchRes = await fetch(url);
-            const text = await fetchRes.text();
-            console.log(`[Inngest] STEP 3: fetched HTML — status=${fetchRes.status} length=${text.length}`);
-            if (text.length > 25000 && text.includes("<")) { html = text; break; }
-            throw new Error(`Stitch HTML too short (${text.length} chars — need 25KB+ for rich output), status=${fetchRes.status}`);
+            html = await fetchScreenHtml(screen);
+            if (html.length > 25000) break;
+            throw new Error(`HTML too short (${html.length} chars — need 25KB+)`);
           } catch (e: any) {
             const msg = e?.message || String(e);
             console.warn(`[Inngest] STEP 3: attempt ${attempt} failed: ${msg}`);
@@ -440,13 +428,48 @@ const buildWebsite = inngest.createFunction(
           }
         }
 
-        if (html.length < 25000) throw new Error(`Stitch HTML too short (${html.length} chars — need 25KB+)`);
-        if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton");
-        const styleLen = (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join("").length;
-        const inlineStyleCount = (html.match(/\bstyle=/gi) || []).length;
-        if (styleLen < 100 && inlineStyleCount < 20) {
-          throw new Error(`Stitch HTML has no CSS (styleLen=${styleLen}, inlineStyles=${inlineStyleCount})`);
+        // ── Edit loop: Claude inspects output and requests fixes via screen.edit() ──
+        if (screen) {
+          const editIssues: string[] = [];
+          const requestedPIds = (Array.isArray(userInput.pages) ? userInput.pages : ["Home"])
+            .map((p: string) => p.toLowerCase().replace(/\s+/g, "-"));
+
+          for (const pid of requestedPIds) {
+            const hasPage = html.includes(`data-page="${pid}"`) || html.includes(`id="${pid}"`);
+            if (!hasPage) { editIssues.push(`Add missing page section "${pid}" with full real content`); continue; }
+            const pidIdx = Math.max(html.indexOf(`data-page="${pid}"`), html.indexOf(`id="${pid}"`));
+            const chunk = html.slice(pidIdx, pidIdx + 6000).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+            if (chunk.length < 150) editIssues.push(`Page "${pid}" is too thin — add real headings, copy and images`);
+          }
+          if (/<button[^>]*>\s*(?:Sign In|Log In|Login)\s*<\/button>/i.test(html))
+            editIssues.push("Remove all Sign In / Log In buttons — no auth on this site");
+          if (!features.includes("Newsletter Signup") && /newsletter.*email|your email/i.test(html))
+            editIssues.push("Remove the newsletter email signup section");
+          if (userInput.shopProducts && (html.includes("CyberBoard") || html.includes("AI Vision Camera")))
+            editIssues.push(`Replace placeholder shop products with ONLY: ${userInput.shopProducts.slice(0, 200)}`);
+
+          if (editIssues.length > 0) {
+            const editPrompt = "Fix these issues — keep all design/colours unchanged:\n" +
+              editIssues.map((iss, i) => `${i + 1}. ${iss}`).join("\n") +
+              "\n\nEnsure every page section has data-page=\"pageid\" AND id=\"pageid\" on the same element.";
+            console.log(`[Inngest] STEP 3: Edit pass for ${editIssues.length} issue(s)`);
+            try {
+              const edited = await screen.edit(editPrompt, "DESKTOP", "GEMINI_3_PRO");
+              const editedHtml = await fetchScreenHtml(edited);
+              if (editedHtml.length > html.length * 0.7) {
+                html = editedHtml;
+                console.log(`[Inngest] STEP 3: Edit done — HTML now ${html.length} chars`);
+              }
+            } catch (editErr: any) {
+              console.warn("[Inngest] STEP 3: Edit pass failed (non-fatal):", editErr?.message);
+            }
+          } else {
+            console.log("[Inngest] STEP 3: No edit needed — output passes quality checks");
+          }
         }
+
+        if (html.length < 25000) throw new Error(`Stitch HTML too short (${html.length} chars)`);
+        if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton");
         console.log(`[Inngest] STEP 3 DONE: HTML ${html.length} chars`);
         return html;
       }) as string;
@@ -1032,14 +1055,21 @@ const buildWebsite = inngest.createFunction(
                   console.log("[Step7] Replaced Stitch shop content with real products (preserved wrapper)");
                 }
               } else {
-                const fallbackSection = `<div class="page-section" data-page="shop" id="shop" style="background:#0f172a;">${innerGrid2}</div>`;
-                html = html.replace("</body>", fallbackSection + "\n</body>");
+                if (html.includes("navigateTo('shop')") || html.includes('navigateTo("shop")')) {
+                  const fallbackSection = `<div class="page-section" data-page="shop" id="shop" style="background:#0f172a;">${innerGrid2}</div>`;
+                  html = html.includes('<footer') ? html.replace(/<footer/i, fallbackSection + '\n<footer') : html.replace("</body>", fallbackSection + "\n</body>");
+                } else {
+                  console.warn("[Step7] No shop nav found — skipping fallback injection");
+                }
               }
               console.log(`[Step7] Injected ${catalogueItems.filter((i: any) => !!i.paymentLinkUrl).length} real products into shop section`);
             }
           }
-          const squareBadge = clientSquareToken ? `<div style="text-align:center;margin-top:16px;padding:8px;"><p style="color:rgba(255,255,255,0.4);font-size:11px;margin:0;">Secure checkout powered by Square</p></div>` : "";
-          html = html.replace(/(<section[^>]*(?:id|class)="[^"]*shop[^"]*"[^>]*>[\s\S]*?)(<\/section>)/gi, (_m: string, body: string, close: string) => body + squareBadge + close);
+          if (clientSquareToken) {
+            const squareBadge = `<div style="text-align:center;margin-top:16px;padding:8px;"><p style="color:rgba(255,255,255,0.4);font-size:11px;margin:0;">Secure checkout powered by Square</p></div>`;
+            const shopSectionRe = /(<(?:section|div)[^>]*data-page=["']shop["'][^>]*>)([\s\S]*?)(<\/(?:section|div)>)/i;
+            html = html.replace(shopSectionRe, (_m: string, open: string, body: string, close: string) => open + body + squareBadge + close);
+          }
         } catch (e) {
           console.error("[Inngest] STEP 7: Shop catalogue failed:", e);
         }
