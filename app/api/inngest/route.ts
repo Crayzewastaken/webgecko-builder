@@ -440,15 +440,20 @@ const buildWebsite = inngest.createFunction(
 
         // ── New build path (or rebuild fallback): generate from prompt ─────────
         if (!html || html.length < 5000) {
-          console.log(`[Inngest] STEP 3: Generating from prompt (${stitchPrompt.length} chars)`);
+          // Stitch performs best with prompts under 20KB — trim if over
+          const MAX_PROMPT_CHARS = 18000;
+          const trimmedPrompt = stitchPrompt.length > MAX_PROMPT_CHARS
+            ? stitchPrompt.slice(0, MAX_PROMPT_CHARS) + "\n\n[Truncated for length — generate all sections above]"
+            : stitchPrompt;
+          console.log(`[Inngest] STEP 3: Generating from prompt (${stitchPrompt.length} chars → sending ${trimmedPrompt.length})`);
           for (let attempt = 1; attempt <= 3; attempt++) {
             try {
               const project = stitchSdk.project(projectId);
-              screen = await project.generate(stitchPrompt, "DESKTOP", "GEMINI_3_1_PRO");
+              screen = await project.generate(trimmedPrompt, "DESKTOP", "GEMINI_3_1_PRO");
               console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
               html = await fetchScreenHtml(screen);
-              if (html.length > 25000) break;
-              throw new Error(`HTML too short (${html.length} chars — need 25KB+)`);
+              if (html.length > 5000) break;
+              throw new Error(`HTML too short (${html.length} chars — need 5KB+)`);
             } catch (e: any) {
               const msg = e?.message || String(e);
               console.warn(`[Inngest] STEP 3: attempt ${attempt} failed: ${msg}`);
@@ -504,7 +509,7 @@ const buildWebsite = inngest.createFunction(
           }
         }
 
-        if (html.length < 25000) throw new Error(`Stitch HTML too short (${html.length} chars)`);
+        if (html.length < 5000) throw new Error(`Stitch HTML too short (${html.length} chars)`);
         if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton");
         console.log(`[Inngest] STEP 3 DONE: HTML ${html.length} chars`);
         return html;
