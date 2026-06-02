@@ -1762,27 +1762,34 @@ export function injectImages(
 
   // ── Server-side: replace Stitch's AI-generated aida-public images with real client photos ──
   // Stitch uses lh3.googleusercontent.com/aida-public/ for all generated images.
-  // Replace them with client-uploaded photos so real photos show, not AI ones.
+  // Strategy: replace aida-public imgs OUTSIDE header/nav first (using hero for the hero section,
+  // then cycling through remaining photos). Header/nav aida-public images are replaced last
+  // and will be overwritten by the logo injection step below anyway.
   if (photoUrls.length > 0 || heroUrl) {
-    const allClientPhotos = [...(heroUrl ? [heroUrl] : []), ...photoUrls];
+    const contentPhotos = [...(heroUrl ? [heroUrl] : []), ...photoUrls];
     let photoIdx = 0;
-    // Replace hero/featured image first (first large img in hero section)
+
+    // Step 1: replace aida-public img inside id="hero" or class*="hero" section with heroUrl
     if (heroUrl) {
       processed = processed.replace(
-        /(<img[^>]*data-page=["']home["'][^>]*>|)/gi,
-        (m) => m // just a marker pass
-      );
-      // Replace first aida-public img with heroUrl
-      processed = processed.replace(
-        /src="https:\/\/lh3\.googleusercontent\.com\/aida-public\/[^"]+"/,
-        `src="${heroUrl}"`
+        /(<(?:section|div)[^>]*(?:id=["']hero["']|class=["'][^"']*hero[^"']*["'])[^>]*>[\s\S]{0,5000}?)src="https:\/\/lh3\.googleusercontent\.com\/aida-public\/[^"]+"/i,
+        (_m, before) => `${before}src="${heroUrl}"`
       );
     }
-    // Replace remaining aida-public images with client photos
+
+    // Step 2: replace remaining aida-public images (outside hero) cycling through contentPhotos
+    // Skip images inside <header> or <nav> — those will be handled by the logo injection below
+    // We do this by splitting on aida-public occurrences and checking context
     processed = processed.replace(
       /src="https:\/\/lh3\.googleusercontent\.com\/aida-public\/[^"]+"/g,
-      () => {
-        const url = allClientPhotos[photoIdx % allClientPhotos.length];
+      (match, offset) => {
+        // Look back up to 3000 chars to detect if we're inside a header/nav tag
+        const lookback = processed.slice(Math.max(0, offset - 3000), offset);
+        const lastHeaderOpen = Math.max(lookback.lastIndexOf("<header"), lookback.lastIndexOf("<nav"));
+        const lastHeaderClose = Math.max(lookback.lastIndexOf("</header>"), lookback.lastIndexOf("</nav>"));
+        const insideHeaderNav = lastHeaderOpen > lastHeaderClose;
+        if (insideHeaderNav) return match; // leave for logo injection to handle
+        const url = contentPhotos[photoIdx % contentPhotos.length];
         photoIdx++;
         return `src="${url}"`;
       }
@@ -1791,11 +1798,27 @@ export function injectImages(
 
   // ── Server-side: inject logo into header img or text logo ──
   if (logoUrl) {
-    // Replace any existing logo img in header
-    processed = processed.replace(
-      /(<(?:header|nav)[^>]*>[\s\S]{0,2000}?)<img([^>]*(?:logo|brand|site)[^>]*)>/i,
-      (_m, before, attrs) => `${before}<img${attrs} src="${logoUrl}" style="height:40px;width:auto;object-fit:contain;">`
-    );
+    // Strategy 1: replace any <img> that already has logo/brand/site in attrs
+    const logoAttrRe = /(<(?:header|nav)[^>]*>[\s\S]{0,2000}?)<img([^>]*(?:logo|brand|site-logo|site-name)[^>]*)>/i;
+    if (logoAttrRe.test(processed)) {
+      processed = processed.replace(
+        logoAttrRe,
+        (_m, before, attrs) => `${before}<img${attrs} src="${logoUrl}" alt="Logo" style="height:40px;width:auto;object-fit:contain;">`
+      );
+    } else {
+      // Strategy 2: replace the first <img> inside <header> or <nav> regardless of attrs
+      processed = processed.replace(
+        /(<(?:header|nav)[^>]*>[\s\S]{0,3000}?)<img([^>]*)>/i,
+        (_m, before, attrs) => {
+          // Skip if it's clearly a background/decorative image (src contains aida-public already replaced)
+          const srcMatch = attrs.match(/src=["']([^"']+)["']/i);
+          if (srcMatch && srcMatch[1] === logoUrl) return _m; // already set
+          // Remove existing src from attrs and set our logo
+          const cleanAttrs = attrs.replace(/\s*src=["'][^"']*["']/i, "");
+          return `${before}<img${cleanAttrs} src="${logoUrl}" alt="Logo" style="height:40px;width:auto;object-fit:contain;">`;
+        }
+      );
+    }
   }
 
   const script = `

@@ -272,6 +272,8 @@ const buildWebsite = inngest.createFunction(
             blogTopics: userInput.blogTopics || "",
             videoUrl: userInput.videoUrl || "",
             shopProducts: userInput.shopProducts || "",
+            logoUrl: logoUrl || "",
+            heroUrl: heroUrl || "",
           });
           return blueprint;
           }));
@@ -442,7 +444,7 @@ const buildWebsite = inngest.createFunction(
           for (let attempt = 1; attempt <= 3; attempt++) {
             try {
               const project = stitchSdk.project(projectId);
-              screen = await project.generate(stitchPrompt, "DESKTOP");
+              screen = await project.generate(stitchPrompt, "DESKTOP", "GEMINI_3_AGENT");
               console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
               html = await fetchScreenHtml(screen);
               if (html.length > 25000) break;
@@ -488,7 +490,7 @@ const buildWebsite = inngest.createFunction(
               "\n\nEnsure every page section has data-page=\"pageid\" AND id=\"pageid\" on the same element.";
             console.log(`[Inngest] STEP 3: Edit pass for ${editIssues.length} issue(s)`);
             try {
-              const edited = await screen.edit(editPrompt, "DESKTOP", "GEMINI_3_PRO");
+              const edited = await screen.edit(editPrompt, "DESKTOP", "GEMINI_3_AGENT");
               const editedHtml = await fetchScreenHtml(edited);
               if (editedHtml.length > html.length * 0.7) {
                 html = editedHtml;

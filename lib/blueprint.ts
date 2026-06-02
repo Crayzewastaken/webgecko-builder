@@ -375,6 +375,8 @@ export async function generateSiteBlueprint(context: {
   videoUrl?: string;
   shopProducts?: string;
   exampleHtmls?: { label: string; html: string }[];
+  logoUrl?: string;
+  heroUrl?: string;
 }): Promise<SiteBlueprint> {
   const {
     businessName, industry, targetAudience, usp, goal, style, colorPrefs,
@@ -383,6 +385,8 @@ export async function generateSiteBlueprint(context: {
     pricingSection, imageSection, productsWithPhotos,
     instagramUrl, linkedinUrl, tiktokUrl, realTestimonials, blogTopics, videoUrl, shopProducts,
     exampleHtmls = [],
+    logoUrl = "",
+    heroUrl: heroImageUrl = "",
   } = context;
 
   // Extract suburb/city from address for SERP + LSI — never use the full street address.
@@ -564,7 +568,7 @@ L. RESPONSIVE: Every section must have @media(max-width:768px) rules reducing pa
 EXACT STRUCTURE SCAFFOLD — the stitchPrompt MUST describe rendering EXACTLY these elements in this order:
 
 [1] STICKY HEADER
-  - Logo text "${businessName}" left
+  - ${logoUrl ? "Logo image <img src='" + logoUrl + "' alt='" + businessName + "' style='height:40px;width:auto;object-fit:contain;'> left" : "Logo text \"" + businessName + "\" left"}
   - Desktop nav links right: ${navPages}
   - Button id=hamburger class=md:hidden (hamburger icon ☰) — toggles mobile menu
   - div id=mobile-menu hidden by default, contains same nav links, close button aria-label=Close menu
@@ -579,7 +583,7 @@ EXACT STRUCTURE SCAFFOLD — the stitchPrompt MUST describe rendering EXACTLY th
     d) TWO CTA buttons side by side: PRIMARY button (accent background, "${ctaText || "Get Started"}") + SECONDARY ghost button ("Learn More" or "How It Works")
     e) A horizontal SOCIAL PROOF bar: 3-4 stats with large numbers and labels (e.g. "5,000+ Clients" / "24/7 Available" / "Same-Day Launch") — use accent colour for numbers
   - Right column MUST contain:
-    ${heroUrl ? `- Hero image: use exactly this URL as a sticky 600px tall featured image card — ${heroUrl}` : "- Decorative visual: animated CSS gradient orbs/blobs, geometric pattern, or SVG illustration relevant to ${industry} — NO fake image URLs, NO placeholder images"}
+    ${heroImageUrl ? "- Hero image: use exactly this URL as a sticky 600px tall featured image card — " + heroImageUrl : heroUrl ? "- Video embed: <iframe src='" + heroUrl + "' ...> in a rounded card" : "- Decorative visual: animated CSS gradient orbs/blobs, geometric pattern, or SVG illustration relevant to " + industry + " — NO fake image URLs, NO placeholder images"}
     - Overlapping floating stat cards or feature pills (e.g. "Available: Today" or "100% Guaranteed") — positioned with absolute CSS, 8px grid offset, glassmorphic styling
   - Add a CSS keyframe animation for the headline: fade-in from bottom over 0.6s
   - Add a subtle animated background: slow mesh gradient shift, or floating particles (pure CSS)
@@ -587,7 +591,7 @@ EXACT STRUCTURE SCAFFOLD — the stitchPrompt MUST describe rendering EXACTLY th
   HERO SECTION HEIGHT: min-height: 100vh with display:flex align-items:center
 
 [3] SECTION id=about (asymmetric split layout)
-  - Left column: sticky 600px tall image or visual collage using ${heroUrl || "custom SVG gradient graphic"} with rounded corners (border-radius: 16px) and subtle 1px border.
+  - Left column: sticky 600px tall image or visual collage using ${heroImageUrl || heroUrl || "custom SVG gradient graphic"} with rounded corners (border-radius: 16px) and subtle 1px border.
   - Right column: Vertical stack with heading, 2-3 detailed paragraphs about ${businessName}, and 3 compact list cards (each with icon emoji, brief title, description).
 
 [4] SECTION id=services (Bento Grid layout)
@@ -717,7 +721,7 @@ REFERENCE EXAMPLES (structure/depth inspiration — do NOT copy text):
 ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.slice(0, 4000)}\n---`).join("\n\n")}` : ""}`;
 
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-4-6",
     max_tokens: 10000,
     messages: [{ role: "user", content: prompt }],
   });
