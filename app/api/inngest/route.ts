@@ -571,19 +571,9 @@ const buildWebsite = inngest.createFunction(
   </section>`
           : "";
 
-        // ── PRIME DIRECTIVE: Stitch built the design — DO NOT destroy it. ──────────
-        // Step 4b ONLY injects what is structurally absent:
-        //   ✅ Mobile nav hamburger (if Stitch has none)
-        //   ✅ id="contact" section (ONLY if Stitch has NO contact form at all)
-        //   ✅ Footer (ONLY if completely absent)
-        //   ✅ data-page wrappers for multi-page (structural wiring only)
-        //   ✅ id="hero" stamp on first section
-        //
-        // Step 4b MUST NOT:
-        //   ❌ Replace any Stitch section with pipeline-generated content
-        //   ❌ Inject a contact/FAQ/testimonials section if Stitch already has one
-        //   ❌ Override Stitch's visual design with hardcoded inline styles
-        // ─────────────────────────────────────────────────────────────────────────
+        // ── Pure injection: DO NOT rewrite the Stitch design. ─────────────────────
+        // Only inject structural IDs and missing elements. All CSS, layout, content
+        // from Stitch is preserved exactly as-is.
         let html = stitchHtmlWithCss;
 
         // 0. Strip Tailwind's "hidden" class from data-page wrappers.
@@ -607,12 +597,7 @@ const buildWebsite = inngest.createFunction(
 
         // 1. Inject id="hero" on first <section> only — never <div> (avoids nav/logo elements)
         if (!html.includes('id="hero"') && !html.includes("id='hero'")) {
-          html = html.replace(/<section\b([^>]*)>/i, (m, attrs) => {
-            if (attrs.includes("id=")) {
-              return `<section ${attrs.replace(/\bid=["'][^"']+["']/i, 'id="hero"')}>`;
-            }
-            return `<section id="hero" ${attrs}>`;
-          });
+          html = html.replace(/(<section\b)(?![^>]*\bid=)/, '$1 id="hero"');
         }
 
         // 2. Wire existing hamburger/SVG menu button OR inject our own if missing
@@ -1188,16 +1173,13 @@ const buildWebsite = inngest.createFunction(
           // Pass 1b: force-inject id="hero" on first <section> only (never <div> — avoids nav elements)
           if (!repaired.includes('id="hero"') && !repaired.includes("id='hero'")) {
             const beforeInject = repaired;
-            repaired = repaired.replace(/<section\b([^>]*)>/i, (m, attrs) => {
-              if (attrs.includes("id=")) {
-                return `<section ${attrs.replace(/\bid=["'][^"']+["']/i, 'id="hero"')}>`;
-              }
-              return `<section id="hero" ${attrs}>`;
-            });
+            repaired = repaired.replace(/(<section\b)(?![^>]*\bid=)/, '$1 id="hero"');
             if (repaired !== beforeInject) {
               console.warn("[Step7b] Force-injected id=hero on first <section>");
             } else {
-              console.warn("[Step7b] No <section> found to stamp id=hero — skipping dummy injection");
+              // Fallback: wrap body content in a hero section
+              repaired = repaired.replace(/(<body[^>]*>)/, '$1<section id="hero" style="display:none"></section>');
+              console.warn("[Step7b] Force-injected id=hero via fallback body wrapper");
             }
           }
           // Pass 2: for multi-page, run ensureMultiPageStructure to guarantee all page wrappers
@@ -1739,6 +1721,18 @@ const buildWebsite = inngest.createFunction(
             { filename: `${fileName}-STITCH-RAW.html`, content: Buffer.from(stitchHtml).toString("base64") },
             { filename: `${fileName}-styles.css`, content: Buffer.from(cssContent).toString("base64") },
             { filename: `${fileName}-STITCH-PROMPT.txt`, content: Buffer.from(spec.stitchPrompt || "(no prompt)").toString("base64") },
+            { filename: `${fileName}-CLAUDE-INPUT.txt`, content: Buffer.from([
+              `=== CLAUDE BLUEPRINT INPUT (sent to Claude before Stitch) ===`,
+              `Business: ${userInput.businessName}`,
+              `Industry: ${userInput.industry}`,
+              `Style: ${userInput.style || "modern premium"}`,
+              `Colours: ${userInput.colorPrefs || "professional palette"}`,
+              `Pages: ${Array.isArray(userInput.pages) ? userInput.pages.join(", ") : "Home"}`,
+              `Features: ${features.join(", ") || "none"}`,
+              ``,
+              `=== STITCH PROMPT (sent to Stitch after Claude blueprint) ===`,
+              spec.stitchPrompt || "(no prompt)",
+            ].join("\n")).toString("base64") },
           ],
         });
       });

@@ -532,42 +532,28 @@ BUSINESS:
 ${serpGuidance}${lsiInstruction}
 
 STITCHPROMPT RULES:
-The stitchPrompt is a SHORT BRAND BRIEF sent directly to the Stitch design AI. It must be concise (100-200 words max) so Stitch can use its own native design system (Tailwind, Material Design 3 tokens, Material Symbols icons). DO NOT write CSS, DO NOT specify hex codes, DO NOT describe HTML structure. Instead describe the brand identity, mood, and sections — let Stitch handle all visual decisions natively.
+The stitchPrompt goes directly to Stitch's AI. It must be a pure brand + content brief — 150-300 words. Stitch handles ALL visual design decisions (colours, fonts, layout, spacing, components) on its own. Do NOT specify hex codes, font names, CSS, padding values, or HTML structure. Just describe the brand personality, industry, audience, tone, what each section should CONTAIN, and the required section IDs.
 
-SECTION IDs — the stitchPrompt MUST include these exact id values so the pipeline can wire navigation:
-- Nav/header section: id="home" on first section or hero
-- Required section ids: ${[...new Set(["home", "about", "services", "contact", ...(isMultiPage ? pages.map((p: string) => p.toLowerCase().replace(/\s+/g,"-")) : []), ...(hasBooking ? ["booking"] : []), ...(features.includes("Photo Gallery") ? ["gallery"] : []), ...(features.includes("Payments / Shop") ? ["shop"] : [])])].join(", ")}
-${isMultiPage ? `- MULTI-PAGE: wrap each page in <div data-page="PAGEID" id="PAGEID" class="page-section"> — nav/footer OUTSIDE these divs
-- Pages: ${pageList}
-- Nav links use onclick='navigateTo("pageid")' not href anchors` : `- SINGLE-PAGE: use anchor href="#sectionid" links, standard scroll navigation`}
+REQUIRED SECTION IDs (include these in the stitchPrompt so Stitch labels them correctly):
+${[...new Set(["home", "about", "services", "contact", ...(isMultiPage ? pages.map((p: string) => p.toLowerCase().replace(/\s+/g,"-")) : []), ...(hasBooking ? ["booking"] : []), ...(features.includes("Photo Gallery") ? ["gallery"] : []), ...(features.includes("Payments / Shop") ? ["shop"] : [])])].map(id => `- id="${id}"`).join("\n")}
+
+SITE TYPE: ${isMultiPage ? `Multi-page — each page is a separate view. Wrap each in <div data-page="PAGEID" id="PAGEID" class="page-section">. Nav/footer outside these divs. Nav links use onclick='navigateTo("pageid")'.` : `Single-page — one long scrollable page. Anchor links only (href="#sectionid").`}
+
+CONTENT TO INCLUDE:
+- Business name: ${businessName} | Industry: ${industry} | Location: ${businessAddress || "Australia"}
+- Phone: ${clientPhone} | Email: ${clientEmail}
+- Contact section must have a working form (name, email, phone, message)${businessAddress ? ` and a Google Maps embed for "${businessAddress}"` : ""}
+- FAQ section with accordion items relevant to ${industry}
+- JSON-LD LocalBusiness schema in <head>
 ${bookingInstruction ? `- Booking: ${bookingInstruction}` : ""}
-${features.includes("Photo Gallery") ? "- Include a masonry photo gallery section (id=gallery)" : ""}
-${features.includes("Payments / Shop") ? "- Include a shop/products section (id=shop) with Buy Now buttons (class=wg-buy-btn)" : ""}
-${features.includes("Newsletter Signup") ? "- Include newsletter signup (id=newsletter-form)" : ""}
-- Footer: copyright, legal links (Privacy Policy, Terms of Service)
-- Contact section (id=contact): include name, email, phone, message form fields + address ${businessAddress || ""} + phone ${clientPhone} + email ${clientEmail}${businessAddress ? ` + Google Maps embed for "${businessAddress}"` : ""}
-- Include JSON-LD LocalBusiness schema in <head>
-- FAQ section with <details><summary> accordion items specific to ${industry}
+${features.includes("Photo Gallery") ? "- Gallery section (id=gallery) with masonry photo grid" : ""}
+${features.includes("Payments / Shop") ? "- Shop section (id=shop) with product cards and Buy Now buttons (class=wg-buy-btn)" : ""}
+${features.includes("Newsletter Signup") ? "- Newsletter signup section (id=newsletter-form)" : ""}
 
-VISUAL DESIGN (stitchPrompt must describe these with hex codes):
-- Primary: pick from colour preferences "${colorPrefs}"
-- Accent: contrasting highlight colour
-- Background: dark or light base (based on style "${style}")
-- Typography: pick specific Google Fonts for headings and body
-- The design must look premium, ${industry}-appropriate, and conversion-focused
-
-HERO COPY RULES (strictly enforced):
-- heroHeadline: max 8 words, benefit-driven, NO business name, NO address, NO suburb
-- heroSubheadline: 1-2 sentences, value prop ONLY, NO address or location
-
-SEO & AEO REQUIREMENTS — mandatory in stitchPrompt:
-M. Include JSON-LD LocalBusiness schema in <head>.
-N. AEO: FAQ answers must be 40-60 words, complete and self-contained. Use <details><summary> markup. Write entity-rich About paragraph: what the business does, who it serves, where it operates, unique value.
-
-⚠️ JSON OUTPUT RULES — STRICTLY ENFORCED:
+⚠️ JSON OUTPUT RULES:
 1. Return ONLY a single JSON object. No commentary before or after.
-2. The stitchPrompt value MUST use ONLY single quotes ' for ALL HTML attributes and CSS values. NEVER use double-quotes inside the stitchPrompt string — they break JSON parsing. Correct: style='color:#fff;' — Wrong: style="color:#fff;"
-3. The stitchPrompt MUST be 1200-1800 words. Keep it descriptive but concise to prevent truncation. Focus on visual layout, column alignments, styling rules, and key headlines. Use placeholder structures for large text blocks if needed.
+2. The stitchPrompt value MUST use ONLY single quotes ' inside the string. NEVER double-quotes — they break JSON parsing.
+3. The stitchPrompt must be 150-300 words. Describe brand personality and section content. No CSS, no hex codes, no HTML.
 
 Return ONLY this JSON:
 {
@@ -579,8 +565,8 @@ Return ONLY this JSON:
   "heroHeadline": "benefit-driven max 8 words",
   "heroSubheadline": "1-2 sentences value prop only",
   "ctaText": "${ctaText || "Get Started"}",
-  "uniqueDesignIdea": "one sentence visual theme",
-  "stitchPrompt": "DETAILED layout and rendering instructions following the scaffold above — 1200-1800 words target. Describe EVERY section structure: spacing, grids, visual elements, flex directions, hex colours, font weights, and key text headings. ⚠️ CRITICAL JSON RULE: the stitchPrompt value is a JSON string — NEVER use double-quotes \" inside it. Use ONLY single quotes ' for all HTML attributes and CSS values. Example correct: style='color:#fff' — NEVER style=\"color:#fff\""
+  "uniqueDesignIdea": "one sentence unique visual concept for this brand",
+  "stitchPrompt": "150-300 word brand and content brief. Describe the brand personality, industry, target audience, tone, and what each section should contain. Include required section IDs. Do NOT write CSS or specify colours/fonts/layout — Stitch decides all visual design. ⚠️ Use ONLY single quotes inside this string."
 }${exampleHtmls.length > 0 ? `
 
 REFERENCE EXAMPLES (structure/depth inspiration — do NOT copy text):
@@ -643,9 +629,9 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
   if (blueprint.stitchPrompt.length < 200) {
     console.warn(`[Blueprint] ⚠️ stitchPrompt is only ${blueprint.stitchPrompt.length} chars — may indicate parse fallback truncation. Expected 200+ chars.`);
   }
-  if (blueprint.stitchPrompt.length > 18000) {
-    console.warn(`[Blueprint] ⚠️ stitchPrompt is ${blueprint.stitchPrompt.length} chars — too long, truncating to 18000 to prevent Stitch from ignoring its own design system`);
-    blueprint.stitchPrompt = blueprint.stitchPrompt.slice(0, 18000);
+  if (blueprint.stitchPrompt.length > 2000) {
+    console.warn(`[Blueprint] ⚠️ stitchPrompt is ${blueprint.stitchPrompt.length} chars — too long, truncating to 2000 to prevent Stitch from ignoring its own design system`);
+    blueprint.stitchPrompt = blueprint.stitchPrompt.slice(0, 2000);
   }
   if (!blueprint.projectTitle) throw new Error("Blueprint missing projectTitle");
 
