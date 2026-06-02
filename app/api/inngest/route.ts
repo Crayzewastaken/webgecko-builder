@@ -395,7 +395,7 @@ const buildWebsite = inngest.createFunction(
           if (!url) {
             const delays = [20000, 20000, 20000, 30000, 30000];
             for (const d of delays) {
-              await sleep(d);
+              await new Promise(r => setTimeout(r, d));
               try { url = await screen.getHtml(); if (url) break; } catch {}
               console.log(`[Inngest] STEP 3: getHtml() poll — url length=${url?.length ?? 0}`);
             }
@@ -424,7 +424,7 @@ const buildWebsite = inngest.createFunction(
             console.warn(`[Inngest] STEP 3: attempt ${attempt} failed: ${msg}`);
             appendPipelineLog(jobId, { level: attempt === 3 ? "error" : "warn", step: "stitch", msg: `Attempt ${attempt} failed: ${msg}`, businessName: userInput.businessName }).catch(()=>{});
             if (attempt === 3) throw e;
-            await sleep(10000 * attempt);
+            await new Promise(r => setTimeout(r, 10000 * attempt));
           }
         }
 
