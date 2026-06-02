@@ -175,18 +175,35 @@ export async function createSuperSaasSchedule(params: {
           if (m2.includes("400")) {
             console.log("[SuperSaas] Trying to find existing user by email...");
             try {
-              const usersResp = await ssRequest("/users", "GET");
-              const allUsers: Record<string, unknown>[] = Array.isArray(usersResp) ? usersResp : ((usersResp as Record<string, unknown>)?.users as Record<string, unknown>[] || []);
-              const existing = allUsers.find((u) => u.email === params.clientEmail);
-              if (existing) {
-                console.log(`[SuperSaas] Found existing user id=${existing.id} — reusing with new password`);
-                // Update their password so we know what it is for the embed URL
-                await ssRequest(`/users/${existing.id}`, "PUT", {
-                  user: { password: subPassword, password_confirmation: subPassword }
+              // Try email-filtered lookup first (SuperSaas supports ?email= param)
+              let existingUser: Record<string, unknown> | undefined;
+              try {
+                const emailResp = await ssRequest(`/users?email=${encodeURIComponent(params.clientEmail)}`, "GET");
+                const emailList: Record<string, unknown>[] = Array.isArray(emailResp) ? emailResp : ((emailResp as Record<string, unknown>)?.users as Record<string, unknown>[] || []);
+                existingUser = emailList.find((u) => (u.email as string)?.toLowerCase() === params.clientEmail.toLowerCase()
+                  || (u.name as string)?.toLowerCase() === params.clientEmail.toLowerCase());
+              } catch { /* fall through to full list */ }
+
+              // Fall back: fetch full user list (paginated — fetch multiple pages)
+              if (!existingUser) {
+                for (let offset = 0; offset <= 200; offset += 100) {
+                  const usersResp = await ssRequest(`/users?limit=100&offset=${offset}`, "GET");
+                  const page: Record<string, unknown>[] = Array.isArray(usersResp) ? usersResp : ((usersResp as Record<string, unknown>)?.users as Record<string, unknown>[] || []);
+                  existingUser = page.find((u) => (u.email as string)?.toLowerCase() === params.clientEmail.toLowerCase()
+                    || (u.name as string)?.toLowerCase() === params.clientEmail.toLowerCase());
+                  if (existingUser || page.length < 100) break;
+                }
+              }
+
+              if (existingUser) {
+                console.log(`[SuperSaas] Found existing user id=${existingUser.id} — reusing`);
+                // Link schedule to existing user via PUT
+                await ssRequest(`/users/${existingUser.id}`, "PUT", {
+                  user: { schedules: [id] }
                 }).catch(() => {
-                  console.warn("[SuperSaas] Could not update existing user password");
+                  console.warn("[SuperSaas] Could not link schedule to existing user (non-fatal)");
                 });
-                userResult = existing;
+                userResult = existingUser;
               } else {
                 throw new Error("Email not found in user list either — " + m2);
               }
