@@ -1,9 +1,20 @@
 // lib/pipeline-step5.ts
 // Step 5 — Code-only fix pass.
 // Extracted from app/api/inngest/route.ts to reduce monolith size.
-// Contains all regex/string-based post-processing: CTA wiring, placeholder
-// replacement, maps, video, social links, newsletter, popup, testimonials,
-// script stripping, markdown cleaning, and SEO meta injection.
+//
+// ─── PRIME DIRECTIVE ─────────────────────────────────────────────────────────
+// Stitch already built the full site design. Step 5 ONLY:
+//   - Replaces placeholder text (emails, phones, fake addresses)
+//   - Wires broken links (href="#" → navigateTo / tel: / mailto:)
+//   - Injects maps, social links, video embeds, newsletter, shop
+//   - Strips Stitch's own navigateTo script (pipeline injects the real one)
+//   - Injects SEO meta tags
+//
+// Step 5 MUST NOT:
+//   - Remove any section Stitch generated
+//   - Replace any section's content with generic fallbacks
+//   - Add duplicate sections
+// ─────────────────────────────────────────────────────────────────────────────
 
 import { resolveStitchClasses, normalizePageId } from "./pipeline-helpers";
 
@@ -159,7 +170,7 @@ export function applyStep5CodeFixes(params: Step5Params): string {
   };
   // Match both href="#" and href="#anything"
   html = html.replace(/<a([^>]*href=["']#[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi, (match: string, attrs: string, inner: string) => {
-    if (attrs.includes('navigateTo') || attrs.includes('scrollIntoView')) return match;
+    if (match.includes('navigateTo') || match.includes('scrollIntoView')) return match; // check full element not just attrs
     if (/href=["'](?:mailto:|tel:)/i.test(attrs)) return match;
     const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
 
@@ -394,6 +405,21 @@ export function applyStep5CodeFixes(params: Step5Params): string {
       });
     }
   }
+
+  // ── Strip duplicate onclick attributes (Stitch + pipeline collision) ───────────
+  // When an element has two onclick attrs, browsers ignore the second. Strip dupes.
+  html = html.replace(/<(a|button)([^>]*?)>/gi, (_m: string, tag: string, attrs: string) => {
+    const onclickMatches = attrs.match(/\bonclick=["'][^"']*["']/gi);
+    if (!onclickMatches || onclickMatches.length < 2) return _m;
+    // Keep only the first onclick
+    let cleaned = attrs;
+    let first = true;
+    cleaned = cleaned.replace(/\bonclick=["'][^"']*["']/gi, (oc: string) => {
+      if (first) { first = false; return oc; }
+      return '';
+    });
+    return `<${tag}${cleaned}>`;
+  });
 
   // ── Upgrade bare navigateTo( calls to window.navigateTo( ────────────────────
   // Stitch outputs onclick="navigateTo('shop')" — bare calls work but normalise for safety

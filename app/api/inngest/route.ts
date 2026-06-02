@@ -571,9 +571,19 @@ const buildWebsite = inngest.createFunction(
   </section>`
           : "";
 
-        // ── Pure injection: DO NOT rewrite the Stitch design. ─────────────────────
-        // Only inject structural IDs and missing elements. All CSS, layout, content
-        // from Stitch is preserved exactly as-is.
+        // ── PRIME DIRECTIVE: Stitch built the design — DO NOT destroy it. ──────────
+        // Step 4b ONLY injects what is structurally absent:
+        //   ✅ Mobile nav hamburger (if Stitch has none)
+        //   ✅ id="contact" section (ONLY if Stitch has NO contact form at all)
+        //   ✅ Footer (ONLY if completely absent)
+        //   ✅ data-page wrappers for multi-page (structural wiring only)
+        //   ✅ id="hero" stamp on first section
+        //
+        // Step 4b MUST NOT:
+        //   ❌ Replace any Stitch section with pipeline-generated content
+        //   ❌ Inject a contact/FAQ/testimonials section if Stitch already has one
+        //   ❌ Override Stitch's visual design with hardcoded inline styles
+        // ─────────────────────────────────────────────────────────────────────────
         let html = stitchHtmlWithCss;
 
         // 0. Strip Tailwind's "hidden" class from data-page wrappers.
