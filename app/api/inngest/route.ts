@@ -440,16 +440,11 @@ const buildWebsite = inngest.createFunction(
 
         // ── New build path (or rebuild fallback): generate from prompt ─────────
         if (!html || html.length < 5000) {
-          // Stitch performs best with prompts under 20KB — trim if over
-          const MAX_PROMPT_CHARS = 18000;
-          const trimmedPrompt = stitchPrompt.length > MAX_PROMPT_CHARS
-            ? stitchPrompt.slice(0, MAX_PROMPT_CHARS) + "\n\n[Truncated for length — generate all sections above]"
-            : stitchPrompt;
-          console.log(`[Inngest] STEP 3: Generating from prompt (${stitchPrompt.length} chars → sending ${trimmedPrompt.length})`);
+          console.log(`[Inngest] STEP 3: Generating from prompt (${stitchPrompt.length} chars)`);
           for (let attempt = 1; attempt <= 3; attempt++) {
             try {
               const project = stitchSdk.project(projectId);
-              screen = await project.generate(trimmedPrompt, "DESKTOP", "GEMINI_3_1_PRO");
+              screen = await project.generate(stitchPrompt, "DESKTOP", "GEMINI_3_1_PRO");
               console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
               html = await fetchScreenHtml(screen);
               if (html.length > 5000) break;
