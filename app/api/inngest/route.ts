@@ -385,10 +385,9 @@ const buildWebsite = inngest.createFunction(
           return "";
         }
       }) as string;
-      // ── STEP 3: Stitch generate with edit loop for quality control ──────────
+      // ── STEP 3: Stitch generate (new) or upload+edit (rebuild) ──────────────
       const stitchHtml = await step.run("step3-stitch-generate", async () => {
         const stitchPrompt = spec.stitchPrompt;
-        console.log(`[Inngest] STEP 3: Stitch generate (prompt: ${stitchPrompt.length} chars, projectId=${projectId})`);
 
         async function fetchScreenHtml(screen: any): Promise<string> {
           let url = await screen.getHtml();
@@ -411,28 +410,60 @@ const buildWebsite = inngest.createFunction(
         let html = "";
         let screen: any = null;
 
-        for (let attempt = 1; attempt <= 3; attempt++) {
+        // ── Rebuild path: upload existing HTML → edit ──────────────────────────
+        if (savedHtmlForRebuild && savedHtmlForRebuild.length > 5000) {
           try {
+            console.log(`[Inngest] STEP 3: Rebuild — uploading existing HTML (${savedHtmlForRebuild.length} chars) to Stitch`);
+            const os = await import("os");
+            const path = await import("path");
+            const fs = await import("fs/promises");
+            const tmpPath = path.join(os.tmpdir(), `wg-rebuild-${jobId}.html`);
+            await fs.writeFile(tmpPath, savedHtmlForRebuild, "utf-8");
             const project = stitchSdk.project(projectId);
-            screen = await project.generate(stitchPrompt, "DESKTOP");
-            console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
-            html = await fetchScreenHtml(screen);
-            if (html.length > 25000) break;
-            throw new Error(`HTML too short (${html.length} chars — need 25KB+)`);
-          } catch (e: any) {
-            const msg = e?.message || String(e);
-            console.warn(`[Inngest] STEP 3: attempt ${attempt} failed: ${msg}`);
-            appendPipelineLog(jobId, { level: attempt === 3 ? "error" : "warn", step: "stitch", msg: `Attempt ${attempt} failed: ${msg}`, businessName: userInput.businessName }).catch(()=>{});
-            if (attempt === 3) throw e;
-            await new Promise(r => setTimeout(r, 10000 * attempt));
+            const screens = await project.upload(tmpPath, { deviceType: "DESKTOP" });
+            await fs.unlink(tmpPath).catch(() => {});
+            if (screens.length > 0) {
+              screen = screens[0];
+              html = await fetchScreenHtml(screen);
+              console.log(`[Inngest] STEP 3: Rebuild upload done — screenId=${screen.screenId}, HTML ${html.length} chars`);
+            }
+          } catch (uploadErr: any) {
+            console.warn(`[Inngest] STEP 3: Rebuild upload failed, falling back to generate: ${uploadErr?.message}`);
+            screen = null; html = "";
           }
         }
 
-        // ── Edit loop: Claude inspects output and requests fixes via screen.edit() ──
+        // ── New build path (or rebuild fallback): generate from prompt ─────────
+        if (!html || html.length < 5000) {
+          console.log(`[Inngest] STEP 3: Generating from prompt (${stitchPrompt.length} chars)`);
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+              const project = stitchSdk.project(projectId);
+              screen = await project.generate(stitchPrompt, "DESKTOP");
+              console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
+              html = await fetchScreenHtml(screen);
+              if (html.length > 25000) break;
+              throw new Error(`HTML too short (${html.length} chars — need 25KB+)`);
+            } catch (e: any) {
+              const msg = e?.message || String(e);
+              console.warn(`[Inngest] STEP 3: attempt ${attempt} failed: ${msg}`);
+              appendPipelineLog(jobId, { level: attempt === 3 ? "error" : "warn", step: "stitch", msg: `Attempt ${attempt} failed: ${msg}`, businessName: userInput.businessName }).catch(()=>{});
+              if (attempt === 3) throw e;
+              await new Promise(r => setTimeout(r, 10000 * attempt));
+            }
+          }
+        }
+
+        // ── Edit loop: inspect output and fix via screen.edit() ──────────────────
         if (screen) {
           const editIssues: string[] = [];
           const requestedPIds = (Array.isArray(userInput.pages) ? userInput.pages : ["Home"])
             .map((p: string) => p.toLowerCase().replace(/\s+/g, "-"));
+
+          // For rebuilds, also include any admin revision notes as edit instructions
+          if (savedHtmlForRebuild && userInput.revisionNotes) {
+            editIssues.push(`Apply these revision requests: ${userInput.revisionNotes}`);
+          }
 
           for (const pid of requestedPIds) {
             const hasPage = html.includes(`data-page="${pid}"`) || html.includes(`id="${pid}"`);
