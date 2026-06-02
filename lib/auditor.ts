@@ -88,40 +88,9 @@ export async function auditAndFixSite(
   //   5. NEVER inject generic fallback content when Stitch content exists
   // ─────────────────────────────────────────────────────────────────────────────
 
-  // Pre-pass: for multi-page sites, remove orphaned contact/faq/testimonials sections
-  // that were injected outside the data-page system by previous pipeline runs.
-  if (isMultiPage) {
-    const lastDpIdx = Math.max(
-      html.lastIndexOf('data-page="home"'),
-      html.lastIndexOf('data-page="shop"'),
-      html.lastIndexOf('data-page="about"'),
-      html.lastIndexOf('data-page="services"'),
-    );
-    if (lastDpIdx > 0) {
-      let afterDp = html.slice(lastDpIdx);
-      for (const sectId of ['contact', 'faq', 'testimonials']) {
-        const openRe = new RegExp('<(section|div)[^>]*\\bid=["\']' + sectId + '["\'][^>]*>', 'i');
-        const om = openRe.exec(afterDp);
-        if (!om || /\bdata-page=/i.test(om[0])) continue;
-        const tagName = om[1].toLowerCase();
-        let depth = 1, pos = om.index + om[0].length, endIdx = -1;
-        const openT = new RegExp('<' + tagName + '[\\s>]', 'gi');
-        const closeT = new RegExp('<\\/' + tagName + '>', 'gi');
-        while (depth > 0 && pos < afterDp.length) {
-          openT.lastIndex = pos; closeT.lastIndex = pos;
-          const nOpen = openT.exec(afterDp); const nClose = closeT.exec(afterDp);
-          if (!nClose) break;
-          if (nOpen && nOpen.index < nClose.index) { depth++; pos = nOpen.index + nOpen[0].length; }
-          else { depth--; pos = nClose.index + nClose[0].length; if (depth === 0) endIdx = pos; }
-        }
-        if (endIdx > 0) {
-          console.log('[Auditor] Pre-pass: removed orphaned #' + sectId + ' outside data-page system');
-          afterDp = afterDp.slice(0, om.index) + afterDp.slice(endIdx);
-        }
-      }
-      html = html.slice(0, lastDpIdx) + afterDp;
-    }
-  }
+  // Pre-pass REMOVED: was incorrectly stripping Stitch-generated contact/faq/testimonials
+  // sections that appeared after the last known data-page wrapper. Stitch legitimately places
+  // these sections outside the main page wrappers. Never remove Stitch HTML.
 
   if (!html.includes(clientEmail)) add(AuditErrorType.PLACEHOLDER_EMAIL, "Missing real email: " + clientEmail);
   if (clientPhone && !html.includes(clientPhone.replace(/\s/g, "")) && !html.includes(clientPhone)) add(AuditErrorType.PLACEHOLDER_PHONE, "Missing real phone: " + clientPhone);
@@ -453,26 +422,8 @@ export async function auditAndFixSite(
     }
   }
 
-  // Fix: For multi-page sites, hide orphaned sections (contact/faq/testimonials/map)
-  // that exist OUTSIDE the data-page system — they show on every page otherwise.
-  if (isMultiPage) {
-    const mainCloseIdx = fixed.lastIndexOf('</main>');
-    if (mainCloseIdx !== -1) {
-      const afterMain = fixed.slice(mainCloseIdx);
-      const orphanFixed = afterMain.replace(
-        /<(section|div)([^>]*\bid=["'](contact|faq|testimonials|map-section)["'][^>]*)>/gi,
-        (m: string, tag: string, attrs: string) => {
-          if (/display\s*:\s*none/i.test(attrs)) return m;
-          // Never hide data-page wrappers — they are page content, not orphans
-          if (/\bdata-page=/i.test(attrs)) return m;
-          console.log(`[Auditor] Hiding orphaned #${attrs.match(/id=["\']([^\"']+)["\']/)?.at(1)} outside <main>`);
-          if (/\bstyle=["\']/.test(attrs)) return `<${tag}${attrs.replace(/\bstyle=["\']/, 'style="display:none;')}>`;
-          return `<${tag}${attrs} style="display:none;">`;
-        }
-      );
-      fixed = fixed.slice(0, mainCloseIdx) + orphanFixed;
-    }
-  }
+  // REMOVED: was hiding Stitch-generated sections outside <main> as "orphans".
+  // Stitch legitimately places contact/faq/testimonials outside <main>. Never touch them.
 
   // Fix: Inject legal pages (Terms + Privacy) if not already present
   fixed = injectLegalPages(fixed, {
@@ -521,53 +472,8 @@ export async function auditAndFixSite(
     mark(AuditErrorType.BROKEN_NAV_LINKS);
   }
 
-  // Final cleanup: for multi-page sites, remove any contact/faq/testimonials sections
-  // that ended up OUTSIDE the data-page system (e.g. injected by a previous pipeline run
-  // or by the fallback path in injectIntoPageWrapper when no matching wrapper was found).
-  // Detection: the section has id="contact"|"faq"|"testimonials" but is NOT preceded by
-  // a data-page opening tag before the next closing tag of any data-page wrapper.
-  if (isMultiPage) {
-    for (const sectId of ['contact', 'faq', 'testimonials'] as const) {
-      const openRe = new RegExp('<(section|div)([^>]*)\\bid=["\']' + sectId + '["\'][^>]*>', 'gi');
-      let om: RegExpExecArray | null;
-      openRe.lastIndex = 0;
-      while ((om = openRe.exec(fixed)) !== null) {
-        // Check if this section is inside a data-page wrapper by scanning backwards
-        // for the most recent data-page= opening. If found and unclosed, we're inside it.
-        const before = fixed.slice(0, om.index);
-        const lastDpPos = before.lastIndexOf('data-page=');
-        if (lastDpPos !== -1) {
-          // Count depth between lastDpPos and om.index — if net depth > 0, we're inside
-          const between = before.slice(lastDpPos);
-          const opens = (between.match(/<(?:div|section|article|main)[\s>]/gi) || []).length;
-          const closes = (between.match(/<\/(?:div|section|article|main)>/gi) || []).length;
-          if (opens > closes) continue; // we are inside an unclosed data-page wrapper
-        }
-        const isOutsideDataPage = lastDpPos === -1 || true; // fallthrough: remove it
-        // Also skip if the tag itself has data-page (it's a wrapper, not an orphan)
-        if (/\bdata-page=/i.test(om[0])) continue;
-        // Remove this orphaned section
-        const tagName = om[1].toLowerCase();
-        let depth = 1, pos = om.index + om[0].length, endIdx = -1;
-        const openT = new RegExp('<' + tagName + '[\\s>]', 'gi');
-        const closeT = new RegExp('<\\/' + tagName + '>', 'gi');
-        openT.lastIndex = pos; closeT.lastIndex = pos;
-        while (depth > 0 && pos < fixed.length) {
-          openT.lastIndex = pos; closeT.lastIndex = pos;
-          const nOpen = openT.exec(fixed); const nClose = closeT.exec(fixed);
-          if (!nClose) break;
-          if (nOpen && nOpen.index < nClose.index) { depth++; pos = nOpen.index + nOpen[0].length; }
-          else { depth--; pos = nClose.index + nClose[0].length; if (depth === 0) endIdx = pos; }
-        }
-        if (endIdx > 0) {
-          console.log('[Auditor] Final cleanup: removed orphaned #' + sectId + ' outside data-page system at pos ' + om.index);
-          fixed = fixed.slice(0, om.index) + fixed.slice(endIdx);
-          // Reset regex since string changed
-          openRe.lastIndex = 0;
-        }
-      }
-    }
-  }
+  // REMOVED: "final cleanup" pass that removed sections outside the data-page system.
+  // Stitch outputs contact/faq/testimonials as standalone sections — never remove them.
 
   const issueStrings = issues.map(i => i.detail);
   console.log("[Auditor] Fixed " + issues.filter(i => i.fixed).length + "/" + issues.length + " issues");
