@@ -597,7 +597,12 @@ const buildWebsite = inngest.createFunction(
 
         // 1. Inject id="hero" on first <section> only — never <div> (avoids nav/logo elements)
         if (!html.includes('id="hero"') && !html.includes("id='hero'")) {
-          html = html.replace(/(<section\b)(?![^>]*\bid=)/, '$1 id="hero"');
+          html = html.replace(/<section\b([^>]*)>/i, (m, attrs) => {
+            if (attrs.includes("id=")) {
+              return `<section ${attrs.replace(/\bid=["'][^"']+["']/i, 'id="hero"')}>`;
+            }
+            return `<section id="hero" ${attrs}>`;
+          });
         }
 
         // 2. Wire existing hamburger/SVG menu button OR inject our own if missing
@@ -1173,13 +1178,16 @@ const buildWebsite = inngest.createFunction(
           // Pass 1b: force-inject id="hero" on first <section> only (never <div> — avoids nav elements)
           if (!repaired.includes('id="hero"') && !repaired.includes("id='hero'")) {
             const beforeInject = repaired;
-            repaired = repaired.replace(/(<section\b)(?![^>]*\bid=)/, '$1 id="hero"');
+            repaired = repaired.replace(/<section\b([^>]*)>/i, (m, attrs) => {
+              if (attrs.includes("id=")) {
+                return `<section ${attrs.replace(/\bid=["'][^"']+["']/i, 'id="hero"')}>`;
+              }
+              return `<section id="hero" ${attrs}>`;
+            });
             if (repaired !== beforeInject) {
               console.warn("[Step7b] Force-injected id=hero on first <section>");
             } else {
-              // Fallback: wrap body content in a hero section
-              repaired = repaired.replace(/(<body[^>]*>)/, '$1<section id="hero" style="display:none"></section>');
-              console.warn("[Step7b] Force-injected id=hero via fallback body wrapper");
+              console.warn("[Step7b] No <section> found to stamp id=hero — skipping dummy injection");
             }
           }
           // Pass 2: for multi-page, run ensureMultiPageStructure to guarantee all page wrappers

@@ -567,7 +567,7 @@ N. AEO: FAQ answers must be 40-60 words, complete and self-contained. Use <detai
 ⚠️ JSON OUTPUT RULES — STRICTLY ENFORCED:
 1. Return ONLY a single JSON object. No commentary before or after.
 2. The stitchPrompt value MUST use ONLY single quotes ' for ALL HTML attributes and CSS values. NEVER use double-quotes inside the stitchPrompt string — they break JSON parsing. Correct: style='color:#fff;' — Wrong: style="color:#fff;"
-3. The stitchPrompt MUST be 100-200 words — a SHORT BRAND BRIEF only. Do NOT write CSS, do NOT specify hex colours or pixel values, do NOT describe HTML structure. Describe brand identity, tone, sections needed, and section IDs as listed above. Stitch's AI will handle all visual design natively using its own design system.
+3. The stitchPrompt MUST be 1200-1800 words. Keep it descriptive but concise to prevent truncation. Focus on visual layout, column alignments, styling rules, and key headlines. Use placeholder structures for large text blocks if needed.
 
 Return ONLY this JSON:
 {
@@ -580,7 +580,7 @@ Return ONLY this JSON:
   "heroSubheadline": "1-2 sentences value prop only",
   "ctaText": "${ctaText || "Get Started"}",
   "uniqueDesignIdea": "one sentence visual theme",
-  "stitchPrompt": "SHORT BRAND BRIEF (100-200 words): Describe the business name, industry, location, brand tone, colour mood, and list the required sections with their IDs as specified above. Do NOT write CSS or HTML. Example: 'Build a premium dark-themed website for MasterEdge Carpentry, a trade business in Goodna QLD. Blue accent, industrial-premium feel. Sections: hero (id=home), about (id=about), services bento grid (id=services), testimonials, FAQ accordion (id=faq), contact form with map (id=contact). Multi-page layout with navigateTo() nav links. Include JSON-LD schema.' Keep it under 200 words. ⚠️ CRITICAL JSON RULE: NEVER use double-quotes inside the stitchPrompt string — use ONLY single quotes."
+  "stitchPrompt": "DETAILED layout and rendering instructions following the scaffold above — 1200-1800 words target. Describe EVERY section structure: spacing, grids, visual elements, flex directions, hex colours, font weights, and key text headings. ⚠️ CRITICAL JSON RULE: the stitchPrompt value is a JSON string — NEVER use double-quotes \" inside it. Use ONLY single quotes ' for all HTML attributes and CSS values. Example correct: style='color:#fff' — NEVER style=\"color:#fff\""
 }${exampleHtmls.length > 0 ? `
 
 REFERENCE EXAMPLES (structure/depth inspiration — do NOT copy text):
@@ -643,9 +643,9 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
   if (blueprint.stitchPrompt.length < 200) {
     console.warn(`[Blueprint] ⚠️ stitchPrompt is only ${blueprint.stitchPrompt.length} chars — may indicate parse fallback truncation. Expected 200+ chars.`);
   }
-  if (blueprint.stitchPrompt.length > 2000) {
-    console.warn(`[Blueprint] ⚠️ stitchPrompt is ${blueprint.stitchPrompt.length} chars — too long, truncating to 2000 to prevent Stitch from ignoring its own design system`);
-    blueprint.stitchPrompt = blueprint.stitchPrompt.slice(0, 2000);
+  if (blueprint.stitchPrompt.length > 18000) {
+    console.warn(`[Blueprint] ⚠️ stitchPrompt is ${blueprint.stitchPrompt.length} chars — too long, truncating to 18000 to prevent Stitch from ignoring its own design system`);
+    blueprint.stitchPrompt = blueprint.stitchPrompt.slice(0, 18000);
   }
   if (!blueprint.projectTitle) throw new Error("Blueprint missing projectTitle");
 
