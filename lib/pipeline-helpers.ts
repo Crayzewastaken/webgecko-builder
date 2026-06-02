@@ -1758,7 +1758,46 @@ export function injectImages(
   photoUrls: string[],
   products: { name: string; price: string; photoUrl?: string }[]
 ): string {
-  const processed = html;
+  let processed = html;
+
+  // ── Server-side: replace Stitch's AI-generated aida-public images with real client photos ──
+  // Stitch uses lh3.googleusercontent.com/aida-public/ for all generated images.
+  // Replace them with client-uploaded photos so real photos show, not AI ones.
+  if (photoUrls.length > 0 || heroUrl) {
+    const allClientPhotos = [...(heroUrl ? [heroUrl] : []), ...photoUrls];
+    let photoIdx = 0;
+    // Replace hero/featured image first (first large img in hero section)
+    if (heroUrl) {
+      processed = processed.replace(
+        /(<img[^>]*data-page=["']home["'][^>]*>|)/gi,
+        (m) => m // just a marker pass
+      );
+      // Replace first aida-public img with heroUrl
+      processed = processed.replace(
+        /src="https:\/\/lh3\.googleusercontent\.com\/aida-public\/[^"]+"/,
+        `src="${heroUrl}"`
+      );
+    }
+    // Replace remaining aida-public images with client photos
+    processed = processed.replace(
+      /src="https:\/\/lh3\.googleusercontent\.com\/aida-public\/[^"]+"/g,
+      () => {
+        const url = allClientPhotos[photoIdx % allClientPhotos.length];
+        photoIdx++;
+        return `src="${url}"`;
+      }
+    );
+  }
+
+  // ── Server-side: inject logo into header img or text logo ──
+  if (logoUrl) {
+    // Replace any existing logo img in header
+    processed = processed.replace(
+      /(<(?:header|nav)[^>]*>[\s\S]{0,2000}?)<img([^>]*(?:logo|brand|site)[^>]*)>/i,
+      (_m, before, attrs) => `${before}<img${attrs} src="${logoUrl}" style="height:40px;width:auto;object-fit:contain;">`
+    );
+  }
+
   const script = `
 <script>
 (function() {

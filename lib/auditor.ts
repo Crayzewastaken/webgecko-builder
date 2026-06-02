@@ -156,18 +156,20 @@ export async function auditAndFixSite(
       add(AuditErrorType.MISSING_CONTACT, 'Multi-page: no contact form found in any page wrapper');
     }
 
-    // faq: id="faq" OR FAQ/accordion content inside ANY data-page wrapper
+    // faq: only check if client requested a faq page
+    const clientWantsFaq = requestedPageIds.some((p: string) => /^faq/.test(p));
     const hasFaqId = html.includes('id="faq"');
     const faqPageHasContent = faqContent.length > 400;
     const anyPageHasFaq = /faq|frequently.asked|common.*question|accordion|<details/i.test(allPageContent);
-    if (!hasFaqId && !faqPageHasContent && !anyPageHasFaq) {
+    if (clientWantsFaq && !hasFaqId && !faqPageHasContent && !anyPageHasFaq) {
       add(AuditErrorType.MISSING_FAQ, 'Multi-page: no FAQ content found in any page wrapper');
     }
 
-    // testimonials: id="testimonials" OR testimonial/review content inside ANY data-page wrapper
+    // testimonials: only inject if client requested a testimonials page
+    const clientWantsTestimonials = requestedPageIds.some((p: string) => /^testimonial|^review/.test(p));
     const hasTestimonialsId = html.includes('id="testimonials"');
     const anyPageHasTestimonials = /testimonial|review|what our|what clients|what.*client.*say|what.*customer|\u2605\u2605\u2605\u2605/i.test(allPageContent);
-    if (!hasTestimonialsId && !anyPageHasTestimonials) add(AuditErrorType.MISSING_TESTIMONIALS, 'Multi-page: no testimonial content found');
+    if (clientWantsTestimonials && !hasTestimonialsId && !anyPageHasTestimonials) add(AuditErrorType.MISSING_TESTIMONIALS, 'Multi-page: no testimonial content found');
   } else {
     // Single-page: all content must be present as top-level sections
     if (!html.includes('id="contact"'))      add(AuditErrorType.MISSING_CONTACT,      'Missing id="contact"');

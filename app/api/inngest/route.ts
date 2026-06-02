@@ -144,7 +144,7 @@ const buildWebsite = inngest.createFunction(
         ? rawDomain.replace(/\.(com\.au|net\.au|org\.au|com|net|org|io|au)$/i, "").replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 40)
         : fileName.slice(0, 40);
       const vercelProjectName = ("wg-" + domainSlug).slice(0, 52);
-      const hasBookingFeature = hasBooking || features.includes("Booking System");
+      const hasBookingFeature = hasBooking || features.includes("Booking System") || (Array.isArray(userInput.pages) && userInput.pages.some((p: string) => /^booking/i.test(p.trim())));
       const isMultiPage = userInput.siteType === "multi";
       const pageList = Array.isArray(userInput.pages) && userInput.pages.length > 0
         ? userInput.pages.join(", ") : "Home";
