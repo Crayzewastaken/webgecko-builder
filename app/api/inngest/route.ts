@@ -551,12 +551,20 @@ const buildWebsite = inngest.createFunction(
       })();
       const rebuiltHtml = (savedHtmlForRebuild && !isUsingRawStitchForRebuild) ? savedHtmlForRebuild : await step.run("step4b-claude-rebuild", async () => {
 
+        // Detect Stitch's theme so all injections match the generated design
+        const { detectStitchTheme: _detectTheme } = await import("@/lib/pipeline-helpers");
+        const _t = _detectTheme(stitchHtmlWithCss);
+        const _bg = _t.bg, _surf = _t.surface, _txt = _t.text, _acc = _t.accent, _bord = _t.border;
+        const _txtMuted = _t.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.55)";
+        const _inputBorder = _t.isDark ? "#334155" : _bord;
+        const _hamBg = _t.isDark ? "#fff" : "#000";
+
         const bookingBlock = hasBookingFeature && bookingUrl
-          ? `<section id="booking" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">
+          ? `<section id="booking" style="padding:80px 24px;background:${_bg};scroll-margin-top:80px;">
     <div style="max-width:900px;margin:0 auto;text-align:center;">
-      <h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;margin:0 0 8px;">Book an Appointment</h2>
-      <p style="color:#94a3b8;margin:0 0 32px;">Schedule your appointment with ${userInput.businessName} online.</p>
-      <div style="border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.4);">
+      <h2 style="color:${_txt};font-size:2.2rem;font-weight:900;margin:0 0 8px;">Book an Appointment</h2>
+      <p style="color:${_txt};opacity:0.7;margin:0 0 32px;">Schedule your appointment with ${userInput.businessName} online.</p>
+      <div style="border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.15);border:1px solid ${_bord};">
         <iframe src="${bookingUrl}" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;" loading="lazy"></iframe>
       </div>
     </div>
@@ -610,25 +618,25 @@ const buildWebsite = inngest.createFunction(
           });
 
           if (!wiredExisting) {
-            // Inject our own hamburger + mobile drawer
+            // Inject our own hamburger + mobile drawer — use Stitch's detected palette
             const mobileNav = `
-  <div id="mobile-menu" style="display:none;position:fixed;top:0;right:0;width:80%;max-width:300px;height:100vh;z-index:9999;background:#1e293b;padding:24px;box-shadow:-4px 0 24px rgba(0,0,0,0.4);">
-    <button onclick="document.getElementById('mobile-menu').style.display='none'" style="float:right;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;">&times;</button>
-    ${requestedPageIds.map((id: string) => `<a href="#" onclick="event.preventDefault();document.getElementById('mobile-menu').style.display='none';window.navigateTo&&window.navigateTo('${id}')" style="display:block;padding:12px 0;color:#f1f5f9;text-decoration:none;font-size:1rem;border-bottom:1px solid #334155;">${id.charAt(0).toUpperCase() + id.slice(1)}</a>`).join("\n  ")}
+  <div id="mobile-menu" style="display:none;position:fixed;top:0;right:0;width:80%;max-width:300px;height:100vh;z-index:9999;background:${_surf};padding:24px;box-shadow:-4px 0 24px rgba(0,0,0,0.2);border-left:1px solid ${_bord};">
+    <button onclick="document.getElementById('mobile-menu').style.display='none'" style="float:right;background:none;border:none;color:${_txt};font-size:1.5rem;cursor:pointer;">&times;</button>
+    ${requestedPageIds.map((id: string) => `<a href="#" onclick="event.preventDefault();document.getElementById('mobile-menu').style.display='none';window.navigateTo&&window.navigateTo('${id}')" style="display:block;padding:12px 0;color:${_txt};text-decoration:none;font-size:1rem;border-bottom:1px solid ${_bord};">${id.charAt(0).toUpperCase() + id.slice(1)}</a>`).join("\n  ")}
   </div>
   <button id="hamburger" onclick="document.getElementById('mobile-menu').style.display='block'" style="display:none;position:fixed;top:16px;right:16px;z-index:10000;background:none;border:none;cursor:pointer;padding:8px;" aria-label="Open menu">
-    <span style="display:block;width:24px;height:2px;background:#fff;margin:5px 0;"></span>
-    <span style="display:block;width:24px;height:2px;background:#fff;margin:5px 0;"></span>
-    <span style="display:block;width:24px;height:2px;background:#fff;margin:5px 0;"></span>
+    <span style="display:block;width:24px;height:2px;background:${_hamBg};margin:5px 0;"></span>
+    <span style="display:block;width:24px;height:2px;background:${_hamBg};margin:5px 0;"></span>
+    <span style="display:block;width:24px;height:2px;background:${_hamBg};margin:5px 0;"></span>
   </button>
   <style>@media(max-width:768px){#hamburger{display:block!important;}}</style>`;
             html = html.replace(/<body[^>]*>/, (m: string) => m + mobileNav);
           } else if (!hasMobileMenu) {
             // We wired an existing button but there's no mobile menu — inject the drawer only
             const mobileDrawer = `
-  <div id="mobile-menu" style="display:none;position:fixed;top:0;right:0;width:80%;max-width:300px;height:100vh;z-index:9999;background:#1e293b;padding:24px;box-shadow:-4px 0 24px rgba(0,0,0,0.4);">
-    <button onclick="document.getElementById('mobile-menu').style.display='none'" style="float:right;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;">&times;</button>
-    ${requestedPageIds.map((id: string) => `<a href="#" onclick="event.preventDefault();document.getElementById('mobile-menu').style.display='none';window.navigateTo&&window.navigateTo('${id}')" style="display:block;padding:12px 0;color:#f1f5f9;text-decoration:none;font-size:1rem;border-bottom:1px solid #334155;">${id.charAt(0).toUpperCase() + id.slice(1)}</a>`).join("\n  ")}
+  <div id="mobile-menu" style="display:none;position:fixed;top:0;right:0;width:80%;max-width:300px;height:100vh;z-index:9999;background:${_surf};padding:24px;box-shadow:-4px 0 24px rgba(0,0,0,0.2);border-left:1px solid ${_bord};">
+    <button onclick="document.getElementById('mobile-menu').style.display='none'" style="float:right;background:none;border:none;color:${_txt};font-size:1.5rem;cursor:pointer;">&times;</button>
+    ${requestedPageIds.map((id: string) => `<a href="#" onclick="event.preventDefault();document.getElementById('mobile-menu').style.display='none';window.navigateTo&&window.navigateTo('${id}')" style="display:block;padding:12px 0;color:${_txt};text-decoration:none;font-size:1rem;border-bottom:1px solid ${_bord};">${id.charAt(0).toUpperCase() + id.slice(1)}</a>`).join("\n  ")}
   </div>`;
             html = html.replace(/<body[^>]*>/, (m: string) => m + mobileDrawer);
           }
@@ -645,21 +653,21 @@ const buildWebsite = inngest.createFunction(
           const bEmail = clientEmail || "";
           const bAddress = userInput.businessAddress || "";
           const contactInfoHtml = [
-            bPhone ? `<span style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 8px;">&#128222; <a href="tel:${bPhone}" style="color:#94a3b8;text-decoration:none;">${bPhone}</a></span>` : "",
-            bEmail ? `<span style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 8px;">&#9993; <a href="mailto:${bEmail}" style="color:#94a3b8;text-decoration:none;">${bEmail}</a></span>` : "",
-            bAddress ? `<span style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 8px;">&#128205; <span style="color:#94a3b8;">${bAddress}</span></span>` : "",
+            bPhone ? `<span style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 8px;">&#128222; <a href="tel:${bPhone}" style="color:${_acc};text-decoration:none;">${bPhone}</a></span>` : "",
+            bEmail ? `<span style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 8px;">&#9993; <a href="mailto:${bEmail}" style="color:${_acc};text-decoration:none;">${bEmail}</a></span>` : "",
+            bAddress ? `<span style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 8px;">&#128205; <span style="color:${_txt};opacity:0.7;">${bAddress}</span></span>` : "",
           ].filter(Boolean).join("");
           const contactSection = `
-  <section id="contact" style="padding:80px 24px;background:var(--clr-bg,#0f172a);scroll-margin-top:80px;">
+  <section id="contact" style="padding:80px 24px;background:${_bg};scroll-margin-top:80px;">
     <div style="max-width:640px;margin:0 auto;text-align:center;">
-      <h2 style="color:var(--clr-text,#f1f5f9);font-size:2rem;font-weight:900;margin:0 0 12px;">Get In Touch With ${bName}</h2>
-      <p style="color:#94a3b8;margin:0 0 8px;flex-wrap:wrap;display:flex;justify-content:center;align-items:center;">${contactInfoHtml}</p>
+      <h2 style="color:${_txt};font-size:2rem;font-weight:900;margin:0 0 12px;">Get In Touch With ${bName}</h2>
+      <p style="color:${_txt};opacity:0.7;margin:0 0 8px;flex-wrap:wrap;display:flex;justify-content:center;align-items:center;">${contactInfoHtml}</p>
       <form style="display:flex;flex-direction:column;gap:16px;margin-top:32px;text-align:left;" onsubmit="(function(f){var nm=(f.querySelector('[name=name]')||{}).value||'';var em=(f.querySelector('[name=email]')||{}).value||'';var ph=(f.querySelector('[name=phone]')||{}).value||'';var mg=(f.querySelector('textarea')||{}).value||'';fetch('/api/contact/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jobId:typeof WG_JOB!=='undefined'?WG_JOB:'',name:nm,email:em,phone:ph,message:mg})}).catch(function(){window.location='mailto:${bEmail}?subject=Enquiry&body='+encodeURIComponent('Name: '+nm+'\nPhone: '+ph+'\nMessage: '+mg);});var s=document.createElement('div');s.style.cssText='background:#22c55e;color:#fff;padding:20px;border-radius:8px;margin-top:16px;font-weight:bold;text-align:center;';s.textContent='Thank you! ${bName} will be in touch within 24 hours.';f.appendChild(s);f.querySelectorAll('input,textarea,button').forEach(function(el){el.setAttribute('disabled','true');});})(this);return false;">
-        <input name="name" placeholder="Your Name" required style="padding:14px 16px;border-radius:10px;border:1px solid #334155;background:var(--clr-surface,#1e293b);color:var(--clr-text,#f1f5f9);font-size:1rem;outline:none;">
-        <input name="email" type="email" placeholder="Your Email" required style="padding:14px 16px;border-radius:10px;border:1px solid #334155;background:var(--clr-surface,#1e293b);color:var(--clr-text,#f1f5f9);font-size:1rem;outline:none;">
-        <input name="phone" type="tel" placeholder="Your Phone" style="padding:14px 16px;border-radius:10px;border:1px solid #334155;background:var(--clr-surface,#1e293b);color:var(--clr-text,#f1f5f9);font-size:1rem;outline:none;">
-        <textarea name="message" placeholder="Your Message" rows="4" required style="padding:14px 16px;border-radius:10px;border:1px solid #334155;background:var(--clr-surface,#1e293b);color:var(--clr-text,#f1f5f9);font-size:1rem;resize:vertical;outline:none;"></textarea>
-        <button type="submit" style="padding:15px;border-radius:10px;background:var(--clr-accent,#22c55e);color:#fff;font-size:1rem;font-weight:700;border:none;cursor:pointer;letter-spacing:0.02em;">Send Message</button>
+        <input name="name" placeholder="Your Name" required style="padding:14px 16px;border-radius:10px;border:1px solid ${_inputBorder};background:${_surf};color:${_txt};font-size:1rem;outline:none;">
+        <input name="email" type="email" placeholder="Your Email" required style="padding:14px 16px;border-radius:10px;border:1px solid ${_inputBorder};background:${_surf};color:${_txt};font-size:1rem;outline:none;">
+        <input name="phone" type="tel" placeholder="Your Phone" style="padding:14px 16px;border-radius:10px;border:1px solid ${_inputBorder};background:${_surf};color:${_txt};font-size:1rem;outline:none;">
+        <textarea name="message" placeholder="Your Message" rows="4" required style="padding:14px 16px;border-radius:10px;border:1px solid ${_inputBorder};background:${_surf};color:${_txt};font-size:1rem;resize:vertical;outline:none;"></textarea>
+        <button type="submit" style="padding:15px;border-radius:10px;background:${_acc};color:#fff;font-size:1rem;font-weight:700;border:none;cursor:pointer;letter-spacing:0.02em;">Send Message</button>
       </form>
     </div>
   </section>`;
@@ -680,8 +688,8 @@ const buildWebsite = inngest.createFunction(
           const privacyAttrs = termlyPrivacyUrl
             ? `href="${termlyPrivacyUrl}" target="_blank" rel="noopener" onclick=""`
             : `href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('privacy')"`;
-          const legalLinks = `<span style="margin-top:8px;display:block;font-size:0.8rem;"><a ${privacyAttrs} style="color:#64748b;text-decoration:underline;margin:0 8px;" data-wg-privacy>Privacy Policy</a><span style="color:#334155;">|</span><a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('terms')" style="color:#64748b;text-decoration:underline;margin:0 8px;" data-wg-terms>Terms of Service</a></span>`;
-          const footerHtml = `<footer id="wg-footer" style="margin-top:auto;padding:32px 24px;background:#0a0f1a;text-align:center;color:#64748b;font-size:0.875rem;">&copy; ${yr4b} ${userInput.businessName}. All rights reserved.${legalLinks}</footer>`;
+          const legalLinks = `<span style="margin-top:8px;display:block;font-size:0.8rem;"><a ${privacyAttrs} style="color:${_txt};opacity:0.5;text-decoration:underline;margin:0 8px;" data-wg-privacy>Privacy Policy</a><span style="color:${_bord};">|</span><a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('terms')" style="color:${_txt};opacity:0.5;text-decoration:underline;margin:0 8px;" data-wg-terms>Terms of Service</a></span>`;
+          const footerHtml = `<footer id="wg-footer" style="margin-top:auto;padding:32px 24px;background:${_surf};text-align:center;color:${_txt};opacity:0.8;font-size:0.875rem;border-top:1px solid ${_bord};">&copy; ${yr4b} ${userInput.businessName}. All rights reserved.${legalLinks}</footer>`;
           // Detect existing footer broadly (tag OR common id/class patterns)
           const hasExistingFooter = /<footer[\s>]/i.test(html) || /id=["']footer["']/i.test(html) || /class=["'][^"']*footer[^"']*["']/i.test(html);
           if (!hasExistingFooter) {
@@ -714,10 +722,13 @@ const buildWebsite = inngest.createFunction(
             });
           }
           // Inject page visibility + footer layout styles.
-          // [data-page]{display:none!important} hides all pages; [data-page].active{display:block!important}
-          // shows the active one. Step5 strips Stitch's .page-section CSS so these rules are the authority.
+          // For multi-page: [data-page]{display:none} hides all pages; [data-page].active shows the active one.
+          // For single-page: NEVER hide data-page sections — they're regular scroll sections.
           if (!html.includes("wg-footer-fix")) {
-            const footerFixStyle = `<style data-wg="wg-footer-fix">body{display:flex;flex-direction:column;min-height:100vh;}[data-page]{display:none!important;opacity:0;}[data-page].active{display:block!important;opacity:1;}[data-page]{flex:1 0 auto;}footer,#wg-footer{margin-top:auto;flex-shrink:0;}</style>`;
+            const multiPageRules = isMultiPage
+              ? `[data-page]{display:none!important;opacity:0;}[data-page].active{display:block!important;opacity:1;}[data-page]{flex:1 0 auto;}`
+              : ``;
+            const footerFixStyle = `<style data-wg="wg-footer-fix">body{display:flex;flex-direction:column;min-height:100vh;}${multiPageRules}footer,#wg-footer{margin-top:auto;flex-shrink:0;}</style>`;
             html = html.replace(/<\/head>/i, footerFixStyle + "\n</head>");
           }
         }
@@ -891,71 +902,83 @@ const buildWebsite = inngest.createFunction(
         // Also strip any remaining supersaas template iframes (paranoid cleanup)
         html = html.replace(/<iframe[^>]+src="https:\/\/www\.supersaas\.com\/schedule\/[^"]*\/template"[^>]*>(?:[\s\S]*?<\/iframe>)?/gi, "");
 
-        // Extract accent colour from CSS vars for theming the booking section
-        let accentColor = spec.palette?.accent || "#10b981";
-        const cssVarMatch = html.match(/--(?:primary|accent|brand|color-primary)[^:]*:\s*(#[0-9a-fA-F]{3,8})/);
-        if (cssVarMatch?.[1]) accentColor = cssVarMatch[1];
+        // Detect Stitch's palette so fallback injections match the theme
+        const { detectStitchTheme } = await import("@/lib/pipeline-helpers");
+        const stitchTheme = detectStitchTheme(html);
+        const accentColor = stitchTheme.accent || spec.palette?.accent || "#10b981";
 
-        // Build the fixed booking component — parameterised only by URL, name, color
-        const bookingOpenTag = isMultiPage
-          ? '<section id="booking" data-page="booking" class="page-section" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">'
-          : '<section id="booking" style="padding:80px 24px;background:#0a0f1a;scroll-margin-top:80px;">';
-        const bookingComponent = bookingUrl
-          ? [
-              bookingOpenTag,
-              '  <div style="max-width:900px;margin:0 auto;text-align:center;">',
-              '    <h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;margin:0 0 8px;">Book an Appointment</h2>',
-              `    <p style="color:#94a3b8;margin:0 0 32px;">Schedule your appointment with ${userInput.businessName} online.</p>`,
-              '    <div style="border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);">',
-              `      <iframe src="${bookingUrl}" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;" title="Book an Appointment" loading="lazy"></iframe>`,
-              '    </div>',
-              `    <p style="color:#475569;font-size:12px;margin-top:16px;">Prefer to call? <a href="tel:${clientPhone}" style="color:${accentColor};">${clientPhone}</a></p>`,
-              '  </div>',
-              '</section>',
-            ].join("\n")
-          : [
-              isMultiPage ? '<section id="booking" data-page="booking" class="page-section" style="padding:80px 24px;background:#0a0f1a;text-align:center;scroll-margin-top:80px;">' : '<section id="booking" style="padding:80px 24px;background:#0a0f1a;text-align:center;scroll-margin-top:80px;">',
-              '  <div style="max-width:640px;margin:0 auto;">',
-              '    <h2 style="color:#f1f5f9;font-size:2.2rem;font-weight:900;margin:0 0 16px;">Book an Appointment</h2>',
-              `    <p style="color:#94a3b8;margin:0 0 32px;">Contact us to schedule your appointment with ${userInput.businessName}.</p>`,
-              `    <a href="tel:${clientPhone}" style="display:inline-block;background:${accentColor};color:#fff;font-weight:700;font-size:1.1rem;padding:18px 40px;border-radius:10px;text-decoration:none;">Call ${clientPhone}</a>`,
-              `    <p style="color:#475569;font-size:13px;margin-top:16px;">Or email us at <a href="mailto:${clientEmail}" style="color:${accentColor};">${clientEmail}</a></p>`,
-              '  </div>',
-              '</section>',
-            ].join("\n");
-
-        // Replace existing id="booking" element entirely using string walk
-        // (simple open-tag find + depth counter — much simpler now that the component is fixed)
-        // NOTE: must also match <header id="booking"> — Stitch sometimes uses header tags
-        const bookingOpenMatch = html.match(/<(section|div|header|article|main)([^>]*\bid="booking"[^>]*)>/i);
-        if (bookingOpenMatch) {
-          const openTag = bookingOpenMatch[0];
-          const tagName = bookingOpenMatch[1].toLowerCase();
-          const startIdx = html.indexOf(openTag);
-          let depth = 1;
-          let pos = startIdx + openTag.length;
-          const openRe = new RegExp(`<${tagName}[\\s>]`, "gi");
-          const closeRe = new RegExp(`<\\/${tagName}>`, "gi");
-          while (depth > 0 && pos < html.length) {
-            openRe.lastIndex = pos;
-            closeRe.lastIndex = pos;
-            const nextOpen = openRe.exec(html);
-            const nextClose = closeRe.exec(html);
-            if (!nextClose) break;
-            if (nextOpen && nextOpen.index < nextClose.index) {
-              depth++;
-              pos = nextOpen.index + nextOpen[0].length;
-            } else {
-              depth--;
-              pos = nextClose.index + nextClose[0].length;
+        if (bookingUrl) {
+          // ── Strategy 1: Stitch already built a booking section — just inject the iframe ──
+          // Preserve Stitch's design entirely. Only replace the placeholder content inside
+          // the booking container with a real iframe. Do NOT replace the outer section.
+          const bookingOpenMatch = html.match(/<(section|div|header|article|main)([^>]*\bid="booking"[^>]*)>/i);
+          if (bookingOpenMatch) {
+            const openTag = bookingOpenMatch[0];
+            const tagName = bookingOpenMatch[1].toLowerCase();
+            const startIdx = html.indexOf(openTag);
+            let depth = 1, pos = startIdx + openTag.length, endIdx = -1;
+            const openRe = new RegExp(`<${tagName}[\\s>]`, "gi");
+            const closeRe = new RegExp(`<\\/${tagName}>`, "gi");
+            while (depth > 0 && pos < html.length) {
+              openRe.lastIndex = pos; closeRe.lastIndex = pos;
+              const nextOpen = openRe.exec(html), nextClose = closeRe.exec(html);
+              if (!nextClose) break;
+              if (nextOpen && nextOpen.index < nextClose.index) { depth++; pos = nextOpen.index + nextOpen[0].length; }
+              else { depth--; pos = nextClose.index + nextClose[0].length; if (depth === 0) endIdx = pos; }
             }
+            if (endIdx > 0) {
+              const sectionHtml = html.slice(startIdx, endIdx);
+              // If already has a real supersaas iframe, leave it alone
+              if (sectionHtml.includes("supersaas.com") && !sectionHtml.includes("/template")) {
+                console.log("[Step6c] Real supersaas iframe already present — leaving booking section untouched");
+              } else {
+                // Replace only the inner placeholder with a real iframe, keep outer container
+                const iframeBlock = `<div style="border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.15);">\n  <iframe src="${bookingUrl}" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;" title="Book an Appointment" loading="lazy"></iframe>\n</div>`;
+                // Replace placeholder comment/div inside the section
+                let newSection = sectionHtml
+                  .replace(/<!--[^>]*(?:SuperSaaS|booking|iframe|embed)[^>]*-->/gi, iframeBlock)
+                  .replace(/<div[^>]*>\s*<p[^>]*>(?:Iframe will render|Booking embed|Loading)[^<]*<\/p>\s*<\/div>/gi, iframeBlock);
+                // If nothing was replaced, append iframe before closing tag
+                if (newSection === sectionHtml) {
+                  const closeTag = `</${tagName}>`;
+                  const lastClose = newSection.lastIndexOf(closeTag);
+                  newSection = newSection.slice(0, lastClose) + iframeBlock + "\n" + newSection.slice(lastClose);
+                }
+                html = html.slice(0, startIdx) + newSection + html.slice(endIdx);
+                console.log(`[Step6c] Injected real iframe into Stitch booking section. url=${bookingUrl}`);
+              }
+            }
+          } else {
+            // ── Strategy 2: Stitch didn't build a booking section — inject a theme-aware one ──
+            const bg = stitchTheme.bg;
+            const txt = stitchTheme.text;
+            const surf = stitchTheme.surface;
+            const bord = stitchTheme.border;
+            const dpAttr = isMultiPage ? ' data-page="booking" class="page-section"' : '';
+            const fallbackBooking = [
+              `<section id="booking"${dpAttr} style="padding:80px 24px;background:${bg};scroll-margin-top:80px;">`,
+              `  <div style="max-width:900px;margin:0 auto;text-align:center;">`,
+              `    <h2 style="color:${txt};font-size:2.2rem;font-weight:900;margin:0 0 8px;">Book an Appointment</h2>`,
+              `    <p style="color:${txt};opacity:0.7;margin:0 0 32px;">Schedule your appointment with ${userInput.businessName} online.</p>`,
+              `    <div style="border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.15);border:1px solid ${bord};">`,
+              `      <iframe src="${bookingUrl}" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;" title="Book an Appointment" loading="lazy"></iframe>`,
+              `    </div>`,
+              `    <p style="font-size:12px;margin-top:16px;opacity:0.5;">Prefer to call? <a href="tel:${clientPhone}" style="color:${accentColor};">${clientPhone}</a></p>`,
+              `  </div>`,
+              `</section>`,
+            ].join("\n");
+            html = html.replace("</body>", fallbackBooking + "\n</body>");
+            console.log("[Step6c] Fallback booking section injected (Stitch had no id=booking)");
           }
-          html = html.slice(0, startIdx) + bookingComponent + html.slice(pos);
-          console.log(`[Step6c] Booking component installed. iframe present: ${html.includes("supersaas.com") || html.includes(bookingUrl || "NOPE")}`);
         } else {
-          // Stitch didn't generate a booking section — inject before </body>
-          html = html.replace("</body>", bookingComponent + "\n</body>");
-          console.log("[Step6c] Booking component injected before </body> (no id=booking in Stitch output)");
+          // No booking URL — ensure id=booking exists with a call-to-action
+          if (!html.includes('id="booking"')) {
+            const bg = stitchTheme.bg;
+            const txt = stitchTheme.text;
+            const dpAttr = isMultiPage ? ' data-page="booking" class="page-section"' : '';
+            const ctaBooking = `<section id="booking"${dpAttr} style="padding:80px 24px;background:${bg};text-align:center;scroll-margin-top:80px;"><div style="max-width:640px;margin:0 auto;"><h2 style="color:${txt};font-size:2.2rem;font-weight:900;margin:0 0 16px;">Book an Appointment</h2><p style="color:${txt};opacity:0.7;margin:0 0 32px;">Contact us to schedule your appointment with ${userInput.businessName}.</p><a href="tel:${clientPhone}" style="display:inline-block;background:${accentColor};color:#fff;font-weight:700;font-size:1.1rem;padding:18px 40px;border-radius:10px;text-decoration:none;">Call ${clientPhone}</a></div></section>`;
+            html = html.replace("</body>", ctaBooking + "\n</body>");
+          }
         }
 
         return html;

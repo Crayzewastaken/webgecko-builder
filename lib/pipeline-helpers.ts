@@ -184,6 +184,57 @@ export function extractCSS(html: string): string {
  * utility classes (gap-xs, px-margin-desktop, text-secondary, glass-panel etc.) so
  * the site renders correctly when deployed outside Stitch's canvas.
  */
+
+// ─── detectStitchTheme ────────────────────────────────────────────────────────
+// Reads the embedded Tailwind config from Stitch HTML and returns colours +
+// a dark/light flag so pipeline injections can match the generated design.
+export function detectStitchTheme(html: string): {
+  isDark: boolean;
+  bg: string;       // main background
+  surface: string;  // card/surface colour
+  text: string;     // primary text
+  accent: string;   // primary/accent
+  border: string;   // border colour
+} {
+  // Check for explicit dark mode: <html class="dark"> or html.classList dark
+  const hasDarkClass = /<html[^>]*class="[^"]*\bdark\b/.test(html);
+
+  // Extract "background" from the embedded tailwind config JSON
+  const bgMatch = html.match(/"background"\s*:\s*"(#[0-9a-fA-F]{3,8})"/);
+  const bgColor = bgMatch?.[1] || "";
+
+  // Determine dark by class OR by background luminance
+  let isDark = hasDarkClass;
+  if (!isDark && bgColor) {
+    const hex = bgColor.replace("#", "");
+    if (hex.length >= 6) {
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      isDark = (r * 0.299 + g * 0.587 + b * 0.114) < 128;
+    }
+  }
+
+  // Pull surface, text, accent from tailwind config
+  const surfaceMatch = html.match(/"surface-container"\s*:\s*"(#[0-9a-fA-F]{3,8})"/) ||
+                       html.match(/"surface"\s*:\s*"(#[0-9a-fA-F]{3,8})"/);
+  const textMatch    = html.match(/"on-background"\s*:\s*"(#[0-9a-fA-F]{3,8})"/) ||
+                       html.match(/"on-surface"\s*:\s*"(#[0-9a-fA-F]{3,8})"/);
+  const accentMatch  = html.match(/"primary-container"\s*:\s*"(#[0-9a-fA-F]{3,8})"/) ||
+                       html.match(/"primary"\s*:\s*"(#[0-9a-fA-F]{3,8})"/);
+  const borderMatch  = html.match(/"outline-variant"\s*:\s*"(#[0-9a-fA-F]{3,8})"/) ||
+                       html.match(/"outline"\s*:\s*"(#[0-9a-fA-F]{3,8})"/);
+
+  return {
+    isDark,
+    bg:      bgColor      || (isDark ? "#0f141b" : "#fcf9f8"),
+    surface: surfaceMatch?.[1] || (isDark ? "#1b2028" : "#f0eded"),
+    text:    textMatch?.[1]    || (isDark ? "#dee2ed" : "#1c1b1b"),
+    accent:  accentMatch?.[1]  || (isDark ? "#adc6ff" : "#0a4da0"),
+    border:  borderMatch?.[1]  || (isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"),
+  };
+}
+
 export function resolveStitchClasses(html: string): string {
   // Extract colours from embedded tailwind config.
   // The config has deeply nested objects so [^}]+ regex fails — use brace-counting instead.
