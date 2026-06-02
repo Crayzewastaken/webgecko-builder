@@ -54,13 +54,16 @@ async function logPipelineError(jobId: string, step: string, type: string, messa
 // Replaces the ENTIRE data-page="X" (or id="X") wrapper with newHtml,
 // using a depth counter so we match the real outer closing tag, not the first inner one.
 function replacePageSection(html: string, pageId: string, newHtml: string): string {
-  const openRe = new RegExp(`<(section|div|article|main)[^>]*(?:data-page|id)=["']${pageId}["'][^>]*>`, 'i');
+  // Prefer data-page= (more specific), fall back to id=. Never match nav buttons like id="nav-shop".
+  const dpRe = new RegExp(`<(section|div|article|main)[^>]*\\bdata-page=["']${pageId}["'][^>]*>`, 'i');
+  const idRe = new RegExp(`<(section|div|article|main)[^>]*\\bid=["']${pageId}["'][^>]*>`, 'i');
+  const openRe = dpRe.test(html) ? dpRe : idRe;
   const m = openRe.exec(html);
   if (!m) return html; // nothing to replace — caller can append instead
   const tagName = m[1].toLowerCase();
   let depth = 1, pos = m.index + m[0].length, endIdx = -1;
-  const openT = new RegExp(`<${tagName}[\s>]`, 'gi');
-  const closeT = new RegExp(`<\/${tagName}>`, 'gi');
+  const openT = new RegExp(`<${tagName}[\\s>]`, 'gi');
+  const closeT = new RegExp(`<\\/${tagName}>`, 'gi');
   while (depth > 0 && pos < html.length) {
     openT.lastIndex = pos; closeT.lastIndex = pos;
     const nOpen = openT.exec(html); const nClose = closeT.exec(html);
