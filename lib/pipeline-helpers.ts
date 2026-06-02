@@ -1246,7 +1246,7 @@ export function ensureMultiPageStructure(
   console.log(`[ensureMultiPage] Done. Repairs: ${report.repairs.length}, Added pages: [${report.missingPagesAdded.join(',')}], Nav fixes: ${report.navTargetsFixed.length}`);
   return { html: out, report };
 }
-export function injectEssentials(html: string, email: string, phone: string, jobId?: string, ga4Id?: string, tawktoPropertyId?: string, businessAddress?: string, businessName?: string): string {
+export function injectEssentials(html: string, email: string, phone: string, jobId?: string, ga4Id?: string, tawktoPropertyId?: string, businessAddress?: string, businessName?: string, isMultiPage?: boolean): string {
   let processed = html;
 
   if (email) {
@@ -1353,6 +1353,8 @@ export function injectEssentials(html: string, email: string, phone: string, job
   const script = `
 <script>
 (function() {
+window.WG_IS_MULTIPAGE = ${!!isMultiPage};
+
 // Authoritative navigateTo — always defined here, Stitch version stripped in Step 5.
 // Handles multi-page (fade transition) and single-page (smooth scroll).
 window.navigateTo = function(pageId) {
@@ -1370,9 +1372,14 @@ window.navigateTo = function(pageId) {
   var overlay = document.getElementById("wg-overlay");
   if (overlay) { overlay.style.opacity = "0"; setTimeout(function() { if (overlay) overlay.style.display = "none"; }, 200); }
 
+  // Single-page: privacy/terms are overlay modals, not scroll targets
+  if (!window.WG_IS_MULTIPAGE && (pageId === "privacy" || pageId === "terms")) {
+    var targetOverlay = document.getElementById(pageId);
+    if (targetOverlay) { targetOverlay.style.display = "block"; return; }
+  }
+
   // Multi-page: fade out current, swap, fade in next
-  var sections = document.querySelectorAll("[data-page]");
-  if (sections.length > 1) {
+  if (window.WG_IS_MULTIPAGE) {
     var current = document.querySelector("[data-page].active");
     var target = document.querySelector("[data-page='" + pageId + "']") || document.getElementById(pageId);
     if (!target || target === current) return;

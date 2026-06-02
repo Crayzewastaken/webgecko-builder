@@ -847,7 +847,7 @@ const buildWebsite = inngest.createFunction(
             }
           }
         }
-        let html = injectEssentials(navFixedHtml, clientEmail, clientPhone, jobId, ga4Id, tawktoPropertyId, userInput.businessAddress || "", userInput.businessName || "");
+        let html = injectEssentials(navFixedHtml, clientEmail, clientPhone, jobId, ga4Id, tawktoPropertyId, userInput.businessAddress || "", userInput.businessName || "", isMultiPage);
         html = injectImages(html, logoUrl, effectiveHeroUrl, augmentedPhotoUrls, productsWithPhotos);
         return html;
       });

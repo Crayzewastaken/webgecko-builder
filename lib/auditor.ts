@@ -472,6 +472,7 @@ export async function auditAndFixSite(
     dark,
     clrBg, clrBg2, clrCard, clrText, clrSub, clrBord, clrAcct,
     yr,
+    isMultiPage,
   });
 
   // Ensure </body></html> exists — append if missing (handles Claude truncation)
@@ -564,6 +565,7 @@ function injectLegalPages(html: string, ctx: {
   abn: string; domain: string; features: string[]; ga4: boolean;
   dark: boolean; clrBg: string; clrBg2: string; clrCard: string;
   clrText: string; clrSub: string; clrBord: string; clrAcct: string; yr: number;
+  isMultiPage?: boolean;
 }): string {
   // Detect stub content — "Content coming soon." or a thin section with no real policy prose
   const isStubPrivacy = /id="privacy"[^>]*>[\s\S]{0,600}Content coming soon/i.test(html)
@@ -592,7 +594,8 @@ function injectLegalPages(html: string, ctx: {
   }
 
   const { businessName, clientEmail, businessAddress, abn, domain, features, ga4,
-          clrBg, clrBg2, clrCard, clrText, clrSub, clrBord, clrAcct, yr } = ctx;
+          clrBg, clrBg2, clrCard, clrText, clrSub, clrBord, clrAcct, yr,
+          isMultiPage = true } = ctx;
 
   const siteName   = businessName || "This Website";
   const siteUrl    = domain ? (domain.startsWith("http") ? domain : "https://" + domain) : "";
@@ -613,8 +616,9 @@ function injectLegalPages(html: string, ctx: {
 
   // ── PRIVACY POLICY ──
   const privacyHtml = !hasPrivacy ? `
-<div id="privacy" data-page="privacy" class="page-section" style="background:${clrBg};">
-  <div style="${wrap}">
+<div id="privacy" ${isMultiPage ? `data-page="privacy" class="page-section" style="background:${clrBg};"` : `style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:100000;overflow-y:auto;backdrop-filter:blur(8px);"`}>
+  <div style="${isMultiPage ? wrap : `max-width:800px;margin:50px auto;background:${clrBg};padding:40px;border-radius:16px;position:relative;border:1px solid ${clrBord};`}">
+    ${!isMultiPage ? `<button onclick="document.getElementById('privacy').style.display='none'" style="position:absolute;top:20px;right:20px;background:none;border:none;color:${clrText};font-size:2rem;cursor:pointer;line-height:1;">&times;</button>` : ""}
     <h1 style="color:${clrText};font-size:2rem;font-weight:900;margin-bottom:8px;">Privacy Policy</h1>
     <p style="color:${clrSub};font-size:0.85rem;margin-bottom:32px;">Last updated: ${new Date().toLocaleDateString("en-AU", { day:"numeric", month:"long", year:"numeric" })}</p>
 
@@ -681,8 +685,9 @@ function injectLegalPages(html: string, ctx: {
 
   // ── TERMS OF SERVICE ──
   const termsHtml = !hasTerms ? `
-<div id="terms" data-page="terms" class="page-section" style="background:${clrBg2};">
-  <div style="${wrap}">
+<div id="terms" ${isMultiPage ? `data-page="terms" class="page-section" style="background:${clrBg2};"` : `style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:100000;overflow-y:auto;backdrop-filter:blur(8px);"`}>
+  <div style="${isMultiPage ? wrap : `max-width:800px;margin:50px auto;background:${clrBg2};padding:40px;border-radius:16px;position:relative;border:1px solid ${clrBord};`}">
+    ${!isMultiPage ? `<button onclick="document.getElementById('terms').style.display='none'" style="position:absolute;top:20px;right:20px;background:none;border:none;color:${clrText};font-size:2rem;cursor:pointer;line-height:1;">&times;</button>` : ""}
     <h1 style="color:${clrText};font-size:2rem;font-weight:900;margin-bottom:8px;">Terms of Service</h1>
     <p style="color:${clrSub};font-size:0.85rem;margin-bottom:32px;">Last updated: ${new Date().toLocaleDateString("en-AU", { day:"numeric", month:"long", year:"numeric" })}</p>
 

@@ -448,7 +448,7 @@ Primary keyword placement: weave "${industry} ${location.split(",")[0]?.trim()}"
   // ── Fixed section scaffold — Stitch receives exact HTML structure, only styling/content varies ──
   const navPages = isMultiPage
     ? pages.map(p => `<a href='#' onclick='navigateTo(\"${p.toLowerCase().replace(/\s+/g,"-")}\")'>${p}</a>`).join(" ")
-    : ["Home","Services","About","Testimonials","FAQ","Contact"].map(p => `<a href='#${p.toLowerCase()}'>${p}</a>`).join(" ");
+    : pages.map(p => `<a href='#${p.toLowerCase().replace(/\s+/g,"-")}'>${p}</a>`).join(" ");
 
   const contactFormScaffold = `<form id='contact-form' onsubmit='event.preventDefault();this.style.display=\"none\";document.getElementById(\"contact-success\").style.display=\"block\"'>
   <div style='display:grid;gap:14px'>
@@ -515,6 +515,7 @@ Primary keyword placement: weave "${industry} ${location.split(",")[0]?.trim()}"
 
 BUSINESS:
 - Name: ${businessName}
+- Site Layout: ${isMultiPage ? "Multi-Page Site (separate views, uses navigateTo() to switch pages)" : "Single-Page Site (single long scrollable landing page, anchor scroll only)"}
 - Industry: ${industry}
 - USP: ${usp || "quality service"}
 - Goal: ${goal}
@@ -701,7 +702,7 @@ N. AEO: FAQ answers must be 40-60 words, complete and self-contained. Use <detai
 ⚠️ JSON OUTPUT RULES — STRICTLY ENFORCED:
 1. Return ONLY a single JSON object. No commentary before or after.
 2. The stitchPrompt value MUST use ONLY single quotes ' for ALL HTML attributes and CSS values. NEVER use double-quotes inside the stitchPrompt string — they break JSON parsing. Correct: style='color:#fff;' — Wrong: style="color:#fff;"
-3. The stitchPrompt MUST be 3500-5000 words. Every section needs full copy: headlines, body text, card content, testimonial quotes with names, FAQ questions AND answers, button labels. Do not summarise — write everything out in full.
+3. The stitchPrompt MUST be 1200-1800 words. Keep it descriptive but concise to prevent truncation. Focus on visual layout, column alignments, styling rules, and key headlines. Use placeholder structures for large text blocks if needed.
 
 Return ONLY this JSON:
 {
@@ -714,7 +715,7 @@ Return ONLY this JSON:
   "heroSubheadline": "1-2 sentences value prop only",
   "ctaText": "${ctaText || "Get Started"}",
   "uniqueDesignIdea": "one sentence visual theme",
-  "stitchPrompt": "DETAILED rendering instructions following the scaffold above — 3500-5000 words minimum. Describe EVERY section in full detail: all hex colours, exact font sizes, precise spacing values, complete copy for headings/subheadings/body text, card content, button labels, testimonial names and quotes, FAQ questions and answers, contact details. ⚠️ CRITICAL JSON RULE: the stitchPrompt value is a JSON string — NEVER use double-quotes \" inside it. Use ONLY single quotes ' for all HTML attributes and CSS values. Example correct: style='color:#fff' — NEVER style=\"color:#fff\""
+  "stitchPrompt": "DETAILED layout and rendering instructions following the scaffold above — 1200-1800 words target. Describe EVERY section structure: spacing, grids, visual elements, flex directions, hex colours, font weights, and key text headings. ⚠️ CRITICAL JSON RULE: the stitchPrompt value is a JSON string — NEVER use double-quotes \" inside it. Use ONLY single quotes ' for all HTML attributes and CSS values. Example correct: style='color:#fff' — NEVER style=\"color:#fff\""
 }${exampleHtmls.length > 0 ? `
 
 REFERENCE EXAMPLES (structure/depth inspiration — do NOT copy text):
@@ -774,8 +775,8 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
   if (!blueprint.stitchPrompt || blueprint.stitchPrompt.length < 200) {
     throw new Error(`Blueprint stitchPrompt too short (${blueprint.stitchPrompt?.length ?? 0} chars)`);
   }
-  if (blueprint.stitchPrompt.length < 3000) {
-    console.warn(`[Blueprint] ⚠️ stitchPrompt is only ${blueprint.stitchPrompt.length} chars — may indicate parse fallback truncation. Expected 3000+ for rich output.`);
+  if (blueprint.stitchPrompt.length < 1000) {
+    console.warn(`[Blueprint] ⚠️ stitchPrompt is only ${blueprint.stitchPrompt.length} chars — may indicate parse fallback truncation. Expected 1000+ for rich output.`);
   }
   if (!blueprint.projectTitle) throw new Error("Blueprint missing projectTitle");
 
