@@ -420,7 +420,7 @@ const buildWebsite = inngest.createFunction(
             const tmpPath = path.join(os.tmpdir(), `wg-rebuild-${jobId}.html`);
             await fs.writeFile(tmpPath, savedHtmlForRebuild, "utf-8");
             const project = stitchSdk.project(projectId);
-            const screens = await project.upload(tmpPath, { deviceType: "DESKTOP" });
+            const screens = await project.upload(tmpPath);
             await fs.unlink(tmpPath).catch(() => {});
             if (screens.length > 0) {
               screen = screens[0];
