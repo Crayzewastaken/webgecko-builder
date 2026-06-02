@@ -79,18 +79,9 @@ export async function auditAndFixSite(
   const has = (t: AuditErrorType) => issues.some(i => i.type === t);
   const mark = (t: AuditErrorType) => issues.filter(i => i.type === t).forEach(i => { i.fixed = true; });
 
-  // ─── PIPELINE PRIME DIRECTIVE ────────────────────────────────────────────────
-  // Stitch already built the site design. The auditor's ONLY job is to:
-  //   1. Replace placeholder emails/phones with real client data
-  //   2. Wire navigation links (href="#" → navigateTo())
-  //   3. Inject ONLY what is completely absent (not just missing an id="")
-  //   4. NEVER remove, replace, or rewrite sections Stitch already built
-  //   5. NEVER inject generic fallback content when Stitch content exists
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  // Pre-pass REMOVED: was incorrectly stripping Stitch-generated contact/faq/testimonials
-  // sections that appeared after the last known data-page wrapper. Stitch legitimately places
-  // these sections outside the main page wrappers. Never remove Stitch HTML.
+  // NOTE: Pre-pass removed — was incorrectly deleting Stitch-generated sections
+  // (contact/faq/testimonials) that appear after the last data-page wrapper.
+  // Stitch legitimately places these as standalone sections. Never remove them.
 
   if (!html.includes(clientEmail)) add(AuditErrorType.PLACEHOLDER_EMAIL, "Missing real email: " + clientEmail);
   if (clientPhone && !html.includes(clientPhone.replace(/\s/g, "")) && !html.includes(clientPhone)) add(AuditErrorType.PLACEHOLDER_PHONE, "Missing real phone: " + clientPhone);
@@ -149,15 +140,10 @@ export async function auditAndFixSite(
     const anyPageHasTestimonials = /testimonial|review|what our|what clients|what.*client.*say|what.*customer|\u2605\u2605\u2605\u2605/i.test(allPageContent);
     if (clientWantsTestimonials && !hasTestimonialsId && !anyPageHasTestimonials) add(AuditErrorType.MISSING_TESTIMONIALS, 'Multi-page: no testimonial content found');
   } else {
-    // Single-page: check for CONTENT not just IDs — Stitch builds real sections without pipeline IDs.
-    // RULE: if Stitch already has the content, do NOT inject a duplicate. Only flag truly missing content.
-    const strippedText = html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '');
-    const hasContactContent = html.includes('id="contact"') || /<form[\s>]/i.test(html) || /contact us|get in touch|send.*message|reach out|enquir/i.test(strippedText);
-    const hasFaqContent    = html.includes('id="faq"') || /<details[\s>]/i.test(html) || /faq|frequently asked|common question/i.test(strippedText);
-    const hasTestimonials  = html.includes('id="testimonials"') || /testimonial|what our clients|★★★★|⭐⭐⭐|what.*client.*say/i.test(strippedText);
-    if (!hasContactContent)  add(AuditErrorType.MISSING_CONTACT,      'Single-page: no contact form or contact content found');
-    if (!hasFaqContent)      add(AuditErrorType.MISSING_FAQ,          'Single-page: no FAQ content found');
-    if (!hasTestimonials)    add(AuditErrorType.MISSING_TESTIMONIALS, 'Single-page: no testimonials content found');
+    // Single-page: all content must be present as top-level sections
+    if (!html.includes('id="contact"'))      add(AuditErrorType.MISSING_CONTACT,      'Missing id="contact"');
+    if (!html.includes('id="faq"'))           add(AuditErrorType.MISSING_FAQ,          'Missing id="faq"');
+    if (!html.includes('id="testimonials"'))  add(AuditErrorType.MISSING_TESTIMONIALS, 'Missing id="testimonials"');
   }
 
   if (hasBooking && !html.includes('id="booking"')) add(AuditErrorType.MISSING_BOOKING, 'Missing id="booking"');
@@ -422,7 +408,7 @@ export async function auditAndFixSite(
     }
   }
 
-  // REMOVED: was hiding Stitch-generated sections outside <main> as "orphans".
+  // NOTE: Orphan-hiding pass removed — was hiding Stitch-built sections outside <main>.
   // Stitch legitimately places contact/faq/testimonials outside <main>. Never touch them.
 
   // Fix: Inject legal pages (Terms + Privacy) if not already present
@@ -472,8 +458,8 @@ export async function auditAndFixSite(
     mark(AuditErrorType.BROKEN_NAV_LINKS);
   }
 
-  // REMOVED: "final cleanup" pass that removed sections outside the data-page system.
-  // Stitch outputs contact/faq/testimonials as standalone sections — never remove them.
+  // NOTE: Final cleanup pass removed — was deleting Stitch-built sections outside data-page system.
+  // Stitch legitimately places contact/faq/testimonials as standalone sections. Never remove them.
 
   const issueStrings = issues.map(i => i.detail);
   console.log("[Auditor] Fixed " + issues.filter(i => i.fixed).length + "/" + issues.length + " issues");
