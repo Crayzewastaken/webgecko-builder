@@ -387,7 +387,7 @@ const buildWebsite = inngest.createFunction(
       }) as string;
       // ── STEP 3: Stitch generate with edit loop for quality control ──────────
       const stitchHtml = await step.run("step3-stitch-generate", async () => {
-        const stitchPrompt = blueprint.stitchPrompt;
+        const stitchPrompt = spec.stitchPrompt;
         console.log(`[Inngest] STEP 3: Stitch generate (prompt: ${stitchPrompt.length} chars, projectId=${projectId})`);
 
         async function fetchScreenHtml(screen: any): Promise<string> {
