@@ -19,42 +19,49 @@ const DARK = "#0F1117";   // dark contrast sections
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; }
-  body { background: ${BG}; font-family: 'Inter', -apple-system, sans-serif; color: ${INK}; min-height: 100vh; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+  body { background: #EDEEF2; font-family: 'Inter', -apple-system, sans-serif; color: ${INK}; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+  
+  @media (max-width: 500px) {
+    body { background: ${BG}; }
+  }
 
-  /* Shell */
+  /* Shell / Device Emulator Container */
   .shell {
-    max-width: 430px; margin: 0 auto; min-height: 100vh;
+    position: relative;
+    max-width: 430px; width: 100%;
+    margin: 30px auto;
+    height: 880px; max-height: calc(100vh - 60px);
     display: flex; flex-direction: column;
     background: ${BG};
+    border-radius: 36px;
+    box-shadow: 0 20px 50px rgba(15,17,23,0.15);
+    border: 10px solid ${DARK};
+    overflow: hidden;
   }
-  @media (min-width: 600px) {
-    .shell { border-left: 1px solid ${LINE}; border-right: 1px solid ${LINE}; }
-    body { background: #EDEEF2; }
+  @media (max-width: 500px) {
+    .shell {
+      max-width: 100%; margin: 0; border: none; border-radius: 0;
+      height: 100vh; max-height: 100vh;
+    }
   }
+
+  /* Scrollable viewports inside the frame */
+  .scroll { flex: 1; overflow-y: auto; padding: 18px 16px 84px; position: relative; }
+  .scroll::-webkit-scrollbar { display: none; }
 
   /* Header */
   .hdr {
-    position: sticky; top: 0; z-index: 50;
-    background: rgba(247,248,250,0.92);
-    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-    border-bottom: 1px solid ${LINE};
-    padding: 12px 20px;
+    background: rgba(255,255,255,0.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid ${LINE}; padding: 14px 18px;
     display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 80;
   }
 
-  /* Scroll */
-  .scroll { flex: 1; overflow-y: auto; padding: 20px 18px 92px; }
-  .scroll::-webkit-scrollbar { display: none; }
-
-  /* Bottom nav */
+  /* Bottom Tab Navigation Bar */
   .bnav {
-    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
-    width: 100%; max-width: 430px; z-index: 50;
-    background: rgba(255,255,255,0.96);
-    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-    border-top: 1px solid ${LINE};
-    display: flex; padding: 8px 0 max(10px, env(safe-area-inset-bottom));
+    position: absolute; bottom: 0; left: 0; right: 0; z-index: 90;
+    background: rgba(255,255,255,0.96); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid ${LINE}; display: flex; padding: 8px 0 max(10px, env(safe-area-inset-bottom));
   }
   .nbtn {
     flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
@@ -573,29 +580,44 @@ export default function ClientHub() {
     {id:"profile", icon:ic.profile, label:"Profile"},
   ];
 
+  const isSubPage = ["profile", "billing", "reports", "stats"].includes(tab);
+
   return (
     <div className="shell">
-      <style>{CSS}</style>
-      <canvas ref={canvasRef} style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:9999}}/>
+      <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      <canvas ref={canvasRef} style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:9999}}/>
 
       {/* ── Header ── */}
-      <header className="hdr">
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <GeckoMark size={28}/>
-          <div>
-            <div style={{fontSize:15,fontWeight:800,color:INK,letterSpacing:"-.3px",lineHeight:1}}>WebGecko</div>
-            <div style={{fontSize:9,color:G,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em"}}>Client Hub</div>
+      {!isSubPage && (
+        <header className="hdr">
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <GeckoMark size={28}/>
+            <div>
+              <div style={{fontSize:15,fontWeight:800,color:INK,letterSpacing:"-.3px",lineHeight:1}}>WebGecko</div>
+              <div style={{fontSize:9,color:G,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em"}}>Client Hub</div>
+            </div>
           </div>
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <button onClick={startTour} style={{background:"none",border:`1px solid ${LINE}`,borderRadius:20,padding:"5px 12px",fontSize:11,color:DIM,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:5}}>
-            <Ico d={ic.chart} size={13} color={DIM}/> Tour
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <button onClick={startTour} style={{background:"none",border:`1px solid ${LINE}`,borderRadius:20,padding:"5px 12px",fontSize:11,color:DIM,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:5}}>
+              <Ico d={ic.chart} size={13} color={DIM}/> Tour
+            </button>
+            <div style={{width:32,height:32,borderRadius:"50%",background:G,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:"#fff"}}>
+              {client?.business_name?.[0]?.toUpperCase()||"C"}
+            </div>
+          </div>
+        </header>
+      )}
+
+      {/* ── Subpage Header with Back navigation button ── */}
+      {isSubPage && (
+        <header className="hdr" style={{ borderBottom: `1px solid ${LINE}` }}>
+          <button onClick={() => setTab("menu")} style={{ background: "none", border: "none", color: G, fontWeight: 700, fontSize: 13, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <Ico d={ic.back} size={16} color={G} /> Back
           </button>
-          <div style={{width:32,height:32,borderRadius:"50%",background:G,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:"#fff"}}>
-            {client?.business_name?.[0]?.toUpperCase()||"C"}
-          </div>
-        </div>
-      </header>
+          <div style={{ fontSize: 13, fontWeight: 800, color: INK, textTransform: "capitalize" }}>{tab === "stats" ? "Brand Accounts" : tab}</div>
+          <div style={{ width: 40 }} />
+        </header>
+      )}
 
       {/* ── Scroll ── */}
       <div className="scroll fade">
@@ -878,10 +900,7 @@ export default function ClientHub() {
         {/* ══ BILLING ══ */}
         {tab==="billing"&&(
           <div id="t-billing" style={{display:"flex",flexDirection:"column",gap:14}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-              <div><h1 className="page-h">Billing</h1><p className="page-sub">$100 flat fee per approved post.</p></div>
-              <button onClick={()=>setTab("menu")} className="btn-sm-outline">← Back</button>
-            </div>
+            <div><p className="page-sub" style={{marginTop:-4}}>$100 flat fee per approved post.</p></div>
 
             <div style={{display:"flex",gap:10}}>
               <div style={{flex:1,background:DARK,borderRadius:16,padding:"16px 18px"}}>
@@ -922,10 +941,7 @@ export default function ClientHub() {
         {/* ══ REPORTS ══ */}
         {tab==="reports"&&(
           <div style={{display:"flex",flexDirection:"column",gap:14}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-              <div><h1 className="page-h">Reports</h1><p className="page-sub">Monthly performance summaries.</p></div>
-              <button onClick={()=>setTab("menu")} className="btn-sm-outline">← Back</button>
-            </div>
+            <div><p className="page-sub" style={{marginTop:-4}}>Monthly performance summaries.</p></div>
             <div style={{background:DARK,borderRadius:16,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div><div style={{fontSize:12,color:"#ffffff55",marginBottom:2}}>Next report</div><div style={{fontWeight:700,fontSize:15,color:"#fff"}}>June 2026</div><div style={{fontSize:12,color:"#ffffff44",marginTop:2}}>Auto-emailed Jul 1</div></div>
               <div style={{background:`${G}22`,borderRadius:10,padding:"10px 14px",textAlign:"center"}}><div style={{fontWeight:900,fontSize:20,color:G}}>2</div><div style={{fontSize:11,color:G,fontWeight:600}}>days</div></div>
@@ -954,10 +970,7 @@ export default function ClientHub() {
         {/* ══ BRAND ACCOUNTS ══ */}
         {tab==="stats"&&(
           <div style={{display:"flex",flexDirection:"column",gap:14}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-              <div><h1 className="page-h">Brand Accounts</h1><p className="page-sub">Connected social channels.</p></div>
-              <button onClick={()=>setTab("menu")} className="btn-sm-outline">← Back</button>
-            </div>
+            <div><p className="page-sub" style={{marginTop:-4}}>Connected social channels.</p></div>
             <div className="card" style={{padding:18}}>
               {[{p:"Instagram",h:"@webgecko",s:"Linked",c:"#E1306C"},{p:"Facebook",h:"WebGecko Business",s:"Linked",c:"#1877F2"},{p:"LinkedIn",h:"WebGecko Corp",s:"Linked",c:"#0A66C2"},{p:"TikTok",h:"@webgecko",s:"Awaiting auth",c:"#333"},{p:"X",h:"@webgecko_au",s:"Awaiting auth",c:"#000"}].map((a,i,arr)=>(
                 <div key={a.p} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"13px 0",borderBottom:i<arr.length-1?`1px solid ${LINE}`:"none"}}>
@@ -975,10 +988,7 @@ export default function ClientHub() {
         {/* ══ PROFILE ══ */}
         {tab==="profile"&&(
           <div id="t-profile" style={{display:"flex",flexDirection:"column",gap:14}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-              <div><h1 className="page-h">Profile</h1><p className="page-sub">Your account details.</p></div>
-              <button onClick={()=>setTab("menu")} className="btn-sm-outline">← Back</button>
-            </div>
+            <div><p className="page-sub" style={{marginTop:-4}}>Your account details.</p></div>
             <div className="card" style={{padding:20,display:"flex",gap:14,alignItems:"center"}}>
               <div style={{width:52,height:52,borderRadius:"50%",background:G,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:800,color:"#fff",flexShrink:0}}>{client?.business_name?.[0]?.toUpperCase()||"C"}</div>
               <div>

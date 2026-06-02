@@ -447,6 +447,8 @@ export async function auditAndFixSite(
         /<(section|div)([^>]*\bid=["'](contact|faq|testimonials|map-section)["'][^>]*)>/gi,
         (m: string, tag: string, attrs: string) => {
           if (/display\s*:\s*none/i.test(attrs)) return m;
+          // Never hide data-page wrappers — they are page content, not orphans
+          if (/\bdata-page=/i.test(attrs)) return m;
           console.log(`[Auditor] Hiding orphaned #${attrs.match(/id=["\']([^\"']+)["\']/)?.at(1)} outside <main>`);
           if (/\bstyle=["\']/.test(attrs)) return `<${tag}${attrs.replace(/\bstyle=["\']/, 'style="display:none;')}>`;
           return `<${tag}${attrs} style="display:none;">`;

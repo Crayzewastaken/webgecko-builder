@@ -307,12 +307,34 @@ function parseJson(raw: string): SiteBlueprint {
     return JSON.parse(sanitised) as SiteBlueprint;
   } catch {}
 
-  // Strategy 5: strip stitchPrompt entirely, parse rest, then re-extract raw
+  // Strategy 5: strip stitchPrompt entirely, parse rest, then re-extract via forward scan
   try {
     const noStitch = extracted.replace(/"stitchPrompt"\s*:\s*"(?:[^"\\]|\\.)*"/g, '"stitchPrompt":""');
     const obj = JSON.parse(noStitch) as SiteBlueprint;
-    const spMatch = extracted.match(/"stitchPrompt"\s*:\s*"([\s\S]*?)"\s*[,}]/);
-    if (spMatch) obj.stitchPrompt = spMatch[1].replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\"/g, '"');
+    // Re-extract stitchPrompt using the same forward-scan as escapeStitchPromptQuotes
+    const spKey5 = '"stitchPrompt"';
+    const spIdx5 = extracted.indexOf(spKey5);
+    if (spIdx5 !== -1) {
+      const colon5 = extracted.indexOf(":", spIdx5 + spKey5.length);
+      let vStart5 = colon5 + 1;
+      while (vStart5 < extracted.length && extracted[vStart5] !== '"') vStart5++;
+      if (vStart5 < extracted.length) {
+        let i5 = vStart5 + 1, closeIdx5 = -1;
+        while (i5 < extracted.length) {
+          if (extracted[i5] === "\\" && i5 + 1 < extracted.length) { i5 += 2; continue; }
+          if (extracted[i5] === '"') {
+            let j5 = i5 + 1;
+            while (j5 < extracted.length && (extracted[j5] === " " || extracted[j5] === "\t" || extracted[j5] === "\r" || extracted[j5] === "\n")) j5++;
+            if (j5 >= extracted.length || extracted[j5] === "," || extracted[j5] === "}") { closeIdx5 = i5; break; }
+          }
+          i5++;
+        }
+        if (closeIdx5 > vStart5) {
+          obj.stitchPrompt = extracted.slice(vStart5 + 1, closeIdx5)
+            .replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\"/g, '"');
+        }
+      }
+    }
     return obj;
   } catch {}
 
