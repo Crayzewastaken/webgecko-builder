@@ -693,7 +693,7 @@ HERO COPY RULES (strictly enforced):
 ⚠️ JSON OUTPUT RULES — STRICTLY ENFORCED:
 1. Return ONLY a single JSON object. No commentary before or after.
 2. The stitchPrompt value MUST use ONLY single quotes ' for ALL HTML attributes and CSS values. NEVER use double-quotes inside the stitchPrompt string — they break JSON parsing. Correct: style='color:#fff;' — Wrong: style="color:#fff;"
-3. The stitchPrompt must be 2000-3000 words minimum with rich, specific content for every section.
+3. The stitchPrompt MUST be 3500-5000 words. Every section needs full copy: headlines, body text, card content, testimonial quotes with names, FAQ questions AND answers, button labels. Do not summarise — write everything out in full.
 
 Return ONLY this JSON:
 {
@@ -706,7 +706,7 @@ Return ONLY this JSON:
   "heroSubheadline": "1-2 sentences value prop only",
   "ctaText": "${ctaText || "Get Started"}",
   "uniqueDesignIdea": "one sentence visual theme",
-  "stitchPrompt": "DETAILED rendering instructions following the scaffold above — 2000-3000 words minimum. Describe EVERY section in full detail: all hex colours, exact font sizes, precise spacing values, complete copy for headings/subheadings/body text, card content, button labels, testimonial names and quotes, FAQ questions and answers, contact details. ⚠️ CRITICAL JSON RULE: the stitchPrompt value is a JSON string — NEVER use double-quotes \" inside it. Use ONLY single quotes ' for all HTML attributes and CSS values. Example correct: style='color:#fff' — NEVER style=\"color:#fff\""
+  "stitchPrompt": "DETAILED rendering instructions following the scaffold above — 3500-5000 words minimum. Describe EVERY section in full detail: all hex colours, exact font sizes, precise spacing values, complete copy for headings/subheadings/body text, card content, button labels, testimonial names and quotes, FAQ questions and answers, contact details. ⚠️ CRITICAL JSON RULE: the stitchPrompt value is a JSON string — NEVER use double-quotes \" inside it. Use ONLY single quotes ' for all HTML attributes and CSS values. Example correct: style='color:#fff' — NEVER style=\"color:#fff\""
 }${exampleHtmls.length > 0 ? `
 
 REFERENCE EXAMPLES (structure/depth inspiration — do NOT copy text):

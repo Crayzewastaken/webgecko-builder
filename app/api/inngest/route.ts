@@ -1010,30 +1010,9 @@ const buildWebsite = inngest.createFunction(
             catalogueItems = shopProducts.map((p: any, i: number) => ({ name: p.name, variationId: "", itemId: "", priceCents: Math.round(parseFloat((p.price || "0").replace(/[^0-9.]/g, "")) * 100), paymentLinkUrl: manualPaymentUrl, paymentLinkId: "" }));
           }
 
-          // Strategy 1: pre-tagged wg-buy-btn buttons
-          catalogueItems.forEach((item: any, i: number) => {
-            if (!item.paymentLinkUrl) return;
-            const btnPattern = new RegExp(`<button([^>]*class="[^"]*wg-buy-btn[^"]*"[^>]*data-product-index="${i}"[^>]*)>[^<]*<\/button>`, "gi");
-            const anchorPattern = new RegExp(`<button([^>]*data-product-index="${i}"[^>]*class="[^"]*wg-buy-btn[^"]*"[^>]*)>[^<]*<\/button>`, "gi");
-            const replacement = `<a href="${item.paymentLinkUrl}" target="_blank" rel="noopener" class="wg-buy-btn" data-product-index="${i}" style="display:inline-block;background:#006aff;color:#fff;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:0.95rem;">Buy Now — $${(item.priceCents / 100).toFixed(2)}</a>`;
-            html = html.replace(btnPattern, replacement).replace(anchorPattern, replacement);
-          });
-          // Strategy 2: regex-based buy button wiring (replaces jsdom which fails in Vercel/Turbopack)
-          catalogueItems.forEach((item: any, i: number) => {
-            if (!item.paymentLinkUrl || html.includes(`data-product-index="${i}"`)) return;
-            // Find a <button> or <a> with buy-like text near the product name
-            const buyBtnRe = /<(button|a)([^>]*)>\s*(?:Buy Now|Add to Cart|Order Now|Shop Now|Purchase|Buy)\s*<\/(button|a)>/gi;
-            let replaced = false;
-            html = html.replace(buyBtnRe, (_m: string, tag: string, attrs: string, closeTag: string) => {
-              if (replaced || attrs.includes('data-product-index')) return _m;
-              replaced = true;
-              return `<a href="${item.paymentLinkUrl}" target="_blank" rel="noopener" class="wg-buy-btn" data-product-index="${i}" style="display:inline-block;background:#006aff;color:#fff;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:0.95rem;">Buy Now — $${(item.priceCents / 100).toFixed(2)}</a>`;
-            });
-            if (replaced) console.log(`[Step7] regex wired buy button for product: ${item.name}`);
-          });
-          // Strategy 3: inject fallback shop section for unmatched products
-          const unlinked = catalogueItems.filter((_: any, i: number) => !html.includes(`data-product-index="${i}"`));
-          if (unlinked.length > 0) {
+          // Always replace the entire Stitch shop section with real client products.
+          // Never rely on finding/replacing individual buttons — Stitch always has placeholder products.
+          {
             // Skip items with no paymentLinkUrl (variationId was missing — Square could not create a checkout link)
             const cards = catalogueItems.filter((item: any) => !!item.paymentLinkUrl).map((item: any, i: number) => {
               const photoHtml = item.photoUrl ? `<img src="${item.photoUrl}" alt="${item.name}" style="width:100%;height:180px;object-fit:cover;border-radius:8px;margin-bottom:12px;"/>` : '';
