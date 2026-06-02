@@ -355,16 +355,18 @@ export function applyStep5CodeFixes(params: Step5Params): string {
         const author = match ? match[2].trim() : "Verified Customer";
         return `<div style="background:rgba(255,255,255,0.06);border-radius:16px;padding:28px;border:1px solid rgba(255,255,255,0.1);"><div style="color:#f59e0b;font-size:1.1rem;margin-bottom:12px;">★★★★★</div><p style="color:#e2e8f0;font-size:0.95rem;line-height:1.7;margin:0 0 16px;">"${quote}"</p><p style="color:#10b981;font-weight:700;font-size:0.85rem;margin:0;">— ${author}</p></div>`;
       }).join("\n");
-      const realTestimonialsSection = `<div class="wg-real-testimonials" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;padding:0 0 24px;">${cards}</div>`;
-      html = html.replace(/(<(?:section|div)[^>]*id="testimonials"[^>]*>)([\s\S]*?)(<\/(?:section|div)>)/i, (_m: string, open: string, _body: string, close: string) => {
-        if (_m.includes("wg-real-testimonials")) return _m;
-        return open + realTestimonialsSection + close;
+      // Append real client reviews AFTER existing Stitch content — never replace Stitch's section body
+      const realTestimonialsSection = `<div class="wg-real-testimonials" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;padding:24px 0 0;">${cards}</div>`;
+      html = html.replace(/(<(?:section|div)[^>]*id="testimonials"[^>]*>)([\s\S]*?)(<\/(?:section|div)>)/i, (_m: string, open: string, body: string, close: string) => {
+        if (_m.includes("wg-real-testimonials")) return _m; // already done
+        return open + body + realTestimonialsSection + close; // append, not replace
       });
       console.log(`[Step5] Real testimonials injected (${testimonialLines.length} reviews)`);
     }
   }
 
-  // ── Pad testimonials to at least 3 ───────────────────────────────────────
+  // ── Pad testimonials to at least 3 — ONLY if section has fewer than 3 real cards ──
+  // Uses inherit/currentColor so padding cards match Stitch's theme, not hardcoded dark colours.
   {
     const auNames = ["Sarah M., Melbourne","James T., Brisbane","Emily R., Sydney","Michael K., Perth","Jessica L., Adelaide","Daniel W., Gold Coast"];
     const genReview = (industry: string, idx: number) => {
@@ -373,7 +375,8 @@ export function applyStep5CodeFixes(params: Step5Params): string {
         default: ["Exceptional service from start to finish. Could not be happier.","Professional, reliable, and genuinely great to work with.","Exactly what we needed — delivered on every promise."],
       };
       const pool = quotes[industry?.toLowerCase().includes("doctor")||industry?.toLowerCase().includes("medical")||industry?.toLowerCase().includes("health") ? "medical" : "default"];
-      return `<div style="background:rgba(255,255,255,0.06);border-radius:16px;padding:28px 32px;border:1px solid rgba(255,255,255,0.1);display:flex;flex-direction:column;gap:12px;"><div style="color:#f59e0b;font-size:1.1rem;letter-spacing:2px;">★★★★★</div><p style="color:#e2e8f0;font-size:0.95rem;line-height:1.75;margin:0;">"${pool[idx % pool.length]}"</p><p style="color:#10b981;font-weight:700;font-size:0.85rem;margin:0;">— ${auNames[idx % auNames.length]}</p></div>`;
+      // Use inherit/currentColor so the card inherits Stitch's theme colours
+      return `<div style="border-radius:12px;padding:24px;border:1px solid rgba(128,128,128,0.2);display:flex;flex-direction:column;gap:12px;"><div style="color:#f59e0b;font-size:1.1rem;letter-spacing:2px;">★★★★★</div><p style="opacity:0.85;font-size:0.95rem;line-height:1.75;margin:0;">"${pool[idx % pool.length]}"</p><p style="font-weight:700;font-size:0.85rem;margin:0;opacity:0.7;">— ${auNames[idx % auNames.length]}</p></div>`;
     };
     const testSection = html.match(/(<(?:section|div)[^>]*id="testimonials"[^>]*>)([\s\S]*?)(<\/(?:section|div)>)/i);
     if (testSection) {
