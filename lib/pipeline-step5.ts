@@ -395,6 +395,10 @@ export function applyStep5CodeFixes(params: Step5Params): string {
     }
   }
 
+  // ── Upgrade bare navigateTo( calls to window.navigateTo( ────────────────────
+  // Stitch outputs onclick="navigateTo('shop')" — bare calls work but normalise for safety
+  html = html.replace(/(<(?:a|button)[^>]*onclick=["'][^"']*?)(?<![.\w])navigateTo\(/g, '$1window.navigateTo(');
+
   // ── Strip Stitch navigateTo scripts ───────────────────────────────────────
   if (!savedHtmlForRebuild || isUsingRawStitchForRebuild) {
     html = html.replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, (m: string, body: string) => {

@@ -690,6 +690,10 @@ HERO COPY RULES (strictly enforced):
 - heroHeadline: max 8 words, benefit-driven, NO business name, NO address, NO suburb
 - heroSubheadline: 1-2 sentences, value prop ONLY, NO address or location
 
+SEO & AEO REQUIREMENTS — mandatory in stitchPrompt:
+M. Include JSON-LD LocalBusiness schema in <head>.
+N. AEO: FAQ answers must be 40-60 words, complete and self-contained. Use <details><summary> markup. Write entity-rich About paragraph: what the business does, who it serves, where it operates, unique value.
+
 ⚠️ JSON OUTPUT RULES — STRICTLY ENFORCED:
 1. Return ONLY a single JSON object. No commentary before or after.
 2. The stitchPrompt value MUST use ONLY single quotes ' for ALL HTML attributes and CSS values. NEVER use double-quotes inside the stitchPrompt string — they break JSON parsing. Correct: style='color:#fff;' — Wrong: style="color:#fff;"
