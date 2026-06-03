@@ -557,77 +557,36 @@ Primary keyword placement: weave "${industry} ${location.split(",")[0]?.trim()}"
   const heroImageLine = heroUrl ? `Use the provided hero image as the main visual: ${heroUrl}` : "Design a compelling hero visual appropriate for " + industry;
   const logoLine = logoUrl ? `Display the client logo in the sticky nav: ${logoUrl}` : "Use business name as text logo in nav";
 
-  const prompt = `You are a world-class web designer creating a unique, high-quality website for a real business. Your job is to produce a detailed Stitch AI prompt that will generate a stunning, conversion-focused website specific to THIS business.
+  const prompt = `You are briefing Stitch AI — a design system that generates complete websites. Your job is to write a SHORT, HIGH-SIGNAL brief (150-200 words max in the stitchPrompt). Do NOT over-specify. Do NOT dictate pixel sizes, exact colours, or layout details. Stitch is excellent at design — just give it the brand identity, tone, and content it needs. Less is more.
 
-═══════════════════════════════════════
-CLIENT BRIEF
-═══════════════════════════════════════
-Business Name: ${businessName}
-Industry: ${industry}
-USP / What makes them different: ${usp || "quality service"}
-Target audience: ${clientTargetAudience}
-Primary goal: ${goal || "get more customers"}
-Style preference: ${style || "modern premium"}
-Colour preferences: ${colorPrefs || "choose something appropriate for the industry"}
-Additional notes from client: ${additionalNotes || "none"}
-${clientRealTestimonials ? "Real client testimonials to include:\n" + clientRealTestimonials : ""}
-${clientReferences ? "Design references/inspiration: " + clientReferences : ""}
-
-Contact details (use in contact section only):
-- Phone: ${clientPhone}
-- Email: ${clientEmail}
-- Address: ${businessAddress || "not provided"}
-- Facebook: ${facebookPage || "none"}
-- Instagram: ${instagramUrl || "none"}
-- LinkedIn: ${linkedinUrl || "none"}
-
-Images the client uploaded:
-${imageContext}
-
-${pricingSection !== "No pricing section needed." ? `Pricing: ${pricingSection}` : ""}
-${(context as any).shopProducts ? `Shop products: ${(context as any).shopProducts}` : ""}
-${(context as any).bookingServices ? `Booking services offered: ${(context as any).bookingServices}` : ""}
+CLIENT:
+- Business: ${businessName} | Industry: ${industry}
+- USP: ${usp || "quality service"} | Audience: ${clientTargetAudience}
+- Style: ${style || "modern"} | Colours: ${colorPrefs || "derive from industry"}
+- Phone: ${clientPhone} | Email: ${clientEmail}${businessAddress ? " | Address: " + businessAddress : ""}
+${clientRealTestimonials ? "- Real testimonials: " + clientRealTestimonials.slice(0, 200) : ""}
+${additionalNotes && additionalNotes !== "none" ? "- Client notes: " + additionalNotes : ""}
 ${serpGuidance}${lsiInstruction}
-═══════════════════════════════════════
-PAGES / SECTIONS REQUIRED
-═══════════════════════════════════════
-Site type: ${isMultiPage ? "MULTI-PAGE — each section is a separate navigable page" : "SINGLE-PAGE — one long scrollable site"}
-Required section IDs: ${requiredSectionIds.join(", ")}
-${isMultiPage ? `Multi-page structure: each page uses <div data-page="PAGEID" id="PAGEID" class="page-section">. Nav/footer OUTSIDE these wrappers. Nav links use onclick='navigateTo("pageid")'.` : `Single-page: anchor href="#sectionid" links.`}
+IMAGES: ${imageContext}
+${pricingSection !== "No pricing section needed." ? "PRICING: " + pricingSection : ""}
+${clientShopProducts ? "SHOP PRODUCTS: " + clientShopProducts : ""}
+${(context as any).bookingServices ? "BOOKING SERVICES: " + (context as any).bookingServices : ""}
 
-═══════════════════════════════════════
-YOUR TASK
-═══════════════════════════════════════
-Write the stitchPrompt field — a 600-1000 word brief sent directly to Stitch AI to generate the HTML.
+SECTIONS REQUIRED (${isMultiPage ? "MULTI-PAGE — use data-page/id wrappers, navigateTo() nav" : "SINGLE-PAGE — anchor links"}):
+${requiredSectionIds.join(", ")}
 
-The stitchPrompt MUST:
-
-1. START with a specific visual identity statement — describe the exact mood, colour direction, and aesthetic. Be vivid and specific, not generic. Examples:
-   - "Deep charcoal and burnt orange — the feel of a premium tradie workshop, raw and confident"
-   - "Crisp white with sage green accents — calm, trustworthy, like a boutique health clinic"
-   - "Rich navy and warm gold — sophisticated and established, like a premium law firm"
-   Derive this from the client's style preference ("${style || "modern"}") and colour preferences ("${colorPrefs || "professional"}"). NEVER default to generic blue unless explicitly requested.
-
-2. Describe the HERO section (id=home):
-   - Write the actual headline (max 8 words, benefit-driven, specific to ${businessName})
-   - Write the subheadline (1-2 sentences, value prop)
-   - CTA button text: "${ctaText}"
-   - ${heroImageLine}
-   - ${logoLine}
-
-3. Describe EVERY required section with real content:
+WRITE THE stitchPrompt (150-200 words max):
+- One sentence on visual mood/colour direction (derive from style "${style}" and colours "${colorPrefs}" — be specific, never generic blue unless asked)
+- DESIGN FOR MOBILE FIRST — ensure the layout works beautifully on phones
+- Hero: headline for ${businessName}, subheadline, CTA "${ctaText}", ${heroImageLine}
+- Nav: ${logoLine}, links to all sections
+- Services: real service names for ${industry}
+- Contact: form + ${clientPhone} + ${clientEmail}${businessAddress ? " + " + businessAddress + " + Google Maps" : ""}
+- JSON-LD LocalBusiness schema in head
 ${sectionDescriptions}
+NOTE: Do NOT specify pixel sizes, exact CSS, or layout details. Stitch handles design. Just give brand intent and content. Keep it under 200 words.
 
-4. Typography direction: describe the font personality (bold/condensed/elegant/playful etc) — do NOT name specific fonts
-
-5. Layout direction: specify the hero layout style (split-screen / full-bleed / asymmetric / centred), card style for services (bento grid / icon cards / horizontal list), overall page feel
-
-6. Include JSON-LD LocalBusiness schema in <head> with: name="${businessName}", phone="${clientPhone}", email="${clientEmail}"${businessAddress ? ", address=" + businessAddress : ""}
-
-⚠️ JSON OUTPUT RULES:
-1. Return ONLY a single JSON object. No text before or after.
-2. The stitchPrompt value MUST use ONLY single quotes ' — NEVER double-quotes inside it. Double-quotes break JSON parsing.
-3. The stitchPrompt must be 600-1000 words. Short = generic output.
+⚠️ JSON RULES: Return ONLY a JSON object. stitchPrompt uses ONLY single quotes ' — never double-quotes inside it.
 
 Return ONLY:
 {
@@ -635,12 +594,12 @@ Return ONLY:
   "palette": {"primary":"#hex","accent":"#hex","background":"#hex","surface":"#hex","text":"#hex"},
   "typography": {"headingFont":"FontName","bodyFont":"FontName","heroSize":"72px"},
   "sections": ${JSON.stringify(requiredSectionIds)},
-  "tone": "...",
-  "heroHeadline": "max 8 words, benefit-driven, specific to ${businessName}",
+  "tone": "2-3 words",
+  "heroHeadline": "max 8 words, benefit-driven, unique to ${businessName}",
   "heroSubheadline": "1-2 sentences value prop",
   "ctaText": "${ctaText}",
-  "uniqueDesignIdea": "one specific sentence: colour mood + layout style + feel",
-  "stitchPrompt": "YOUR 600-1000 WORD BRIEF — unique visual direction + full content for every section. Single quotes ONLY."
+  "uniqueDesignIdea": "one sentence: colour mood + feel — unique to this business",
+  "stitchPrompt": "150-200 word brief: mood/colour direction, hero content, section list with real content, mobile-first. Single quotes ONLY inside this string. No CSS/pixels/layout specs."
 }${exampleHtmls.length > 0 ? `
 
 REFERENCE EXAMPLES (layout inspiration only — do NOT copy colours/content):
@@ -700,8 +659,8 @@ ${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.sli
   if (!blueprint.stitchPrompt || blueprint.stitchPrompt.length < 200) {
     throw new Error(`Blueprint stitchPrompt too short (${blueprint.stitchPrompt?.length ?? 0} chars)`);
   }
-  if (blueprint.stitchPrompt.length < 1500) {
-    console.warn(`[Blueprint] ⚠️ stitchPrompt is only ${blueprint.stitchPrompt.length} chars — too short, sites will look generic. Expected 3000+ chars.`);
+  if (blueprint.stitchPrompt.length < 500) {
+    console.warn(`[Blueprint] ⚠️ stitchPrompt is only ${blueprint.stitchPrompt.length} chars — too short. Expected 800-1500 chars.`);
   }
   if (blueprint.stitchPrompt.length > 12000) {
     console.warn(`[Blueprint] ⚠️ stitchPrompt is ${blueprint.stitchPrompt.length} chars — truncating to 12000`);

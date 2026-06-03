@@ -125,25 +125,32 @@ export async function auditAndFixSite(
       add(AuditErrorType.MISSING_CONTACT, 'Multi-page: no contact form found in any page wrapper');
     }
 
-    // faq: only check if client requested a faq page
-    const clientWantsFaq = requestedPageIds.some((p: string) => /^faq/.test(p));
+    // faq: always inject if absent \u2014 every business site needs an FAQ
     const hasFaqId = html.includes('id="faq"');
     const faqPageHasContent = faqContent.length > 400;
     const anyPageHasFaq = /faq|frequently.asked|common.*question|accordion|<details/i.test(allPageContent);
-    if (clientWantsFaq && !hasFaqId && !faqPageHasContent && !anyPageHasFaq) {
-      add(AuditErrorType.MISSING_FAQ, 'Multi-page: no FAQ content found in any page wrapper');
+    if (!hasFaqId && !faqPageHasContent && !anyPageHasFaq) {
+      add(AuditErrorType.MISSING_FAQ, 'No FAQ section found \u2014 injecting');
     }
 
-    // testimonials: only inject if client requested a testimonials page
-    const clientWantsTestimonials = requestedPageIds.some((p: string) => /^testimonial|^review/.test(p));
+    // testimonials: always inject if absent \u2014 every business site needs social proof
     const hasTestimonialsId = html.includes('id="testimonials"');
     const anyPageHasTestimonials = /testimonial|review|what our|what clients|what.*client.*say|what.*customer|\u2605\u2605\u2605\u2605/i.test(allPageContent);
-    if (clientWantsTestimonials && !hasTestimonialsId && !anyPageHasTestimonials) add(AuditErrorType.MISSING_TESTIMONIALS, 'Multi-page: no testimonial content found');
+    if (!hasTestimonialsId && !anyPageHasTestimonials) {
+      add(AuditErrorType.MISSING_TESTIMONIALS, 'No testimonials found \u2014 injecting');
+    }
   } else {
-    // Single-page: all content must be present as top-level sections
-    if (!html.includes('id="contact"'))      add(AuditErrorType.MISSING_CONTACT,      'Missing id="contact"');
-    if (!html.includes('id="faq"'))           add(AuditErrorType.MISSING_FAQ,          'Missing id="faq"');
-    if (!html.includes('id="testimonials"'))  add(AuditErrorType.MISSING_TESTIMONIALS, 'Missing id="testimonials"');
+    // Single-page: check for content not just IDs
+    const strippedText = html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '');
+    if (!html.includes('id="contact"') && !/<form[\s>]/i.test(html) && !/contact us|get in touch|send.*message/i.test(strippedText)) {
+      add(AuditErrorType.MISSING_CONTACT, 'No contact section found \u2014 injecting');
+    }
+    if (!html.includes('id="faq"') && !/<details[\s>]/i.test(html) && !/faq|frequently asked/i.test(strippedText)) {
+      add(AuditErrorType.MISSING_FAQ, 'No FAQ section found \u2014 injecting');
+    }
+    if (!html.includes('id="testimonials"') && !/testimonial|what our clients|\u2605\u2605\u2605\u2605/i.test(strippedText)) {
+      add(AuditErrorType.MISSING_TESTIMONIALS, 'No testimonials found \u2014 injecting');
+    }
   }
 
   if (hasBooking && !html.includes('id="booking"')) add(AuditErrorType.MISSING_BOOKING, 'Missing id="booking"');
