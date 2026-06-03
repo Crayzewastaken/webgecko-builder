@@ -39,7 +39,7 @@ export function domInject(params: DomInjectParams): string {
     accentColor = "#10b981",
   } = params;
 
-  const $ = cheerio.load(html, { decodeEntities: false });
+  const $ = cheerio.load(html, { xmlMode: false });
 
   // ── 1. Replace placeholder emails ────────────────────────────────────────────
   if (clientEmail) {
