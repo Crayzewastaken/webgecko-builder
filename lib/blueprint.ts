@@ -556,21 +556,21 @@ Primary keyword placement: weave "${industry} ${location.split(",")[0]?.trim()}"
     return `   - ${id} (id=${id}): Section with relevant content for ${businessName}`;
   }).join("\n");
 
-  // Always append FAQ + testimonials — Stitch MUST build these for every site
-  const alwaysRequired = [
-    (!requiredSectionIds.includes("faq") ? faqLine : ""),
-    (!requiredSectionIds.includes("testimonials") && !requiredSectionIds.includes("reviews") ? testimonialsLine : ""),
-  ].filter(Boolean).join("\n");
-  const fullSectionDescriptions = sectionDescriptions + (alwaysRequired ? "\n" + alwaysRequired : "");
-
   const heroImageLine = heroUrl
     ? `HERO: Full-bleed background using this image URL as the hero image (MUST be visible, large, full-width): ${heroUrl}`
     : `HERO: Design a strong, visually compelling hero background — use bold geometric shapes, gradients, or illustrated elements relevant to ${industry}. NOT a plain flat colour.`;
   const logoLine = logoUrl ? `NAV LOGO: Use this exact image URL for the logo in the sticky nav: ${logoUrl}` : `NAV: Use "${businessName}" as text logo`;
 
-  // Always include FAQ and testimonials in section descriptions — Stitch must build these
+  // Always include FAQ and testimonials — Stitch must build these for every site
   const faqLine = `   - FAQ (id=faq): REQUIRED. 5-6 accordion <details><summary> questions specific to ${industry}. Real questions customers ask. Must be in the site.`;
-  const testimonialsLine = `   - Testimonials/Reviews (id=testimonials): REQUIRED. 3 review cards with ★★★★★ star rating, customer name, short quote. ${clientRealTestimonials ? "Use these real reviews: " + clientRealTestimonials : "Write realistic 5-star reviews for a " + industry + " business."}`;
+  const testimonialsLine = `   - Testimonials/Reviews (id=testimonials): REQUIRED. 3 review cards with star rating, customer name, short quote. ${clientRealTestimonials ? "Use these real reviews: " + clientRealTestimonials : "Write realistic 5-star reviews for a " + industry + " business."}`;
+
+  // Append FAQ + testimonials to section descriptions if not already included
+  const alwaysRequired = [
+    (!requiredSectionIds.includes("faq") ? faqLine : ""),
+    (!requiredSectionIds.includes("testimonials") && !requiredSectionIds.includes("reviews") ? testimonialsLine : ""),
+  ].filter(Boolean).join("\n");
+  const fullSectionDescriptions = sectionDescriptions + (alwaysRequired ? "\n" + alwaysRequired : "");
 
   const prompt = `You are briefing Stitch AI — a design system that generates complete websites. Your job is to write a SHORT, HIGH-SIGNAL brief (150-200 words max in the stitchPrompt). Do NOT over-specify. Do NOT dictate pixel sizes, exact colours, or layout details. Stitch is excellent at design — just give it the brand identity, tone, and content it needs. Less is more.
 
