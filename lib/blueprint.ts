@@ -548,7 +548,9 @@ Primary keyword placement: weave "${industry} ${location.split(",")[0]?.trim()}"
     if (id === "reviews" || id === "testimonials") return `   - Reviews (id=${id}): ${clientRealTestimonials ? "Use these real testimonials: " + clientRealTestimonials : "3 testimonial cards with star ratings, customer name and location, specific quote about " + businessName}`;
     if (id === "faq") return `   - FAQ (id=faq): 5-6 accordion questions specific to ${industry} — questions real customers ask`;
     if (id === "newsletter") return `   - Newsletter (id=newsletter-form): Email capture with subscribe button`;
-    if (id === "contact") return `   - Contact (id=contact): Form with name/email/phone/message. Display phone: ${clientPhone}, email: ${clientEmail}${businessAddress ? ", address: " + businessAddress : ""}${businessAddress ? ". Include a Google Maps embed." : ""}`;
+    if (id === "contact") return hasBooking
+      ? `   - Contact (id=contact): ENQUIRIES & SUPPORT only (NOT quotes/bookings — those go in the Booking section). Form with name/email/phone/message fields. Heading: 'Get in Touch'. Display phone: ${clientPhone}, email: ${clientEmail}${businessAddress ? ", address: " + businessAddress : ""}${businessAddress ? ". Include a Google Maps placeholder." : ""}`
+      : `   - Contact (id=contact): Contact form with name/email/phone/message fields. Display phone: ${clientPhone}, email: ${clientEmail}${businessAddress ? ", address: " + businessAddress : ""}${businessAddress ? ". Include a Google Maps placeholder." : ""}`;
     if (id === "blog") return `   - Blog (id=blog): Grid of blog post preview cards`;
     if (id === "team") return `   - Team (id=team): Team member cards with photo, name, role`;
     return `   - ${id} (id=${id}): Section with relevant content for ${businessName}`;

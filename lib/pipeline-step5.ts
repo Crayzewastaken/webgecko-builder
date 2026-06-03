@@ -1,20 +1,9 @@
 // lib/pipeline-step5.ts
 // Step 5 — Code-only fix pass.
 // Extracted from app/api/inngest/route.ts to reduce monolith size.
-//
-// ─── PRIME DIRECTIVE ─────────────────────────────────────────────────────────
-// Stitch already built the full site design. Step 5 ONLY:
-//   - Replaces placeholder text (emails, phones, fake addresses)
-//   - Wires broken links (href="#" → navigateTo / tel: / mailto:)
-//   - Injects maps, social links, video embeds, newsletter, shop
-//   - Strips Stitch's own navigateTo script (pipeline injects the real one)
-//   - Injects SEO meta tags
-//
-// Step 5 MUST NOT:
-//   - Remove any section Stitch generated
-//   - Replace any section's content with generic fallbacks
-//   - Add duplicate sections
-// ─────────────────────────────────────────────────────────────────────────────
+// Contains all regex/string-based post-processing: CTA wiring, placeholder
+// replacement, maps, video, social links, newsletter, popup, testimonials,
+// script stripping, markdown cleaning, and SEO meta injection.
 
 import { resolveStitchClasses, normalizePageId } from "./pipeline-helpers";
 
@@ -156,6 +145,23 @@ export function applyStep5CodeFixes(params: Step5Params): string {
   html = html.replace(/(?:Initialize Transmission|Send Brief|Submit Request|Submit Inquiry|Launch Project|Start Project|Begin Project)/gi, 'Send Message');
   html = html.replace(/(?:Start Your Project|Launch Your Project|Begin Your Project|Project Inquiry|Project Brief|Start a Project)/gi, 'Get in Touch');
 
+  // ── If site has booking, reframe contact as enquiries/support not quote requests ─
+  if (hasBookingFeature) {
+    // Only change heading text inside the contact section — not elsewhere
+    const contactIdx = html.indexOf('id="contact"');
+    if (contactIdx !== -1) {
+      const contactChunk = html.slice(contactIdx, contactIdx + 3000);
+      const updated = contactChunk
+        .replace(/Request a Quote/gi, 'Send an Enquiry')
+        .replace(/Get a Quote/gi, 'Get in Touch')
+        .replace(/Submit Request/gi, 'Send Message')
+        .replace(/Project Details/gi, 'How Can We Help?')
+        .replace(/Describe your (?:carpentry|project|service) needs/gi, 'Tell us how we can help...')
+        .replace(/placeholder="Describe your[^"]*"/gi, 'placeholder="Tell us how we can help..."');
+      html = html.slice(0, contactIdx) + updated + html.slice(contactIdx + 3000);
+    }
+  }
+
   // ── Nav link wiring ───────────────────────────────────────────────────────
   // Rewrites both bare href="#" AND anchor href="#section" links in nav/header
   // into navigateTo() calls. Stitch generates href="#services" style anchors
@@ -170,7 +176,7 @@ export function applyStep5CodeFixes(params: Step5Params): string {
   };
   // Match both href="#" and href="#anything"
   html = html.replace(/<a([^>]*href=["']#[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi, (match: string, attrs: string, inner: string) => {
-    if (match.includes('navigateTo') || match.includes('scrollIntoView')) return match; // check full element not just attrs
+    if (attrs.includes('navigateTo') || attrs.includes('scrollIntoView')) return match;
     if (/href=["'](?:mailto:|tel:)/i.test(attrs)) return match;
     const txt = inner.replace(/<[^>]+>/g, '').trim().toLowerCase();
 
@@ -193,94 +199,58 @@ export function applyStep5CodeFixes(params: Step5Params): string {
     return `<a${attrsNoHref} href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('${target}')">${inner}</a>`;
   });
 
-  // ── Maps injection ────────────────────────────────────────────────────────
+  // ── Maps injection (cheerio-based — always goes INSIDE contact section) ─────
   if (businessAddress) {
-    const mapsEmbed = process.env.GOOGLE_MAPS_API_KEY
-      ? `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;display:block;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe></div>`
-      : `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;"><iframe width="100%" height="350" style="border:0;display:block;" loading="lazy" allowfullscreen src="https://www.openstreetmap.org/export/embed.html?bbox=&layer=mapnik&marker=&query=${encodeURIComponent(businessAddress)}" title="Map"></iframe><small style="display:block;text-align:right;font-size:10px;color:#94a3b8;margin-top:4px;"><a href="https://www.openstreetmap.org/search?query=${encodeURIComponent(businessAddress)}" target="_blank" style="color:#94a3b8;">View larger map</a></small></div>`;
     const hasRealMap = /<iframe[^>]*(?:google\.com\/maps|maps\.googleapis)[^>]*>/i.test(html);
     if (hasRealMap) {
       console.log("[Step5] Stitch already has Google Maps — skipping map injection");
     } else {
-      html = html.replace(/<div[^>]*>\s*<iframe[^>]*(?:openstreetmap)[^>]*>[\s\S]*?<\/iframe>\s*<\/div>/gi, '');
-      html = html.replace(/<iframe[^>]*(?:openstreetmap)[^>]*>[\s\S]*?<\/iframe>/gi, '');
-      html = html.replace(/<a[^>]*href=["'][^"']*(?:google\.com\/maps|maps\.googleapis\.com)[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '');
-      html = html.replace(/<div[^>]*class="[^"]*(?:map|location|directions)[^"]*"[^>]*>[\s\S]{0,1500}?<\/div>/gi, (m: string) => {
-        if (m.includes('<iframe')) return m;
-        const textOnly = m.replace(/<[^>]+>/g, '').trim();
-        if (/Map View|map-placeholder|map_icon/i.test(m)) return '';
-        if (textOnly.length < 80 && /map|location|directions/i.test(m)) return '';
-        return m;
+      const { load: cheerioLoad } = await import("cheerio");
+      const $m = cheerioLoad(html, { xmlMode: false });
+
+      const mapsIframe = process.env.GOOGLE_MAPS_API_KEY
+        ? `<iframe width="100%" height="320" style="border:0;display:block;border-radius:12px;" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps/embed/v1/place?key=${process.env.GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(businessAddress)}"></iframe>`
+        : `<iframe width="100%" height="320" style="border:0;display:block;border-radius:12px;" loading="lazy" allowfullscreen src="https://maps.google.com/maps?q=${encodeURIComponent(businessAddress)}&output=embed" title="Map"></iframe>`;
+      const mapBlock = `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;">${mapsIframe}</div>`;
+
+      // Strategy 1: replace Stitch's map placeholder div (contains "Map View", data-icon=map, or map-placeholder text)
+      let injected = false;
+      $m("[id='contact'], [data-page='contact']").find("div, section").each((_, el) => {
+        if (injected) return;
+        const inner = $m(el).html() || "";
+        const text = $m(el).text().trim();
+        if (
+          /map.*view|map.*placeholder|\[\s*google.*map|\[\s*map/i.test(inner) ||
+          (text.length < 100 && /map.*view|map view/i.test(text)) ||
+          $m(el).find("[data-icon='map'], .material-symbols-outlined").length > 0 && text.length < 150
+        ) {
+          $m(el).replaceWith(mapBlock);
+          injected = true;
+          console.log("[Step5] Map replaced Stitch map placeholder inside contact section");
+        }
       });
-      html = html.replace(/<[a-z][^>]*>\s*Map View\s*:[^<]{0,100}<\/[a-z]+>/gi, '');
-      html = html.replace(/<div[^>]*data-location=[^>]*>[\s\S]{0,2000}?<\/div>/gi, (m: string) => {
-        if (m.includes('<iframe')) return m;
-        if (/Map Loading|map-placeholder|lh3\.googleusercontent/i.test(m)) return '';
-        return m;
-      });
-      const mapBlock = `<div id="map-section" style="width:100%;padding:0 0 60px;background:inherit;">${mapsEmbed}</div>`;
-      let mapInjected = false;
-      const beforeMapLen = html.length;
-      html = html.replace(/<div[^>]*>\s*MAP PLACEHOLDER[^<]*<\/div>/gi, mapBlock);
-      if (html.length !== beforeMapLen) mapInjected = true;
-      if (!mapInjected) {
-        html = html.replace(/<div([^>]*(?:id|class)="[^"]*(?:^map$|^map-|location-map|directions|gmap)[^"]*"[^>]*)>([\s\S]*?)<\/div>/gi, (match: string, _attrs: string) => {
-          if (match.includes('iframe')) return match;
-          mapInjected = true;
-          return mapBlock;
-        });
-      }
-      if (!mapInjected) {
-        const contactOpenRe = /<(section|div)[^>]*id=["']contact["'][^>]*>/i;
-        const contactOpenM = contactOpenRe.exec(html);
-        if (contactOpenM) {
-          const tagName = contactOpenM[1].toLowerCase();
-          let depth = 1, pos = contactOpenM.index + contactOpenM[0].length, endIdx = -1;
-          const openRe = new RegExp(`<${tagName}[\\s>]`, 'gi');
-          const closeRe = new RegExp(`<\\/${tagName}>`, 'gi');
-          while (depth > 0 && pos < html.length) {
-            openRe.lastIndex = pos; closeRe.lastIndex = pos;
-            const nextOpen = openRe.exec(html), nextClose = closeRe.exec(html);
-            if (!nextClose) break;
-            if (nextOpen && nextOpen.index < nextClose.index) { depth++; pos = nextOpen.index + nextOpen[0].length; }
-            else { depth--; pos = nextClose.index + nextClose[0].length; if (depth === 0) endIdx = pos; }
+
+      // Strategy 2: append to contact section's right-hand column or last child div
+      if (!injected) {
+        const contactSection = $m("[id='contact'], [data-page='contact']").first();
+        if (contactSection.length) {
+          // Try to find the contact details column (right side — has phone/email/address)
+          const detailsCol = contactSection.find("div").filter((_, el) => {
+            const t = $m(el).text();
+            return t.includes(businessAddress.split(",")[0]) || /0[0-9]{9}/.test(t);
+          }).first();
+          if (detailsCol.length) {
+            detailsCol.append(mapBlock);
+          } else {
+            contactSection.append(mapBlock);
           }
-          if (endIdx > 0) { html = html.slice(0, endIdx) + "\n" + mapBlock + html.slice(endIdx); mapInjected = true; }
+          injected = true;
+          console.log("[Step5] Map appended inside contact section");
         }
       }
-      if (!mapInjected) {
-        // Only inject map inside a data-page wrapper (contact page preferred).
-        // NEVER inject before footer — it shows on every page.
-        const contactPageRe = /data-page=["']contact["']/i;
-        if (contactPageRe.test(html)) {
-          // Find the contact data-page wrapper and inject map inside it
-          const dpIdx = html.search(/data-page=["']contact["']/i);
-          const tagStart = html.lastIndexOf('<', dpIdx);
-          if (tagStart !== -1) {
-            const tagEnd = html.indexOf('>', tagStart) + 1;
-            const tagName = (html.slice(tagStart, tagEnd).match(/^<(\w+)/) || [])[1] || 'div';
-            // Find matching close tag using depth counting
-            let depth = 1, pos = tagEnd, closePos = -1;
-            const openRe2 = new RegExp('<' + tagName + '[\s>]', 'gi');
-            const closeRe2 = new RegExp('<\/' + tagName + '>', 'gi');
-            while (depth > 0 && pos < html.length) {
-              openRe2.lastIndex = pos; closeRe2.lastIndex = pos;
-              const nO = openRe2.exec(html), nC = closeRe2.exec(html);
-              if (!nC) break;
-              if (nO && nO.index < nC.index) { depth++; pos = nO.index + nO[0].length; }
-              else { depth--; pos = nC.index + nC[0].length; if (depth === 0) closePos = nC.index; }
-            }
-            if (closePos !== -1) {
-              html = html.slice(0, closePos) + '\n' + mapBlock + '\n' + html.slice(closePos);
-              mapInjected = true;
-              console.log("[Step5] Map injected inside contact data-page wrapper");
-            }
-          }
-        }
-        if (!mapInjected) {
-          console.log("[Step5] Map skipped — no contact page found to inject into");
-        }
-      }
+
+      if (!injected) console.log("[Step5] Map skipped — no contact section found");
+      html = $m.html() || html;
     }
   }
 
@@ -355,18 +325,16 @@ export function applyStep5CodeFixes(params: Step5Params): string {
         const author = match ? match[2].trim() : "Verified Customer";
         return `<div style="background:rgba(255,255,255,0.06);border-radius:16px;padding:28px;border:1px solid rgba(255,255,255,0.1);"><div style="color:#f59e0b;font-size:1.1rem;margin-bottom:12px;">★★★★★</div><p style="color:#e2e8f0;font-size:0.95rem;line-height:1.7;margin:0 0 16px;">"${quote}"</p><p style="color:#10b981;font-weight:700;font-size:0.85rem;margin:0;">— ${author}</p></div>`;
       }).join("\n");
-      // Append real client reviews AFTER existing Stitch content — never replace Stitch's section body
-      const realTestimonialsSection = `<div class="wg-real-testimonials" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;padding:24px 0 0;">${cards}</div>`;
-      html = html.replace(/(<(?:section|div)[^>]*id="testimonials"[^>]*>)([\s\S]*?)(<\/(?:section|div)>)/i, (_m: string, open: string, body: string, close: string) => {
-        if (_m.includes("wg-real-testimonials")) return _m; // already done
-        return open + body + realTestimonialsSection + close; // append, not replace
+      const realTestimonialsSection = `<div class="wg-real-testimonials" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;padding:0 0 24px;">${cards}</div>`;
+      html = html.replace(/(<(?:section|div)[^>]*id="testimonials"[^>]*>)([\s\S]*?)(<\/(?:section|div)>)/i, (_m: string, open: string, _body: string, close: string) => {
+        if (_m.includes("wg-real-testimonials")) return _m;
+        return open + realTestimonialsSection + close;
       });
       console.log(`[Step5] Real testimonials injected (${testimonialLines.length} reviews)`);
     }
   }
 
-  // ── Pad testimonials to at least 3 — ONLY if section has fewer than 3 real cards ──
-  // Uses inherit/currentColor so padding cards match Stitch's theme, not hardcoded dark colours.
+  // ── Pad testimonials to at least 3 ───────────────────────────────────────
   {
     const auNames = ["Sarah M., Melbourne","James T., Brisbane","Emily R., Sydney","Michael K., Perth","Jessica L., Adelaide","Daniel W., Gold Coast"];
     const genReview = (industry: string, idx: number) => {
@@ -375,8 +343,7 @@ export function applyStep5CodeFixes(params: Step5Params): string {
         default: ["Exceptional service from start to finish. Could not be happier.","Professional, reliable, and genuinely great to work with.","Exactly what we needed — delivered on every promise."],
       };
       const pool = quotes[industry?.toLowerCase().includes("doctor")||industry?.toLowerCase().includes("medical")||industry?.toLowerCase().includes("health") ? "medical" : "default"];
-      // Use inherit/currentColor so the card inherits Stitch's theme colours
-      return `<div style="border-radius:12px;padding:24px;border:1px solid rgba(128,128,128,0.2);display:flex;flex-direction:column;gap:12px;"><div style="color:#f59e0b;font-size:1.1rem;letter-spacing:2px;">★★★★★</div><p style="opacity:0.85;font-size:0.95rem;line-height:1.75;margin:0;">"${pool[idx % pool.length]}"</p><p style="font-weight:700;font-size:0.85rem;margin:0;opacity:0.7;">— ${auNames[idx % auNames.length]}</p></div>`;
+      return `<div style="background:rgba(255,255,255,0.06);border-radius:16px;padding:28px 32px;border:1px solid rgba(255,255,255,0.1);display:flex;flex-direction:column;gap:12px;"><div style="color:#f59e0b;font-size:1.1rem;letter-spacing:2px;">★★★★★</div><p style="color:#e2e8f0;font-size:0.95rem;line-height:1.75;margin:0;">"${pool[idx % pool.length]}"</p><p style="color:#10b981;font-weight:700;font-size:0.85rem;margin:0;">— ${auNames[idx % auNames.length]}</p></div>`;
     };
     const testSection = html.match(/(<(?:section|div)[^>]*id="testimonials"[^>]*>)([\s\S]*?)(<\/(?:section|div)>)/i);
     if (testSection) {
@@ -408,21 +375,6 @@ export function applyStep5CodeFixes(params: Step5Params): string {
       });
     }
   }
-
-  // ── Strip duplicate onclick attributes (Stitch + pipeline collision) ───────────
-  // When an element has two onclick attrs, browsers ignore the second. Strip dupes.
-  html = html.replace(/<(a|button)([^>]*?)>/gi, (_m: string, tag: string, attrs: string) => {
-    const onclickMatches = attrs.match(/\bonclick=["'][^"']*["']/gi);
-    if (!onclickMatches || onclickMatches.length < 2) return _m;
-    // Keep only the first onclick
-    let cleaned = attrs;
-    let first = true;
-    cleaned = cleaned.replace(/\bonclick=["'][^"']*["']/gi, (oc: string) => {
-      if (first) { first = false; return oc; }
-      return '';
-    });
-    return `<${tag}${cleaned}>`;
-  });
 
   // ── Upgrade bare navigateTo( calls to window.navigateTo( ────────────────────
   // Stitch outputs onclick="navigateTo('shop')" — bare calls work but normalise for safety
