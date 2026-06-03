@@ -915,45 +915,40 @@ const buildWebsite = inngest.createFunction(
         const accentColor = stitchTheme.accent || spec.palette?.accent || "#10b981";
 
         if (bookingUrl) {
-          // ── Strategy 1: Stitch already built a booking section — just inject the iframe ──
-          // Preserve Stitch's design entirely. Only replace the placeholder content inside
-          // the booking container with a real iframe. Do NOT replace the outer section.
-          const bookingOpenMatch = html.match(/<(section|div|header|article|main)([^>]*\bid="booking"[^>]*)>/i);
-          if (bookingOpenMatch) {
-            const openTag = bookingOpenMatch[0];
-            const tagName = bookingOpenMatch[1].toLowerCase();
-            const startIdx = html.indexOf(openTag);
-            let depth = 1, pos = startIdx + openTag.length, endIdx = -1;
-            const openRe = new RegExp(`<${tagName}[\\s>]`, "gi");
-            const closeRe = new RegExp(`<\\/${tagName}>`, "gi");
-            while (depth > 0 && pos < html.length) {
-              openRe.lastIndex = pos; closeRe.lastIndex = pos;
-              const nextOpen = openRe.exec(html), nextClose = closeRe.exec(html);
-              if (!nextClose) break;
-              if (nextOpen && nextOpen.index < nextClose.index) { depth++; pos = nextOpen.index + nextOpen[0].length; }
-              else { depth--; pos = nextClose.index + nextClose[0].length; if (depth === 0) endIdx = pos; }
-            }
-            if (endIdx > 0) {
-              const sectionHtml = html.slice(startIdx, endIdx);
-              // If already has a real supersaas iframe, leave it alone
-              if (sectionHtml.includes("supersaas.com") && !sectionHtml.includes("/template")) {
-                console.log("[Step6c] Real supersaas iframe already present — leaving booking section untouched");
-              } else {
-                // Replace only the inner placeholder with a real iframe, keep outer container
-                const iframeBlock = `<div style="border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.15);">\n  <iframe src="${bookingUrl}" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;" title="Book an Appointment" loading="lazy"></iframe>\n</div>`;
-                // Replace placeholder comment/div inside the section
-                let newSection = sectionHtml
-                  .replace(/<!--[^>]*(?:SuperSaaS|booking|iframe|embed)[^>]*-->/gi, iframeBlock)
-                  .replace(/<div[^>]*>\s*<p[^>]*>(?:Iframe will render|Booking embed|Loading)[^<]*<\/p>\s*<\/div>/gi, iframeBlock);
-                // If nothing was replaced, append iframe before closing tag
-                if (newSection === sectionHtml) {
-                  const closeTag = `</${tagName}>`;
-                  const lastClose = newSection.lastIndexOf(closeTag);
-                  newSection = newSection.slice(0, lastClose) + iframeBlock + "\n" + newSection.slice(lastClose);
+          // ── Use cheerio for reliable booking injection — no fragile regex depth-walking ──
+          const { load: loadCheerio6c } = await import("cheerio");
+          const $b = loadCheerio6c(html, { xmlMode: false });
+          const bookingEl = $b("[id='booking']").first();
+
+          if (bookingEl.length) {
+            // Already has a real iframe? Leave it.
+            if (bookingEl.find(`iframe[src*="supersaas.com"]`).filter((_, el) => !($b(el).attr("src") || "").includes("/template")).length > 0) {
+              console.log("[Step6c] Real supersaas iframe already present — skipping");
+            } else {
+              // Remove stray template iframes and blank src iframes
+              bookingEl.find(`iframe[src="about:blank"], iframe[src*="/template"]`).remove();
+              const iframeHtml = `<iframe src="${bookingUrl}" width="100%" height="800" frameborder="0" scrolling="auto" style="display:block;background:#fff;border:none;width:100%;min-height:700px;" title="Book an Appointment" loading="lazy"></iframe>`;
+
+              // Find the placeholder inner container and replace it
+              let injected = false;
+              bookingEl.find("div, iframe").each((_, el) => {
+                if (injected) return;
+                const $el = $b(el);
+                const cls = $el.attr("class") || "";
+                const innerText = $el.text().trim();
+                const isPlaceholder = /min-h-\[|absolute.*inset|pointer-events-none/i.test(cls) ||
+                  /booking.*widget|booking.*loading|iframe.*here|about:blank/i.test($el.attr("src") || innerText);
+                if (isPlaceholder) {
+                  $el.replaceWith(`<div style="width:100%;border-radius:8px;overflow:hidden;">${iframeHtml}</div>`);
+                  injected = true;
                 }
-                html = html.slice(0, startIdx) + newSection + html.slice(endIdx);
-                console.log(`[Step6c] Injected real iframe into Stitch booking section. url=${bookingUrl}`);
+              });
+              if (!injected) {
+                // Just append to the booking element
+                bookingEl.append(`<div style="width:100%;border-radius:8px;overflow:hidden;margin-top:16px;">${iframeHtml}</div>`);
               }
+              html = $b.html() || html;
+              console.log(`[Step6c] Booking iframe injected via cheerio. url=${bookingUrl}`);
             }
           } else {
             // ── Strategy 2: Stitch didn't build a booking section — inject a theme-aware one ──

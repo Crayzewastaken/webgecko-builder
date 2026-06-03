@@ -8,6 +8,10 @@
 import { resolveStitchClasses, normalizePageId } from "./pipeline-helpers";
 import { load as cheerioLoad } from "cheerio";
 
+function isStitchImgUrl(src: string): boolean {
+  return src.includes("lh3.googleusercontent.com/aida");
+}
+
 export interface Step5Params {
   html:                    string;
   userInput:               Record<string, any>;
@@ -217,22 +221,43 @@ export function applyStep5CodeFixes(params: Step5Params): string {
         : `<iframe width="100%" height="320" style="border:0;display:block;border-radius:12px;" loading="lazy" allowfullscreen src="https://maps.google.com/maps?q=${encodeURIComponent(businessAddress)}&output=embed" title="Map"></iframe>`;
       const mapBlock = `<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;">${mapsIframe}</div>`;
 
-      // Strategy 1: replace Stitch's map placeholder div (contains "Map View", data-icon=map, or map-placeholder text)
+      // Strategy 1: replace Stitch's map placeholder patterns:
+      //   - <img data-location="..."> (Stitch generates a fake map image)
+      //   - div/section with map-related text or data-icon=map
       let injected = false;
-      $m("[id='contact'], [data-page='contact']").find("div, section").each((_, el) => {
+
+      // Pattern A: img with data-location or data-alt mentioning map
+      $m("img[data-location], img[data-alt*='map'], img[data-alt*='Map']").each((_, el) => {
         if (injected) return;
-        const inner = $m(el).html() || "";
-        const text = $m(el).text().trim();
-        if (
-          /map.*view|map.*placeholder|\[\s*google.*map|\[\s*map/i.test(inner) ||
-          (text.length < 100 && /map.*view|map view/i.test(text)) ||
-          $m(el).find("[data-icon='map'], .material-symbols-outlined").length > 0 && text.length < 150
-        ) {
-          $m(el).replaceWith(mapBlock);
+        const $el = $m(el);
+        // Only replace Stitch-generated map images (aida URLs or placeholder)
+        const src = $el.attr("src") || "";
+        if (isStitchImgUrl(src) || $el.attr("data-location")) {
+          const $parent = $el.parent();
+          $parent.replaceWith(mapBlock);
           injected = true;
-          console.log("[Step5] Map replaced Stitch map placeholder inside contact section");
+          console.log("[Step5] Map replaced Stitch data-location img placeholder");
         }
       });
+
+      // Pattern B: container div with "Map View" text or data-icon=map inside contact
+      if (!injected) {
+        $m("[id='contact'], [data-page='contact']").find("div, section").each((_, el) => {
+          if (injected) return;
+          const $el = $m(el);
+          const inner = $el.html() || "";
+          const text = $el.text().trim();
+          if (
+            /map.*view|map.*placeholder|\[\s*google.*map|\[\s*map/i.test(inner) ||
+            (text.length < 100 && /map.*view|map view/i.test(text)) ||
+            ($el.find("[data-icon='map'], .material-symbols-outlined").length > 0 && text.length < 150)
+          ) {
+            $el.replaceWith(mapBlock);
+            injected = true;
+            console.log("[Step5] Map replaced text placeholder inside contact section");
+          }
+        });
+      }
 
       // Strategy 2: append to contact section's right-hand column or last child div
       if (!injected) {
