@@ -150,7 +150,9 @@ export function domInject(params: DomInjectParams): string {
       const hasRealIframe = bookingSection.find(`iframe[src*="supersaas.com"]`).filter((_, el) => {
         return !($(el).attr("src") || "").includes("/template");
       }).length > 0;
-      if (hasRealIframe) return;
+      if (hasRealIframe) {
+        console.log("[DomInject] Real booking iframe already present — skipping");
+      } else {
 
       // Remove stray template iframes and placeholders
       bookingSection.find(`iframe[src*="/template"]`).remove();
@@ -175,6 +177,7 @@ export function domInject(params: DomInjectParams): string {
         }
       }
       console.log(`[DomInject] Booking iframe injected. url=${bookingUrl}`);
+      } // end else (no real iframe)
     } else {
       // No booking section — append a minimal one before footer
       const bookingWrap = `<section id="booking" style="padding:60px 24px;text-align:center;"><h2 style="margin-bottom:16px;">Book an Appointment</h2>${iframeHtml}</section>`;
