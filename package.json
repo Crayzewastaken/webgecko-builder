@@ -10,11 +10,12 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.89.0",
-    "@vercel/analytics": "^1",
     "@google/stitch-sdk": "^0.3.4",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.105.1",
     "@upstash/redis": "^1.37.0",
+    "@vercel/analytics": "^1",
+    "cheerio": "^1.2.0",
     "cloudinary": "^2.9.0",
     "inngest": "^4.2.5",
     "jsdom": "^29.0.2",

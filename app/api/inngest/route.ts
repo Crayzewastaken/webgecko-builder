@@ -805,10 +805,9 @@ const buildWebsite = inngest.createFunction(
         });
       });
 
-      // ── STEP 6: Inject essentials + images (NO booking widget yet — auditor runs first) ─
+      // ── STEP 6: DOM-based injection (cheerio) — replaces fragile regex ──────────
       const injectedHtml = await step.run("step6-inject", async () => {
         const { html: checkedHtml } = checkAndFixLinks(fixedHtml, Array.isArray(userInput.pages) ? userInput.pages : []);
-        const navFixedHtml = fixNavigateToTargets(checkedHtml);
         const ga4Id = job.ga4Id || userInput.ga4Id || "";
 
         // Fetch Pexels photos if site has a gallery page and client has few/no photos
@@ -825,36 +824,43 @@ const buildWebsite = inngest.createFunction(
             console.log("[Pexels] Failed to fetch:", e);
           }
         }
-        // Use first augmented photo as hero if client has no hero
         const effectiveHeroUrl = heroUrl || (augmentedPhotoUrls.length > 0 ? augmentedPhotoUrls[0] : null);
 
-        // On rebuild, the saved HTML already has our injected scripts (navigateTo, multi-page
-        // init, hamburger JS, etc.) from the original build. Re-running injectEssentials would
-        // produce double <script> blocks. Skip it and only re-inject images.
-        if (savedHtmlForRebuild && !isUsingRawStitchForRebuild) {
-          console.log("[Step6] Rebuild mode (using final post-processed HTML fallback) — skipping injectEssentials (scripts already present), re-injecting images only");
-          const html = injectImages(navFixedHtml, logoUrl, effectiveHeroUrl, augmentedPhotoUrls, productsWithPhotos);
-          return html;
-        }
-
-        // Create per-client Tawk.to property (Brain 1 — before Stitch)
+        // Create per-client Tawk.to property if needed
         let tawktoPropertyId: string | undefined = undefined;
         if (features.includes("Live Chat")) {
-          // First check if we already created one for this job (rebuild case)
           if (job.tawktoPropertyId) {
             tawktoPropertyId = job.tawktoPropertyId;
-            console.log("[Step6] Tawk.to: reusing saved property:", tawktoPropertyId);
           } else {
             const propId = await createTawktoProperty(userInput.businessName);
             if (propId) {
               tawktoPropertyId = propId;
               await saveJob(jobId, { ...job, tawktoPropertyId: propId });
-              console.log("[Step6] Tawk.to property created:", propId);
             }
           }
         }
-        let html = injectEssentials(navFixedHtml, clientEmail, clientPhone, jobId, ga4Id, tawktoPropertyId, userInput.businessAddress || "", userInput.businessName || "", isMultiPage);
-        html = injectImages(html, logoUrl, effectiveHeroUrl, augmentedPhotoUrls, productsWithPhotos);
+
+        // Use DOM-based injection — no fragile regex
+        const { domInject } = await import("@/lib/dom-inject");
+        const html = domInject({
+          html: checkedHtml,
+          businessName: userInput.businessName,
+          clientEmail,
+          clientPhone,
+          businessAddress: userInput.businessAddress || "",
+          logoUrl: logoUrl || undefined,
+          heroUrl: effectiveHeroUrl || undefined,
+          photoUrls: augmentedPhotoUrls,
+          bookingUrl: bookingUrl || undefined,
+          hasBookingFeature,
+          isMultiPage,
+          jobId,
+          ga4Id: ga4Id || undefined,
+          tawktoPropertyId,
+          requestedPageIds,
+          accentColor: spec.palette?.accent || "#10b981",
+        });
+        console.log(`[Step6] DOM injection complete — ${html.length} chars`);
         return html;
       });
 
@@ -1721,17 +1727,55 @@ const buildWebsite = inngest.createFunction(
             { filename: `${fileName}-STITCH-RAW.html`, content: Buffer.from(stitchHtml).toString("base64") },
             { filename: `${fileName}-styles.css`, content: Buffer.from(cssContent).toString("base64") },
             { filename: `${fileName}-STITCH-PROMPT.txt`, content: Buffer.from(spec.stitchPrompt || "(no prompt)").toString("base64") },
-            { filename: `${fileName}-CLAUDE-INPUT.txt`, content: Buffer.from([
-              `=== CLAUDE BLUEPRINT INPUT (sent to Claude before Stitch) ===`,
+            { filename: `${fileName}-PIPELINE-STEPS.txt`, content: Buffer.from([
+              `=== WHAT THE PIPELINE DOES TO STITCH'S HTML ===`,
+              `(These are code-only steps — no AI involved after Stitch)`,
+              ``,
+              `STEP 4b — Structural injection (only if missing from Stitch output):`,
+              `  - Stamp id="hero" on first <section>`,
+              `  - Mobile nav hamburger + drawer`,
+              `  - Contact section (ONLY if Stitch built none)`,
+              `  - Footer with copyright + Privacy/Terms links (ONLY if missing)`,
+              `  - Multi-page data-page wrappers (if isMultiPage)`,
+              `  - Booking block placeholder (if booking requested: ${hasBookingFeature})`,
+              ``,
+              `STEP 5 — Replace placeholder data with real client info:`,
+              `  - Emails: replace placeholder@ → ${clientEmail}`,
+              `  - Phones: replace dummy numbers → ${clientPhone}`,
+              `  - Address: replace placeholder addresses → ${userInput.businessAddress || "n/a"}`,
+              `  - Wire nav href="#" links → navigateTo()`,
+              `  - Inject Google Maps embed (if address provided: ${!!userInput.businessAddress})`,
+              `  - Strip Discord/Community/Forum links Stitch adds`,
+              `  - Strip newsletter section (if not requested: ${!features.includes("Newsletter Signup")})`,
+              `  - Strip Sign In/Log In buttons`,
+              `  - Inject SEO meta + Open Graph tags`,
+              `  - Strip Stitch's own navigateTo script (pipeline injects the real one)`,
+              ``,
+              `STEP 6 — Image injection:`,
+              `  - Replace Stitch aida-public placeholder images with client photos`,
+              `  - Inject logo into nav`,
+              `  - Logo URL: ${logoUrl || "none provided"}`,
+              `  - Hero URL: ${heroUrl || "none provided"}`,
+              `  - Photo count: ${photoUrls?.length || 0}`,
+              ``,
+              `STEP 6c — Booking iframe:`,
+              `  - Booking requested: ${hasBookingFeature}`,
+              `  - Booking URL: ${bookingUrl || "none"}`,
+              `  - Action: inject real iframe into Stitch's booking placeholder (no section replacement)`,
+              ``,
+              `AUDITOR — Final checks (inject only if genuinely absent):`,
+              `  - Replace placeholder email/phone`,
+              `  - Wire broken nav links`,
+              `  - Inject contact/FAQ/testimonials ONLY if Stitch built none at all`,
+              `  - Inject Privacy/Terms as modals (single-page) or pages (multi-page)`,
+              `  - Copyright line in footer`,
+              ``,
+              `=== CLIENT JOB DETAILS ===`,
               `Business: ${userInput.businessName}`,
               `Industry: ${userInput.industry}`,
-              `Style: ${userInput.style || "modern premium"}`,
-              `Colours: ${userInput.colorPrefs || "professional palette"}`,
               `Pages: ${Array.isArray(userInput.pages) ? userInput.pages.join(", ") : "Home"}`,
               `Features: ${features.join(", ") || "none"}`,
-              ``,
-              `=== STITCH PROMPT (sent to Stitch after Claude blueprint) ===`,
-              spec.stitchPrompt || "(no prompt)",
+              `isMultiPage: ${isMultiPage}`,
             ].join("\n")).toString("base64") },
           ],
         });
