@@ -377,6 +377,7 @@ export async function generateSiteBlueprint(context: {
   exampleHtmls?: { label: string; html: string }[];
   logoUrl?: string;
   heroUrl?: string;
+  photoUrls?: string[];
 }): Promise<SiteBlueprint> {
   const {
     businessName, industry, targetAudience, usp, goal, style, colorPrefs,
@@ -387,6 +388,7 @@ export async function generateSiteBlueprint(context: {
     exampleHtmls = [],
     logoUrl = "",
     heroUrl: heroImageUrl = "",
+    photoUrls = [],
   } = context;
 
   // Extract suburb/city from address for SERP + LSI — never use the full street address.

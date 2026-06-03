@@ -274,6 +274,7 @@ const buildWebsite = inngest.createFunction(
             shopProducts: userInput.shopProducts || "",
             logoUrl: logoUrl || "",
             heroUrl: heroUrl || "",
+            photoUrls: photoUrls || [],
           });
           return blueprint;
           }));
