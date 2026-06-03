@@ -511,79 +511,138 @@ Primary keyword placement: weave "${industry} ${location.split(",")[0]?.trim()}"
     ? "\n" + extraSections.join("\n\n") + "\n"
     : "";
 
-  const prompt = `You are a world-class web designer. Produce a Site Blueprint JSON for this business.
+  // Build section list from what the user actually requested
+  const clientLocation = businessAddress ? businessAddress.split(",").pop()?.trim() || "local area" : "local area";
+  const clientRealTestimonials = (context as any).realTestimonials || "";
+  const clientShopProducts = (context as any).shopProducts || "";
+  const clientReferences = (context as any).references || "";
+  const clientTargetAudience = (context as any).targetAudience || "general public";
 
-BUSINESS:
-- Name: ${businessName}
-- Site Layout: ${isMultiPage ? "Multi-Page Site (separate views, uses navigateTo() to switch pages)" : "Single-Page Site (single long scrollable landing page, anchor scroll only)"}
-- Industry: ${industry}
-- USP: ${usp || "quality service"}
-- Goal: ${goal}
-- Style: ${style || "modern premium"}
-- Colours: ${colorPrefs || "professional palette"}
-- Email: ${clientEmail} | Phone: ${clientPhone}
-- Address (contact section ONLY, NEVER in hero): ${businessAddress || "not provided"}
-- Social: ${[facebookPage && `Facebook:${facebookPage}`, instagramUrl && `Instagram:${instagramUrl}`, linkedinUrl && `LinkedIn:${linkedinUrl}`].filter(Boolean).join(", ") || "none"}
-- Features: ${features.join(", ") || "contact form"}
-- Pricing: ${pricingSection}
-- Images: ${imageSection}
-- Notes: ${additionalNotes || "none"}
-- Client content brief: ${(context as any).businessDescription || "not provided"}
+  const requiredSectionIds = [...new Set([
+    "home", "about", "services",
+    ...(isMultiPage ? pages.map((p: string) => p.toLowerCase().replace(/\s+/g, "-")) : []),
+    ...(hasBooking ? ["booking"] : []),
+    ...(features.includes("Photo Gallery") ? ["gallery"] : []),
+    ...(features.includes("Payments / Shop") ? ["shop"] : []),
+    ...(features.includes("Newsletter Signup") ? ["newsletter"] : []),
+    "contact",
+  ])];
+
+  // Build image context — tell Stitch exactly what images the client uploaded
+  const imageContext = [
+    logoUrl ? `Logo image provided — use it in the nav header: ${logoUrl}` : "No logo uploaded — use business name as text logo",
+    heroUrl ? `Hero/feature image provided — use as hero background or hero visual: ${heroUrl}` : "No hero image — use a relevant design visual or gradient",
+    photoUrls && photoUrls.length > 0 ? `${photoUrls.length} gallery/work photos provided — use them in gallery section and about section: ${photoUrls.slice(0, 5).join(", ")}${photoUrls.length > 5 ? ` ...and ${photoUrls.length - 5} more` : ""}` : "No gallery photos uploaded",
+  ].join("\n");
+
+  // Build section descriptions outside the template literal to avoid nested backtick issues
+  const sectionDescriptions = requiredSectionIds.filter((id: string) => id !== "home").map((id: string) => {
+    if (id === "about") return `   - About (id=about): Tell ${businessName}'s story. Highlight: ${usp || "quality and reliability"}. Mention serving ${clientLocation}.`;
+    if (id === "services") return `   - Services (id=services): List all services ${businessName} offers in ${industry}. Real service names and descriptions specific to this industry.`;
+    if (id === "booking") return `   - Booking (id=booking): Section heading 'Book an Appointment'. Short intro paragraph about booking with ${businessName}. Leave a clearly labelled placeholder container for the booking iframe — do NOT generate a fake booking form, just a container div.`;
+    if (id === "gallery") return `   - Gallery (id=gallery): Masonry photo grid. ${photoUrls && photoUrls.length > 0 ? "Use the " + photoUrls.length + " provided client photos." : "Use image placeholder slots."}`;
+    if (id === "shop") return `   - Shop (id=shop): Product cards with images, names, prices. Buy Now buttons MUST have class='wg-buy-btn'.${clientShopProducts ? " Products: " + clientShopProducts : ""}`;
+    if (id === "pricing") return `   - Pricing (id=pricing): ${pricingSection}`;
+    if (id === "reviews" || id === "testimonials") return `   - Reviews (id=${id}): ${clientRealTestimonials ? "Use these real testimonials: " + clientRealTestimonials : "3 testimonial cards with star ratings, customer name and location, specific quote about " + businessName}`;
+    if (id === "faq") return `   - FAQ (id=faq): 5-6 accordion questions specific to ${industry} — questions real customers ask`;
+    if (id === "newsletter") return `   - Newsletter (id=newsletter-form): Email capture with subscribe button`;
+    if (id === "contact") return `   - Contact (id=contact): Form with name/email/phone/message. Display phone: ${clientPhone}, email: ${clientEmail}${businessAddress ? ", address: " + businessAddress : ""}${businessAddress ? ". Include a Google Maps embed." : ""}`;
+    if (id === "blog") return `   - Blog (id=blog): Grid of blog post preview cards`;
+    if (id === "team") return `   - Team (id=team): Team member cards with photo, name, role`;
+    return `   - ${id} (id=${id}): Section with relevant content for ${businessName}`;
+  }).join("\n");
+
+  const heroImageLine = heroUrl ? `Use the provided hero image as the main visual: ${heroUrl}` : "Design a compelling hero visual appropriate for " + industry;
+  const logoLine = logoUrl ? `Display the client logo in the sticky nav: ${logoUrl}` : "Use business name as text logo in nav";
+
+  const prompt = `You are a world-class web designer creating a unique, high-quality website for a real business. Your job is to produce a detailed Stitch AI prompt that will generate a stunning, conversion-focused website specific to THIS business.
+
+═══════════════════════════════════════
+CLIENT BRIEF
+═══════════════════════════════════════
+Business Name: ${businessName}
+Industry: ${industry}
+USP / What makes them different: ${usp || "quality service"}
+Target audience: ${clientTargetAudience}
+Primary goal: ${goal || "get more customers"}
+Style preference: ${style || "modern premium"}
+Colour preferences: ${colorPrefs || "choose something appropriate for the industry"}
+Additional notes from client: ${additionalNotes || "none"}
+${clientRealTestimonials ? "Real client testimonials to include:\n" + clientRealTestimonials : ""}
+${clientReferences ? "Design references/inspiration: " + clientReferences : ""}
+
+Contact details (use in contact section only):
+- Phone: ${clientPhone}
+- Email: ${clientEmail}
+- Address: ${businessAddress || "not provided"}
+- Facebook: ${facebookPage || "none"}
+- Instagram: ${instagramUrl || "none"}
+- LinkedIn: ${linkedinUrl || "none"}
+
+Images the client uploaded:
+${imageContext}
+
+${pricingSection !== "No pricing section needed." ? `Pricing: ${pricingSection}` : ""}
+${(context as any).shopProducts ? `Shop products: ${(context as any).shopProducts}` : ""}
+${(context as any).bookingServices ? `Booking services offered: ${(context as any).bookingServices}` : ""}
 ${serpGuidance}${lsiInstruction}
+═══════════════════════════════════════
+PAGES / SECTIONS REQUIRED
+═══════════════════════════════════════
+Site type: ${isMultiPage ? "MULTI-PAGE — each section is a separate navigable page" : "SINGLE-PAGE — one long scrollable site"}
+Required section IDs: ${requiredSectionIds.join(", ")}
+${isMultiPage ? `Multi-page structure: each page uses <div data-page="PAGEID" id="PAGEID" class="page-section">. Nav/footer OUTSIDE these wrappers. Nav links use onclick='navigateTo("pageid")'.` : `Single-page: anchor href="#sectionid" links.`}
 
-YOUR MOST IMPORTANT JOB: Write a stitchPrompt that makes this website look and feel COMPLETELY DIFFERENT from every other site. No two businesses should ever look alike. Use the client's specific industry, style preferences, USP, and colour preferences to drive a totally unique design direction.
+═══════════════════════════════════════
+YOUR TASK
+═══════════════════════════════════════
+Write the stitchPrompt field — a 600-1000 word brief sent directly to Stitch AI to generate the HTML.
 
-REQUIRED SECTION IDs — the stitchPrompt must tell Stitch to label these sections:
-${[...new Set(["home", "about", "services", "contact", ...(isMultiPage ? pages.map((p: string) => p.toLowerCase().replace(/\s+/g,"-")) : []), ...(hasBooking ? ["booking"] : []), ...(features.includes("Photo Gallery") ? ["gallery"] : []), ...(features.includes("Payments / Shop") ? ["shop"] : [])])].map(id => `- id="${id}"`).join("\n")}
+The stitchPrompt MUST:
 
-SITE TYPE: ${isMultiPage ? `Multi-page — each page wrapper must use: <div data-page="PAGEID" id="PAGEID" class="page-section">. Nav/footer sit OUTSIDE these wrappers. Nav links use onclick='navigateTo("pageid")'.` : `Single-page scrollable — use standard anchor links (href="#sectionid").`}
+1. START with a specific visual identity statement — describe the exact mood, colour direction, and aesthetic. Be vivid and specific, not generic. Examples:
+   - "Deep charcoal and burnt orange — the feel of a premium tradie workshop, raw and confident"
+   - "Crisp white with sage green accents — calm, trustworthy, like a boutique health clinic"
+   - "Rich navy and warm gold — sophisticated and established, like a premium law firm"
+   Derive this from the client's style preference ("${style || "modern"}") and colour preferences ("${colorPrefs || "professional"}"). NEVER default to generic blue unless explicitly requested.
 
-THE STITCH PROMPT MUST:
-1. Be 600-900 words — rich, detailed, specific to THIS business
-2. Open with a strong visual direction sentence: the colour palette mood, the overall aesthetic, the feeling the site should evoke. Be specific — not "modern and professional" but things like "dark steel and amber — like a premium workshop at night" or "crisp white with coral accents — energetic and approachable like a boutique fitness studio"
-3. Describe EVERY section with specific copy and content:
-   - Hero (id=home): exact headline, subheadline, CTA button text, what the background/hero visual should be
-   - About (id=about): what story to tell, key stats or credentials to highlight
-   - Services (id=services): list ALL services for ${businessName} specifically — real names, real descriptions
-   - ${hasBooking ? `Booking (id=booking): heading, description, note that an iframe will be injected here` : ""}
-   - ${features.includes("Photo Gallery") ? `Gallery (id=gallery): style of grid, what photos show` : ""}
-   - ${features.includes("Payments / Shop") ? `Shop (id=shop): product card layout, Buy Now buttons must have class=wg-buy-btn` : ""}
-   - Contact (id=contact): form with name/email/phone/message fields, address ${businessAddress || ""}, phone ${clientPhone}, email ${clientEmail}${businessAddress ? `, Google Maps embed` : ""}
-   - FAQ: 5-6 questions specific to ${industry} — real questions customers ask
-4. Specify the typography mood (e.g. "bold condensed headlines for an industrial feel" or "elegant serif headings for a luxury feel") — NO font names, let Stitch pick
-5. Include JSON-LD LocalBusiness schema in <head>
-${features.includes("Newsletter Signup") ? "6. Newsletter signup section (id=newsletter-form)" : ""}
+2. Describe the HERO section (id=home):
+   - Write the actual headline (max 8 words, benefit-driven, specific to ${businessName})
+   - Write the subheadline (1-2 sentences, value prop)
+   - CTA button text: "${ctaText}"
+   - ${heroImageLine}
+   - ${logoLine}
 
-UNIQUENESS RULES — STRICTLY ENFORCED:
-- The colour palette MUST be derived from: "${colorPrefs || "professional"}" and style: "${style || "modern"}" — do NOT default to blue/dark unless that matches
-- If the style is "earthy" → warm terracotta, olive, cream tones
-- If the style is "luxury" → deep navy, gold, ivory
-- If the style is "bold/energetic" → vivid primary colours, high contrast
-- If the style is "minimal/clean" → white/light grey, one accent colour only
-- If the style is "industrial/trade" → dark charcoal, steel, amber or orange accents
-- NEVER produce the same layout twice — vary hero layouts (split-screen vs full-bleed vs asymmetric), card styles (bento vs grid vs list), section backgrounds
+3. Describe EVERY required section with real content:
+${sectionDescriptions}
+
+4. Typography direction: describe the font personality (bold/condensed/elegant/playful etc) — do NOT name specific fonts
+
+5. Layout direction: specify the hero layout style (split-screen / full-bleed / asymmetric / centred), card style for services (bento grid / icon cards / horizontal list), overall page feel
+
+6. Include JSON-LD LocalBusiness schema in <head> with: name="${businessName}", phone="${clientPhone}", email="${clientEmail}"${businessAddress ? ", address=" + businessAddress : ""}
 
 ⚠️ JSON OUTPUT RULES:
-1. Return ONLY a single JSON object. No commentary before or after.
-2. The stitchPrompt MUST use ONLY single quotes ' inside the string — NEVER double-quotes. They break JSON parsing.
-3. The stitchPrompt must be 600-900 words. Short prompts produce generic sites.
+1. Return ONLY a single JSON object. No text before or after.
+2. The stitchPrompt value MUST use ONLY single quotes ' — NEVER double-quotes inside it. Double-quotes break JSON parsing.
+3. The stitchPrompt must be 600-1000 words. Short = generic output.
 
-Return ONLY this JSON:
+Return ONLY:
 {
   "projectTitle": "${businessName} Website",
   "palette": {"primary":"#hex","accent":"#hex","background":"#hex","surface":"#hex","text":"#hex"},
   "typography": {"headingFont":"FontName","bodyFont":"FontName","heroSize":"72px"},
-  "sections": ${JSON.stringify([...new Set(["home","about","services","contact",...(isMultiPage ? pages.map((p:string)=>p.toLowerCase().replace(/\s+/g,"-")) : []),...(hasBooking?["booking"]:[]),...(features.includes("Photo Gallery")?["gallery"]:[]),...(features.includes("Payments / Shop")?["shop"]:[])])])},
-  "tone": "specific tone for ${businessName} — not generic",
-  "heroHeadline": "benefit-driven, max 8 words, specific to ${businessName}",
-  "heroSubheadline": "1-2 sentences, value prop, no address",
-  "ctaText": "${ctaText || "Get Started"}",
-  "uniqueDesignIdea": "one sentence describing the specific visual concept — colours, mood, layout style",
-  "stitchPrompt": "YOUR 600-900 WORD BRIEF HERE — specific to ${businessName}, unique visual direction, full section content. ⚠️ ONLY single quotes inside this string."
+  "sections": ${JSON.stringify(requiredSectionIds)},
+  "tone": "...",
+  "heroHeadline": "max 8 words, benefit-driven, specific to ${businessName}",
+  "heroSubheadline": "1-2 sentences value prop",
+  "ctaText": "${ctaText}",
+  "uniqueDesignIdea": "one specific sentence: colour mood + layout style + feel",
+  "stitchPrompt": "YOUR 600-1000 WORD BRIEF — unique visual direction + full content for every section. Single quotes ONLY."
 }${exampleHtmls.length > 0 ? `
 
-REFERENCE EXAMPLES (structure/depth inspiration — do NOT copy text):
-${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.slice(0, 4000)}\n---`).join("\n\n")}` : ""}`;
+REFERENCE EXAMPLES (layout inspiration only — do NOT copy colours/content):
+${exampleHtmls.map((e, i) => `--- Example ${i + 1}: ${e.label} ---\n${e.html.slice(0, 3000)}\n---`).join("\n\n")}` : ""}`;
 
   const response = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
