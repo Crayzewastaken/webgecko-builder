@@ -148,26 +148,45 @@ export function domInject(params: DomInjectParams): string {
       }
     });
 
-    // ── Replace gallery placeholder divs (Stitch uses bg-colour divs instead of <img>) ──
-    // Stitch sometimes generates gallery items as coloured height divs with no image.
-    // Replace these with real client photos.
+    // ── Replace gallery placeholder content with real client photos ──────────────
+    // Stitch generates galleries in different ways — handle all patterns:
+    //   1. <div class="h-64 bg-..."> placeholder divs with no img
+    //   2. <p>[Project Image Placeholder N]</p> text placeholders
+    //   3. <div class="aspect-[4/3]..."> aspect-ratio containers with placeholder text
     if (photoUrls.length > 0) {
       let galleryIdx = 0;
       const gallerySection = $("[id='gallery'], [data-page='gallery']").first();
       if (gallerySection.length) {
-        // Find placeholder divs: have a height class but no <img> inside
-        gallerySection.find("div").each((_, el) => {
+
+        // Pattern 1: divs/containers with placeholder text like "[Project Image Placeholder N]"
+        gallerySection.find("div, p").each((_, el) => {
           const $el = $(el);
-          if ($el.find("img").length > 0) return; // already has image
-          const cls = $el.attr("class") || "";
-          // Match Stitch's placeholder pattern: h-N or min-h-N classes without real content
-          if (!/\bh-\[|\bh-\d+\b|\bmin-h-\[/.test(cls)) return;
-          if ($el.text().trim().length > 50) return; // has real text content, skip
+          if ($el.find("img").length > 0) return; // already has real image
+          const text = $el.text().trim();
+          if (!/\[.*(?:image|photo|project|gallery).*placeholder/i.test(text)) return;
           const photoUrl = photoUrls[galleryIdx % photoUrls.length];
-          $el.html(`<img src="${photoUrl}" alt="Gallery image ${galleryIdx + 1}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">`);
+          const $parent = $el.closest(".masonry-item, [class*='gallery-item'], [class*='masonry'], div[class*='overflow-hidden'], div[class*='rounded']").first();
+          if ($parent.length && $parent.find("img").length === 0) {
+            $parent.html(`<img src="${photoUrl}" alt="Gallery ${galleryIdx + 1}" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.5s;" loading="lazy">`);
+          } else {
+            $el.replaceWith(`<img src="${photoUrl}" alt="Gallery ${galleryIdx + 1}" style="width:100%;height:auto;display:block;" loading="lazy">`);
+          }
           galleryIdx++;
         });
-        console.log(`[DomInject] Gallery: replaced ${galleryIdx} placeholder divs with client photos`);
+
+        // Pattern 2: height-class divs with no <img> (bg-surface-variant etc.)
+        gallerySection.find("div").each((_, el) => {
+          const $el = $(el);
+          if ($el.find("img").length > 0) return;
+          const cls = $el.attr("class") || "";
+          if (!/\bh-\[|\bh-\d+\b|\bmin-h-\[|\baspect-/.test(cls)) return;
+          if ($el.text().trim().length > 80) return;
+          const photoUrl = photoUrls[galleryIdx % photoUrls.length];
+          $el.html(`<img src="${photoUrl}" alt="Gallery ${galleryIdx + 1}" class="w-full h-full object-cover" loading="lazy">`);
+          galleryIdx++;
+        });
+
+        console.log(`[DomInject] Gallery: filled ${galleryIdx} placeholder slots with client photos`);
       }
     }
 

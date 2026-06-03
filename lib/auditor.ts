@@ -487,8 +487,9 @@ function injectLegalPages(html: string, ctx: {
 
   const hasTerms   = !isStubTerms   && rawHasTerms;
   const hasPrivacy = !isStubPrivacy && rawHasPrivacy;
+  // Only skip if BOTH modal divs exist with real content — not just footer links
   if (hasTerms && hasPrivacy) {
-    console.log("[Auditor] Legal pages already present with real content — skipping injection");
+    console.log("[Auditor] Legal modal divs already present — skipping injection");
     return html;
   }
 
@@ -645,17 +646,11 @@ function injectLegalPages(html: string, ctx: {
     console.log("[Auditor] Injected legal pages: " + [!hasPrivacy && "privacy", !hasTerms && "terms"].filter(Boolean).join(", "));
   }
 
-  // Wire footer links — find the footer and add links if not already there.
-  // Guard: skip if the pipeline already injected data-wg-terms links (route.ts step 4),
-  // since those will already have been upgraded to navigateTo by pipeline-step5.
-  // Legal links are already present if: WG marker, navigateTo wiring, or Privacy text in footer
+  // Wire footer links — only skip if BOTH terms AND privacy links already exist in the footer
   const footerChunk = result.slice(Math.max(0, result.lastIndexOf('<footer')));
   const alreadyHasLegalLinks =
-    result.includes('data-wg-terms') ||
-    result.includes("navigateTo('terms')") ||
-    result.includes('navigateTo("terms")') ||
-    /Privacy\s*Policy/i.test(footerChunk) ||
-    /data-wg-privacy/i.test(result);
+    (result.includes("navigateTo('terms')") || result.includes('navigateTo("terms")')) &&
+    (result.includes("navigateTo('privacy')") || result.includes('navigateTo("privacy")'));
   if (!alreadyHasLegalLinks) {
     const legalFooter =
       `<div style="text-align:center;padding:8px 0 4px;font-size:12px;">` +

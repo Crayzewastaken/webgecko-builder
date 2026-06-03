@@ -565,10 +565,23 @@ Primary keyword placement: weave "${industry} ${location.split(",")[0]?.trim()}"
   const faqLine = `   - FAQ (id=faq): REQUIRED. 5-6 accordion <details><summary> questions specific to ${industry}. Real questions customers ask. Must be in the site.`;
   const testimonialsLine = `   - Testimonials/Reviews (id=testimonials): REQUIRED. 3 review cards with star rating, customer name, short quote. ${clientRealTestimonials ? "Use these real reviews: " + clientRealTestimonials : "Write realistic 5-star reviews for a " + industry + " business."}`;
 
-  // Append FAQ + testimonials to section descriptions if not already included
+  // Build privacy/terms content based on what the client has
+  const legalCovers = [
+    hasBooking ? "booking/cancellation policy" : "",
+    features.includes("Payments / Shop") ? "refunds and purchases" : "",
+    "contact form data collection",
+    "Australian Privacy Act compliance",
+  ].filter(Boolean).join(", ");
+
+  const privacyLine = `   - Privacy Policy (id=privacy): hidden overlay modal (display:none, position:fixed, z-index:100000 with close button). Covers: ${legalCovers}. Real prose, Australian law. Footer link opens this modal.`;
+  const termsLine = `   - Terms of Service (id=terms): hidden overlay modal (display:none, position:fixed, z-index:100000 with close button). Covers: use of site, services by ${businessName}${hasBooking ? ", booking/cancellation" : ""}${features.includes("Payments / Shop") ? ", purchases/refunds" : ""}, limitation of liability, Queensland law. Footer link opens this modal.`;
+
+  // Always append FAQ + testimonials + legal — every site needs these
   const alwaysRequired = [
     (!requiredSectionIds.includes("faq") ? faqLine : ""),
     (!requiredSectionIds.includes("testimonials") && !requiredSectionIds.includes("reviews") ? testimonialsLine : ""),
+    privacyLine,
+    termsLine,
   ].filter(Boolean).join("\n");
   const fullSectionDescriptions = sectionDescriptions + (alwaysRequired ? "\n" + alwaysRequired : "");
 
