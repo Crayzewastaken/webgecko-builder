@@ -158,20 +158,42 @@ export function domInject(params: DomInjectParams): string {
       bookingSection.find(`iframe[src*="/template"]`).remove();
       bookingSection.find(`iframe[src*="supersaas"]`).remove();
 
-      // Find the placeholder container Stitch generated (common patterns)
-      const placeholder = bookingSection.find(
-        "#booking-iframe-container, [id*='booking-iframe'], [id*='booking-placeholder'], [class*='booking-container'], [class*='iframe-placeholder']"
-      ).first();
+      // Find Stitch's placeholder container — look for divs containing placeholder text
+      // Stitch uses patterns like "[ Booking Iframe Placeholder ]" or calendar icons
+      let injected = false;
 
-      if (placeholder.length) {
-        // Replace the placeholder content with the real iframe
-        placeholder.html(iframeHtml);
-        placeholder.attr("style", "width:100%;");
-      } else {
-        // Find the innermost content container and append
-        const innerContainer = bookingSection.find("div").last();
-        if (innerContainer.length) {
-          innerContainer.append(iframeHtml);
+      // Strategy 1: find a div with placeholder text and replace its entire contents
+      bookingSection.find("div").each((_, el) => {
+        if (injected) return;
+        const text = $(el).text().trim();
+        const hasPlaceholderText = /booking.*iframe.*placeholder|iframe.*placeholder|booking system loads|calendar_month/i.test(text) ||
+          /\[\s*booking/i.test(text);
+        if (hasPlaceholderText) {
+          $(el).html(iframeHtml);
+          $(el).attr("style", "width:100%;border-radius:8px;overflow:hidden;");
+          injected = true;
+        }
+      });
+
+      // Strategy 2: find named placeholder containers
+      if (!injected) {
+        const namedPlaceholder = bookingSection.find(
+          "#booking-iframe-container, [id*='booking-iframe'], [class*='booking-placeholder'], [class*='iframe-placeholder']"
+        ).first();
+        if (namedPlaceholder.length) {
+          namedPlaceholder.html(iframeHtml);
+          namedPlaceholder.attr("style", "width:100%;");
+          injected = true;
+        }
+      }
+
+      // Strategy 3: find the largest div (most likely the content wrapper) and replace
+      if (!injected) {
+        // Get the direct child divs of the booking section's content container
+        const contentDiv = bookingSection.find("> div, > div > div").first();
+        if (contentDiv.length) {
+          contentDiv.append(iframeHtml);
+          injected = true;
         } else {
           bookingSection.append(iframeHtml);
         }

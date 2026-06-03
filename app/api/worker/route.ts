@@ -28,10 +28,23 @@ cloudinary.config({
 });
 
 async function uploadToCloudinary(buffer: Buffer, folder: string, filename: string): Promise<string> {
+  // Guard: if Cloudinary isn't configured, skip gracefully
+  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    console.warn(`[Cloudinary] Env vars not set — skipping upload of ${filename}`);
+    return "";
+  }
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       { folder, public_id: filename, overwrite: true },
-      (error, result) => { if (error) reject(error); else resolve(result!.secure_url); }
+      (error, result) => {
+        if (error) {
+          console.error(`[Cloudinary] Upload failed for ${filename}:`, error.message);
+          reject(error);
+        } else {
+          console.log(`[Cloudinary] Uploaded ${filename} → ${result!.secure_url}`);
+          resolve(result!.secure_url);
+        }
+      }
     );
     stream.end(buffer);
   });
@@ -161,12 +174,12 @@ export async function POST(req: Request) {
 
     if (logoFile && logoFile.size > 0) {
       uploadPromises.push(logoFile.arrayBuffer().then(buf =>
-        uploadToCloudinary(Buffer.from(buf), folder, "logo").then(url => { logoUrl = url; })
+        uploadToCloudinary(Buffer.from(buf), folder, "logo").then(url => { if (url) logoUrl = url; }).catch(e => console.error("[Worker] Logo upload failed:", e.message))
       ));
     }
     if (heroFile && heroFile.size > 0) {
       uploadPromises.push(heroFile.arrayBuffer().then(buf =>
-        uploadToCloudinary(Buffer.from(buf), folder, "hero").then(url => { heroUrl = url; })
+        uploadToCloudinary(Buffer.from(buf), folder, "hero").then(url => { if (url) heroUrl = url; }).catch(e => console.error("[Worker] Hero upload failed:", e.message))
       ));
     }
     for (let i = 0; i < 5; i++) {
@@ -175,7 +188,7 @@ export async function POST(req: Request) {
       if (ferr) return NextResponse.json({ error: ferr }, { status: 400 });
       if (f && f.size > 0) {
         uploadPromises.push(f.arrayBuffer().then(buf =>
-          uploadToCloudinary(Buffer.from(buf), folder, `photo_${i}`).then(url => { photoUrls.push(url); })
+          uploadToCloudinary(Buffer.from(buf), folder, `photo_${i}`).then(url => { if (url) photoUrls.push(url); }).catch(e => console.error(`[Worker] Photo ${i} upload failed:`, e.message))
         ));
       }
     }
