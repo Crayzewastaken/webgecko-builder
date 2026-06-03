@@ -143,7 +143,7 @@ export function domInject(params: DomInjectParams): string {
   // ── 5. Inject booking iframe ──────────────────────────────────────────────────
   if (hasBookingFeature && bookingUrl) {
     const bookingSection = $("[id='booking']").first();
-    const iframeHtml = `<iframe src="${bookingUrl}" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;border-radius:8px;border:none;" title="Book an Appointment" loading="lazy"></iframe>`;
+    const iframeHtml = `<iframe src="${bookingUrl}" width="100%" height="800" frameborder="0" scrolling="auto" style="display:block;background:#fff;border:none;min-height:700px;" title="Book an Appointment" loading="lazy"></iframe>`;
 
     if (bookingSection.length) {
       // If real iframe already present and working, leave it
@@ -158,44 +158,47 @@ export function domInject(params: DomInjectParams): string {
       bookingSection.find(`iframe[src*="/template"]`).remove();
       bookingSection.find(`iframe[src*="supersaas"]`).remove();
 
-      // Find Stitch's placeholder container — look for divs containing placeholder text
-      // Stitch uses patterns like "[ Booking Iframe Placeholder ]" or calendar icons
+      // Find and replace Stitch's booking placeholder — the full container, not just inner text
       let injected = false;
 
-      // Strategy 1: find a div with placeholder text and replace its entire contents
+      // Strategy 1: find the min-h container div (Stitch's standard booking placeholder pattern)
+      // This matches divs with min-h classes OR containing placeholder text/icons
       bookingSection.find("div").each((_, el) => {
         if (injected) return;
-        const text = $(el).text().trim();
-        const hasPlaceholderText = /booking.*iframe.*placeholder|iframe.*placeholder|booking system loads|calendar_month/i.test(text) ||
-          /\[\s*booking/i.test(text);
-        if (hasPlaceholderText) {
-          $(el).html(iframeHtml);
-          $(el).attr("style", "width:100%;border-radius:8px;overflow:hidden;");
+        const $el = $(el);
+        const classAttr = $el.attr("class") || "";
+        const innerHtml = $el.html() || "";
+        const innerText = $el.text().trim();
+
+        const isPlaceholder =
+          /min-h-\[/.test(classAttr) ||  // has min-h-[Npx] Tailwind class = Stitch placeholder
+          /booking.*widget|booking.*loading|booking.*iframe|iframe.*placeholder|\[\s*booking/i.test(innerText) ||
+          /calendar_month|calendar-month/.test(innerHtml);
+
+        if (isPlaceholder) {
+          // Replace the entire placeholder with the iframe at full size
+          $el.replaceWith(`<div style="width:100%;border-radius:12px;overflow:hidden;background:#fff;">${iframeHtml}</div>`);
           injected = true;
+          console.log("[DomInject] Replaced Stitch booking placeholder container with iframe");
         }
       });
 
-      // Strategy 2: find named placeholder containers
+      // Strategy 2: named containers
       if (!injected) {
-        const namedPlaceholder = bookingSection.find(
-          "#booking-iframe-container, [id*='booking-iframe'], [class*='booking-placeholder'], [class*='iframe-placeholder']"
-        ).first();
-        if (namedPlaceholder.length) {
-          namedPlaceholder.html(iframeHtml);
-          namedPlaceholder.attr("style", "width:100%;");
+        const named = bookingSection.find("#booking-iframe-container, [class*='booking-placeholder'], [class*='iframe-placeholder']").first();
+        if (named.length) {
+          named.replaceWith(`<div style="width:100%;border-radius:12px;overflow:hidden;background:#fff;">${iframeHtml}</div>`);
           injected = true;
         }
       }
 
-      // Strategy 3: find the largest div (most likely the content wrapper) and replace
+      // Strategy 3: append to the section's main content div
       if (!injected) {
-        // Get the direct child divs of the booking section's content container
-        const contentDiv = bookingSection.find("> div, > div > div").first();
-        if (contentDiv.length) {
-          contentDiv.append(iframeHtml);
-          injected = true;
+        const mainDiv = bookingSection.find("> div").first();
+        if (mainDiv.length) {
+          mainDiv.append(`<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;background:#fff;">${iframeHtml}</div>`);
         } else {
-          bookingSection.append(iframeHtml);
+          bookingSection.append(`<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;background:#fff;">${iframeHtml}</div>`);
         }
       }
       console.log(`[DomInject] Booking iframe injected. url=${bookingUrl}`);

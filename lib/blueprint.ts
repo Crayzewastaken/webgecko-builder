@@ -545,8 +545,8 @@ Primary keyword placement: weave "${industry} ${location.split(",")[0]?.trim()}"
     if (id === "gallery") return `   - Gallery (id=gallery): Masonry photo grid. ${photoUrls && photoUrls.length > 0 ? "Use the " + photoUrls.length + " provided client photos." : "Use image placeholder slots."}`;
     if (id === "shop") return `   - Shop (id=shop): Product cards with images, names, prices. Buy Now buttons MUST have class='wg-buy-btn'.${clientShopProducts ? " Products: " + clientShopProducts : ""}`;
     if (id === "pricing") return `   - Pricing (id=pricing): ${pricingSection}`;
-    if (id === "reviews" || id === "testimonials") return `   - Reviews (id=${id}): ${clientRealTestimonials ? "Use these real testimonials: " + clientRealTestimonials : "3 testimonial cards with star ratings, customer name and location, specific quote about " + businessName}`;
-    if (id === "faq") return `   - FAQ (id=faq): 5-6 accordion questions specific to ${industry} — questions real customers ask`;
+    if (id === "reviews" || id === "testimonials") return testimonialsLine;
+    if (id === "faq") return faqLine;
     if (id === "newsletter") return `   - Newsletter (id=newsletter-form): Email capture with subscribe button`;
     if (id === "contact") return hasBooking
       ? `   - Contact (id=contact): ENQUIRIES & SUPPORT only (NOT quotes/bookings — those go in the Booking section). Form with name/email/phone/message fields. Heading: 'Get in Touch'. Display phone: ${clientPhone}, email: ${clientEmail}${businessAddress ? ", address: " + businessAddress : ""}${businessAddress ? ". Include a Google Maps placeholder." : ""}`
@@ -556,8 +556,21 @@ Primary keyword placement: weave "${industry} ${location.split(",")[0]?.trim()}"
     return `   - ${id} (id=${id}): Section with relevant content for ${businessName}`;
   }).join("\n");
 
-  const heroImageLine = heroUrl ? `Use the provided hero image as the main visual: ${heroUrl}` : "Design a compelling hero visual appropriate for " + industry;
-  const logoLine = logoUrl ? `Display the client logo in the sticky nav: ${logoUrl}` : "Use business name as text logo in nav";
+  // Always append FAQ + testimonials — Stitch MUST build these for every site
+  const alwaysRequired = [
+    (!requiredSectionIds.includes("faq") ? faqLine : ""),
+    (!requiredSectionIds.includes("testimonials") && !requiredSectionIds.includes("reviews") ? testimonialsLine : ""),
+  ].filter(Boolean).join("\n");
+  const fullSectionDescriptions = sectionDescriptions + (alwaysRequired ? "\n" + alwaysRequired : "");
+
+  const heroImageLine = heroUrl
+    ? `HERO: Full-bleed background using this image URL as the hero image (MUST be visible, large, full-width): ${heroUrl}`
+    : `HERO: Design a strong, visually compelling hero background — use bold geometric shapes, gradients, or illustrated elements relevant to ${industry}. NOT a plain flat colour.`;
+  const logoLine = logoUrl ? `NAV LOGO: Use this exact image URL for the logo in the sticky nav: ${logoUrl}` : `NAV: Use "${businessName}" as text logo`;
+
+  // Always include FAQ and testimonials in section descriptions — Stitch must build these
+  const faqLine = `   - FAQ (id=faq): REQUIRED. 5-6 accordion <details><summary> questions specific to ${industry}. Real questions customers ask. Must be in the site.`;
+  const testimonialsLine = `   - Testimonials/Reviews (id=testimonials): REQUIRED. 3 review cards with ★★★★★ star rating, customer name, short quote. ${clientRealTestimonials ? "Use these real reviews: " + clientRealTestimonials : "Write realistic 5-star reviews for a " + industry + " business."}`;
 
   const prompt = `You are briefing Stitch AI — a design system that generates complete websites. Your job is to write a SHORT, HIGH-SIGNAL brief (150-200 words max in the stitchPrompt). Do NOT over-specify. Do NOT dictate pixel sizes, exact colours, or layout details. Stitch is excellent at design — just give it the brand identity, tone, and content it needs. Less is more.
 
@@ -585,7 +598,7 @@ WRITE THE stitchPrompt (150-200 words max):
 - Services: real service names for ${industry}
 - Contact: form + ${clientPhone} + ${clientEmail}${businessAddress ? " + " + businessAddress + " + Google Maps" : ""}
 - JSON-LD LocalBusiness schema in head
-${sectionDescriptions}
+${fullSectionDescriptions}
 NOTE: Do NOT specify pixel sizes, exact CSS, or layout details. Stitch handles design. Just give brand intent and content. Keep it under 200 words.
 
 ⚠️ JSON RULES: Return ONLY a JSON object. stitchPrompt uses ONLY single quotes ' — never double-quotes inside it.
