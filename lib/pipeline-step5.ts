@@ -6,6 +6,7 @@
 // script stripping, markdown cleaning, and SEO meta injection.
 
 import { resolveStitchClasses, normalizePageId } from "./pipeline-helpers";
+import { load as cheerioLoad } from "cheerio";
 
 export interface Step5Params {
   html:                    string;
@@ -205,7 +206,6 @@ export function applyStep5CodeFixes(params: Step5Params): string {
     if (hasRealMap) {
       console.log("[Step5] Stitch already has Google Maps — skipping map injection");
     } else {
-      const { load: cheerioLoad } = await import("cheerio");
       const $m = cheerioLoad(html, { xmlMode: false });
 
       const mapsIframe = process.env.GOOGLE_MAPS_API_KEY
