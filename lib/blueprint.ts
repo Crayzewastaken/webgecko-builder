@@ -557,8 +557,8 @@ Primary keyword placement: weave "${industry} ${location.split(",")[0]?.trim()}"
   }).join("\n");
 
   const heroImageLine = heroUrl
-    ? `HERO: Full-bleed background using this image URL as the hero image (MUST be visible, large, full-width): ${heroUrl}`
-    : `HERO: Design a strong, visually compelling hero background — use bold geometric shapes, gradients, or illustrated elements relevant to ${industry}. NOT a plain flat colour.`;
+    ? `HERO: Two-column layout. Left: headline, subheadline, CTA buttons. Right: large prominent image using this URL — it MUST be an <img> tag, full-height, object-cover: ${heroUrl}. Do NOT use it as a CSS background-image.`
+    : `HERO: Two-column layout. Left: headline, subheadline, CTAs. Right: a compelling visual composition — illustrated graphic, bold pattern, or decorative element. NOT a plain flat colour background.`;
   const logoLine = logoUrl ? `NAV LOGO: Use this exact image URL for the logo in the sticky nav: ${logoUrl}` : `NAV: Use "${businessName}" as text logo`;
 
   // Always include FAQ and testimonials — Stitch must build these for every site

@@ -146,6 +146,10 @@ export function applyStep5CodeFixes(params: Step5Params): string {
   html = html.replace(/(?:Initialize Transmission|Send Brief|Submit Request|Submit Inquiry|Launch Project|Start Project|Begin Project)/gi, 'Send Message');
   html = html.replace(/(?:Start Your Project|Launch Your Project|Begin Your Project|Project Inquiry|Project Brief|Start a Project)/gi, 'Get in Touch');
 
+  // ── Strip "Headquarters" label — replace with plain "Our Location" for tradie sites ──
+  html = html.replace(/\bHEADQUARTERS\b/g, 'Our Location');
+  html = html.replace(/\bHeadquarters\b/g, 'Location');
+
   // ── If site has booking, reframe contact as enquiries/support not quote requests ─
   if (hasBookingFeature) {
     // Only change heading text inside the contact section — not elsewhere

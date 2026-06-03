@@ -86,24 +86,34 @@ export function domInject(params: DomInjectParams): string {
 
   // ── 3. Inject logo into nav ───────────────────────────────────────────────────
   if (logoUrl) {
-    const navImg = $("header img, nav img").first();
+    const header = $("header, nav").first();
+    const navImg = header.find("img").first();
+
     if (navImg.length) {
       const currentSrc = navImg.attr("src") || "";
-      const isStitchGenerated = isStitchImage(currentSrc);
-      // Replace if it's a Stitch-generated image, blank, or placeholder
-      if (isStitchGenerated || currentSrc === "" || currentSrc.startsWith("#") || currentSrc.includes("placeholder")) {
+      if (isStitchImage(currentSrc) || currentSrc === "" || currentSrc.startsWith("#") || currentSrc.includes("placeholder")) {
         navImg.attr("src", logoUrl);
         navImg.attr("alt", businessName);
-        navImg.attr("style", "height:40px;width:auto;object-fit:contain;");
-      }
-    } else {
-      // No img in nav at all — insert one before the business name text
-      const navText = $("header [class*='logo'], header [class*='brand'], header [class*='site-name'], nav [class*='logo'], nav [class*='brand']").first();
-      if (navText.length) {
-        navText.prepend(`<img src="${logoUrl}" alt="${businessName}" style="height:40px;width:auto;object-fit:contain;margin-right:8px;vertical-align:middle;">`);
+        navImg.attr("style", "height:48px;width:auto;object-fit:contain;max-width:180px;");
       } else {
-        // Last resort — prepend to start of header
-        $("header, nav").first().prepend(`<img src="${logoUrl}" alt="${businessName}" style="height:40px;width:auto;object-fit:contain;">`);
+        // Already has a real logo image — make it bigger
+        navImg.attr("style", "height:48px;width:auto;object-fit:contain;max-width:180px;");
+      }
+      // Hide any adjacent text/icon logo that duplicates the brand name
+      navImg.siblings("span, div").filter((_, el) => {
+        const t = $(el).text().trim().toUpperCase();
+        return t === businessName.toUpperCase() || t.replace(/\s/g,"") === businessName.replace(/\s/g,"").toUpperCase();
+      }).css("display", "none");
+    } else {
+      // No img — find the brand text element and replace it with the logo image
+      const brandEl = header.find(`span, div`).filter((_, el) => {
+        const t = $(el).text().trim().toUpperCase();
+        return t === businessName.toUpperCase() || (t.length < 30 && businessName.toUpperCase().startsWith(t));
+      }).first();
+      if (brandEl.length) {
+        brandEl.replaceWith(`<img src="${logoUrl}" alt="${businessName}" style="height:48px;width:auto;object-fit:contain;max-width:180px;">`);
+      } else {
+        header.prepend(`<img src="${logoUrl}" alt="${businessName}" style="height:48px;width:auto;object-fit:contain;max-width:180px;">`);
       }
     }
   }
@@ -137,6 +147,30 @@ export function domInject(params: DomInjectParams): string {
         photoIdx++;
       }
     });
+
+    // ── Replace gallery placeholder divs (Stitch uses bg-colour divs instead of <img>) ──
+    // Stitch sometimes generates gallery items as coloured height divs with no image.
+    // Replace these with real client photos.
+    if (photoUrls.length > 0) {
+      let galleryIdx = 0;
+      const gallerySection = $("[id='gallery'], [data-page='gallery']").first();
+      if (gallerySection.length) {
+        // Find placeholder divs: have a height class but no <img> inside
+        gallerySection.find("div").each((_, el) => {
+          const $el = $(el);
+          if ($el.find("img").length > 0) return; // already has image
+          const cls = $el.attr("class") || "";
+          // Match Stitch's placeholder pattern: h-N or min-h-N classes without real content
+          if (!/\bh-\[|\bh-\d+\b|\bmin-h-\[/.test(cls)) return;
+          if ($el.text().trim().length > 50) return; // has real text content, skip
+          const photoUrl = photoUrls[galleryIdx % photoUrls.length];
+          $el.html(`<img src="${photoUrl}" alt="Gallery image ${galleryIdx + 1}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">`);
+          galleryIdx++;
+        });
+        console.log(`[DomInject] Gallery: replaced ${galleryIdx} placeholder divs with client photos`);
+      }
+    }
+
     console.log(`[DomInject] Replaced Stitch placeholder images. Photos cycled: ${photoIdx}`);
   }
 
