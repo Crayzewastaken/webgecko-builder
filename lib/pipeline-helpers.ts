@@ -1716,6 +1716,7 @@ document.querySelectorAll("form").forEach(function(form) {
 })();
 // Multi-page init: only fires when [data-page] wrappers exist. Never touches .page-section.
 (function() {
+  if (!window.WG_IS_MULTIPAGE) return;
   var pages = document.querySelectorAll("[data-page]");
   if (pages.length < 2) return;
   if (!document.querySelector("style[data-wg-mp]")) {
@@ -1830,7 +1831,7 @@ export function injectImages(
     // Step 1: replace aida-public img inside id="hero" or class*="hero" section with heroUrl
     if (heroUrl) {
       processed = processed.replace(
-        /(<(?:section|div)[^>]*(?:id=["']hero["']|class=["'][^"']*hero[^"']*["'])[^>]*>[\s\S]{0,5000}?)src="https:\/\/lh3\.googleusercontent\.com\/aida-public\/[^"]+"/i,
+        /(<(?:section|div)[^>]*(?:id=["']hero["']|class=["'][^"']*hero[^"']*["'])[^>]*>[\s\S]{0,5000}?)src="https:\/\/lh3\.googleusercontent\.com\/aida(?:-public)?\/[^"]+"/i,
         (_m, before) => `${before}src="${heroUrl}"`
       );
     }
@@ -1839,7 +1840,7 @@ export function injectImages(
     // Skip images inside <header> or <nav> — those will be handled by the logo injection below
     // We do this by splitting on aida-public occurrences and checking context
     processed = processed.replace(
-      /src="https:\/\/lh3\.googleusercontent\.com\/aida-public\/[^"]+"/g,
+      /src="https:\/\/lh3\.googleusercontent\.com\/aida(?:-public)?\/[^"]+"/g,
       (match, offset) => {
         // Look back up to 3000 chars to detect if we're inside a header/nav tag
         const lookback = processed.slice(Math.max(0, offset - 3000), offset);
@@ -1856,27 +1857,32 @@ export function injectImages(
 
   // ── Server-side: inject logo into header img or text logo ──
   if (logoUrl) {
-    // Strategy 1: replace any <img> that already has logo/brand/site in attrs
-    const logoAttrRe = /(<(?:header|nav)[^>]*>[\s\S]{0,2000}?)<img([^>]*(?:logo|brand|site-logo|site-name)[^>]*)>/i;
-    if (logoAttrRe.test(processed)) {
-      processed = processed.replace(
-        logoAttrRe,
-        (_m, before, attrs) => `${before}<img${attrs} src="${logoUrl}" alt="Logo" style="height:40px;width:auto;object-fit:contain;">`
-      );
-    } else {
-      // Strategy 2: replace the first <img> inside <header> or <nav> regardless of attrs
-      processed = processed.replace(
-        /(<(?:header|nav)[^>]*>[\s\S]{0,3000}?)<img([^>]*)>/i,
-        (_m, before, attrs) => {
-          // Skip if it's clearly a background/decorative image (src contains aida-public already replaced)
+    processed = processed.replace(/(<(header|nav)\b[^>]*>)([\s\S]*?)(<\/\2>)/i, (m: string, openTag: string, tagName: string, innerContent: string, closeTag: string) => {
+      // Strategy 1: look for an <img> with brand/logo markers in its attributes
+      const imgWithLogoMarker = /<img([^>]*(?:logo|brand|site-logo|site-name)[^>]*)>/i;
+      if (imgWithLogoMarker.test(innerContent)) {
+        const updatedInner = innerContent.replace(imgWithLogoMarker, (_: string, attrs: string) => {
           const srcMatch = attrs.match(/src=["']([^"']+)["']/i);
-          if (srcMatch && srcMatch[1] === logoUrl) return _m; // already set
-          // Remove existing src from attrs and set our logo
-          const cleanAttrs = attrs.replace(/\s*src=["'][^"']*["']/i, "");
-          return `${before}<img${cleanAttrs} src="${logoUrl}" alt="Logo" style="height:40px;width:auto;object-fit:contain;">`;
-        }
-      );
-    }
+          if (srcMatch && srcMatch[1] === logoUrl) return _; // already replaced
+          const cleanAttrs = attrs.replace(/\s*src=["'][^"']*["']/i, "").replace(/\/$/, "").trim();
+          return `<img ${cleanAttrs} src="${logoUrl}" alt="Logo" style="height:40px;width:auto;object-fit:contain;">`;
+        });
+        return openTag + updatedInner + closeTag;
+      }
+      
+      // Strategy 2: fallback to the first <img> inside the nav/header
+      if (innerContent.includes("<img")) {
+        const updatedInner = innerContent.replace(/<img([^>]*)>/i, (_: string, attrs: string) => {
+          const srcMatch = attrs.match(/src=["']([^"']+)["']/i);
+          if (srcMatch && srcMatch[1] === logoUrl) return _; // already replaced
+          const cleanAttrs = attrs.replace(/\s*src=["'][^"']*["']/i, "").replace(/\/$/, "").trim();
+          return `<img ${cleanAttrs} src="${logoUrl}" alt="Logo" style="height:40px;width:auto;object-fit:contain;">`;
+        });
+        return openTag + updatedInner + closeTag;
+      }
+      
+      return m; // no images inside header/nav
+    });
   }
 
   const script = `

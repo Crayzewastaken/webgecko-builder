@@ -12,6 +12,13 @@
 
 import * as cheerio from "cheerio";
 
+// Stitch generates placeholder images from Google's CDN — two known patterns:
+// Old: lh3.googleusercontent.com/aida-public/...
+// New: lh3.googleusercontent.com/aida/...
+function isStitchImage(src: string): boolean {
+  return src.includes("lh3.googleusercontent.com/aida");
+}
+
 export interface DomInjectParams {
   html: string;
   businessName: string;
@@ -79,41 +86,44 @@ export function domInject(params: DomInjectParams): string {
 
   // ── 3. Inject logo into nav ───────────────────────────────────────────────────
   if (logoUrl) {
-    // Find the first <img> inside header or nav
     const navImg = $("header img, nav img").first();
     if (navImg.length) {
       const currentSrc = navImg.attr("src") || "";
-      // Only replace if it's a placeholder/generated image
-      if (currentSrc.includes("aida-public") || currentSrc.includes("data:image") ||
-          currentSrc.includes("placeholder") || currentSrc === "" || currentSrc.startsWith("#")) {
+      const isStitchGenerated = isStitchImage(currentSrc);
+      // Replace if it's a Stitch-generated image, blank, or placeholder
+      if (isStitchGenerated || currentSrc === "" || currentSrc.startsWith("#") || currentSrc.includes("placeholder")) {
         navImg.attr("src", logoUrl);
         navImg.attr("alt", businessName);
-        navImg.css({ height: "40px", width: "auto", "object-fit": "contain" });
+        navImg.attr("style", "height:40px;width:auto;object-fit:contain;");
       }
     } else {
-      // No img in nav — find text logo and prepend img
-      const textLogo = $("header [class*='logo'], header [class*='brand'], nav [class*='logo'], nav [class*='brand']").first();
-      if (textLogo.length) {
-        textLogo.prepend(`<img src="${logoUrl}" alt="${businessName}" style="height:40px;width:auto;object-fit:contain;margin-right:8px;">`);
+      // No img in nav at all — insert one before the business name text
+      const navText = $("header [class*='logo'], header [class*='brand'], header [class*='site-name'], nav [class*='logo'], nav [class*='brand']").first();
+      if (navText.length) {
+        navText.prepend(`<img src="${logoUrl}" alt="${businessName}" style="height:40px;width:auto;object-fit:contain;margin-right:8px;vertical-align:middle;">`);
+      } else {
+        // Last resort — prepend to start of header
+        $("header, nav").first().prepend(`<img src="${logoUrl}" alt="${businessName}" style="height:40px;width:auto;object-fit:contain;">`);
       }
     }
   }
 
-  // ── 4. Replace aida-public placeholder images with client photos ─────────────
+  // ── 4. Replace Stitch placeholder images with client photos ──────────────────
+  // Stitch generates images from lh3.googleusercontent.com/aida/ (new) or /aida-public/ (old)
   if (heroUrl || photoUrls.length > 0) {
     const allPhotos = [...(heroUrl ? [heroUrl] : []), ...photoUrls];
     let photoIdx = 0;
 
     $("img").each((_, el) => {
       const src = $(el).attr("src") || "";
-      if (!src.includes("aida-public")) return;
+      if (!isStitchImage(src)) return;
 
-      // Skip images inside header/nav — those are the logo slot
+      // Skip logo slot in header/nav
       const inNav = $(el).closest("header, nav").length > 0;
       if (inNav) return;
 
       // Use heroUrl for the first hero section image
-      const inHero = $(el).closest("[id*='hero'], [class*='hero'], section:first-of-type").length > 0;
+      const inHero = $(el).closest("#home, #hero, [id*='hero'], [class*='hero'], section:first-of-type").length > 0;
       if (inHero && heroUrl && photoIdx === 0) {
         $(el).attr("src", heroUrl);
         $(el).attr("loading", "lazy");
@@ -121,41 +131,55 @@ export function domInject(params: DomInjectParams): string {
         return;
       }
 
-      // Cycle through remaining photos
       if (allPhotos.length > 0) {
         $(el).attr("src", allPhotos[photoIdx % allPhotos.length]);
         $(el).attr("loading", "lazy");
         photoIdx++;
       }
     });
+    console.log(`[DomInject] Replaced Stitch placeholder images. Photos cycled: ${photoIdx}`);
   }
 
   // ── 5. Inject booking iframe ──────────────────────────────────────────────────
   if (hasBookingFeature && bookingUrl) {
     const bookingSection = $("[id='booking']").first();
+    const iframeHtml = `<iframe src="${bookingUrl}" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;border-radius:8px;border:none;" title="Book an Appointment" loading="lazy"></iframe>`;
+
     if (bookingSection.length) {
-      // Check if real iframe already present
-      const hasRealIframe = bookingSection.find(`iframe[src*="supersaas.com"]`).length > 0 &&
-        !bookingSection.find(`iframe[src*="/template"]`).length;
+      // If real iframe already present and working, leave it
+      const hasRealIframe = bookingSection.find(`iframe[src*="supersaas.com"]`).filter((_, el) => {
+        return !($(el).attr("src") || "").includes("/template");
+      }).length > 0;
+      if (hasRealIframe) return;
 
-      if (!hasRealIframe) {
-        // Remove any stray template iframes
-        bookingSection.find(`iframe[src*="/template"]`).remove();
-        // Remove placeholder divs/paragraphs
-        bookingSection.find("p:contains('Iframe'), p:contains('Loading'), p:contains('Booking embed')").remove();
+      // Remove stray template iframes and placeholders
+      bookingSection.find(`iframe[src*="/template"]`).remove();
+      bookingSection.find(`iframe[src*="supersaas"]`).remove();
 
-        // Inject real iframe — append to existing container or create one
-        const existingContainer = bookingSection.find("div").last();
-        const iframeHtml = `<div style="border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.15);">
-  <iframe src="${bookingUrl}" width="100%" height="700" frameborder="0" scrolling="auto" style="display:block;background:#fff;" title="Book an Appointment" loading="lazy"></iframe>
-</div>`;
-        if (existingContainer.length) {
-          existingContainer.after(iframeHtml);
+      // Find the placeholder container Stitch generated (common patterns)
+      const placeholder = bookingSection.find(
+        "#booking-iframe-container, [id*='booking-iframe'], [id*='booking-placeholder'], [class*='booking-container'], [class*='iframe-placeholder']"
+      ).first();
+
+      if (placeholder.length) {
+        // Replace the placeholder content with the real iframe
+        placeholder.html(iframeHtml);
+        placeholder.attr("style", "width:100%;");
+      } else {
+        // Find the innermost content container and append
+        const innerContainer = bookingSection.find("div").last();
+        if (innerContainer.length) {
+          innerContainer.append(iframeHtml);
         } else {
           bookingSection.append(iframeHtml);
         }
-        console.log(`[DomInject] Booking iframe injected into existing section. url=${bookingUrl}`);
       }
+      console.log(`[DomInject] Booking iframe injected. url=${bookingUrl}`);
+    } else {
+      // No booking section — append a minimal one before footer
+      const bookingWrap = `<section id="booking" style="padding:60px 24px;text-align:center;"><h2 style="margin-bottom:16px;">Book an Appointment</h2>${iframeHtml}</section>`;
+      $("footer").before(bookingWrap);
+      console.log(`[DomInject] Booking section created (Stitch had none).`);
     }
   }
 

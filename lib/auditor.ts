@@ -125,30 +125,37 @@ export async function auditAndFixSite(
       add(AuditErrorType.MISSING_CONTACT, 'Multi-page: no contact form found in any page wrapper');
     }
 
-    // faq: always inject if absent \u2014 every business site needs an FAQ
+    // faq: only inject if truly absent from ALL page content
     const hasFaqId = html.includes('id="faq"');
     const faqPageHasContent = faqContent.length > 400;
     const anyPageHasFaq = /faq|frequently.asked|common.*question|accordion|<details/i.test(allPageContent);
     if (!hasFaqId && !faqPageHasContent && !anyPageHasFaq) {
-      add(AuditErrorType.MISSING_FAQ, 'No FAQ section found \u2014 injecting');
+      add(AuditErrorType.MISSING_FAQ, 'No FAQ section found anywhere \u2014 injecting');
     }
 
-    // testimonials: always inject if absent \u2014 every business site needs social proof
+    // testimonials: only inject if truly absent
     const hasTestimonialsId = html.includes('id="testimonials"');
     const anyPageHasTestimonials = /testimonial|review|what our|what clients|what.*client.*say|what.*customer|\u2605\u2605\u2605\u2605/i.test(allPageContent);
     if (!hasTestimonialsId && !anyPageHasTestimonials) {
-      add(AuditErrorType.MISSING_TESTIMONIALS, 'No testimonials found \u2014 injecting');
+      add(AuditErrorType.MISSING_TESTIMONIALS, 'No testimonials found anywhere \u2014 injecting');
     }
   } else {
-    // Single-page: check for content not just IDs
-    const strippedText = html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '');
-    if (!html.includes('id="contact"') && !/<form[\s>]/i.test(html) && !/contact us|get in touch|send.*message/i.test(strippedText)) {
-      add(AuditErrorType.MISSING_CONTACT, 'No contact section found \u2014 injecting');
+    // Single-page: search the ENTIRE html for content \u2014 Stitch builds sections without pipeline IDs
+    const fullText = html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '');
+    // Contact: present if there's a form OR contact-related text + contact details
+    const hasAnyContactForm = /<form[\s\S]{0,2000}?(input|textarea)/i.test(html);
+    const hasContactText = /contact us|get in touch|send.*message|reach out|enquir/i.test(fullText);
+    if (!hasAnyContactForm && !hasContactText) {
+      add(AuditErrorType.MISSING_CONTACT, 'No contact form or contact section found \u2014 injecting');
     }
-    if (!html.includes('id="faq"') && !/<details[\s>]/i.test(html) && !/faq|frequently asked/i.test(strippedText)) {
+    // FAQ: present if there are accordion elements or FAQ headings anywhere
+    const hasAnyFaq = /<details[\s>]/i.test(html) || /faq|frequently asked|common question/i.test(fullText);
+    if (!hasAnyFaq) {
       add(AuditErrorType.MISSING_FAQ, 'No FAQ section found \u2014 injecting');
     }
-    if (!html.includes('id="testimonials"') && !/testimonial|what our clients|\u2605\u2605\u2605\u2605/i.test(strippedText)) {
+    // Testimonials: present if there are star ratings or testimonial text anywhere
+    const hasAnyTestimonials = /testimonial|what our clients|what.*client.*say|\u2605\u2605\u2605\u2605|\u2b50\u2b50\u2b50\u2b50|5 star|five star/i.test(fullText);
+    if (!hasAnyTestimonials) {
       add(AuditErrorType.MISSING_TESTIMONIALS, 'No testimonials found \u2014 injecting');
     }
   }
