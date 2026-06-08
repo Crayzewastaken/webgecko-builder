@@ -392,8 +392,8 @@ const buildWebsite = inngest.createFunction(
           return "";
         }
       }) as string;
-      // ── STEP 3: Stitch generate (new) or upload+edit (rebuild) ──────────────
-      const stitchHtml = await step.run("step3-stitch-generate", async () => {
+      // ── STEP 3: Stitch generate only (own 300s budget) ───────────────────────
+      const step3Result = await step.run("step3-stitch-generate", async () => {
         const stitchPrompt = spec.stitchPrompt;
 
         async function fetchScreenHtml(screen: any): Promise<string> {
@@ -417,7 +417,7 @@ const buildWebsite = inngest.createFunction(
         let html = "";
         let screen: any = null;
 
-        // ── Rebuild path: upload existing HTML → edit ──────────────────────────
+        // ── Rebuild path: upload existing HTML → Stitch ────────────────────────
         if (savedHtmlForRebuild && savedHtmlForRebuild.length > 5000) {
           try {
             console.log(`[Inngest] STEP 3: Rebuild — uploading existing HTML (${savedHtmlForRebuild.length} chars) to Stitch`);
@@ -463,13 +463,39 @@ const buildWebsite = inngest.createFunction(
           }
         }
 
-        // ── Edit loop: inspect output and fix via screen.edit() ──────────────────
-        if (screen) {
+        if (html.length < 5000) throw new Error(`Stitch HTML too short after generate (${html.length} chars)`);
+        if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton");
+        console.log(`[Inngest] STEP 3 generate DONE: HTML ${html.length} chars, screenId=${screen?.screenId || "none"}`);
+        return { html, screenId: screen?.screenId || "" };
+      }) as { html: string; screenId: string };
+
+      // ── STEP 3-edit: Edit loop in its own 300s budget ─────────────────────────
+      const stitchHtml = await step.run("step3-edit", async () => {
+        let { html, screenId } = step3Result;
+
+        async function fetchScreenHtml(screen: any): Promise<string> {
+          let url = await screen.getHtml();
+          if (!url) {
+            const delays = [20000, 20000, 20000, 30000, 30000];
+            for (const d of delays) {
+              await new Promise(r => setTimeout(r, d));
+              try { url = await screen.getHtml(); if (url) break; } catch {}
+            }
+          }
+          if (!url) throw new Error(`getHtml() empty after retries (screenId=${screen.screenId})`);
+          const res = await fetch(url);
+          const text = await res.text();
+          console.log(`[Inngest] STEP 3-edit: fetched HTML — status=${res.status} length=${text.length}`);
+          if (!text.includes("<")) throw new Error(`Not HTML (${text.length} chars)`);
+          return text;
+        }
+
+        if (screenId) {
+          const screen = stitchSdk.project(projectId).screen(screenId);
           const editIssues: string[] = [];
           const requestedPIds = (Array.isArray(userInput.pages) ? userInput.pages : ["Home"])
             .map((p: string) => p.toLowerCase().replace(/\s+/g, "-"));
 
-          // For rebuilds, also include any admin revision notes as edit instructions
           if (savedHtmlForRebuild && userInput.revisionNotes) {
             editIssues.push(`Apply these revision requests: ${userInput.revisionNotes}`);
           }
@@ -481,10 +507,6 @@ const buildWebsite = inngest.createFunction(
             const chunk = html.slice(pidIdx, pidIdx + 6000).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
             if (chunk.length < 150) editIssues.push(`Page "${pid}" is too thin — add real headings, copy and images`);
           }
-          if (/<button[^>]*>\s*(?:Sign In|Log In|Login)\s*<\/button>/i.test(html))
-            editIssues.push("Remove all Sign In / Log In buttons — no auth on this site");
-          if (!features.includes("Newsletter Signup") && /newsletter.*email|your email/i.test(html))
-            editIssues.push("Remove the newsletter email signup section");
           if (userInput.shopProducts && (html.includes("CyberBoard") || html.includes("AI Vision Camera")))
             editIssues.push(`Replace placeholder shop products with ONLY: ${userInput.shopProducts.slice(0, 200)}`);
 
@@ -492,23 +514,22 @@ const buildWebsite = inngest.createFunction(
             const editPrompt = "Fix these issues — keep all design/colours unchanged:\n" +
               editIssues.map((iss, i) => `${i + 1}. ${iss}`).join("\n") +
               "\n\nEnsure every page section has data-page=\"pageid\" AND id=\"pageid\" on the same element.";
-            console.log(`[Inngest] STEP 3: Edit pass for ${editIssues.length} issue(s)`);
+            console.log(`[Inngest] STEP 3-edit: Edit pass for ${editIssues.length} issue(s)`);
             await stitchSdk.close().catch(() => {});
             const edited = await screen.edit(editPrompt, "DESKTOP", "GEMINI_3_1_PRO");
             const editedHtml = await fetchScreenHtml(edited);
             if (editedHtml.length > html.length * 0.7) {
               html = editedHtml;
-              console.log(`[Inngest] STEP 3: Edit done — HTML now ${html.length} chars`);
+              console.log(`[Inngest] STEP 3-edit: Edit done — HTML now ${html.length} chars`);
             } else {
               throw new Error(`Edit shrank HTML too much (${editedHtml.length} vs original ${html.length}) — retrying`);
             }
           } else {
-            console.log("[Inngest] STEP 3: No edit needed — output passes quality checks");
+            console.log("[Inngest] STEP 3-edit: No edit needed — output passes quality checks");
           }
         }
 
-        if (html.length < 5000) throw new Error(`Stitch HTML too short (${html.length} chars)`);
-        if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton");
+        if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton after edit");
         console.log(`[Inngest] STEP 3 DONE: HTML ${html.length} chars`);
         return html;
       }) as string;
