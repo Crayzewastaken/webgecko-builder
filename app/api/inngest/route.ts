@@ -382,6 +382,7 @@ const buildWebsite = inngest.createFunction(
             },
           };
 
+          await stitchSdk.close().catch(() => {});
           const project = stitchSdk.project(projectId);
           const ds = await project.createDesignSystem(designSystemInput);
           console.log(`[Inngest] STEP 2b DONE: design system created, id=${ds.id}`);
@@ -420,6 +421,7 @@ const buildWebsite = inngest.createFunction(
         if (savedHtmlForRebuild && savedHtmlForRebuild.length > 5000) {
           try {
             console.log(`[Inngest] STEP 3: Rebuild — uploading existing HTML (${savedHtmlForRebuild.length} chars) to Stitch`);
+            await stitchSdk.close().catch(() => {});
             const os = await import("os");
             const path = await import("path");
             const fs = await import("fs/promises");
@@ -444,6 +446,7 @@ const buildWebsite = inngest.createFunction(
           console.log(`[Inngest] STEP 3: Generating from prompt (${stitchPrompt.length} chars)`);
           for (let attempt = 1; attempt <= 3; attempt++) {
             try {
+              await stitchSdk.close().catch(() => {});
               const project = stitchSdk.project(projectId);
               screen = await project.generate(stitchPrompt, "DESKTOP", "GEMINI_3_1_PRO");
               console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
@@ -490,6 +493,7 @@ const buildWebsite = inngest.createFunction(
               editIssues.map((iss, i) => `${i + 1}. ${iss}`).join("\n") +
               "\n\nEnsure every page section has data-page=\"pageid\" AND id=\"pageid\" on the same element.";
             console.log(`[Inngest] STEP 3: Edit pass for ${editIssues.length} issue(s)`);
+            await stitchSdk.close().catch(() => {});
             const edited = await screen.edit(editPrompt, "DESKTOP", "GEMINI_3_1_PRO");
             const editedHtml = await fetchScreenHtml(edited);
             if (editedHtml.length > html.length * 0.7) {
