@@ -361,7 +361,23 @@ export function domInject(params: DomInjectParams): string {
     }
   });
 
-  return $.html();
+  // ── 13. Replace aida-public URLs in CSS background-image (inline styles) ───────
+  // Stitch often uses `style="background-image: url('aida...')"` for hero/section
+  // backgrounds. Cheerio <img> replacement above misses these entirely.
+  let out = $.html();
+  if (heroUrl || photoUrls.length > 0) {
+    let bgIdx = 0;
+    out = out.replace(
+      /background-image:\s*url\(['"]?(https:\/\/lh3\.googleusercontent\.com\/aida[^'")\s]*?)['"]?\)/gi,
+      () => {
+        if (heroUrl && bgIdx === 0) { bgIdx++; return `background-image: url('${heroUrl}')`; }
+        const url = photoUrls[bgIdx < photoUrls.length ? bgIdx : photoUrls.length - 1];
+        bgIdx++;
+        return `background-image: url('${url || heroUrl || ""}')`;
+      }
+    );
+  }
+  return out;
 }
 
 // ── navigateTo script ─────────────────────────────────────────────────────────

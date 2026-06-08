@@ -490,15 +490,13 @@ const buildWebsite = inngest.createFunction(
               editIssues.map((iss, i) => `${i + 1}. ${iss}`).join("\n") +
               "\n\nEnsure every page section has data-page=\"pageid\" AND id=\"pageid\" on the same element.";
             console.log(`[Inngest] STEP 3: Edit pass for ${editIssues.length} issue(s)`);
-            try {
-              const edited = await screen.edit(editPrompt, "DESKTOP", "GEMINI_3_1_PRO");
-              const editedHtml = await fetchScreenHtml(edited);
-              if (editedHtml.length > html.length * 0.7) {
-                html = editedHtml;
-                console.log(`[Inngest] STEP 3: Edit done — HTML now ${html.length} chars`);
-              }
-            } catch (editErr: any) {
-              console.warn("[Inngest] STEP 3: Edit pass failed (non-fatal):", editErr?.message);
+            const edited = await screen.edit(editPrompt, "DESKTOP", "GEMINI_3_1_PRO");
+            const editedHtml = await fetchScreenHtml(edited);
+            if (editedHtml.length > html.length * 0.7) {
+              html = editedHtml;
+              console.log(`[Inngest] STEP 3: Edit done — HTML now ${html.length} chars`);
+            } else {
+              throw new Error(`Edit shrank HTML too much (${editedHtml.length} vs original ${html.length}) — retrying`);
             }
           } else {
             console.log("[Inngest] STEP 3: No edit needed — output passes quality checks");

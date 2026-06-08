@@ -83,26 +83,9 @@ export function applyStep5CodeFixes(params: Step5Params): string {
     html = html.replace(/MAP PLACEHOLDER[:\s]*[A-Z\s]+/gi, businessAddress);
   }
 
-  // ── Strip Stitch placeholder footer links (Discord, Community, etc.) ─────────
-  // Stitch generates generic social/community footer links that aren't real for the client.
-  // Remove nav items linking to generic platforms client didn't set up.
-  html = html.replace(/<li[^>]*>\s*<a[^>]*href=["']#["'][^>]*>\s*(Discord|Community|Forum|Reddit|Twitch|Slack|WhatsApp Group)\s*<\/a>\s*<\/li>/gi, '');
-  html = html.replace(/<a[^>]*href=["']#["'][^>]*>\s*(Discord|Community|Forum|Reddit|Twitch)\s*<\/a>/gi, '');
-
-  // ── Strip newsletter section if client did not request it ─────────────────
-  // Stitch sometimes generates a newsletter/email signup section unprompted.
-  if (!features.includes("Newsletter Signup")) {
-    html = html.replace(/<section[^>]*id=["']newsletter["'][^>]*>[\s\S]*?<\/section>/gi, '');
-    html = html.replace(/<div[^>]*id=["']newsletter["'][^>]*>[\s\S]*?<\/div>/gi, '');
-    // Strip newsletter sections by heading text
-    html = html.replace(/<section[^>]*>[\s\S]{0,200}?(?:Stay in the Loop|Subscribe to Our Newsletter|Join Our Newsletter|Newsletter Signup)[\s\S]*?<\/section>/gi, '');
-    // Strip newsletter input blocks inside footer (Stitch often puts email input in footer)
-    html = html.replace(/<(?:div|section)[^>]*>[\s\S]{0,300}?(?:Newsletter|Your email|Stay.*loop)[\s\S]{0,400}?<input[^>]*type=["']email["'][^>]*>[\s\S]{0,200}?<\/(?:div|section)>/gi, (m: string) => {
-      // Only strip if it's not inside a named contact form  
-      if (m.includes('id="contact"') || m.includes('id="newsletter-form"')) return m;
-      return '';
-    });
-  }
+  // NOTE: All content stripping has been disabled.
+  // Do NOT strip any sections, buttons, or form fields from Stitch output.
+  // Stitch builds the full site — pipeline must not remove any of it.
 
   // ── Wire "Connect" CTA to contact page ──────────────────────────────────────
   html = html.replace(/<(button|a)([^>]*)>\s*Connect\s*<\/(button|a)>/gi, (_m: string, tag: string, attrs: string) => {
@@ -113,14 +96,7 @@ export function applyStep5CodeFixes(params: Step5Params): string {
     return `<button${attrs} onclick="event.preventDefault();window.navigateTo&&window.navigateTo('contact')">Connect</button>`;
   });
 
-  // ── Strip Stitch "Sign In" / "Log In" buttons client didn't request ──────────
-  // Stitch sometimes generates auth buttons. Remove any that aren't wired to real pages.
-  html = html.replace(/<(?:button|a)([^>]*)>\s*(?:Sign In|Log In|Login|Sign Up|Register|Create Account)\s*<\/(?:button|a)>/gi, (m: string, attrs: string) => {
-    // Keep if it has a real href (not #) or a real onclick to a known page
-    if (/href=["'](?!#)[^"']+["']/i.test(attrs)) return m;
-    if (/navigateTo|window\.open/i.test(attrs)) return m;
-    return ''; // strip placeholder auth buttons
-  });
+  // Sign In / Log In button stripping DISABLED — do not remove any Stitch-generated content.
 
   // ── Wire Stitch footer href="#" Privacy/Terms links to navigateTo ──────────
   // Stitch outputs <a href="#">Privacy Policy</a> etc. in the footer. Wire them.
@@ -144,11 +120,7 @@ export function applyStep5CodeFixes(params: Step5Params): string {
     return m;
   });
 
-  // ── Contact form cleanup ──────────────────────────────────────────────────
-  html = html.replace(/<(?:div|p|label|tr)[^>]*>[^<]*(?:Business Name|Company Name|Organisation|Organization|Project (?:Goals?|Type|Details?|Description)|Subject|Username|Password|Confirm Password|Account Type|Service Type|Service Interest|How did you hear)[^<]*<\/(?:div|p|label|tr)>\s*/gi, '');
-  html = html.replace(/<(?:input|select|textarea)[^>]*(?:name=["'](?:business|company|organisation|organization|subject|username|password|confirm|project_type|service_type|how_hear)[^"']*["']|placeholder=["'][^"']*(?:Business Name|Company|Organization|Project Type|Service Type|Password|Username)[^"']*["'])[^>]*>(?:<\/(?:input|select|textarea)>)?/gi, '');
-  html = html.replace(/(?:Initialize Transmission|Send Brief|Submit Request|Submit Inquiry|Launch Project|Start Project|Begin Project)/gi, 'Send Message');
-  html = html.replace(/(?:Start Your Project|Launch Your Project|Begin Your Project|Project Inquiry|Project Brief|Start a Project)/gi, 'Get in Touch');
+  // Contact form field stripping DISABLED — do not remove any form fields from Stitch output.
 
   // ── Strip "Headquarters" label — replace with plain "Our Location" for tradie sites ──
   html = html.replace(/\bHEADQUARTERS\b/g, 'Our Location');
