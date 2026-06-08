@@ -245,109 +245,12 @@ export async function auditAndFixSite(
     }
   }
 
-  // Fix 4: contact section
-  if (has(AuditErrorType.MISSING_CONTACT) && !/<form[\s>]/i.test(fixed)) {
-    // Only inject if there is genuinely NO form anywhere — Stitch usually has one
-    // Wire to real contact API — jobId injected by injectEssentials tracker script
-    const onsubmit = "(function(f){f.querySelector('button[type=submit]').textContent='Sending...';var nm=(f.querySelector('input[name=name],input[placeholder*=Name]')||{}).value||'';var em=(f.querySelector('input[type=email]')||{}).value||'';var ph=(f.querySelector('input[type=tel]')||{}).value||'';var mg=(f.querySelector('textarea')||{}).value||'';fetch('/api/contact/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jobId:typeof WG_JOB!=='undefined'?WG_JOB:'',name:nm,email:em,phone:ph,message:mg})}).catch(function(){});var s=document.createElement('p');s.style.cssText='color:#22c55e;font-weight:bold;margin-top:12px;';s.textContent='Thank you! We will be in touch within 24 hours.';f.appendChild(s);f.querySelectorAll('input,textarea,button').forEach(function(el){el.setAttribute('disabled','true');});})(this);return false";
-    const fb = [
-      `<section id="contact" style="padding:80px 24px;background:${clrBg};">`,
-      `<div style="max-width:640px;margin:0 auto;">`,
-      `<h2 style="color:${clrText};font-size:2rem;font-weight:900;margin-bottom:8px;">Contact Us</h2>`,
-      `<p style="color:${clrSub};margin-bottom:24px;">Get in touch and we will respond within 24 hours.</p>`,
-      `<form style="display:flex;flex-direction:column;gap:16px;" onsubmit="${onsubmit}">`,
-      `<input type="text" placeholder="Your Name" required style="background:${clrInp};color:${clrText};border:1px solid ${clrBord};border-radius:8px;padding:14px;font-size:1rem;"/>`,
-      `<input type="email" placeholder="Your Email" required style="background:${clrInp};color:${clrText};border:1px solid ${clrBord};border-radius:8px;padding:14px;font-size:1rem;"/>`,
-      `<input type="tel" placeholder="Your Phone" style="background:${clrInp};color:${clrText};border:1px solid ${clrBord};border-radius:8px;padding:14px;font-size:1rem;"/>`,
-      `<textarea placeholder="Your Message" rows="5" style="background:${clrInp};color:${clrText};border:1px solid ${clrBord};border-radius:8px;padding:14px;font-size:1rem;resize:vertical;"></textarea>`,
-      `<button type="submit" style="background:${clrAcct};color:#fff;font-weight:700;padding:16px;border:none;border-radius:8px;font-size:1rem;cursor:pointer;">Send Message</button>`,
-      '</form></div></section>',
-    ].join("");
-    if (isMultiPage) {
-      // For multi-page: inject inside contact page wrapper if it exists,
-      // otherwise create a new data-page="contact" wrapper before </body>
-      if (fixed.includes('data-page="contact"') || fixed.includes("data-page='contact'")) {
-        fixed = injectIntoPageWrapper(fixed, fb, ["contact"]);
-      } else {
-        // No contact page — create one rather than dumping into home
-        // Inject into home page instead of creating a bare wrapper
-        fixed = injectIntoPageWrapper(fixed, fb, ["home", "about"]);
-        console.log('[Auditor] Injected contact form into existing page (no contact page wrapper found)');
-      }
-    } else {
-      fixed = addSectionIdSmart(fixed, "contact", [/contact|get-in-touch|contactus|reach-us/i], [/contact us|get in touch|reach us|enquire|send.*message/i], fb);
-    }
-    mark(AuditErrorType.MISSING_CONTACT);
-  }
+  // Fix 4: contact section — DISABLED.
+  // Stitch always builds a contact section. Auditor must NOT inject its own contact form
+  // or FAQ page — only email/phone replacement (handled in dom-inject) is allowed.
 
-  // Fix 5: FAQ — inject real accordion items relevant to the business
-  if (has(AuditErrorType.MISSING_FAQ)) {
-    const faqItems: [string,string][] = (() => {
-      const ind = industry.toLowerCase();
-      if (/dentist|dental|orthodont/i.test(ind)) return [
-        ["Do you accept new patients?", "Yes, we're currently welcoming new patients. Simply call us or book online to arrange your first visit."],
-        ["What payment options do you accept?", "We accept cash, EFTPOS, credit cards, and process most major health fund claims on the spot."],
-        ["How often should I have a dental check-up?", "We recommend a check-up and clean every six months to maintain good oral health."],
-        ["Do you offer payment plans?", "Yes, we offer interest-free payment plans. Ask our reception team for details."],
-        ["Is there parking available?", "Yes, there is convenient parking directly outside our clinic."],
-        ["What do I do in a dental emergency?", "Call us immediately — we keep emergency appointments available each day for urgent dental care."],
-      ];
-      if (/doctor|medical|gp|health|clinic|physio|chiro/i.test(ind)) return [
-        ["Do I need a referral to book an appointment?", "No referral is needed for a GP visit. Specialist referrals are arranged by your GP if required."],
-        ["How do I book an appointment?", "You can book online 24/7 or call our reception during business hours."],
-        ["Do you bulk bill?", "Bulk billing is available for eligible patients including concession card holders and children. Ask our team for details."],
-        ["What should I bring to my first appointment?", "Please bring your Medicare card, any existing referrals, a list of current medications, and your health fund card if applicable."],
-        ["Do you offer telehealth appointments?", "Yes, telehealth appointments are available for suitable consultations. Book online and select telehealth."],
-        ["What are your opening hours?", "We're open Monday to Friday and offer Saturday morning appointments. Check our Contact page for full hours."],
-      ];
-      if (/plumb|electr|hvac|build|construct|trade|roof|paint/i.test(ind)) return [
-        ["Are you licensed and insured?", "Yes, we are fully licensed, insured, and compliant with all Australian standards."],
-        ["Do you provide free quotes?", "Yes, we offer free, no-obligation quotes. Contact us to arrange a time."],
-        ["How quickly can you attend an emergency?", "We offer same-day emergency callouts. Call us directly for urgent jobs."],
-        ["Do you service my area?", "We service the local area and surrounding suburbs. Contact us to confirm availability in your location."],
-        ["What payment methods do you accept?", "We accept cash, bank transfer, and all major credit cards. Invoice terms available for regular clients."],
-        ["Do you offer a workmanship guarantee?", "Yes, all our work comes with a workmanship guarantee. We stand behind the quality of every job."],
-      ];
-      if (/web|digital|agenc|seo|market|studio/i.test(ind)) return [
-        ["How long does it take to build a website?", "Most websites are completed within 10–14 business days from the time we receive your content and approval."],
-        ["What is included in the monthly care plan?", "The care plan includes hosting, security updates, content edits, and priority support."],
-        ["Do I own my website?", "Yes — you own your website and all its content outright. We hand over full access on completion."],
-        ["Can I update the website myself?", "We can set up a simple editing interface. Most clients prefer to send us edit requests — it's included in the care plan."],
-        ["What happens if I'm not happy with the design?", "We offer two rounds of revisions at no extra charge. Your satisfaction is guaranteed before we go live."],
-        ["Do you optimise for Google?", "Yes, every site we build includes on-page SEO, fast loading, mobile optimisation, and a Google indexing request on launch."],
-      ];
-      // Generic fallback
-      return [
-        [`What services does ${businessName} offer?`, `We offer a comprehensive range of services tailored to meet your needs. Visit our Services page or contact us directly for a full list.`],
-        ["How do I get in touch?", `You can reach us by phone, email, or through the contact form on this page. We aim to respond within one business day.`],
-        ["Do you offer free consultations?", "Yes, we offer a free initial consultation so we can understand your needs and explain how we can help."],
-        ["What areas do you service?", "We service the local area and surrounds. Contact us to confirm we cover your location."],
-        ["How long have you been in business?", `${businessName} has been serving the community for many years. We are proud of our track record and client relationships.`],
-        ["What payment methods do you accept?", "We accept all major payment methods including credit card, bank transfer, and EFTPOS."],
-      ];
-    })();
-    const faqHtml = faqItems.map(([q,a]) =>
-      `<details style="background:${clrCard};border-radius:10px;padding:20px 24px;margin-bottom:12px;border:1px solid ${clrBord};cursor:pointer;">` +
-      `<summary style="color:${clrText};font-weight:700;font-size:1rem;list-style:none;display:flex;justify-content:space-between;align-items:center;">${q}<span style="font-size:1.2rem;color:${clrAcct};">+</span></summary>` +
-      `<p style="color:${clrText};opacity:0.8;margin:12px 0 0;font-size:0.95rem;line-height:1.7;">${a}</p>` +
-      `</details>`
-    ).join("");
-    const faqSection = `<section id="faq" style="padding:80px 24px;background:${clrBg2};"><div style="max-width:800px;margin:0 auto;"><h2 style="color:${clrText};font-size:2rem;font-weight:900;margin:0 0 40px;">Frequently Asked Questions</h2>${faqHtml}</div></section>`;
-    if (isMultiPage) {
-      // For multi-page: inject into existing faq page if present, else inject into home page.
-      // NEVER create a new bare page wrapper — it breaks the Stitch design.
-      if (fixed.includes('data-page="faq"') || fixed.includes("data-page='faq'")) {
-        fixed = injectIntoPageWrapper(fixed, faqSection, ["faq"]);
-      } else {
-        // Inject into home or about page instead of creating a new wrapper
-        fixed = injectIntoPageWrapper(fixed, faqSection, ["home", "about", "contact"]);
-        console.log('[Auditor] Injected FAQ into existing page (no faq page wrapper found)');
-      }
-    } else {
-      fixed = addSectionIdSmart(fixed, "faq", [/faq|frequently|accordion|faqs|questions|q-and-a|qa-section|q_a/i], [/faq|frequently asked|common questions|have a question/i], faqSection);
-    }
-    mark(AuditErrorType.MISSING_FAQ);
-  }
+  // Fix 5: FAQ — DISABLED.
+  // Stitch builds FAQ. Auditor injections produce unstyled sections that clash with Stitch's design.
 
   // Fix 6: testimonials
   if (has(AuditErrorType.MISSING_TESTIMONIALS)) {

@@ -112,9 +112,8 @@ export function domInject(params: DomInjectParams): string {
       }).first();
       if (brandEl.length) {
         brandEl.replaceWith(`<img src="${logoUrl}" alt="${businessName}" style="height:48px;width:auto;object-fit:contain;max-width:180px;">`);
-      } else {
-        header.prepend(`<img src="${logoUrl}" alt="${businessName}" style="height:48px;width:auto;object-fit:contain;max-width:180px;">`);
       }
+      // No brand element found — skip injection. Prepending to header breaks layout.
     }
   }
 
@@ -141,8 +140,8 @@ export function domInject(params: DomInjectParams): string {
         return;
       }
 
-      if (allPhotos.length > 0) {
-        $(el).attr("src", allPhotos[photoIdx % allPhotos.length]);
+      if (photoIdx < allPhotos.length) {
+        $(el).attr("src", allPhotos[photoIdx]);
         $(el).attr("loading", "lazy");
         photoIdx++;
       }
