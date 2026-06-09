@@ -348,7 +348,7 @@ const buildWebsite = inngest.createFunction(
         );
         if (missingPages.length > 0) {
           console.warn(`[Inngest] STEP 3: Missing pages [${missingPages.join(",")}] — running Gemini refine`);
-          const issues = missingPages.map(pid => `Add missing page section with data-page="${pid}" id="${pid}" containing real content`);
+          const issues = missingPages.map((pid: string) => `Add missing page section with data-page="${pid}" id="${pid}" containing real content`);
           if (savedHtmlForRebuild && userInput.revisionNotes) {
             issues.unshift(`Apply revision requests: ${userInput.revisionNotes}`);
           }
