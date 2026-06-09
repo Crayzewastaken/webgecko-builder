@@ -99,11 +99,7 @@ export function domInject(params: DomInjectParams): string {
         // Already has a real logo image — make it bigger
         navImg.attr("style", "height:48px;width:auto;object-fit:contain;max-width:180px;");
       }
-      // Hide any adjacent text/icon logo that duplicates the brand name
-      navImg.siblings("span, div").filter((_, el) => {
-        const t = $(el).text().trim().toUpperCase();
-        return t === businessName.toUpperCase() || t.replace(/\s/g,"") === businessName.replace(/\s/g,"").toUpperCase();
-      }).css("display", "none");
+      // Leave adjacent text/company name visible — it is brand identity alongside the logo
     } else {
       // No img — find the brand text element and replace it with the logo image
       const brandEl = header.find(`span, div`).filter((_, el) => {
@@ -119,31 +115,66 @@ export function domInject(params: DomInjectParams): string {
 
   // ── 4. Replace Stitch placeholder images with client photos ──────────────────
   // Stitch generates images from lh3.googleusercontent.com/aida/ (new) or /aida-public/ (old)
+  // Smart assignment: match section/card keywords against photo filenames.
+  // NO cycling — each photo used once only; empty slots stay as Stitch generated them.
   if (heroUrl || photoUrls.length > 0) {
-    const allPhotos = [...(heroUrl ? [heroUrl] : []), ...photoUrls];
-    let photoIdx = 0;
+    const contentPhotos = [...photoUrls]; // hero handled separately
+    const usedPhotoIndices = new Set<number>();
+
+    // Extract keywords from a photo URL filename for matching
+    function photoKeywords(url: string): string[] {
+      const filename = url.split("/").pop()?.toLowerCase().replace(/[^a-z0-9]/g, " ") || "";
+      return filename.split(/\s+/).filter(w => w.length > 2);
+    }
+
+    // Find best unused photo for the given context keywords, or first unused fallback
+    function pickPhoto(contextKeywords: string[]): string | null {
+      // 1. Try keyword match against filename
+      for (let i = 0; i < contentPhotos.length; i++) {
+        if (usedPhotoIndices.has(i)) continue;
+        const pk = photoKeywords(contentPhotos[i]);
+        if (contextKeywords.some(ck => pk.some(pk2 => pk2.includes(ck) || ck.includes(pk2)))) {
+          usedPhotoIndices.add(i);
+          return contentPhotos[i];
+        }
+      }
+      // 2. First unused photo (no repeat)
+      for (let i = 0; i < contentPhotos.length; i++) {
+        if (!usedPhotoIndices.has(i)) {
+          usedPhotoIndices.add(i);
+          return contentPhotos[i];
+        }
+      }
+      return null; // all used — leave slot as-is
+    }
+
+    // Assign heroUrl to the hero section image first
+    if (heroUrl) {
+      const heroImg = $("[id='home'], [id='hero'], [class*='hero'], body > section").first().find("img").first();
+      if (heroImg.length && isStitchImage(heroImg.attr("src") || "")) {
+        heroImg.attr("src", heroUrl).attr("loading", "lazy");
+      }
+    }
 
     $("img").each((_, el) => {
       const src = $(el).attr("src") || "";
       if (!isStitchImage(src)) return;
 
       // Skip logo slot in header/nav
-      const inNav = $(el).closest("header, nav").length > 0;
-      if (inNav) return;
+      if ($(el).closest("header, nav").length > 0) return;
+      // Skip if already set to heroUrl
+      if (src === heroUrl) return;
 
-      // Use heroUrl for the first hero section image
-      const inHero = $(el).closest("#home, #hero, [id*='hero'], [class*='hero'], section:first-of-type").length > 0;
-      if (inHero && heroUrl && photoIdx === 0) {
-        $(el).attr("src", heroUrl);
-        $(el).attr("loading", "lazy");
-        photoIdx++;
-        return;
-      }
+      // Build context keywords from nearest heading + alt text
+      const $container = $(el).closest("section, [data-page], article, [class*='card'], [class*='service'], [class*='item'], li, div[class*='rounded']");
+      const headingText = $container.find("h1, h2, h3, h4").first().text().toLowerCase();
+      const altText = ($(el).attr("data-alt") || $(el).attr("alt") || "").toLowerCase();
+      const contextWords = [...headingText.split(/\W+/), ...altText.split(/\W+/)]
+        .filter(w => w.length > 3 && !["with","this","that","from","into","have","been","will","your","their","them","they"].includes(w));
 
-      if (photoIdx < allPhotos.length) {
-        $(el).attr("src", allPhotos[photoIdx]);
-        $(el).attr("loading", "lazy");
-        photoIdx++;
+      const photo = pickPhoto(contextWords);
+      if (photo) {
+        $(el).attr("src", photo).attr("loading", "lazy");
       }
     });
 
@@ -163,7 +194,8 @@ export function domInject(params: DomInjectParams): string {
           if ($el.find("img").length > 0) return; // already has real image
           const text = $el.text().trim();
           if (!/\[.*(?:image|photo|project|gallery).*placeholder/i.test(text)) return;
-          const photoUrl = photoUrls[galleryIdx % photoUrls.length];
+          if (galleryIdx >= photoUrls.length) return; // no more photos — leave slot as-is
+          const photoUrl = photoUrls[galleryIdx];
           const $parent = $el.closest(".masonry-item, [class*='gallery-item'], [class*='masonry'], div[class*='overflow-hidden'], div[class*='rounded']").first();
           if ($parent.length && $parent.find("img").length === 0) {
             $parent.html(`<img src="${photoUrl}" alt="Gallery ${galleryIdx + 1}" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.5s;" loading="lazy">`);
@@ -180,7 +212,8 @@ export function domInject(params: DomInjectParams): string {
           const cls = $el.attr("class") || "";
           if (!/\bh-\[|\bh-\d+\b|\bmin-h-\[|\baspect-/.test(cls)) return;
           if ($el.text().trim().length > 80) return;
-          const photoUrl = photoUrls[galleryIdx % photoUrls.length];
+          if (galleryIdx >= photoUrls.length) return; // no more photos — leave slot as-is
+          const photoUrl = photoUrls[galleryIdx];
           $el.html(`<img src="${photoUrl}" alt="Gallery ${galleryIdx + 1}" class="w-full h-full object-cover" loading="lazy">`);
           galleryIdx++;
         });
@@ -304,6 +337,27 @@ export function domInject(params: DomInjectParams): string {
     $el.attr("href", "#");
     $el.attr("onclick", `event.preventDefault();window.navigateTo&&window.navigateTo('${target}')`);
   });
+
+  // ── 6b. Rewire CTA buttons to booking when client has a booking service ─────────
+  // "Get a Quote", "Get Free Quote", "Book Now", "Book an Appointment", "Request a Quote" etc.
+  // should always go to #booking (not #contact) when the client has a booking system.
+  if (hasBookingFeature && $("[id='booking'], [data-page='booking']").length) {
+    const ctaRe = /^(?:get\s+(?:a\s+)?(?:free\s+)?quote|book\s+(?:now|a(?:n appointment)?)?|request\s+(?:a\s+)?quote|schedule\s+(?:an?\s+)?appointment|get\s+started|contact\s+us\s+today)$/i;
+    $("a, button").each((_, el) => {
+      const $el = $(el);
+      const text = $el.text().trim();
+      if (!ctaRe.test(text)) return;
+      // Only rewire if currently pointing to contact or bare #
+      const href = $el.attr("href") || "";
+      const onclick = $el.attr("onclick") || "";
+      const pointsToContact = href.includes("contact") || onclick.includes("'contact'") || onclick.includes('"contact"');
+      const isUnwired = href === "#" && !onclick.includes("navigateTo");
+      if (!pointsToContact && !isUnwired) return;
+      $el.attr("href", "#");
+      $el.attr("onclick", `event.preventDefault();window.navigateTo&&window.navigateTo('booking')`);
+    });
+    console.log("[DomInject] CTA buttons rewired to #booking");
+  }
 
   // ── 7. Stamp id="hero" on first section if missing ───────────────────────────
   if (!$("[id='hero']").length) {

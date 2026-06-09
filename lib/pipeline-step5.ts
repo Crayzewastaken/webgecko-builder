@@ -198,31 +198,29 @@ export function applyStep5CodeFixes(params: Step5Params): string {
       //   - div/section with map-related text or data-icon=map
       let injected = false;
 
-      // Pattern A: img with data-location or data-alt mentioning map
-      $m("img[data-location], img[data-alt*='map'], img[data-alt*='Map']").each((_, el) => {
+      // Pattern A: Stitch's standard map placeholder — div[data-location] or img[data-location]
+      $m("[data-location], img[data-alt*='map'], img[data-alt*='Map']").each((_, el) => {
         if (injected) return;
         const $el = $m(el);
-        // Only replace Stitch-generated map images (aida URLs or placeholder)
-        const src = $el.attr("src") || "";
-        if (isStitchImgUrl(src) || $el.attr("data-location")) {
-          const $parent = $el.parent();
-          $parent.replaceWith(mapBlock);
-          injected = true;
-          console.log("[Step5] Map replaced Stitch data-location img placeholder");
-        }
+        // Stitch wraps the placeholder in a sized container — replace that wrapper, not just the inner element
+        const $wrapper = $el.closest(".h-64, .h-48, .h-80, [class*='map-container'], [class*='map-wrap']");
+        const $target = $wrapper.length ? $wrapper : $el;
+        $target.replaceWith(mapBlock);
+        injected = true;
+        console.log("[Step5] Map replaced Stitch data-location placeholder");
       });
 
-      // Pattern B: container div with "Map View" text or data-icon=map inside contact
+      // Pattern B: container with explicit map-related text (fallback)
       if (!injected) {
-        $m("[id='contact'], [data-page='contact']").find("div, section").each((_, el) => {
+        $m("[id='contact'], [data-page='contact']").find("div").each((_, el) => {
           if (injected) return;
           const $el = $m(el);
           const inner = $el.html() || "";
           const text = $el.text().trim();
+          // Only match very specific map placeholder patterns — avoid hitting contact info divs
           if (
-            /map.*view|map.*placeholder|\[\s*google.*map|\[\s*map/i.test(inner) ||
-            (text.length < 100 && /map.*view|map view/i.test(text)) ||
-            ($el.find("[data-icon='map'], .material-symbols-outlined").length > 0 && text.length < 150)
+            /map.*view|map.*placeholder|\[\s*google.*map/i.test(inner) ||
+            (text.length < 50 && /map view/i.test(text))
           ) {
             $el.replaceWith(mapBlock);
             injected = true;
@@ -231,22 +229,19 @@ export function applyStep5CodeFixes(params: Step5Params): string {
         });
       }
 
-      // Strategy 2: append to contact section's right-hand column or last child div
+      // Strategy 2: append to the contact section's left column (details side), at the bottom
       if (!injected) {
         const contactSection = $m("[id='contact'], [data-page='contact']").first();
         if (contactSection.length) {
-          // Try to find the contact details column (right side — has phone/email/address)
-          const detailsCol = contactSection.find("div").filter((_, el) => {
-            const t = $m(el).text();
-            return t.includes(businessAddress.split(",")[0]) || /0[0-9]{9}/.test(t);
-          }).first();
-          if (detailsCol.length) {
-            detailsCol.append(mapBlock);
+          // Find the innermost direct div of the section — prefer grid/flex first column
+          const gridChild = contactSection.find("> div > div").first();
+          if (gridChild.length) {
+            gridChild.append(mapBlock);
           } else {
             contactSection.append(mapBlock);
           }
           injected = true;
-          console.log("[Step5] Map appended inside contact section");
+          console.log("[Step5] Map appended to contact section column");
         }
       }
 
