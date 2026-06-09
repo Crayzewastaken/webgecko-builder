@@ -802,6 +802,33 @@ function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:
   );
 }
 
+// ── Stitch Prompt copy card ────────────────────────────────────────────────────
+function StitchPromptCard({ prompt, toast }: { prompt: string; toast: (msg: string, t: "ok"|"err"|"info") => void }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div style={{background:"rgba(0,212,160,0.06)",border:"1px solid rgba(0,212,160,0.25)",borderRadius:12,padding:"16px 18px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <div style={{fontSize:13,fontWeight:700,color:"#00d4a0"}}>📋 Stitch Prompt</div>
+        <div style={{display:"flex",gap:8}}>
+          <button
+            onClick={()=>{ navigator.clipboard.writeText(prompt); setCopied(true); toast("Prompt copied!","ok"); setTimeout(()=>setCopied(false),2000); }}
+            style={{padding:"5px 14px",borderRadius:6,fontSize:12,fontWeight:700,background:copied?"#00d4a0":"rgba(0,212,160,0.15)",color:copied?"#0a0f1a":"#00d4a0",border:"1px solid rgba(0,212,160,0.35)",cursor:"pointer"}}>
+            {copied ? "✓ Copied!" : "Copy prompt"}
+          </button>
+          <a href="https://labs.google/stitch" target="_blank" rel="noopener noreferrer"
+            style={{padding:"5px 14px",borderRadius:6,fontSize:12,fontWeight:700,background:"rgba(74,158,255,0.15)",color:"#4a9eff",border:"1px solid rgba(74,158,255,0.35)",textDecoration:"none"}}>
+            Open Stitch ↗
+          </a>
+        </div>
+      </div>
+      <div style={{background:"rgba(0,0,0,0.3)",borderRadius:8,padding:"10px 12px",fontFamily:"monospace",fontSize:11.5,lineHeight:1.65,color:"#b8c8e0",whiteSpace:"pre-wrap",wordBreak:"break-word",maxHeight:180,overflowY:"auto"}}>
+        {prompt}
+      </div>
+      <div style={{fontSize:11,color:"rgba(255,255,255,0.3)",marginTop:8}}>Copy → paste into Stitch Studio → Generate → Export HTML → upload via Pending Stitch Builds ↗</div>
+    </div>
+  );
+}
+
 // ── Client slide-over panel ────────────────────────────────────────────────────
 function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:string; onClose:()=>void; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
   const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"content"|"payments"|"actions"|"requests"|"checklist"|"social">("perf");
@@ -2025,6 +2052,10 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                   <div style={{fontSize:18,color:"#4a9eff",marginLeft:12}}>↗</div>
                 </div>
               </a>
+              {/* Stitch Prompt — copy to paste into Stitch Studio */}
+              {(c as any).metadata?.stitchPrompt && (
+                <StitchPromptCard prompt={(c as any).metadata.stitchPrompt} toast={toast} />
+              )}
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                 {[
                   {title:"Release preview",color:T.green,desc:"Email the client their portal link to review the site.",label:"Release preview →",confirm:`Release preview to ${c.businessName}? This emails the client.`,fn:()=>api(`/api/unlock/release?jobId=${jid}&secret=${sec}`)},
