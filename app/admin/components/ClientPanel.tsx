@@ -1146,6 +1146,16 @@ export default function ClientPanel({ c, secret, onClose, toast, dark = true }: 
           {/* ACTIONS */}
           {tab==="actions"&&(
             <div style={{display:"flex",flexDirection:"column" as const,gap:12}}>
+              {/* Pending Stitch — top of actions */}
+              <a href="/admin/pending" target="_blank" rel="noopener noreferrer" style={{textDecoration:"none"}}>
+                <div style={{background:`linear-gradient(135deg, rgba(74,158,255,0.12), rgba(74,158,255,0.06))`,border:`1px solid rgba(74,158,255,0.35)`,borderRadius:12,padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",transition:"border-color 0.15s"}}>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:700,color:"#4a9eff",marginBottom:3}}>⏳ Pending Stitch Builds</div>
+                    <div style={{fontSize:11,color:T.textMuted,lineHeight:1.5}}>Sites waiting for you to generate HTML in Stitch Studio and upload.</div>
+                  </div>
+                  <div style={{fontSize:18,color:"#4a9eff",marginLeft:12}}>↗</div>
+                </div>
+              </a>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                 {[
                   {title:"Release preview",color:T.green,desc:"Email the client their portal link to review the site.",label:"Release preview →",confirm:`Release preview to ${c.businessName}? This emails the client.`,fn:()=>api(`/api/unlock/release?jobId=${jid}&secret=${sec}`)},
