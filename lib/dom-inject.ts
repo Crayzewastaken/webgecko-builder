@@ -222,7 +222,7 @@ export function domInject(params: DomInjectParams): string {
       }
     }
 
-    console.log(`[DomInject] Replaced Stitch placeholder images. Photos cycled: ${photoIdx}`);
+    console.log(`[DomInject] Replaced Stitch placeholder images. Photos used: ${usedPhotoIndices.size}/${contentPhotos.length}`);
   }
 
   // ── 5. Inject booking iframe ──────────────────────────────────────────────────
