@@ -179,68 +179,93 @@ Return ONLY the complete HTML. Start with <!DOCTYPE html> and end with </html>.`
     }
   };
 
-  // Try gemini-2.5-pro first, fall back to gemini-2.5-flash
-  const models = ["gemini-2.5-pro", "gemini-2.5-flash"];
+  // Model cascade: pro first, then flash variants. On 503 (overloaded), retry
+  // the same model up to 3 times with exponential backoff before moving on.
+  const models = [
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",       // older, more available during spikes
+    "gemini-1.5-pro",         // ultimate fallback
+  ];
   let lastError: Error | null = null;
 
   for (const model of models) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      console.log(`[GeminiGenerate] Calling ${model} for ${userInput.businessName}...`);
+    // Per-model retry loop — retries on 503/429/overload, skips on hard errors
+    const MAX_RETRIES = 3;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        console.log(`[GeminiGenerate] ${model} attempt ${attempt}/${MAX_RETRIES} for ${userInput.businessName}...`);
 
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(240_000), // 4 minute timeout per attempt
-      });
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(240_000),
+        });
 
-      if (!resp.ok) {
-        const errText = await resp.text();
-        throw new Error(`Gemini ${model} error ${resp.status}: ${errText.slice(0, 400)}`);
-      }
-
-      const data = await resp.json();
-
-      // Handle safety blocks
-      if (data?.candidates?.[0]?.finishReason === "SAFETY") {
-        throw new Error(`Gemini ${model} blocked by safety filter`);
-      }
-
-      const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      if (!text || text.length < 1000) {
-        throw new Error(`Gemini ${model} returned empty/short response (${text.length} chars)`);
-      }
-
-      // Strip accidental markdown fences
-      let html = text
-        .replace(/^```html\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim();
-
-      // Ensure starts with <!DOCTYPE
-      if (!html.toLowerCase().startsWith("<!doctype")) {
-        const doctypeIdx = html.toLowerCase().indexOf("<!doctype");
-        if (doctypeIdx > 0) {
-          html = html.slice(doctypeIdx);
-        } else {
-          throw new Error(`Gemini ${model} did not return HTML (starts with: ${html.slice(0, 100)})`);
+        if (!resp.ok) {
+          const errText = await resp.text();
+          const isRetryable = resp.status === 503 || resp.status === 429 || resp.status === 500;
+          const err = new Error(`Gemini ${model} error ${resp.status}: ${errText.slice(0, 400)}`);
+          if (isRetryable && attempt < MAX_RETRIES) {
+            const backoff = attempt * 15_000; // 15s, 30s
+            console.warn(`[GeminiGenerate] ${model} ${resp.status} — retrying in ${backoff / 1000}s`);
+            lastError = err;
+            await new Promise(r => setTimeout(r, backoff));
+            continue;
+          }
+          throw err;
         }
+
+        const data = await resp.json();
+
+        if (data?.candidates?.[0]?.finishReason === "SAFETY") {
+          throw new Error(`Gemini ${model} blocked by safety filter`);
+        }
+
+        const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        if (!text || text.length < 1000) {
+          throw new Error(`Gemini ${model} returned empty/short response (${text.length} chars)`);
+        }
+
+        // Strip accidental markdown fences
+        let html = text
+          .replace(/^```html\s*/i, "")
+          .replace(/^```\s*/i, "")
+          .replace(/\s*```$/i, "")
+          .trim();
+
+        // Ensure starts with <!DOCTYPE
+        if (!html.toLowerCase().startsWith("<!doctype")) {
+          const doctypeIdx = html.toLowerCase().indexOf("<!doctype");
+          if (doctypeIdx > 0) {
+            html = html.slice(doctypeIdx);
+          } else {
+            throw new Error(`Gemini ${model} did not return HTML (starts with: ${html.slice(0, 100)})`);
+          }
+        }
+
+        if (!html.includes("<body") || !html.includes("</html>")) {
+          throw new Error(`Gemini ${model} HTML is incomplete (missing <body> or </html>)`);
+        }
+
+        console.log(`[GeminiGenerate] ${model} success — ${html.length} chars`);
+        return html;
+
+      } catch (err: any) {
+        lastError = err;
+        const msg: string = err?.message || String(err);
+        // On hard non-retryable errors (bad prompt, auth, etc.) skip to next model immediately
+        const isRetryable = msg.includes("503") || msg.includes("429") || msg.includes("500") || msg.includes("UNAVAILABLE");
+        if (!isRetryable || attempt >= MAX_RETRIES) {
+          console.warn(`[GeminiGenerate] ${model} failed (moving to next model): ${msg}`);
+          break; // exit retry loop, try next model
+        }
+        const backoff = attempt * 15_000;
+        console.warn(`[GeminiGenerate] ${model} attempt ${attempt} error — retrying in ${backoff / 1000}s: ${msg}`);
+        await new Promise(r => setTimeout(r, backoff));
       }
-
-      if (!html.includes("<body") || !html.includes("</html>")) {
-        throw new Error(`Gemini ${model} HTML is incomplete (missing <body> or </html>)`);
-      }
-
-      console.log(`[GeminiGenerate] ${model} success — ${html.length} chars`);
-      return html;
-
-    } catch (err: any) {
-      console.warn(`[GeminiGenerate] ${model} failed: ${err?.message}`);
-      lastError = err;
-      // Small delay before trying next model
-      await new Promise(r => setTimeout(r, 3000));
     }
   }
 
