@@ -902,16 +902,19 @@ const buildWebsite = inngest.createFunction(
         const { html: checkedHtml } = checkAndFixLinks(fixedHtml, Array.isArray(userInput.pages) ? userInput.pages : []);
         const ga4Id = job.ga4Id || userInput.ga4Id || "";
 
-        // Fetch Pexels photos if site has a gallery page and client has few/no photos
+        // Fetch Pexels photos as fallback whenever the client has fewer than 10 photos.
+        // This ensures every image slot in the generated HTML can receive a unique,
+        // high-quality photo without cycling or leaving Stitch placeholders behind.
         let augmentedPhotoUrls = [...photoUrls];
         const sitePages = Array.isArray(userInput.pages) ? userInput.pages : [];
-        const hasGalleryPage = sitePages.some((p: string) => /gallery|portfolio|work|project/i.test(p));
-        if (hasGalleryPage && photoUrls.length < 4 && process.env.PEXELS_API_KEY && process.env.PEXELS_API_KEY !== "YOUR_PEXELS_KEY_HERE") {
+        const PHOTO_BUFFER = 10; // always aim for at least this many photos
+        if (photoUrls.length < PHOTO_BUFFER && process.env.PEXELS_API_KEY && process.env.PEXELS_API_KEY !== "YOUR_PEXELS_KEY_HERE") {
           try {
             const pexelsQuery = getPexelsQuery(userInput.businessName, userInput.industry || "", sitePages);
-            const pexelsPhotos = await fetchPexelsPhotos(pexelsQuery, 8);
-            augmentedPhotoUrls = [...photoUrls, ...pexelsPhotos].slice(0, 12);
-            console.log(`[Pexels] Fetched ${pexelsPhotos.length} photos for query: "${pexelsQuery}"`);
+            const needed = PHOTO_BUFFER - photoUrls.length;
+            const pexelsPhotos = await fetchPexelsPhotos(pexelsQuery, Math.max(needed, 6));
+            augmentedPhotoUrls = [...photoUrls, ...pexelsPhotos];
+            console.log(`[Pexels] Fetched ${pexelsPhotos.length} photos (client had ${photoUrls.length}, needed ≥${PHOTO_BUFFER}) — query: "${pexelsQuery}"`);
           } catch (e) {
             console.log("[Pexels] Failed to fetch:", e);
           }

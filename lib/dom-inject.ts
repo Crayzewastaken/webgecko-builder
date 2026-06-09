@@ -102,9 +102,10 @@ export function domInject(params: DomInjectParams): string {
   // Stitch generates images from lh3.googleusercontent.com/aida/ (new) or /aida-public/ (old)
   // Smart assignment: match section/card keywords against photo filenames.
   // NO cycling — each photo used once only; empty slots stay as Stitch generated them.
+  // usedPhotoIndices is hoisted so bg-image replacement (step 13) can also avoid re-using photos.
+  const contentPhotos = [...photoUrls]; // hero handled separately
+  const usedPhotoIndices = new Set<number>();
   if (heroUrl || photoUrls.length > 0) {
-    const contentPhotos = [...photoUrls]; // hero handled separately
-    const usedPhotoIndices = new Set<number>();
 
     // Extract keywords from a photo URL filename for matching
     function photoKeywords(url: string): string[] {
@@ -405,14 +406,21 @@ export function domInject(params: DomInjectParams): string {
   // backgrounds. Cheerio <img> replacement above misses these entirely.
   let out = $.html();
   if (heroUrl || photoUrls.length > 0) {
-    let bgIdx = 0;
+    let bgHeroUsed = false;
     out = out.replace(
       /background-image:\s*url\(['"]?(https:\/\/lh3\.googleusercontent\.com\/aida[^'")\s]*?)['"]?\)/gi,
       () => {
-        if (heroUrl && bgIdx === 0) { bgIdx++; return `background-image: url('${heroUrl}')`; }
-        const url = photoUrls[bgIdx < photoUrls.length ? bgIdx : photoUrls.length - 1];
-        bgIdx++;
-        return `background-image: url('${url || heroUrl || ""}')`;
+        // First background → hero image
+        if (heroUrl && !bgHeroUsed) { bgHeroUsed = true; return `background-image: url('${heroUrl}')`; }
+        // Subsequent backgrounds → pick from unused photos (shared set with img replacement)
+        for (let i = 0; i < contentPhotos.length; i++) {
+          if (!usedPhotoIndices.has(i)) {
+            usedPhotoIndices.add(i);
+            return `background-image: url('${contentPhotos[i]}')`;
+          }
+        }
+        // All photos exhausted — keep Stitch placeholder intact (no fallback to last photo)
+        return `background-image: url('${heroUrl || ""}')`;
       }
     );
   }
