@@ -4,8 +4,8 @@ export const maxDuration = 300;
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest";
 import { uptimeMonitor } from "@/lib/inngest-uptime";
+import { stitchSdk } from "@/lib/stitch";
 import Anthropic from "@anthropic-ai/sdk";
-import { generateWithGemini, refineWithGemini } from "@/lib/gemini-generate";
 import { Resend } from "resend";
 import {
   extractJson,
@@ -300,63 +300,217 @@ const buildWebsite = inngest.createFunction(
       console.log(`[Inngest] STEP 1 DONE (Blueprint): ${spec.projectTitle} — palette: ${spec.palette?.primary}`);
 
 
-      // ── STEP 3: Gemini 2.5 Pro — generate full website HTML ─────────────────
-      // Replaces Stitch SDK (steps 2, 2b, 3, 3-edit). Direct REST API, ~15-45s,
-      // no transport errors, explicit control over all sections and content.
-      const stitchHtml = await step.run("step3-gemini-generate", async () => {
-        console.log(`[Inngest] STEP 3 START: Gemini generate for "${spec.projectTitle}"`);
+      // ── STEP 2: Create Stitch project ─────────────────────────────────────────
+      const projectId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step2-stitch-create", async () => {
+        console.log(`[Inngest] STEP 2 START: creating Stitch project "${spec.projectTitle}"`);
+        const project = await stitchSdk.createProject(spec.projectTitle);
+        const pid = project.projectId;
+        if (!pid) throw new Error("Stitch SDK: no projectId returned from createProject");
+        console.log(`[Inngest] STEP 2 DONE: projectId=${pid}`);
+        return pid;
+      }) as string;
 
-        const requestedPIds = (Array.isArray(userInput.pages) ? userInput.pages : ["Home"])
-          .map((p: string) => p.toLowerCase().replace(/\s+/g, "-"));
+      // ── STEP 2b: Create design system from blueprint palette/typography ────────
+      // This must run before generate() so Stitch uses the correct theme.
+      const designSystemId = savedHtmlForRebuild ? "" : await step.run("step2b-design-system", async () => {
+        try {
+          const palette = spec.palette || {};
+          const typography = spec.typography || {};
 
-        // For rebuilds with existing HTML, pass revision notes
-        const html = await generateWithGemini({
-          spec: {
-            projectTitle: spec.projectTitle,
-            stitchPrompt: spec.stitchPrompt,
-            palette: spec.palette,
-            typography: spec.typography,
-            sections: requestedPIds,
-            tone: spec.tone || "professional",
-            heroHeadline: spec.heroHeadline || spec.projectTitle,
-            heroSubheadline: spec.heroSubheadline || "",
-            ctaText: spec.ctaText || "Get Started",
-            uniqueDesignIdea: spec.uniqueDesignIdea || "",
-          },
-          userInput: {
-            businessName: userInput.businessName,
-            industry: userInput.industry || userInput.businessType || "",
-            phone: userInput.phone,
-            email: userInput.email,
-            address: userInput.address,
-            pages: userInput.pages,
-            shopProducts: userInput.shopProducts,
-            bookingServices: userInput.bookingServices,
-            testimonials: userInput.testimonials,
-          },
-          isMultiPage,
-          revisionNotes: userInput.revisionNotes,
-          existingHtml: savedHtmlForRebuild || undefined,
-        });
+          const fontMap: Record<string, string> = {
+            "Inter": "INTER", "Space Grotesk": "SPACE_GROTESK", "SpaceGrotesk": "SPACE_GROTESK",
+            "Manrope": "MANROPE", "Plus Jakarta Sans": "PLUS_JAKARTA_SANS", "PlusJakartaSans": "PLUS_JAKARTA_SANS",
+            "Work Sans": "WORK_SANS", "WorkSans": "WORK_SANS", "DM Sans": "DM_SANS", "DMSans": "DM_SANS",
+            "Geist": "GEIST", "Nunito Sans": "NUNITO_SANS", "NunitoSans": "NUNITO_SANS",
+            "Rubik": "RUBIK", "Sora": "SORA", "Epilogue": "EPILOGUE", "Lexend": "LEXEND",
+            "Montserrat": "MONTSERRAT", "Arimo": "ARIMO",
+            "Hanken Grotesk": "HANKEN_GROTESK", "IBM Plex Sans": "IBM_PLEX_SANS",
+          };
+          const resolveFont = (name: string): string => {
+            if (!name) return "INTER";
+            if (fontMap[name]) return fontMap[name];
+            const lower = name.toLowerCase();
+            for (const [k, v] of Object.entries(fontMap)) {
+              if (lower.includes(k.toLowerCase())) return v;
+            }
+            return "INTER";
+          };
 
-        if (html.length < 5000) throw new Error(`Gemini HTML too short (${html.length} chars)`);
-        if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Gemini returned skeleton HTML");
+          const isDark = (() => {
+            const bg = palette.background || "#0a0f1a";
+            const hex = bg.replace("#", "");
+            if (hex.length < 6) return true;
+            const r = parseInt(hex.slice(0,2),16);
+            const g = parseInt(hex.slice(2,4),16);
+            const b = parseInt(hex.slice(4,6),16);
+            return (r * 0.299 + g * 0.587 + b * 0.114) < 128;
+          })();
 
-        // Quality check: ensure all requested pages are present; if not, do a targeted refine
-        const missingPages = requestedPIds.filter((pid: string) =>
-          !html.includes(`data-page="${pid}"`) && !html.includes(`id="${pid}"`)
-        );
-        if (missingPages.length > 0) {
-          console.warn(`[Inngest] STEP 3: Missing pages [${missingPages.join(",")}] — running Gemini refine`);
-          const issues = missingPages.map((pid: string) => `Add missing page section with data-page="${pid}" id="${pid}" containing real content`);
-          if (savedHtmlForRebuild && userInput.revisionNotes) {
-            issues.unshift(`Apply revision requests: ${userInput.revisionNotes}`);
+          const headlineFont = resolveFont(typography.headingFont || "Space Grotesk");
+          const bodyFont = resolveFont(typography.bodyFont || "Inter");
+
+          const rawAccent = palette.accent || palette.primary || "#10b981";
+          const accentHex = /^#[0-9a-fA-F]{6}$/.test(rawAccent) ? rawAccent : "#10b981";
+          const designSystemInput = {
+            displayName: `${spec.projectTitle} Design System`,
+            theme: {
+              colorMode: (isDark ? "DARK" : "LIGHT") as "DARK" | "LIGHT",
+              customColor: accentHex,
+              headlineFont: headlineFont as any,
+              bodyFont: bodyFont as any,
+              roundness: "ROUND_EIGHT" as const,
+            },
+          };
+
+          await stitchSdk.close().catch(() => {});
+          const project = stitchSdk.project(projectId);
+          const ds = await project.createDesignSystem(designSystemInput);
+          console.log(`[Inngest] STEP 2b DONE: design system created, id=${ds.id}`);
+          return ds.id;
+        } catch (e: any) {
+          console.warn(`[Inngest] STEP 2b: createDesignSystem failed (non-fatal): ${e?.message || String(e)}`);
+          return "";
+        }
+      }) as string;
+
+      // ── STEP 3: Stitch generate only (own 300s budget) ───────────────────────
+      const step3Result = await step.run("step3-stitch-generate", async () => {
+        const stitchPrompt = spec.stitchPrompt;
+
+        async function fetchScreenHtml(screen: any): Promise<string> {
+          let url = await screen.getHtml();
+          if (!url) {
+            const delays = [20000, 20000, 20000, 30000, 30000];
+            for (const d of delays) {
+              await new Promise(r => setTimeout(r, d));
+              try { url = await screen.getHtml(); if (url) break; } catch {}
+              console.log(`[Inngest] STEP 3: getHtml() poll — url length=${url?.length ?? 0}`);
+            }
           }
-          const refined = await refineWithGemini(html, issues, userInput.businessName);
-          console.log(`[Inngest] STEP 3 DONE (with refine): HTML ${refined.length} chars`);
-          return refined;
+          if (!url) throw new Error(`getHtml() empty after retries (screenId=${screen.screenId})`);
+          const res = await fetch(url);
+          const text = await res.text();
+          console.log(`[Inngest] STEP 3: fetched HTML — status=${res.status} length=${text.length}`);
+          if (!text.includes("<")) throw new Error(`Not HTML (${text.length} chars)`);
+          return text;
         }
 
+        let html = "";
+        let screen: any = null;
+
+        // ── Rebuild path: upload existing HTML → Stitch ────────────────────────
+        if (savedHtmlForRebuild && savedHtmlForRebuild.length > 5000) {
+          try {
+            console.log(`[Inngest] STEP 3: Rebuild — uploading existing HTML (${savedHtmlForRebuild.length} chars) to Stitch`);
+            await stitchSdk.close().catch(() => {});
+            const os = await import("os");
+            const path = await import("path");
+            const fs = await import("fs/promises");
+            const tmpPath = path.join(os.tmpdir(), `wg-rebuild-${jobId}.html`);
+            await fs.writeFile(tmpPath, savedHtmlForRebuild, "utf-8");
+            const project = stitchSdk.project(projectId);
+            const screens = await project.upload(tmpPath);
+            await fs.unlink(tmpPath).catch(() => {});
+            if (screens.length > 0) {
+              screen = screens[0];
+              html = await fetchScreenHtml(screen);
+              console.log(`[Inngest] STEP 3: Rebuild upload done — screenId=${screen.screenId}, HTML ${html.length} chars`);
+            }
+          } catch (uploadErr: any) {
+            console.warn(`[Inngest] STEP 3: Rebuild upload failed, falling back to generate: ${uploadErr?.message}`);
+            screen = null; html = "";
+          }
+        }
+
+        // ── New build path (or rebuild fallback): generate from prompt ─────────
+        if (!html || html.length < 5000) {
+          console.log(`[Inngest] STEP 3: Generating from prompt (${stitchPrompt.length} chars)`);
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+              await stitchSdk.close().catch(() => {});
+              const project = stitchSdk.project(projectId);
+              screen = await project.generate(stitchPrompt, "DESKTOP", "GEMINI_3_1_PRO");
+              console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
+              html = await fetchScreenHtml(screen);
+              if (html.length > 5000) break;
+              throw new Error(`HTML too short (${html.length} chars — need 5KB+)`);
+            } catch (e: any) {
+              const msg = e?.message || String(e);
+              console.warn(`[Inngest] STEP 3: attempt ${attempt} failed: ${msg}`);
+              appendPipelineLog(jobId, { level: attempt === 3 ? "error" : "warn", step: "stitch", msg: `Attempt ${attempt} failed: ${msg}`, businessName: userInput.businessName }).catch(()=>{});
+              if (attempt === 3) throw e;
+              await new Promise(r => setTimeout(r, 10000 * attempt));
+            }
+          }
+        }
+
+        if (html.length < 5000) throw new Error(`Stitch HTML too short after generate (${html.length} chars)`);
+        if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton");
+        console.log(`[Inngest] STEP 3 generate DONE: HTML ${html.length} chars, screenId=${screen?.screenId || "none"}`);
+        return { html, screenId: screen?.screenId || "" };
+      }) as { html: string; screenId: string };
+
+      // ── STEP 3-edit: Edit loop in its own 300s budget ─────────────────────────
+      const stitchHtml = await step.run("step3-edit", async () => {
+        let { html, screenId } = step3Result;
+
+        async function fetchScreenHtml(screen: any): Promise<string> {
+          let url = await screen.getHtml();
+          if (!url) {
+            const delays = [20000, 20000, 20000, 30000, 30000];
+            for (const d of delays) {
+              await new Promise(r => setTimeout(r, d));
+              try { url = await screen.getHtml(); if (url) break; } catch {}
+            }
+          }
+          if (!url) throw new Error(`getHtml() empty after retries (screenId=${screen.screenId})`);
+          const res = await fetch(url);
+          const text = await res.text();
+          console.log(`[Inngest] STEP 3-edit: fetched HTML — status=${res.status} length=${text.length}`);
+          if (!text.includes("<")) throw new Error(`Not HTML (${text.length} chars)`);
+          return text;
+        }
+
+        if (screenId) {
+          const screen = stitchSdk.project(projectId).screen(screenId);
+          const editIssues: string[] = [];
+          const requestedPIds = (Array.isArray(userInput.pages) ? userInput.pages : ["Home"])
+            .map((p: string) => p.toLowerCase().replace(/\s+/g, "-"));
+
+          if (savedHtmlForRebuild && userInput.revisionNotes) {
+            editIssues.push(`Apply these revision requests: ${userInput.revisionNotes}`);
+          }
+
+          for (const pid of requestedPIds) {
+            const hasPage = html.includes(`data-page="${pid}"`) || html.includes(`id="${pid}"`);
+            if (!hasPage) { editIssues.push(`Add missing page section "${pid}" with full real content`); continue; }
+            const pidIdx = Math.max(html.indexOf(`data-page="${pid}"`), html.indexOf(`id="${pid}"`));
+            const chunk = html.slice(pidIdx, pidIdx + 6000).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+            if (chunk.length < 150) editIssues.push(`Page "${pid}" is too thin — add real headings, copy and images`);
+          }
+          if (userInput.shopProducts && (html.includes("CyberBoard") || html.includes("AI Vision Camera")))
+            editIssues.push(`Replace placeholder shop products with ONLY: ${userInput.shopProducts.slice(0, 200)}`);
+
+          if (editIssues.length > 0) {
+            const editPrompt = "Fix these issues — keep all design/colours unchanged:\n" +
+              editIssues.map((iss, i) => `${i + 1}. ${iss}`).join("\n") +
+              "\n\nEnsure every page section has data-page=\"pageid\" AND id=\"pageid\" on the same element.";
+            console.log(`[Inngest] STEP 3-edit: Edit pass for ${editIssues.length} issue(s)`);
+            await stitchSdk.close().catch(() => {});
+            const edited = await screen.edit(editPrompt, "DESKTOP", "GEMINI_3_1_PRO");
+            const editedHtml = await fetchScreenHtml(edited);
+            if (editedHtml.length > html.length * 0.7) {
+              html = editedHtml;
+              console.log(`[Inngest] STEP 3-edit: Edit done — HTML now ${html.length} chars`);
+            } else {
+              throw new Error(`Edit shrank HTML too much (${editedHtml.length} vs original ${html.length}) — retrying`);
+            }
+          } else {
+            console.log("[Inngest] STEP 3-edit: No edit needed — output passes quality checks");
+          }
+        }
+
+        if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton after edit");
         console.log(`[Inngest] STEP 3 DONE: HTML ${html.length} chars`);
         return html;
       }) as string;
@@ -987,81 +1141,148 @@ const buildWebsite = inngest.createFunction(
         return html;
       });
 
-      // ── STEP QA: Claude Opus — audit & fix HTML before validation ───────────
-      // Claude reads the near-final HTML and makes small targeted fixes:
-      // broken links, empty sections, placeholder text, missing contact details,
-      // duplicate content, and structural issues. Does NOT change design or colours.
+      // ── STEP QA: Claude Opus — inject missing sections + audit ──────────────
+      // Two-pass QA:
+      //   Pass 1 (inject): for each requested page missing from the HTML, Claude
+      //     generates that section's HTML block matching the existing design and
+      //     splices it in before </body>. Non-destructive — never removes content.
+      //   Pass 2 (audit): fixes placeholder text, wrong contact details, broken
+      //     nav links, duplicate blocks, missing alt text. Small targeted edits only.
       const finalHtmlAfterQA = await step.run("stepQA-claude", async () => {
-        const html = finalHtmlWithShop as string;
-        console.log(`[Inngest] QA START: Claude auditing ${html.length} chars for ${userInput.businessName}`);
+        let html = finalHtmlWithShop as string;
+        console.log(`[Inngest] QA START: ${html.length} chars for ${userInput.businessName}`);
 
-        // Build a focused audit prompt — ask Claude to find specific issues
-        const auditPrompt = `You are auditing an HTML website for "${userInput.businessName}" before it goes live.
+        // Snapshot of the CSS/colour tokens from the existing HTML for injection matching
+        const styleSnippet = (() => {
+          const styleMatch = html.match(/<style[^>]*>([\s\S]{0,3000}?)<\/style>/i);
+          const twConfigMatch = html.match(/tailwind\.config\s*=\s*\{[\s\S]{0,2000}?\}/);
+          return (styleMatch?.[1] || "") + (twConfigMatch?.[0] || "");
+        })();
 
-AUDIT TASK:
-Carefully review the HTML below and return a JSON object with two fields:
-1. "issues": array of specific issues found (max 10, ordered by severity)
+        // ── PASS 1: Inject missing sections ──────────────────────────────────
+        const allPageIds = (Array.isArray(userInput.pages) ? userInput.pages : ["Home"])
+          .map((p: string) => p.toLowerCase().replace(/\s+/g, "-"));
+        if (!allPageIds.includes("contact")) allPageIds.push("contact");
+
+        const missingPageIds = allPageIds.filter((pid: string) =>
+          !html.includes(`data-page="${pid}"`) && !html.includes(`id="${pid}"`)
+        );
+
+        if (missingPageIds.length > 0) {
+          console.log(`[QA] Pass 1: injecting ${missingPageIds.length} missing section(s): [${missingPageIds.join(",")}]`);
+          for (const pid of missingPageIds) {
+            try {
+              const label = pid.charAt(0).toUpperCase() + pid.slice(1).replace(/-/g, " ");
+              const injectPrompt = `You are adding a missing section to an existing website for "${userInput.businessName}" (${userInput.industry || "business"}).
+
+EXISTING DESIGN CONTEXT (CSS/Tailwind tokens used by the site):
+${styleSnippet.slice(0, 1500)}
+
+YOUR TASK:
+Generate ONLY the HTML for a "${label}" section that:
+- Has exactly: data-page="${pid}" id="${pid}" class="page-section" on the outer wrapper div
+- Matches the visual style of the existing site (same colours, fonts, spacing feel)
+- Contains real, detailed content for a ${userInput.industry || "business"} website
+- Includes realistic headings, paragraphs, and at least one call-to-action
+${pid === "contact" ? `- Contact form with name/email/message fields, phone: ${userInput.phone || ""}, email: ${userInput.email || ""}${userInput.address ? `, address: ${userInput.address}` : ""}` : ""}
+${pid === "about" ? `- Company story, values, and team for ${userInput.businessName}` : ""}
+${pid === "services" ? `- At least 6 service cards for a ${userInput.industry || "business"} company` : ""}
+${pid === "testimonials" ? `- At least 4 customer testimonials with star ratings` : ""}
+${pid === "faq" ? `- At least 6 FAQ questions relevant to ${userInput.industry || "business"}` : ""}
+
+Return ONLY the HTML for this single section (starting with <div data-page="${pid}"...). No full document, no explanation.`;
+
+              const injectResp = await anthropic.messages.create({
+                model: "claude-opus-4-8",
+                max_tokens: 8192,
+                messages: [{ role: "user", content: injectPrompt }],
+              });
+
+              const injectText = injectResp.content.find((b: any) => b.type === "text");
+              let sectionHtml = injectText ? (injectText as any).text.trim() : "";
+
+              // Strip any accidental fences
+              sectionHtml = sectionHtml.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+
+              if (sectionHtml && sectionHtml.includes(`id="${pid}"`) && sectionHtml.length > 200) {
+                // For multi-page: add style="display:none" if not already present
+                if (isMultiPage && !sectionHtml.includes('style="display')) {
+                  sectionHtml = sectionHtml.replace(/^(<div)/, '$1 style="display:none"');
+                }
+                // Splice before </body>
+                html = html.includes("</body>")
+                  ? html.replace("</body>", `\n${sectionHtml}\n</body>`)
+                  : html + sectionHtml;
+                console.log(`[QA] Pass 1: injected section "${pid}" (${sectionHtml.length} chars)`);
+              } else {
+                console.warn(`[QA] Pass 1: injection for "${pid}" failed or too short — skipping`);
+              }
+            } catch (injectErr: any) {
+              console.warn(`[QA] Pass 1: injection error for "${pid}": ${injectErr?.message}`);
+            }
+          }
+        } else {
+          console.log("[QA] Pass 1: all sections present — no injection needed");
+        }
+
+        // ── PASS 2: Audit & fix existing content ──────────────────────────────
+        const auditPrompt = `You are doing a final quality audit on a website for "${userInput.businessName}" before it goes live.
+
+Return a JSON object with two fields:
+1. "issues": array of issues found (max 10)
 2. "fixedHtml": the COMPLETE HTML with ALL issues fixed
 
-WHAT TO CHECK AND FIX:
-- Any "Lorem ipsum" or obvious placeholder text → replace with realistic ${userInput.industry || "business"} copy
-- Missing or wrong contact details → phone should be "${userInput.phone || "N/A"}", email "${userInput.email || "N/A"}"${userInput.address ? `, address "${userInput.address}"` : ""}
-- Broken navigation links (href="#" that should point to a real section id)
-- Sections with less than 3 sentences of real content — expand them
-- Duplicate sections or repeated content blocks — remove duplicates
-- Missing alt text on <img> tags — add descriptive alt text
-- Any visible TODO, PLACEHOLDER, or FIXME text
-- Nav items that don't match actual section ids (data-page mismatch)
-- Copyright year — ensure it says ${new Date().getFullYear()}
-- Footer missing phone/email for this business
+CHECK AND FIX:
+- Any "Lorem ipsum" or placeholder text → replace with realistic ${userInput.industry || "business"} copy
+- Wrong contact details → phone: "${userInput.phone || "N/A"}", email: "${userInput.email || "N/A"}"${userInput.address ? `, address: "${userInput.address}"` : ""}
+- Broken nav links (href="#" with no target) → fix to point to actual section id
+- Empty or near-empty sections (under 2 sentences) → add real content
+- Duplicate content blocks → remove the duplicate
+- Missing alt text on images → add descriptive alt
+- Copyright year → must say ${new Date().getFullYear()}
+- Any TODO / PLACEHOLDER / FIXME text visible on page
 
-RULES:
+RULES — strictly enforced:
 - Do NOT change colours, fonts, layout, or visual design
-- Do NOT remove any existing sections or content
-- Do NOT add new major sections
-- Keep ALL existing real content intact
-- Small copy improvements are fine
+- Do NOT remove any sections or real content
+- Do NOT add new sections
+- Keep all existing content intact
 
-Return ONLY valid JSON. No markdown fences. Format:
-{"issues":["issue 1","issue 2"],"fixedHtml":"<!DOCTYPE html>..."}
+Return ONLY valid JSON. No markdown. Format: {"issues":[],"fixedHtml":"<!DOCTYPE html>..."}
 
-HTML TO AUDIT (first 80KB):
+HTML (first 80KB):
 ${html.slice(0, 80000)}`;
 
         try {
-          const response = await anthropic.messages.create({
+          const auditResp = await anthropic.messages.create({
             model: "claude-opus-4-8",
             max_tokens: 16384,
             thinking: { type: "adaptive" },
             messages: [{ role: "user", content: auditPrompt }],
           });
 
-          // Extract text from response (may have thinking blocks)
-          const textBlock = response.content.find((b: any) => b.type === "text");
+          const textBlock = auditResp.content.find((b: any) => b.type === "text");
           const rawText = textBlock ? (textBlock as any).text : "";
 
           if (!rawText) {
-            console.warn("[QA] Claude returned no text — keeping pre-QA HTML");
+            console.warn("[QA] Pass 2: Claude returned no text — using pass-1 output");
             return html;
           }
 
-          // Parse the JSON response
           let parsed: { issues?: string[]; fixedHtml?: string } = {};
           try {
-            // Strip any accidental markdown fences
             const cleaned = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
             parsed = JSON.parse(cleaned);
-          } catch (parseErr) {
-            // If Claude returned raw HTML instead of JSON, check if it looks valid
+          } catch {
+            // If Claude returned raw HTML instead of JSON
             if (rawText.includes("<!DOCTYPE") || rawText.includes("<html")) {
-              console.log("[QA] Claude returned raw HTML (not JSON) — using it directly");
-              const cleanHtml = rawText
-                .replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+              const cleanHtml = rawText.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
               if (cleanHtml.length > html.length * 0.7 && cleanHtml.includes("<body")) {
+                console.log("[QA] Pass 2: Claude returned raw HTML — accepted");
                 return cleanHtml;
               }
             }
-            console.warn(`[QA] JSON parse failed: ${(parseErr as Error).message} — keeping pre-QA HTML`);
+            console.warn("[QA] Pass 2: JSON parse failed — using pass-1 output");
             return html;
           }
 
@@ -1069,39 +1290,32 @@ ${html.slice(0, 80000)}`;
           const fixedHtml = parsed.fixedHtml || "";
 
           if (issues.length > 0) {
-            console.log(`[QA] Claude found ${issues.length} issue(s): ${issues.slice(0, 5).join(" | ")}`);
+            console.log(`[QA] Pass 2: ${issues.length} issue(s) fixed: ${issues.slice(0, 5).join(" | ")}`);
           } else {
-            console.log("[QA] Claude found no issues");
+            console.log("[QA] Pass 2: no issues found");
           }
 
-          // Only accept fixedHtml if it's a substantial, complete HTML document
           if (fixedHtml && fixedHtml.length > html.length * 0.6 && fixedHtml.includes("<body") && fixedHtml.includes("</html>")) {
-            // If the HTML was truncated (input was >80KB), splice in the fixed portion for the first 80KB
-            // and keep the tail from the original
+            // Large HTML was truncated — merge fixed head with original tail
             if (html.length > 80000 && fixedHtml.length < html.length * 0.85) {
-              console.log(`[QA] HTML was truncated for audit — merging QA fixes with original tail`);
-              // Use fixed head + original tail (from </body> onward)
-              const bodyCloseInFixed = fixedHtml.lastIndexOf("</body>");
-              const bodyCloseInOrig = html.lastIndexOf("</body>");
-              if (bodyCloseInFixed > 0 && bodyCloseInOrig > 0) {
-                const mergedHtml = fixedHtml.slice(0, bodyCloseInFixed) + html.slice(bodyCloseInOrig);
-                console.log(`[QA] Merged HTML: ${mergedHtml.length} chars`);
-                return mergedHtml;
+              const closeInFixed = fixedHtml.lastIndexOf("</body>");
+              const closeInOrig = html.lastIndexOf("</body>");
+              if (closeInFixed > 0 && closeInOrig > 0) {
+                const merged = fixedHtml.slice(0, closeInFixed) + html.slice(closeInOrig);
+                console.log(`[QA] Pass 2: merged (truncated) — ${merged.length} chars`);
+                return merged;
               }
             }
-            console.log(`[QA] Accepted Claude QA fix: ${html.length} → ${fixedHtml.length} chars`);
+            console.log(`[QA] Pass 2 done: ${html.length} → ${fixedHtml.length} chars`);
             return fixedHtml;
           }
 
-          if (issues.length > 0) {
-            console.warn("[QA] fixedHtml was invalid/too short — keeping pre-QA HTML despite issues");
-          }
           return html;
 
-        } catch (qaErr: any) {
-          // QA is non-fatal — if it fails, pipeline continues with pre-QA HTML
-          console.error(`[QA] Claude QA step failed (non-fatal): ${qaErr?.message || String(qaErr)}`);
-          appendPipelineLog(jobId, { level: "warn", step: "qa", msg: `QA failed: ${qaErr?.message}`, businessName: userInput.businessName }).catch(() => {});
+        } catch (auditErr: any) {
+          // Audit is non-fatal — pass-1 injected HTML is still used
+          console.error(`[QA] Pass 2 failed (non-fatal): ${auditErr?.message}`);
+          appendPipelineLog(jobId, { level: "warn", step: "qa", msg: `QA audit failed: ${auditErr?.message}`, businessName: userInput.businessName }).catch(() => {});
           return html;
         }
       }) as string;
