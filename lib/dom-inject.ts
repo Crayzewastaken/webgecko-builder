@@ -84,33 +84,18 @@ export function domInject(params: DomInjectParams): string {
     });
   }
 
-  // ── 3. Inject logo into nav ───────────────────────────────────────────────────
-  if (logoUrl) {
+  // ── 3. Remove any Stitch-generated logo images from nav — show text name only ──
+  // Stitch often embeds a base64 or aida placeholder logo next to the business name.
+  // We remove it so the header shows only the clean text business name.
+  {
     const header = $("header, nav").first();
-    const navImg = header.find("img").first();
-
-    if (navImg.length) {
-      const currentSrc = navImg.attr("src") || "";
-      if (isStitchImage(currentSrc) || currentSrc === "" || currentSrc.startsWith("#") || currentSrc.includes("placeholder")) {
-        navImg.attr("src", logoUrl);
-        navImg.attr("alt", businessName);
-        navImg.attr("style", "height:48px;width:auto;object-fit:contain;max-width:180px;");
-      } else {
-        // Already has a real logo image — make it bigger
-        navImg.attr("style", "height:48px;width:auto;object-fit:contain;max-width:180px;");
+    header.find("img").each((_, el) => {
+      const src = $(el).attr("src") || "";
+      // Remove Stitch aida images and base64 placeholder logos
+      if (isStitchImage(src) || src.startsWith("data:image")) {
+        $(el).remove();
       }
-      // Leave adjacent text/company name visible — it is brand identity alongside the logo
-    } else {
-      // No img — find the brand text element and replace it with the logo image
-      const brandEl = header.find(`span, div`).filter((_, el) => {
-        const t = $(el).text().trim().toUpperCase();
-        return t === businessName.toUpperCase() || (t.length < 30 && businessName.toUpperCase().startsWith(t));
-      }).first();
-      if (brandEl.length) {
-        brandEl.replaceWith(`<img src="${logoUrl}" alt="${businessName}" style="height:48px;width:auto;object-fit:contain;max-width:180px;">`);
-      }
-      // No brand element found — skip injection. Prepending to header breaks layout.
-    }
+    });
   }
 
   // ── 4. Replace Stitch placeholder images with client photos ──────────────────
