@@ -363,6 +363,7 @@ const buildWebsite = inngest.createFunction(
           };
 
           await stitchSdk.close().catch(() => {});
+          await new Promise(r => setTimeout(r, 3000)); // let transport fully drain
           const project = stitchSdk.project(projectId);
           const ds = await project.createDesignSystem(designSystemInput);
           console.log(`[Inngest] STEP 2b DONE: design system created, id=${ds.id}`);
@@ -377,22 +378,38 @@ const buildWebsite = inngest.createFunction(
       const step3Result = await step.run("step3-stitch-generate", async () => {
         const stitchPrompt = spec.stitchPrompt;
 
-        async function fetchScreenHtml(screen: any): Promise<string> {
+        // Full teardown: close the MCP transport and wait for it to fully release
+        // before opening a new connection. Without the delay, the next connect()
+        // hits a "Connection closed" / AbortError because the socket is still draining.
+        async function stitchReset(label: string, delayMs = 4000): Promise<void> {
+          try { await stitchSdk.close(); } catch {}
+          console.log(`[Inngest] ${label}: connection reset, waiting ${delayMs}ms`);
+          await new Promise(r => setTimeout(r, delayMs));
+        }
+
+        async function fetchScreenHtml(screen: any, tag: string): Promise<string> {
           let url = await screen.getHtml();
           if (!url) {
-            const delays = [20000, 20000, 20000, 30000, 30000];
-            for (const d of delays) {
+            const polls = [20000, 20000, 25000, 30000, 30000];
+            for (const d of polls) {
               await new Promise(r => setTimeout(r, d));
               try { url = await screen.getHtml(); if (url) break; } catch {}
-              console.log(`[Inngest] STEP 3: getHtml() poll — url length=${url?.length ?? 0}`);
+              console.log(`[Inngest] ${tag}: getHtml() poll — url length=${url?.length ?? 0}`);
             }
           }
-          if (!url) throw new Error(`getHtml() empty after retries (screenId=${screen.screenId})`);
+          if (!url) throw new Error(`getHtml() empty after retries`);
           const res = await fetch(url);
           const text = await res.text();
-          console.log(`[Inngest] STEP 3: fetched HTML — status=${res.status} length=${text.length}`);
+          console.log(`[Inngest] ${tag}: fetched HTML — status=${res.status} length=${text.length}`);
           if (!text.includes("<")) throw new Error(`Not HTML (${text.length} chars)`);
           return text;
+        }
+
+        // Random jitter (0–8s) so concurrent rebuilds don't all hit Stitch simultaneously
+        const jitter = Math.floor(Math.random() * 8000);
+        if (jitter > 0) {
+          console.log(`[Inngest] STEP 3: concurrent-build jitter ${jitter}ms`);
+          await new Promise(r => setTimeout(r, jitter));
         }
 
         let html = "";
@@ -402,7 +419,7 @@ const buildWebsite = inngest.createFunction(
         if (savedHtmlForRebuild && savedHtmlForRebuild.length > 5000) {
           try {
             console.log(`[Inngest] STEP 3: Rebuild — uploading existing HTML (${savedHtmlForRebuild.length} chars) to Stitch`);
-            await stitchSdk.close().catch(() => {});
+            await stitchReset("STEP 3 rebuild-upload");
             const os = await import("os");
             const path = await import("path");
             const fs = await import("fs/promises");
@@ -413,7 +430,7 @@ const buildWebsite = inngest.createFunction(
             await fs.unlink(tmpPath).catch(() => {});
             if (screens.length > 0) {
               screen = screens[0];
-              html = await fetchScreenHtml(screen);
+              html = await fetchScreenHtml(screen, "STEP 3 rebuild");
               console.log(`[Inngest] STEP 3: Rebuild upload done — screenId=${screen.screenId}, HTML ${html.length} chars`);
             }
           } catch (uploadErr: any) {
@@ -425,21 +442,24 @@ const buildWebsite = inngest.createFunction(
         // ── New build path (or rebuild fallback): generate from prompt ─────────
         if (!html || html.length < 5000) {
           console.log(`[Inngest] STEP 3: Generating from prompt (${stitchPrompt.length} chars)`);
-          for (let attempt = 1; attempt <= 3; attempt++) {
+          for (let attempt = 1; attempt <= 4; attempt++) {
             try {
-              await stitchSdk.close().catch(() => {});
+              // Longer reset delay on retry attempts so the transport fully drains
+              const resetDelay = attempt === 1 ? 4000 : 8000 + attempt * 5000;
+              await stitchReset(`STEP 3 attempt ${attempt}`, resetDelay);
               const project = stitchSdk.project(projectId);
               screen = await project.generate(stitchPrompt, "DESKTOP", "GEMINI_3_1_PRO");
               console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
-              html = await fetchScreenHtml(screen);
+              html = await fetchScreenHtml(screen, "STEP 3");
               if (html.length > 5000) break;
               throw new Error(`HTML too short (${html.length} chars — need 5KB+)`);
             } catch (e: any) {
               const msg = e?.message || String(e);
               console.warn(`[Inngest] STEP 3: attempt ${attempt} failed: ${msg}`);
-              appendPipelineLog(jobId, { level: attempt === 3 ? "error" : "warn", step: "stitch", msg: `Attempt ${attempt} failed: ${msg}`, businessName: userInput.businessName }).catch(()=>{});
-              if (attempt === 3) throw e;
-              await new Promise(r => setTimeout(r, 10000 * attempt));
+              appendPipelineLog(jobId, { level: attempt === 4 ? "error" : "warn", step: "stitch", msg: `Attempt ${attempt} failed: ${msg}`, businessName: userInput.businessName }).catch(()=>{});
+              if (attempt === 4) throw e;
+              // Exponential backoff: 20s, 40s, 60s between attempts
+              await new Promise(r => setTimeout(r, 20000 * attempt));
             }
           }
         }
@@ -454,16 +474,22 @@ const buildWebsite = inngest.createFunction(
       const stitchHtml = await step.run("step3-edit", async () => {
         let { html, screenId } = step3Result;
 
+        async function stitchReset(label: string, delayMs = 4000): Promise<void> {
+          try { await stitchSdk.close(); } catch {}
+          console.log(`[Inngest] ${label}: connection reset, waiting ${delayMs}ms`);
+          await new Promise(r => setTimeout(r, delayMs));
+        }
+
         async function fetchScreenHtml(screen: any): Promise<string> {
           let url = await screen.getHtml();
           if (!url) {
-            const delays = [20000, 20000, 20000, 30000, 30000];
-            for (const d of delays) {
+            const polls = [20000, 20000, 25000, 30000, 30000];
+            for (const d of polls) {
               await new Promise(r => setTimeout(r, d));
               try { url = await screen.getHtml(); if (url) break; } catch {}
             }
           }
-          if (!url) throw new Error(`getHtml() empty after retries (screenId=${screen.screenId})`);
+          if (!url) throw new Error(`getHtml() empty after retries`);
           const res = await fetch(url);
           const text = await res.text();
           console.log(`[Inngest] STEP 3-edit: fetched HTML — status=${res.status} length=${text.length}`);
@@ -472,6 +498,8 @@ const buildWebsite = inngest.createFunction(
         }
 
         if (screenId) {
+          // Fresh connection for the edit step — previous step's connection may still be closing
+          await stitchReset("STEP 3-edit start", 5000);
           const screen = stitchSdk.project(projectId).screen(screenId);
           const editIssues: string[] = [];
           const requestedPIds = (Array.isArray(userInput.pages) ? userInput.pages : ["Home"])
@@ -496,14 +524,14 @@ const buildWebsite = inngest.createFunction(
               editIssues.map((iss, i) => `${i + 1}. ${iss}`).join("\n") +
               "\n\nEnsure every page section has data-page=\"pageid\" AND id=\"pageid\" on the same element.";
             console.log(`[Inngest] STEP 3-edit: Edit pass for ${editIssues.length} issue(s)`);
-            await stitchSdk.close().catch(() => {});
+            await stitchReset("STEP 3-edit before edit()", 4000);
             const edited = await screen.edit(editPrompt, "DESKTOP", "GEMINI_3_1_PRO");
             const editedHtml = await fetchScreenHtml(edited);
             if (editedHtml.length > html.length * 0.7) {
               html = editedHtml;
               console.log(`[Inngest] STEP 3-edit: Edit done — HTML now ${html.length} chars`);
             } else {
-              throw new Error(`Edit shrank HTML too much (${editedHtml.length} vs original ${html.length}) — retrying`);
+              console.warn(`[Inngest] STEP 3-edit: Edit shrank HTML (${editedHtml.length} vs ${html.length}) — keeping original`);
             }
           } else {
             console.log("[Inngest] STEP 3-edit: No edit needed — output passes quality checks");
