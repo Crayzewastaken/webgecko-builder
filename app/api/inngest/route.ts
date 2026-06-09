@@ -4,8 +4,8 @@ export const maxDuration = 300;
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest";
 import { uptimeMonitor } from "@/lib/inngest-uptime";
-import { stitchSdk } from "@/lib/stitch";
 import Anthropic from "@anthropic-ai/sdk";
+import { generateWithGemini, refineWithGemini } from "@/lib/gemini-generate";
 import { Resend } from "resend";
 import {
   extractJson,
@@ -300,236 +300,63 @@ const buildWebsite = inngest.createFunction(
       console.log(`[Inngest] STEP 1 DONE (Blueprint): ${spec.projectTitle} — palette: ${spec.palette?.primary}`);
 
 
-      // ── STEP 2: Create Stitch project ─────────────────────────────────────────
-      const projectId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step2-stitch-create", async () => {
-        console.log(`[Inngest] STEP 2 START: creating Stitch project "${spec.projectTitle}"`);
-        const project = await stitchSdk.createProject(spec.projectTitle);
-        const pid = project.projectId;
-        if (!pid) throw new Error("Stitch SDK: no projectId returned from createProject");
-        console.log(`[Inngest] STEP 2 DONE: projectId=${pid}`);
-        return pid;
-      }) as string;
+      // ── STEP 3: Gemini 2.5 Pro — generate full website HTML ─────────────────
+      // Replaces Stitch SDK (steps 2, 2b, 3, 3-edit). Direct REST API, ~15-45s,
+      // no transport errors, explicit control over all sections and content.
+      const stitchHtml = await step.run("step3-gemini-generate", async () => {
+        console.log(`[Inngest] STEP 3 START: Gemini generate for "${spec.projectTitle}"`);
 
-      // ── STEP 2b: Create design system from blueprint palette/typography ────────
-      // This must run before generate() so Stitch uses the correct theme.
-      const designSystemId = savedHtmlForRebuild ? "" : await step.run("step2b-design-system", async () => {
-        try {
-          const fs = require("fs");
-          const path = require("path");
-          let designMdContent = "";
-          try {
-            designMdContent = fs.readFileSync(path.join(process.cwd(), "DESIGN.md"), "utf-8");
-          } catch { /* DESIGN.md not found */ }
+        const requestedPIds = (Array.isArray(userInput.pages) ? userInput.pages : ["Home"])
+          .map((p: string) => p.toLowerCase().replace(/\s+/g, "-"));
 
-          const palette = spec.palette || {};
-          const typography = spec.typography || {};
+        // For rebuilds with existing HTML, pass revision notes
+        const html = await generateWithGemini({
+          spec: {
+            projectTitle: spec.projectTitle,
+            stitchPrompt: spec.stitchPrompt,
+            palette: spec.palette,
+            typography: spec.typography,
+            sections: requestedPIds,
+            tone: spec.tone || "professional",
+            heroHeadline: spec.heroHeadline || spec.projectTitle,
+            heroSubheadline: spec.heroSubheadline || "",
+            ctaText: spec.ctaText || "Get Started",
+            uniqueDesignIdea: spec.uniqueDesignIdea || "",
+          },
+          userInput: {
+            businessName: userInput.businessName,
+            industry: userInput.industry || userInput.businessType || "",
+            phone: userInput.phone,
+            email: userInput.email,
+            address: userInput.address,
+            pages: userInput.pages,
+            shopProducts: userInput.shopProducts,
+            bookingServices: userInput.bookingServices,
+            testimonials: userInput.testimonials,
+          },
+          isMultiPage,
+          revisionNotes: userInput.revisionNotes,
+          existingHtml: savedHtmlForRebuild || undefined,
+        });
 
-          const fontMap: Record<string, string> = {
-            "Inter": "INTER", "Space Grotesk": "SPACE_GROTESK", "SpaceGrotesk": "SPACE_GROTESK",
-            "Manrope": "MANROPE", "Plus Jakarta Sans": "PLUS_JAKARTA_SANS", "PlusJakartaSans": "PLUS_JAKARTA_SANS",
-            "Work Sans": "WORK_SANS", "WorkSans": "WORK_SANS", "DM Sans": "DM_SANS", "DMSans": "DM_SANS",
-            "Geist": "GEIST", "Nunito Sans": "NUNITO_SANS", "NunitoSans": "NUNITO_SANS",
-            "Rubik": "RUBIK", "Sora": "SORA", "Epilogue": "EPILOGUE", "Lexend": "LEXEND",
-            "Montserrat": "MONTSERRAT", "Arimo": "ARIMO",
-            "Hanken Grotesk": "HANKEN_GROTESK", "IBM Plex Sans": "IBM_PLEX_SANS",
-          };
-          const resolveFont = (name: string): string => {
-            if (!name) return "INTER";
-            if (fontMap[name]) return fontMap[name];
-            const lower = name.toLowerCase();
-            for (const [k, v] of Object.entries(fontMap)) {
-              if (lower.includes(k.toLowerCase())) return v;
-            }
-            return "INTER";
-          };
+        if (html.length < 5000) throw new Error(`Gemini HTML too short (${html.length} chars)`);
+        if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Gemini returned skeleton HTML");
 
-          const tokenLines = [
-            `--clr-bg: ${palette.background || "#0a0f1a"};`,
-            `--clr-surface: ${palette.surface || "#0f1623"};`,
-            `--clr-accent: ${palette.accent || "#10b981"};`,
-            `--clr-text: ${palette.text || "#e2e8f0"};`,
-            `--clr-text-muted: ${palette.text ? palette.text + "99" : "#94a3b8"};`,
-            "--clr-border: rgba(255,255,255,0.1);",
-            `--clr-primary: ${palette.primary || "#1a1a2e"};`,
-          ];
-          const tokens = `:root {\n${tokenLines.join("\n")}\n}`;
-
-          const isDark = (() => {
-            const bg = palette.background || "#0a0f1a";
-            const hex = bg.replace("#", "");
-            if (hex.length < 6) return true;
-            const r = parseInt(hex.slice(0,2),16);
-            const g = parseInt(hex.slice(2,4),16);
-            const b = parseInt(hex.slice(4,6),16);
-            return (r * 0.299 + g * 0.587 + b * 0.114) < 128;
-          })();
-
-          const headlineFont = resolveFont(typography.headingFont || "Space Grotesk");
-          const bodyFont = resolveFont(typography.bodyFont || "Inter");
-
-          // Only pass theme — do NOT pass designTokens alongside theme (triggers "invalid argument").
-          // customColor must be exactly #RRGGBB (6-digit hex with hash).
-          const rawAccent = palette.accent || palette.primary || "#10b981";
-          const accentHex = /^#[0-9a-fA-F]{6}$/.test(rawAccent) ? rawAccent : "#10b981";
-          const designSystemInput = {
-            displayName: `${spec.projectTitle} Design System`,
-            theme: {
-              colorMode: (isDark ? "DARK" : "LIGHT") as "DARK" | "LIGHT",
-              customColor: accentHex,
-              headlineFont: headlineFont as any,
-              bodyFont: bodyFont as any,
-              roundness: "ROUND_EIGHT" as const,
-            },
-          };
-
-          await stitchSdk.close().catch(() => {});
-          const project = stitchSdk.project(projectId);
-          const ds = await project.createDesignSystem(designSystemInput);
-          console.log(`[Inngest] STEP 2b DONE: design system created, id=${ds.id}`);
-          return ds.id;
-        } catch (e: any) {
-          console.warn(`[Inngest] STEP 2b: createDesignSystem failed (non-fatal): ${e?.message || String(e)}`);
-          return "";
-        }
-      }) as string;
-      // ── STEP 3: Stitch generate only (own 300s budget) ───────────────────────
-      const step3Result = await step.run("step3-stitch-generate", async () => {
-        const stitchPrompt = spec.stitchPrompt;
-
-        async function fetchScreenHtml(screen: any): Promise<string> {
-          let url = await screen.getHtml();
-          if (!url) {
-            const delays = [20000, 20000, 20000, 30000, 30000];
-            for (const d of delays) {
-              await new Promise(r => setTimeout(r, d));
-              try { url = await screen.getHtml(); if (url) break; } catch {}
-              console.log(`[Inngest] STEP 3: getHtml() poll — url length=${url?.length ?? 0}`);
-            }
-          }
-          if (!url) throw new Error(`getHtml() empty after retries (screenId=${screen.screenId})`);
-          const res = await fetch(url);
-          const text = await res.text();
-          console.log(`[Inngest] STEP 3: fetched HTML — status=${res.status} length=${text.length}`);
-          if (!text.includes("<")) throw new Error(`Not HTML (${text.length} chars)`);
-          return text;
-        }
-
-        let html = "";
-        let screen: any = null;
-
-        // ── Rebuild path: upload existing HTML → Stitch ────────────────────────
-        if (savedHtmlForRebuild && savedHtmlForRebuild.length > 5000) {
-          try {
-            console.log(`[Inngest] STEP 3: Rebuild — uploading existing HTML (${savedHtmlForRebuild.length} chars) to Stitch`);
-            await stitchSdk.close().catch(() => {});
-            const os = await import("os");
-            const path = await import("path");
-            const fs = await import("fs/promises");
-            const tmpPath = path.join(os.tmpdir(), `wg-rebuild-${jobId}.html`);
-            await fs.writeFile(tmpPath, savedHtmlForRebuild, "utf-8");
-            const project = stitchSdk.project(projectId);
-            const screens = await project.upload(tmpPath);
-            await fs.unlink(tmpPath).catch(() => {});
-            if (screens.length > 0) {
-              screen = screens[0];
-              html = await fetchScreenHtml(screen);
-              console.log(`[Inngest] STEP 3: Rebuild upload done — screenId=${screen.screenId}, HTML ${html.length} chars`);
-            }
-          } catch (uploadErr: any) {
-            console.warn(`[Inngest] STEP 3: Rebuild upload failed, falling back to generate: ${uploadErr?.message}`);
-            screen = null; html = "";
-          }
-        }
-
-        // ── New build path (or rebuild fallback): generate from prompt ─────────
-        if (!html || html.length < 5000) {
-          console.log(`[Inngest] STEP 3: Generating from prompt (${stitchPrompt.length} chars)`);
-          for (let attempt = 1; attempt <= 3; attempt++) {
-            try {
-              await stitchSdk.close().catch(() => {});
-              const project = stitchSdk.project(projectId);
-              screen = await project.generate(stitchPrompt, "DESKTOP", "GEMINI_3_1_PRO");
-              console.log(`[Inngest] STEP 3: generate() done — screenId=${screen.screenId} (attempt ${attempt})`);
-              html = await fetchScreenHtml(screen);
-              if (html.length > 5000) break;
-              throw new Error(`HTML too short (${html.length} chars — need 5KB+)`);
-            } catch (e: any) {
-              const msg = e?.message || String(e);
-              console.warn(`[Inngest] STEP 3: attempt ${attempt} failed: ${msg}`);
-              appendPipelineLog(jobId, { level: attempt === 3 ? "error" : "warn", step: "stitch", msg: `Attempt ${attempt} failed: ${msg}`, businessName: userInput.businessName }).catch(()=>{});
-              if (attempt === 3) throw e;
-              await new Promise(r => setTimeout(r, 10000 * attempt));
-            }
-          }
-        }
-
-        if (html.length < 5000) throw new Error(`Stitch HTML too short after generate (${html.length} chars)`);
-        if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton");
-        console.log(`[Inngest] STEP 3 generate DONE: HTML ${html.length} chars, screenId=${screen?.screenId || "none"}`);
-        return { html, screenId: screen?.screenId || "" };
-      }) as { html: string; screenId: string };
-
-      // ── STEP 3-edit: Edit loop in its own 300s budget ─────────────────────────
-      const stitchHtml = await step.run("step3-edit", async () => {
-        let { html, screenId } = step3Result;
-
-        async function fetchScreenHtml(screen: any): Promise<string> {
-          let url = await screen.getHtml();
-          if (!url) {
-            const delays = [20000, 20000, 20000, 30000, 30000];
-            for (const d of delays) {
-              await new Promise(r => setTimeout(r, d));
-              try { url = await screen.getHtml(); if (url) break; } catch {}
-            }
-          }
-          if (!url) throw new Error(`getHtml() empty after retries (screenId=${screen.screenId})`);
-          const res = await fetch(url);
-          const text = await res.text();
-          console.log(`[Inngest] STEP 3-edit: fetched HTML — status=${res.status} length=${text.length}`);
-          if (!text.includes("<")) throw new Error(`Not HTML (${text.length} chars)`);
-          return text;
-        }
-
-        if (screenId) {
-          const screen = stitchSdk.project(projectId).screen(screenId);
-          const editIssues: string[] = [];
-          const requestedPIds = (Array.isArray(userInput.pages) ? userInput.pages : ["Home"])
-            .map((p: string) => p.toLowerCase().replace(/\s+/g, "-"));
-
+        // Quality check: ensure all requested pages are present; if not, do a targeted refine
+        const missingPages = requestedPIds.filter(pid =>
+          !html.includes(`data-page="${pid}"`) && !html.includes(`id="${pid}"`)
+        );
+        if (missingPages.length > 0) {
+          console.warn(`[Inngest] STEP 3: Missing pages [${missingPages.join(",")}] — running Gemini refine`);
+          const issues = missingPages.map(pid => `Add missing page section with data-page="${pid}" id="${pid}" containing real content`);
           if (savedHtmlForRebuild && userInput.revisionNotes) {
-            editIssues.push(`Apply these revision requests: ${userInput.revisionNotes}`);
+            issues.unshift(`Apply revision requests: ${userInput.revisionNotes}`);
           }
-
-          for (const pid of requestedPIds) {
-            const hasPage = html.includes(`data-page="${pid}"`) || html.includes(`id="${pid}"`);
-            if (!hasPage) { editIssues.push(`Add missing page section "${pid}" with full real content`); continue; }
-            const pidIdx = Math.max(html.indexOf(`data-page="${pid}"`), html.indexOf(`id="${pid}"`));
-            const chunk = html.slice(pidIdx, pidIdx + 6000).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-            if (chunk.length < 150) editIssues.push(`Page "${pid}" is too thin — add real headings, copy and images`);
-          }
-          if (userInput.shopProducts && (html.includes("CyberBoard") || html.includes("AI Vision Camera")))
-            editIssues.push(`Replace placeholder shop products with ONLY: ${userInput.shopProducts.slice(0, 200)}`);
-
-          if (editIssues.length > 0) {
-            const editPrompt = "Fix these issues — keep all design/colours unchanged:\n" +
-              editIssues.map((iss, i) => `${i + 1}. ${iss}`).join("\n") +
-              "\n\nEnsure every page section has data-page=\"pageid\" AND id=\"pageid\" on the same element.";
-            console.log(`[Inngest] STEP 3-edit: Edit pass for ${editIssues.length} issue(s)`);
-            await stitchSdk.close().catch(() => {});
-            const edited = await screen.edit(editPrompt, "DESKTOP", "GEMINI_3_1_PRO");
-            const editedHtml = await fetchScreenHtml(edited);
-            if (editedHtml.length > html.length * 0.7) {
-              html = editedHtml;
-              console.log(`[Inngest] STEP 3-edit: Edit done — HTML now ${html.length} chars`);
-            } else {
-              throw new Error(`Edit shrank HTML too much (${editedHtml.length} vs original ${html.length}) — retrying`);
-            }
-          } else {
-            console.log("[Inngest] STEP 3-edit: No edit needed — output passes quality checks");
-          }
+          const refined = await refineWithGemini(html, issues, userInput.businessName);
+          console.log(`[Inngest] STEP 3 DONE (with refine): HTML ${refined.length} chars`);
+          return refined;
         }
 
-        if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Stitch returned skeleton after edit");
         console.log(`[Inngest] STEP 3 DONE: HTML ${html.length} chars`);
         return html;
       }) as string;
@@ -1160,11 +987,130 @@ const buildWebsite = inngest.createFunction(
         return html;
       });
 
+      // ── STEP QA: Claude Opus — audit & fix HTML before validation ───────────
+      // Claude reads the near-final HTML and makes small targeted fixes:
+      // broken links, empty sections, placeholder text, missing contact details,
+      // duplicate content, and structural issues. Does NOT change design or colours.
+      const finalHtmlAfterQA = await step.run("stepQA-claude", async () => {
+        const html = finalHtmlWithShop as string;
+        console.log(`[Inngest] QA START: Claude auditing ${html.length} chars for ${userInput.businessName}`);
+
+        // Build a focused audit prompt — ask Claude to find specific issues
+        const auditPrompt = `You are auditing an HTML website for "${userInput.businessName}" before it goes live.
+
+AUDIT TASK:
+Carefully review the HTML below and return a JSON object with two fields:
+1. "issues": array of specific issues found (max 10, ordered by severity)
+2. "fixedHtml": the COMPLETE HTML with ALL issues fixed
+
+WHAT TO CHECK AND FIX:
+- Any "Lorem ipsum" or obvious placeholder text → replace with realistic ${userInput.industry || "business"} copy
+- Missing or wrong contact details → phone should be "${userInput.phone || "N/A"}", email "${userInput.email || "N/A"}"${userInput.address ? `, address "${userInput.address}"` : ""}
+- Broken navigation links (href="#" that should point to a real section id)
+- Sections with less than 3 sentences of real content — expand them
+- Duplicate sections or repeated content blocks — remove duplicates
+- Missing alt text on <img> tags — add descriptive alt text
+- Any visible TODO, PLACEHOLDER, or FIXME text
+- Nav items that don't match actual section ids (data-page mismatch)
+- Copyright year — ensure it says ${new Date().getFullYear()}
+- Footer missing phone/email for this business
+
+RULES:
+- Do NOT change colours, fonts, layout, or visual design
+- Do NOT remove any existing sections or content
+- Do NOT add new major sections
+- Keep ALL existing real content intact
+- Small copy improvements are fine
+
+Return ONLY valid JSON. No markdown fences. Format:
+{"issues":["issue 1","issue 2"],"fixedHtml":"<!DOCTYPE html>..."}
+
+HTML TO AUDIT (first 80KB):
+${html.slice(0, 80000)}`;
+
+        try {
+          const response = await anthropic.messages.create({
+            model: "claude-opus-4-8",
+            max_tokens: 16384,
+            thinking: { type: "adaptive" },
+            messages: [{ role: "user", content: auditPrompt }],
+          });
+
+          // Extract text from response (may have thinking blocks)
+          const textBlock = response.content.find((b: any) => b.type === "text");
+          const rawText = textBlock ? (textBlock as any).text : "";
+
+          if (!rawText) {
+            console.warn("[QA] Claude returned no text — keeping pre-QA HTML");
+            return html;
+          }
+
+          // Parse the JSON response
+          let parsed: { issues?: string[]; fixedHtml?: string } = {};
+          try {
+            // Strip any accidental markdown fences
+            const cleaned = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+            parsed = JSON.parse(cleaned);
+          } catch (parseErr) {
+            // If Claude returned raw HTML instead of JSON, check if it looks valid
+            if (rawText.includes("<!DOCTYPE") || rawText.includes("<html")) {
+              console.log("[QA] Claude returned raw HTML (not JSON) — using it directly");
+              const cleanHtml = rawText
+                .replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+              if (cleanHtml.length > html.length * 0.7 && cleanHtml.includes("<body")) {
+                return cleanHtml;
+              }
+            }
+            console.warn(`[QA] JSON parse failed: ${(parseErr as Error).message} — keeping pre-QA HTML`);
+            return html;
+          }
+
+          const issues = parsed.issues || [];
+          const fixedHtml = parsed.fixedHtml || "";
+
+          if (issues.length > 0) {
+            console.log(`[QA] Claude found ${issues.length} issue(s): ${issues.slice(0, 5).join(" | ")}`);
+          } else {
+            console.log("[QA] Claude found no issues");
+          }
+
+          // Only accept fixedHtml if it's a substantial, complete HTML document
+          if (fixedHtml && fixedHtml.length > html.length * 0.6 && fixedHtml.includes("<body") && fixedHtml.includes("</html>")) {
+            // If the HTML was truncated (input was >80KB), splice in the fixed portion for the first 80KB
+            // and keep the tail from the original
+            if (html.length > 80000 && fixedHtml.length < html.length * 0.85) {
+              console.log(`[QA] HTML was truncated for audit — merging QA fixes with original tail`);
+              // Use fixed head + original tail (from </body> onward)
+              const bodyCloseInFixed = fixedHtml.lastIndexOf("</body>");
+              const bodyCloseInOrig = html.lastIndexOf("</body>");
+              if (bodyCloseInFixed > 0 && bodyCloseInOrig > 0) {
+                const mergedHtml = fixedHtml.slice(0, bodyCloseInFixed) + html.slice(bodyCloseInOrig);
+                console.log(`[QA] Merged HTML: ${mergedHtml.length} chars`);
+                return mergedHtml;
+              }
+            }
+            console.log(`[QA] Accepted Claude QA fix: ${html.length} → ${fixedHtml.length} chars`);
+            return fixedHtml;
+          }
+
+          if (issues.length > 0) {
+            console.warn("[QA] fixedHtml was invalid/too short — keeping pre-QA HTML despite issues");
+          }
+          return html;
+
+        } catch (qaErr: any) {
+          // QA is non-fatal — if it fails, pipeline continues with pre-QA HTML
+          console.error(`[QA] Claude QA step failed (non-fatal): ${qaErr?.message || String(qaErr)}`);
+          appendPipelineLog(jobId, { level: "warn", step: "qa", msg: `QA failed: ${qaErr?.message}`, businessName: userInput.businessName }).catch(() => {});
+          return html;
+        }
+      }) as string;
+
       // ── STEP 7b: Pre-deploy validation ──────────────────────────────────────
       const deployReady = await step.run("step7b-validate", async () => {
         // Strip duplicate data-page attributes before validation
         const seenDpIds = new Set<string>();
-        const dedupedHtml = finalHtmlWithShop.replace(
+        const dedupedHtml = finalHtmlAfterQA.replace(
           /<(div|section|article|main)([^>]*\bdata-page=["']([^"']+)["'][^>]*)>/gi,
           (match: string, tag: string, attrs: string, pageId: string) => {
             if (!seenDpIds.has(pageId)) { seenDpIds.add(pageId); return match; }
@@ -1369,7 +1315,7 @@ const buildWebsite = inngest.createFunction(
       });
 
       // ── STEP 8c: Fail loop — re-audit and redeploy if smoke errors found ────────
-      // Max 2 extra attempts. Each attempt: re-run auditor on finalHtmlWithShop,
+      // Max 2 extra attempts. Each attempt: re-run auditor on deployHtml (post-QA),
       // patch what it finds, redeploy, re-smoke. Non-blocking if all retries fail.
       const MAX_FIX_ATTEMPTS = 2;
       let loopHtml = deployHtml;
