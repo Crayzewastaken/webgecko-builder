@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Uploaded content does not look like valid HTML" }, { status: 400 });
   }
 
-  const job = await getJob(jobId);
+  const job = await getJob(jobId) as any;
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
   if (job.buildStatus !== "awaiting_stitch") {
     return NextResponse.json({
