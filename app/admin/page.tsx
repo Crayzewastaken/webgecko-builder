@@ -802,6 +802,52 @@ function ClientHtmlUpload({ jobId, toast }: { jobId:string; toast:(msg:string,t:
   );
 }
 
+// ── Stitch HTML upload card (Actions tab) ─────────────────────────────────────
+function StitchHtmlUpload({ jobId, toast }: { jobId: string; toast: (msg: string, t: "ok"|"err"|"info") => void }) {
+  const [file, setFile] = useState<File|null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [drag, setDrag] = useState(false);
+  const ref = useRef<HTMLInputElement>(null);
+
+  async function upload() {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("jobId", jobId);
+      form.append("html", file);
+      form.append("force", "true");
+      const res = await fetch("/api/admin/resume-stitch", { method: "POST", body: form });
+      const d = await res.json();
+      if (res.ok) { toast(`Uploaded ${(d.htmlLength||0).toLocaleString()} chars — pipeline resumed!`, "ok"); setFile(null); }
+      else toast(d.error || "Upload failed", "err");
+    } catch { toast("Upload failed", "err"); }
+    finally { setUploading(false); }
+  }
+
+  return (
+    <div style={{background:"rgba(0,212,160,0.05)",border:"1px solid rgba(0,212,160,0.2)",borderRadius:12,padding:"16px 18px"}}>
+      <div style={{fontSize:13,fontWeight:700,color:"#00d4a0",marginBottom:10}}>📤 Upload Stitch HTML</div>
+      <div
+        onClick={()=>ref.current?.click()}
+        onDragOver={e=>{e.preventDefault();setDrag(true);}}
+        onDragLeave={()=>setDrag(false)}
+        onDrop={e=>{e.preventDefault();setDrag(false);const f=e.dataTransfer.files[0];if(f)setFile(f);}}
+        style={{border:`2px dashed ${drag?"#00d4a0":"rgba(255,255,255,0.1)"}`,borderRadius:8,padding:"18px",textAlign:"center" as const,cursor:"pointer",background:file?"rgba(0,212,160,0.05)":"transparent",marginBottom:10}}>
+        <input ref={ref} type="file" accept=".html,.htm" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f)setFile(f);}}/>
+        {file
+          ? <div style={{color:"#00d4a0",fontWeight:600,fontSize:13}}>✅ {file.name} — {(file.size/1024).toFixed(0)} KB</div>
+          : <div style={{color:"rgba(255,255,255,0.35)",fontSize:12}}>Drop .html file here or click to browse</div>
+        }
+      </div>
+      <button disabled={!file||uploading} onClick={upload}
+        style={{width:"100%",padding:"10px",borderRadius:8,fontSize:13,fontWeight:700,border:"none",cursor:file&&!uploading?"pointer":"not-allowed",background:file&&!uploading?"#00d4a0":"rgba(255,255,255,0.06)",color:file&&!uploading?"#0a0f1a":"rgba(255,255,255,0.25)"}}>
+        {uploading ? "Uploading…" : "▶ Upload & Resume Pipeline"}
+      </button>
+    </div>
+  );
+}
+
 // ── Stitch Prompt copy card ────────────────────────────────────────────────────
 function StitchPromptCard({ prompt, toast }: { prompt: string; toast: (msg: string, t: "ok"|"err"|"info") => void }) {
   const [copied, setCopied] = useState(false);
@@ -2056,6 +2102,8 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               {(c as any).metadata?.stitchPrompt && (
                 <StitchPromptCard prompt={(c as any).metadata.stitchPrompt} toast={toast} />
               )}
+              {/* Upload Stitch HTML — works any time, not just when paused */}
+              <StitchHtmlUpload jobId={jid} toast={toast} />
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                 {[
                   {title:"Release preview",color:T.green,desc:"Email the client their portal link to review the site.",label:"Release preview →",confirm:`Release preview to ${c.businessName}? This emails the client.`,fn:()=>api(`/api/unlock/release?jobId=${jid}&secret=${sec}`)},

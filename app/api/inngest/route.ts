@@ -306,39 +306,52 @@ const buildWebsite = inngest.createFunction(
       // Rebuilds that already have savedHtmlForRebuild skip this pause entirely.
       let manualHtml = "";
       if (!savedHtmlForRebuild) {
-        await step.run("pause-for-stitch-upload", async () => {
+        // Check if HTML was already pre-uploaded (force upload from Actions tab)
+        const preloadedHtml = await step.run("check-preloaded-html", async () => {
           const currentJob = await getJob(jobId);
-          if (currentJob) {
-            await saveJob(jobId, {
-              ...currentJob,
-              buildStatus: "awaiting_stitch",
-              metadata: {
-                ...(currentJob.metadata || {}),
-                stitchPrompt: spec.stitchPrompt,
-                awaitingStitchAt: new Date().toISOString(),
-              },
-            });
-          }
-          console.log(`[Inngest] Pausing for manual Stitch HTML upload — jobId=${jobId}`);
-        });
-
-        const uploadEvent = await step.waitForEvent("wait-for-stitch-upload", {
-          event: "webgecko/stitch.html.uploaded",
-          timeout: "7d",
-          if: `async.data.jobId == "${jobId}"`,
-        });
-
-        if (!uploadEvent) {
-          throw new Error(`Stitch HTML upload timed out (7 days) for jobId=${jobId}`);
-        }
-
-        manualHtml = await step.run("load-manual-stitch-html", async () => {
-          const currentJob = await getJob(jobId);
-          const html = currentJob?.metadata?.pendingStitchHtml || "";
-          if (!html || html.length < 500) throw new Error("pendingStitchHtml missing or too short after resume");
-          console.log(`[Inngest] Loaded manual Stitch HTML: ${html.length} chars`);
-          return html;
+          return currentJob?.metadata?.pendingStitchHtml || "";
         }) as string;
+
+        if (preloadedHtml && preloadedHtml.length > 500) {
+          // HTML already uploaded — skip the pause entirely
+          console.log(`[Inngest] Pre-uploaded Stitch HTML found (${preloadedHtml.length} chars) — skipping pause`);
+          manualHtml = preloadedHtml;
+        } else {
+          // Normal flow: pause and wait for admin to generate + upload HTML
+          await step.run("pause-for-stitch-upload", async () => {
+            const currentJob = await getJob(jobId);
+            if (currentJob) {
+              await saveJob(jobId, {
+                ...currentJob,
+                buildStatus: "awaiting_stitch",
+                metadata: {
+                  ...(currentJob.metadata || {}),
+                  stitchPrompt: spec.stitchPrompt,
+                  awaitingStitchAt: new Date().toISOString(),
+                },
+              });
+            }
+            console.log(`[Inngest] Pausing for manual Stitch HTML upload — jobId=${jobId}`);
+          });
+
+          const uploadEvent = await step.waitForEvent("wait-for-stitch-upload", {
+            event: "webgecko/stitch.html.uploaded",
+            timeout: "7d",
+            if: `async.data.jobId == "${jobId}"`,
+          });
+
+          if (!uploadEvent) {
+            throw new Error(`Stitch HTML upload timed out (7 days) for jobId=${jobId}`);
+          }
+
+          manualHtml = await step.run("load-manual-stitch-html", async () => {
+            const currentJob = await getJob(jobId);
+            const html = currentJob?.metadata?.pendingStitchHtml || "";
+            if (!html || html.length < 500) throw new Error("pendingStitchHtml missing or too short after resume");
+            console.log(`[Inngest] Loaded manual Stitch HTML: ${html.length} chars`);
+            return html;
+          }) as string;
+        }
       }
 
 

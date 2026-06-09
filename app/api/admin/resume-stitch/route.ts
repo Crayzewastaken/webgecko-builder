@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
 
   let jobId: string = "";
   let html: string = "";
+  let force = false;
 
   const contentType = req.headers.get("content-type") || "";
 
@@ -21,6 +22,7 @@ export async function POST(req: NextRequest) {
     // File upload path
     const formData = await req.formData();
     jobId = (formData.get("jobId") as string) || "";
+    force = formData.get("force") === "true";
     const file = formData.get("html") as File | null;
     if (!file) return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     html = await file.text();
@@ -29,6 +31,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     jobId = body.jobId || "";
     html = body.html || "";
+    force = body.force === true;
   }
 
   if (!jobId) return NextResponse.json({ error: "Missing jobId" }, { status: 400 });
@@ -41,13 +44,15 @@ export async function POST(req: NextRequest) {
 
   const job = await getJob(jobId) as any;
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
-  if (job.buildStatus !== "awaiting_stitch") {
+
+  // Without force=true, only allow upload when pipeline is paused waiting for it
+  if (!force && job.buildStatus !== "awaiting_stitch") {
     return NextResponse.json({
       error: `Job is not awaiting Stitch (current status: ${job.buildStatus}). It may have already been resumed or never paused.`
     }, { status: 409 });
   }
 
-  // Save the HTML into the job's metadata — the pipeline reads it on resume
+  // Save the HTML into the job's metadata
   await saveJob(jobId, {
     ...job,
     buildStatus: "building",
@@ -59,11 +64,20 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Fire the Inngest event — this unblocks the step.waitForEvent in the pipeline
-  await inngest.send({
-    name: "webgecko/stitch.html.uploaded",
-    data: { jobId },
-  });
+  if (force && job.buildStatus !== "awaiting_stitch") {
+    // Job wasn't paused — start a fresh pipeline run. The pipeline will detect
+    // pendingStitchHtml already exists and skip the pause automatically.
+    await inngest.send({
+      name: "build/website",
+      data: { jobId },
+    });
+  } else {
+    // Job is paused at step.waitForEvent — unblock it
+    await inngest.send({
+      name: "webgecko/stitch.html.uploaded",
+      data: { jobId },
+    });
+  }
 
   console.log(`[resume-stitch] Resumed jobId=${jobId} with ${html.length} chars of HTML`);
 
