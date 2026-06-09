@@ -343,7 +343,7 @@ const buildWebsite = inngest.createFunction(
         if (/<h1>\s*HOME PAGE\s*<\/h1>/i.test(html)) throw new Error("Gemini returned skeleton HTML");
 
         // Quality check: ensure all requested pages are present; if not, do a targeted refine
-        const missingPages = requestedPIds.filter(pid =>
+        const missingPages = requestedPIds.filter((pid: string) =>
           !html.includes(`data-page="${pid}"`) && !html.includes(`id="${pid}"`)
         );
         if (missingPages.length > 0) {
