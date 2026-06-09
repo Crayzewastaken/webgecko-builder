@@ -300,8 +300,50 @@ const buildWebsite = inngest.createFunction(
       console.log(`[Inngest] STEP 1 DONE (Blueprint): ${spec.projectTitle} — palette: ${spec.palette?.primary}`);
 
 
+      // ── MANUAL STITCH PAUSE: Admin generates HTML in Stitch web UI ───────────
+      // For all new builds, pause here so the admin can paste the stitchPrompt into
+      // Stitch Studio, export the HTML, and upload it via /admin/pending.
+      // Rebuilds that already have savedHtmlForRebuild skip this pause entirely.
+      let manualHtml = "";
+      if (!savedHtmlForRebuild) {
+        await step.run("pause-for-stitch-upload", async () => {
+          const currentJob = await getJob(jobId);
+          if (currentJob) {
+            await saveJob(jobId, {
+              ...currentJob,
+              buildStatus: "awaiting_stitch",
+              metadata: {
+                ...(currentJob.metadata || {}),
+                stitchPrompt: spec.stitchPrompt,
+                awaitingStitchAt: new Date().toISOString(),
+              },
+            });
+          }
+          console.log(`[Inngest] Pausing for manual Stitch HTML upload — jobId=${jobId}`);
+        });
+
+        const uploadEvent = await step.waitForEvent("wait-for-stitch-upload", {
+          event: "webgecko/stitch.html.uploaded",
+          timeout: "7d",
+          if: `async.data.jobId == "${jobId}"`,
+        });
+
+        if (!uploadEvent) {
+          throw new Error(`Stitch HTML upload timed out (7 days) for jobId=${jobId}`);
+        }
+
+        manualHtml = await step.run("load-manual-stitch-html", async () => {
+          const currentJob = await getJob(jobId);
+          const html = currentJob?.metadata?.pendingStitchHtml || "";
+          if (!html || html.length < 500) throw new Error("pendingStitchHtml missing or too short after resume");
+          console.log(`[Inngest] Loaded manual Stitch HTML: ${html.length} chars`);
+          return html;
+        }) as string;
+      }
+
+
       // ── STEP 2: Create Stitch project ─────────────────────────────────────────
-      const projectId = savedHtmlForRebuild ? "rebuild-skipped" : await step.run("step2-stitch-create", async () => {
+      const projectId = (savedHtmlForRebuild || manualHtml) ? "manual-skipped" : await step.run("step2-stitch-create", async () => {
         console.log(`[Inngest] STEP 2 START: creating Stitch project "${spec.projectTitle}"`);
         const project = await stitchSdk.createProject(spec.projectTitle);
         const pid = project.projectId;
@@ -312,7 +354,7 @@ const buildWebsite = inngest.createFunction(
 
       // ── STEP 2b: Create design system from blueprint palette/typography ────────
       // This must run before generate() so Stitch uses the correct theme.
-      const designSystemId = savedHtmlForRebuild ? "" : await step.run("step2b-design-system", async () => {
+      const designSystemId = (savedHtmlForRebuild || manualHtml) ? "" : await step.run("step2b-design-system", async () => {
         try {
           const palette = spec.palette || {};
           const typography = spec.typography || {};
@@ -375,7 +417,9 @@ const buildWebsite = inngest.createFunction(
       }) as string;
 
       // ── STEP 3: Stitch generate only (own 300s budget) ───────────────────────
-      const step3Result = await step.run("step3-stitch-generate", async () => {
+      const step3Result: { html: string; screenId: string } = (manualHtml && manualHtml.length > 500)
+        ? { html: manualHtml, screenId: "" }
+        : await step.run("step3-stitch-generate", async () => {
         const stitchPrompt = spec.stitchPrompt;
 
         // Full teardown: close the MCP transport and wait for it to fully release
@@ -471,7 +515,9 @@ const buildWebsite = inngest.createFunction(
       }) as { html: string; screenId: string };
 
       // ── STEP 3-edit: Edit loop in its own 300s budget ─────────────────────────
-      const stitchHtml = await step.run("step3-edit", async () => {
+      const stitchHtml: string = (manualHtml && manualHtml.length > 500)
+        ? manualHtml
+        : await step.run("step3-edit", async () => {
         let { html, screenId } = step3Result;
 
         async function stitchReset(label: string, delayMs = 4000): Promise<void> {
@@ -1169,183 +1215,87 @@ const buildWebsite = inngest.createFunction(
         return html;
       });
 
-      // ── STEP QA: Claude Opus — inject missing sections + audit ──────────────
-      // Two-pass QA:
-      //   Pass 1 (inject): for each requested page missing from the HTML, Claude
-      //     generates that section's HTML block matching the existing design and
-      //     splices it in before </body>. Non-destructive — never removes content.
-      //   Pass 2 (audit): fixes placeholder text, wrong contact details, broken
-      //     nav links, duplicate blocks, missing alt text. Small targeted edits only.
+      // ── STEP QA: Inject-only — add missing sections, never touch existing HTML ──
+      // RULE: Claude is NEVER given the full document to rewrite.
+      //   It only generates individual missing section blocks which are spliced in.
+      //   All existing Stitch HTML, footer, header, buttons are 100% preserved.
       const finalHtmlAfterQA = await step.run("stepQA-claude", async () => {
         let html = finalHtmlWithShop as string;
-        console.log(`[Inngest] QA START: ${html.length} chars for ${userInput.businessName}`);
+        const startLen = html.length;
+        console.log(`[Inngest] QA START: ${startLen} chars for ${userInput.businessName}`);
 
-        // Snapshot of the CSS/colour tokens from the existing HTML for injection matching
-        const styleSnippet = (() => {
-          const styleMatch = html.match(/<style[^>]*>([\s\S]{0,3000}?)<\/style>/i);
-          const twConfigMatch = html.match(/tailwind\.config\s*=\s*\{[\s\S]{0,2000}?\}/);
-          return (styleMatch?.[1] || "") + (twConfigMatch?.[0] || "");
-        })();
+        // Extract just enough design context for Claude to match styles
+        const twConfigMatch = html.match(/tailwind\.config\s*=\s*\{[\s\S]{0,3000}?\}/);
+        const styleSnippet = twConfigMatch?.[0] || "";
 
-        // ── PASS 1: Inject missing sections ──────────────────────────────────
+        // Determine which pages were requested
         const allPageIds = (Array.isArray(userInput.pages) ? userInput.pages : ["Home"])
           .map((p: string) => p.toLowerCase().replace(/\s+/g, "-"));
         if (!allPageIds.includes("contact")) allPageIds.push("contact");
 
+        // Find which sections are genuinely missing (not present anywhere in the HTML)
         const missingPageIds = allPageIds.filter((pid: string) =>
           !html.includes(`data-page="${pid}"`) && !html.includes(`id="${pid}"`)
         );
 
-        if (missingPageIds.length > 0) {
-          console.log(`[QA] Pass 1: injecting ${missingPageIds.length} missing section(s): [${missingPageIds.join(",")}]`);
-          for (const pid of missingPageIds) {
-            try {
-              const label = pid.charAt(0).toUpperCase() + pid.slice(1).replace(/-/g, " ");
-              const injectPrompt = `You are adding a missing section to an existing website for "${userInput.businessName}" (${userInput.industry || "business"}).
-
-EXISTING DESIGN CONTEXT (CSS/Tailwind tokens used by the site):
-${styleSnippet.slice(0, 1500)}
-
-YOUR TASK:
-Generate ONLY the HTML for a "${label}" section that:
-- Has exactly: data-page="${pid}" id="${pid}" class="page-section" on the outer wrapper div
-- Matches the visual style of the existing site (same colours, fonts, spacing feel)
-- Contains real, detailed content for a ${userInput.industry || "business"} website
-- Includes realistic headings, paragraphs, and at least one call-to-action
-${pid === "contact" ? `- Contact form with name/email/message fields, phone: ${userInput.phone || ""}, email: ${userInput.email || ""}${userInput.address ? `, address: ${userInput.address}` : ""}` : ""}
-${pid === "about" ? `- Company story, values, and team for ${userInput.businessName}` : ""}
-${pid === "services" ? `- At least 6 service cards for a ${userInput.industry || "business"} company` : ""}
-${pid === "testimonials" ? `- At least 4 customer testimonials with star ratings` : ""}
-${pid === "faq" ? `- At least 6 FAQ questions relevant to ${userInput.industry || "business"}` : ""}
-
-Return ONLY the HTML for this single section (starting with <div data-page="${pid}"...). No full document, no explanation.`;
-
-              const injectResp = await anthropic.messages.create({
-                model: "claude-opus-4-8",
-                max_tokens: 8192,
-                messages: [{ role: "user", content: injectPrompt }],
-              });
-
-              const injectText = injectResp.content.find((b: any) => b.type === "text");
-              let sectionHtml = injectText ? (injectText as any).text.trim() : "";
-
-              // Strip any accidental fences
-              sectionHtml = sectionHtml.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
-
-              if (sectionHtml && sectionHtml.includes(`id="${pid}"`) && sectionHtml.length > 200) {
-                // For multi-page: add style="display:none" if not already present
-                if (isMultiPage && !sectionHtml.includes('style="display')) {
-                  sectionHtml = sectionHtml.replace(/^(<div)/, '$1 style="display:none"');
-                }
-                // Splice before </body>
-                html = html.includes("</body>")
-                  ? html.replace("</body>", `\n${sectionHtml}\n</body>`)
-                  : html + sectionHtml;
-                console.log(`[QA] Pass 1: injected section "${pid}" (${sectionHtml.length} chars)`);
-              } else {
-                console.warn(`[QA] Pass 1: injection for "${pid}" failed or too short — skipping`);
-              }
-            } catch (injectErr: any) {
-              console.warn(`[QA] Pass 1: injection error for "${pid}": ${injectErr?.message}`);
-            }
-          }
-        } else {
-          console.log("[QA] Pass 1: all sections present — no injection needed");
+        if (missingPageIds.length === 0) {
+          console.log("[QA] All sections present — no injection needed");
+          return html;
         }
 
-        // ── PASS 2: Audit & fix existing content ──────────────────────────────
-        const auditPrompt = `You are doing a final quality audit on a website for "${userInput.businessName}" before it goes live.
+        console.log(`[QA] Injecting ${missingPageIds.length} missing section(s): [${missingPageIds.join(",")}]`);
 
-Return a JSON object with two fields:
-1. "issues": array of issues found (max 10)
-2. "fixedHtml": the COMPLETE HTML with ALL issues fixed
-
-CHECK AND FIX:
-- Any "Lorem ipsum" or placeholder text → replace with realistic ${userInput.industry || "business"} copy
-- Wrong contact details → phone: "${userInput.phone || "N/A"}", email: "${userInput.email || "N/A"}"${userInput.address ? `, address: "${userInput.address}"` : ""}
-- Broken nav links (href="#" with no target) → fix to point to actual section id
-- Empty or near-empty sections (under 2 sentences) → add real content
-- Duplicate content blocks → remove the duplicate
-- Missing alt text on images → add descriptive alt
-- Copyright year → must say ${new Date().getFullYear()}
-- Any TODO / PLACEHOLDER / FIXME text visible on page
-
-RULES — strictly enforced:
-- Do NOT change colours, fonts, layout, or visual design
-- Do NOT remove any sections or real content
-- Do NOT add new sections
-- Keep all existing content intact
-
-Return ONLY valid JSON. No markdown. Format: {"issues":[],"fixedHtml":"<!DOCTYPE html>..."}
-
-HTML (first 80KB):
-${html.slice(0, 80000)}`;
-
-        try {
-          const auditResp = await anthropic.messages.create({
-            model: "claude-opus-4-8",
-            max_tokens: 16384,
-            thinking: { type: "adaptive" },
-            messages: [{ role: "user", content: auditPrompt }],
-          });
-
-          const textBlock = auditResp.content.find((b: any) => b.type === "text");
-          const rawText = textBlock ? (textBlock as any).text : "";
-
-          if (!rawText) {
-            console.warn("[QA] Pass 2: Claude returned no text — using pass-1 output");
-            return html;
-          }
-
-          let parsed: { issues?: string[]; fixedHtml?: string } = {};
+        for (const pid of missingPageIds) {
           try {
-            const cleaned = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-            parsed = JSON.parse(cleaned);
-          } catch {
-            // If Claude returned raw HTML instead of JSON
-            if (rawText.includes("<!DOCTYPE") || rawText.includes("<html")) {
-              const cleanHtml = rawText.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
-              if (cleanHtml.length > html.length * 0.7 && cleanHtml.includes("<body")) {
-                console.log("[QA] Pass 2: Claude returned raw HTML — accepted");
-                return cleanHtml;
-              }
+            const label = pid.charAt(0).toUpperCase() + pid.slice(1).replace(/-/g, " ");
+
+            // Ask Claude to generate ONLY this section — never the full document
+            const injectPrompt = `Generate ONLY the HTML block for a "${label}" section for "${userInput.businessName}" (${userInput.industry || "business"} company).
+
+DESIGN TOKENS (match these exactly):
+${styleSnippet.slice(0, 2000)}
+
+REQUIREMENTS:
+- Outer element must have: data-page="${pid}" id="${pid}"${isMultiPage ? ' class="page-section" style="display:none"' : ''}
+- Use the same Tailwind colour classes from the design tokens above
+- Real content — no Lorem ipsum
+- ${pid === "contact" ? `Include contact form + phone: ${userInput.phone || ""}, email: ${userInput.email || ""}${userInput.address ? `, address: ${userInput.address}` : ""}` : ""}
+- ${pid === "about" ? `Company story and values for ${userInput.businessName}` : ""}
+- ${pid === "services" ? `At least 6 service cards for ${userInput.industry || "business"}` : ""}
+- ${pid === "testimonials" ? `4 testimonial cards with star ratings` : ""}
+- ${pid === "faq" ? `6 FAQ items for ${userInput.industry || "business"}` : ""}
+
+Return ONLY the section HTML. Start with <section or <div. No <!DOCTYPE>, no <html>, no explanation.`;
+
+            const resp = await anthropic.messages.create({
+              model: "claude-opus-4-8",
+              max_tokens: 6000,
+              messages: [{ role: "user", content: injectPrompt }],
+            });
+
+            const textBlock = resp.content.find((b: any) => b.type === "text");
+            let sectionHtml = textBlock ? (textBlock as any).text.trim() : "";
+            sectionHtml = sectionHtml.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+
+            // Safety check: must contain the correct id and be a real HTML fragment (not a full doc)
+            const hasCorrectId = sectionHtml.includes(`id="${pid}"`);
+            const isFullDoc = sectionHtml.toLowerCase().includes("<!doctype") || sectionHtml.toLowerCase().includes("<html");
+            if (hasCorrectId && !isFullDoc && sectionHtml.length > 200) {
+              // Splice before </body> — touches nothing else in the document
+              html = html.includes("</body>")
+                ? html.replace("</body>", `\n<!-- QA-injected: ${pid} -->\n${sectionHtml}\n</body>`)
+                : html + `\n${sectionHtml}`;
+              console.log(`[QA] Injected "${pid}" (${sectionHtml.length} chars) — total now ${html.length}`);
+            } else {
+              console.warn(`[QA] Skipped injection for "${pid}" — hasId=${hasCorrectId} isFullDoc=${isFullDoc} len=${sectionHtml.length}`);
             }
-            console.warn("[QA] Pass 2: JSON parse failed — using pass-1 output");
-            return html;
+          } catch (err: any) {
+            console.warn(`[QA] Injection error for "${pid}": ${err?.message} — skipping`);
           }
-
-          const issues = parsed.issues || [];
-          const fixedHtml = parsed.fixedHtml || "";
-
-          if (issues.length > 0) {
-            console.log(`[QA] Pass 2: ${issues.length} issue(s) fixed: ${issues.slice(0, 5).join(" | ")}`);
-          } else {
-            console.log("[QA] Pass 2: no issues found");
-          }
-
-          if (fixedHtml && fixedHtml.length > html.length * 0.6 && fixedHtml.includes("<body") && fixedHtml.includes("</html>")) {
-            // Large HTML was truncated — merge fixed head with original tail
-            if (html.length > 80000 && fixedHtml.length < html.length * 0.85) {
-              const closeInFixed = fixedHtml.lastIndexOf("</body>");
-              const closeInOrig = html.lastIndexOf("</body>");
-              if (closeInFixed > 0 && closeInOrig > 0) {
-                const merged = fixedHtml.slice(0, closeInFixed) + html.slice(closeInOrig);
-                console.log(`[QA] Pass 2: merged (truncated) — ${merged.length} chars`);
-                return merged;
-              }
-            }
-            console.log(`[QA] Pass 2 done: ${html.length} → ${fixedHtml.length} chars`);
-            return fixedHtml;
-          }
-
-          return html;
-
-        } catch (auditErr: any) {
-          // Audit is non-fatal — pass-1 injected HTML is still used
-          console.error(`[QA] Pass 2 failed (non-fatal): ${auditErr?.message}`);
-          appendPipelineLog(jobId, { level: "warn", step: "qa", msg: `QA audit failed: ${auditErr?.message}`, businessName: userInput.businessName }).catch(() => {});
-          return html;
         }
+
+        console.log(`[QA] DONE: ${startLen} → ${html.length} chars`);
+        return html;
       }) as string;
 
       // ── STEP 7b: Pre-deploy validation ──────────────────────────────────────
