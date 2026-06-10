@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     await saveJob(jobId, { ...job, html: null, status: "pending" });
     await inngest.send({
       name: "build/website",
-      data: { jobId, isRebuild: false, runId: Date.now() },
+      data: { jobId, isRebuild: true, runId: Date.now() },
     });
     return Response.json({ ok: true, message: "Status reset and full rebuild queued from scratch" });
   }
