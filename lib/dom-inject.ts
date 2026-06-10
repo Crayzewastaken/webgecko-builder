@@ -138,9 +138,11 @@ export function domInject(params: DomInjectParams): string {
 
     // Assign heroUrl to the hero section image first
     if (heroUrl) {
-      const heroImg = $("[id='home'], [id='hero'], [class*='hero'], body > section").first().find("img").first();
+      const $heroSection = $("[id='home'], [id='hero'], [class*='hero'], body > section").first();
+      const heroImg = $heroSection.find("img").first();
       if (heroImg.length && isStitchImage(heroImg.attr("src") || "")) {
-        heroImg.attr("src", heroUrl).attr("loading", "lazy");
+        const heroHeading = $heroSection.find("h1, h2").first().text().trim() || businessName;
+        heroImg.attr("src", heroUrl).attr("alt", heroHeading).attr("loading", "lazy");
       }
     }
 
@@ -162,7 +164,10 @@ export function domInject(params: DomInjectParams): string {
 
       const photo = pickPhoto(contextWords);
       if (photo) {
-        $(el).attr("src", photo).attr("loading", "lazy");
+        const altForPhoto = headingText.trim()
+          ? `${businessName} - ${headingText.trim().slice(0, 60)}`
+          : businessName;
+        $(el).attr("src", photo).attr("alt", altForPhoto).attr("loading", "lazy");
       } else if (isStitchImage($(el).attr("src") || "")) {
         // No client/Pexels photo left — remove the aida AI placeholder entirely
         // rather than leaving a perfect render that looks obviously AI-generated.
@@ -213,9 +218,9 @@ export function domInject(params: DomInjectParams): string {
           const $parent = $el.closest(".masonry-item, [class*='gallery-item'], [class*='masonry'], div[class*='overflow-hidden'], div[class*='rounded']").first();
           gallerySlot++;
           if ($parent.length && $parent.find("img").length === 0) {
-            $parent.html(`<img src="${photoUrl}" alt="Gallery ${gallerySlot}" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.5s;" loading="lazy">`);
+            $parent.html(`<img src="${photoUrl}" alt="${businessName} - project ${gallerySlot}" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.5s;" loading="lazy">`);
           } else {
-            $el.replaceWith(`<img src="${photoUrl}" alt="Gallery ${gallerySlot}" style="width:100%;height:auto;display:block;" loading="lazy">`);
+            $el.replaceWith(`<img src="${photoUrl}" alt="${businessName} - project ${gallerySlot}" style="width:100%;height:auto;display:block;" loading="lazy">`);
           }
         });
 
@@ -237,7 +242,7 @@ export function domInject(params: DomInjectParams): string {
           const photoUrl = pickGalleryPhoto(); // cycle if needed — never delete the slot
           if (!photoUrl) return; // no photos at all — leave as-is
           gallerySlot++;
-          $el.html(`<img src="${photoUrl}" alt="Gallery ${gallerySlot}" class="w-full h-full object-cover" loading="lazy">`);
+          $el.html(`<img src="${photoUrl}" alt="${businessName} - project ${gallerySlot}" class="w-full h-full object-cover" loading="lazy">`);
         });
 
         // Sweep: replace any remaining aida AI placeholder images
@@ -262,7 +267,7 @@ export function domInject(params: DomInjectParams): string {
           const photoUrl = pickGalleryPhoto();
           if (photoUrl) {
             gallerySlot++;
-            $el.html(`<img src="${photoUrl}" alt="Gallery ${gallerySlot}" class="w-full h-full object-cover" loading="lazy">`);
+            $el.html(`<img src="${photoUrl}" alt="${businessName} - project ${gallerySlot}" class="w-full h-full object-cover" loading="lazy">`);
           }
           // If still no photo (contentPhotos empty), leave div — at least no aida image
         });
@@ -610,6 +615,14 @@ export function domInject(params: DomInjectParams): string {
     } else if (/terms/i.test(text)) {
       $el.attr("onclick", "event.preventDefault();window.navigateTo&&window.navigateTo('terms')");
       $el.attr("href", "#");
+    }
+  });
+
+  // ── 16a. WCAG 2.1 AA — every img must have an alt attribute ─────────────────────
+  $("img").each((_, el) => {
+    if ($(el).attr("alt") === undefined) {
+      // No alt at all — mark decorative so screen readers skip it
+      $(el).attr("alt", "");
     }
   });
 
