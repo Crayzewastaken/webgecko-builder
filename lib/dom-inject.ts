@@ -576,15 +576,9 @@ export function domInject(params: DomInjectParams): string {
     $("head").append(`<script>window.WG_JOB="${jobId}";</script>`);
   }
 
-  // ── 15b. Mobile fix CSS — email overflow, nav visibility ────────────────────
+  // ── 15b. Mobile fix CSS — email overflow ─────────────────────────────────────
   if (!$.html().includes("wg-mobile-fixes")) {
-    $("head").append(`<style data-wg="wg-mobile-fixes">
-a[href^="mailto:"],a[href^="tel:"]{word-break:break-all;overflow-wrap:break-word;}
-@media(max-width:768px){
-  #mobile-menu,#side-drawer,#mobile-nav,[class*="mobile-menu"],[class*="nav-drawer"]{display:none;}
-  #mobile-menu.open,#side-drawer.open,#mobile-nav.open{display:flex!important;flex-direction:column;}
-}
-</style>`);
+    $("head").append(`<style data-wg="wg-mobile-fixes">a[href^="mailto:"],a[href^="tel:"]{word-break:break-all;overflow-wrap:break-word;}</style>`);
   }
 
   // ── 15. Wire Privacy/Terms footer links ──────────────────────────────────────
@@ -626,6 +620,12 @@ a[href^="mailto:"],a[href^="tel:"]{word-break:break-all;overflow-wrap:break-word
       }
     );
   }
+  // ── 17. Add kiosk=1 to SuperSaas iframes to hide their header/branding ─────────
+  out = out.replace(
+    /(<iframe[^>]*src=["'])(https:\/\/www\.supersaas\.com\/schedule\/[^'"?]+)(['"][^>]*>)/gi,
+    (_m, pre, url, post) => `${pre}${url}?kiosk=1${post}`
+  );
+
   return out;
 }
 
@@ -691,46 +691,15 @@ if(window.WG_IS_MULTIPAGE){
   }
 }
 
-// Wire hamburger — finds mobile drawer by multiple strategies
+// Wire hamburger — only for buttons with no onclick (Stitch buttons already have their own)
 (function(){
-  function getMobileDrawer(){
-    return document.getElementById("mobile-menu")
-      ||document.getElementById("side-drawer")
-      ||document.getElementById("mobile-nav")
-      ||document.querySelector("nav .mobile-menu, nav [class*='mobile'], header [class*='mobile-menu'], header [class*='drawer']")
-      ||document.querySelector("[class*='mobile-menu']:not(button):not(a), [class*='nav-drawer'], [class*='side-menu']");
-  }
-  // Ensure drawer is closed on load
-  var drawer=getMobileDrawer();
-  if(drawer){
-    drawer.style.display="none";
-    drawer.classList.add("hidden");
-  }
-  document.querySelectorAll("#hamburger,#menu-toggle,#mobile-menu-btn,[aria-label='Open menu'],[aria-label='Menu'],[aria-label='Toggle menu'],[aria-label='open menu']").forEach(function(btn){
-    var oc=btn.getAttribute("onclick")||"";
-    if(oc&&!oc.includes("toggleMobileMenu"))return;
-    btn.addEventListener("click",function(e){
-      e.stopPropagation();
-      var d=getMobileDrawer();
+  document.querySelectorAll("#hamburger,#menu-toggle,#mobile-menu-btn").forEach(function(btn){
+    if(btn.getAttribute("onclick"))return; // Stitch already wired it — don't interfere
+    btn.addEventListener("click",function(){
+      var d=document.getElementById("mobile-menu")||document.getElementById("side-drawer")||document.getElementById("mobile-nav");
       if(!d)return;
-      var isHidden=d.style.display==="none"||d.classList.contains("hidden")||getComputedStyle(d).display==="none";
-      if(isHidden){
-        d.style.display="flex";
-        d.style.flexDirection="column";
-        d.classList.remove("hidden");
-      } else {
-        d.style.display="none";
-        d.classList.add("hidden");
-      }
+      d.classList.toggle("hidden");
     });
-  });
-  // Close drawer when clicking outside
-  document.addEventListener("click",function(e){
-    var d=getMobileDrawer();
-    if(!d||d.style.display==="none")return;
-    var ham=document.querySelector("#hamburger,#menu-toggle,#mobile-menu-btn");
-    if(ham&&ham.contains(e.target))return;
-    if(!d.contains(e.target)){d.style.display="none";d.classList.add("hidden");}
   });
 })();
 })();
