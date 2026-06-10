@@ -174,9 +174,20 @@ export function domInject(params: DomInjectParams): string {
     //   2. <p>[Project Image Placeholder N]</p> text placeholders
     //   3. <div class="aspect-[4/3]..."> aspect-ratio containers with placeholder text
     if (photoUrls.length > 0) {
-      // gallerySlot counter for labelling only — photo selection uses pickPhoto([])
-      // which draws from the shared usedPhotoIndices pool, preventing cross-section duplicates.
       let gallerySlot = 0;
+      // Gallery cycles through client photos when the unique pool is exhausted.
+      // NEVER deletes Stitch-designed slots — the gallery should always fill every slot.
+      let galleryCycleIdx = 0;
+      function pickGalleryPhoto(): string | null {
+        if (contentPhotos.length === 0) return null;
+        const fromPool = pickPhoto([]); // prefer unique
+        if (fromPool) return fromPool;
+        // Unique pool exhausted — cycle through client photos so no slot goes empty
+        const photo = contentPhotos[galleryCycleIdx % contentPhotos.length];
+        galleryCycleIdx++;
+        return photo;
+      }
+
       const gallerySection = $("[id='gallery'], [data-page='gallery']").first();
       if (gallerySection.length) {
 
@@ -184,23 +195,19 @@ export function domInject(params: DomInjectParams): string {
         gallerySection.find("div, p").each((_, el) => {
           const $el = $(el);
           if ($el.find("img").length > 0) {
-            // Existing img — remove if it's a Stitch aida AI placeholder (no real photo for it)
+            // Existing img — replace if it's a Stitch aida AI placeholder
             const $img = $el.find("img").first();
             if (isStitchImage($img.attr("src") || "")) {
-              const replacement = pickPhoto([]);
-              if (replacement) {
-                $img.attr("src", replacement).attr("loading", "lazy");
-                gallerySlot++;
-              } else {
-                $img.remove();
-              }
+              const replacement = pickGalleryPhoto();
+              if (replacement) { $img.attr("src", replacement).attr("loading", "lazy"); gallerySlot++; }
+              else { $img.remove(); }
             }
             return;
           }
           const text = $el.text().trim();
           if (!/\[.*(?:image|photo|project|gallery).*placeholder/i.test(text)) return;
-          const photoUrl = pickPhoto([]); // shared pool — no duplicate across sections
-          if (!photoUrl) { $el.remove(); return; } // no photos left — remove placeholder entirely
+          const photoUrl = pickGalleryPhoto();
+          if (!photoUrl) return; // no photos at all — leave as-is
           const $parent = $el.closest(".masonry-item, [class*='gallery-item'], [class*='masonry'], div[class*='overflow-hidden'], div[class*='rounded']").first();
           gallerySlot++;
           if ($parent.length && $parent.find("img").length === 0) {
@@ -210,13 +217,13 @@ export function domInject(params: DomInjectParams): string {
           }
         });
 
-        // Pattern 2: height-class divs with no <img> (bg-surface-variant etc.)
+        // Pattern 2: height/aspect-ratio placeholder divs with no <img>
         gallerySection.find("div").each((_, el) => {
           const $el = $(el);
           if ($el.find("img").length > 0) {
             const $img = $el.find("img").first();
             if (isStitchImage($img.attr("src") || "")) {
-              const replacement = pickPhoto([]);
+              const replacement = pickGalleryPhoto();
               if (replacement) { $img.attr("src", replacement).attr("loading", "lazy"); gallerySlot++; }
               else { $img.remove(); }
             }
@@ -225,23 +232,24 @@ export function domInject(params: DomInjectParams): string {
           const cls = $el.attr("class") || "";
           if (!/\bh-\[|\bh-\d+\b|\bmin-h-\[|\baspect-/.test(cls)) return;
           if ($el.text().trim().length > 80) return;
-          const photoUrl = pickPhoto([]); // shared pool
-          if (!photoUrl) { $el.remove(); return; } // no photos left — remove placeholder entirely
+          const photoUrl = pickGalleryPhoto(); // cycle if needed — never delete the slot
+          if (!photoUrl) return; // no photos at all — leave as-is
           gallerySlot++;
           $el.html(`<img src="${photoUrl}" alt="Gallery ${gallerySlot}" class="w-full h-full object-cover" loading="lazy">`);
         });
 
-        // Final sweep: remove any remaining aida AI images in the gallery
-        // that weren't caught by the patterns above (e.g. break-inside-avoid wrappers)
+        // Sweep: replace any remaining aida AI placeholder images
         gallerySection.find("img").each((_, el) => {
-          if (isStitchImage($(el).attr("src") || "")) {
-            $(el).remove();
+          const src = $(el).attr("src") || "";
+          if (isStitchImage(src)) {
+            const replacement = pickGalleryPhoto();
+            if (replacement) { $(el).attr("src", replacement).attr("loading", "lazy"); }
+            else { $(el).remove(); }
           }
         });
 
-        // Final sweep: remove any remaining Stitch-branded placeholder divs
-        // e.g. <div class="break-inside-avoid h-48 ...">MASTEREDGE #7</div>
-        // These match: has no img, has a height class, text looks like "NAME #N" or "name project N"
+        // Sweep: fill any remaining branded text-placeholders (e.g. "MASTEREDGE #7")
+        // but only replace with photo — never delete the slot structure
         gallerySection.find("div").each((_, el) => {
           const $el = $(el);
           if ($el.find("img").length > 0) return;
@@ -249,8 +257,12 @@ export function domInject(params: DomInjectParams): string {
           if (!/\bh-\[|\bh-\d+\b|\bmin-h-\[|\baspect-/.test(cls)) return;
           const text = $el.text().trim();
           if (text.length === 0 || text.length > 80) return;
-          // If it still has placeholder text (not replaced above), remove it
-          $el.remove();
+          const photoUrl = pickGalleryPhoto();
+          if (photoUrl) {
+            gallerySlot++;
+            $el.html(`<img src="${photoUrl}" alt="Gallery ${gallerySlot}" class="w-full h-full object-cover" loading="lazy">`);
+          }
+          // If still no photo (contentPhotos empty), leave div — at least no aida image
         });
 
         // ── Normalize gallery layout to an even professional grid ─────────────────
