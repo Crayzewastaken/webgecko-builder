@@ -249,11 +249,59 @@ export async function GET(req: NextRequest) {
     const currentYear = new Date().getFullYear().toString();
     html = html.replace(/(©\s*|&copy;\s*|copyright\s+)20\d\d\b/gi, (_m: string, prefix: string) => prefix + currentYear);
 
-    // Re-inject essentials + images
+    // Re-inject essentials + images using domInject (Cheerio-based, handles CSS backgrounds + gallery)
     const { html: checkedHtml } = checkAndFixLinks(html, Array.isArray(userInput?.pages) ? userInput.pages : []);
     const ga4Id = job.ga4Id || userInput?.ga4Id || "";
     html = injectEssentials(checkedHtml, clientEmail, clientPhone, jobId, ga4Id);
-    html = injectImages(html, logoUrl, heroUrl, photoUrls, productsWithPhotos);
+
+    // Augment photos with Pexels fallback (same as Inngest pipeline)
+    let augmentedPhotoUrls = [...new Set(photoUrls as string[])];
+    const PHOTO_BUFFER = 10;
+    if (augmentedPhotoUrls.length < PHOTO_BUFFER && process.env.PEXELS_API_KEY && process.env.PEXELS_API_KEY !== "YOUR_PEXELS_KEY_HERE") {
+      try {
+        const { fetchPexelsPhotos, getPexelsQuery } = await import("@/lib/pipeline-helpers");
+        const sitePages = Array.isArray(userInput?.pages) ? userInput.pages : [];
+        const pexelsQuery = getPexelsQuery(userInput?.businessName || "", userInput?.industry || "", sitePages);
+        const needed = PHOTO_BUFFER - augmentedPhotoUrls.length;
+        const pexelsPhotos = await fetchPexelsPhotos(pexelsQuery, Math.max(needed, 6));
+        augmentedPhotoUrls = [...augmentedPhotoUrls, ...pexelsPhotos];
+        console.log(`[Fix-Proxy/Pexels] Fetched ${pexelsPhotos.length} photos (had ${photoUrls.length})`);
+      } catch (e) {
+        console.log("[Fix-Proxy/Pexels] Failed:", e);
+      }
+    }
+
+    const { domInject } = await import("@/lib/dom-inject");
+    const rawDomain: string = (userInput?.domain || "").trim().toLowerCase()
+      .replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+    const effectiveHeroUrl = heroUrl || (augmentedPhotoUrls.length > 0 ? augmentedPhotoUrls[0] : undefined);
+    const requestedPageIds = Array.isArray(userInput?.pages) && userInput.pages.length > 0
+      ? userInput.pages.map((p: string) => p.toLowerCase().replace(/[^a-z0-9]/g, ""))
+      : ["home"];
+    html = domInject({
+      html,
+      businessName: userInput?.businessName || "",
+      clientEmail,
+      clientPhone,
+      businessAddress: userInput?.businessAddress || "",
+      logoUrl: logoUrl || undefined,
+      heroUrl: effectiveHeroUrl || undefined,
+      photoUrls: augmentedPhotoUrls,
+      bookingUrl: job.supersaasUrl || undefined,
+      hasBookingFeature,
+      isMultiPage,
+      jobId,
+      ga4Id: ga4Id || undefined,
+      requestedPageIds,
+      accentColor: undefined,
+      socialLinks: {
+        facebookPage: userInput?.facebookPage || "",
+        instagramUrl: userInput?.instagramUrl || "",
+        linkedinUrl: userInput?.linkedinUrl || "",
+        tiktokUrl: userInput?.tiktokUrl || "",
+        youtubeUrl: userInput?.youtubeUrl || "",
+      },
+    });
 
     // Re-inject booking widget
     const hasAiBookingPlaceholder = /(?:forge integration|booking system.*?recalibrat|advanced booking.*?recalibrat|calendly|acuity|setmore)/i.test(html);
