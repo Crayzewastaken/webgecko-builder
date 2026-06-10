@@ -246,6 +246,23 @@ export function applyStep5CodeFixes(params: Step5Params): string {
       }
 
       if (!injected) console.log("[Step5] Map skipped — no contact section found");
+
+      // After injecting real map: remove any Stitch "Service Area" placeholder cards
+      // (icon + heading + short text, no real map inside) that are now redundant
+      $m("[id='contact'], [data-page='contact']").find("div").each((_, el) => {
+        const $el = $m(el);
+        if ($el.find("iframe").length) return; // has real map — keep
+        const text = $el.text().trim();
+        if (
+          text.length < 300 &&
+          /service.?area|serving\s+(brisbane|sydney|melbourne|perth|adelaide|ipswich|gold coast|the\s)/i.test(text) &&
+          !$el.find("input, form, button").length
+        ) {
+          $el.remove();
+          console.log("[Step5] Removed Stitch service-area placeholder card");
+        }
+      });
+
       html = $m.html() || html;
     }
   }

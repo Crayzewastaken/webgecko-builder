@@ -89,6 +89,18 @@ export async function GET(req: NextRequest) {
       return m;
     });
     html = html.replace(/<[a-z][^>]*>\s*Map View\s*:[^<]{0,100}<\/[a-z]+>/gi, '');
+    // Strip Stitch "Service Area" placeholder cards (map icon + text, no real map inside)
+    // These appear as a div with a map emoji/icon and text like "Serving Brisbane..."
+    // Only remove if there's a real Google Maps embed elsewhere in the document
+    if (html.includes('maps.google') || html.includes('google.com/maps') || html.includes('maps/embed')) {
+      html = html.replace(/<(?:div|section)[^>]*>(?:(?!<iframe)[^])*?(?:Service Area|service.area|Serving\s+\w|service area)[^]*?<\/(?:div|section)>/gi, (m: string) => {
+        if (m.includes('<iframe')) return m; // keep if it has a real map
+        if (m.includes('google.com/maps') || m.includes('maps.google')) return m;
+        const text = m.replace(/<[^>]+>/g, '').trim();
+        if (text.length < 300 && /service.?area|serving\s+(brisbane|sydney|melbourne|perth|adelaide|ipswich|gold coast)/i.test(text)) return '';
+        return m;
+      });
+    }
 
     // DEDUP: remove duplicate Google Maps iframes — keep only the first occurrence
     {
