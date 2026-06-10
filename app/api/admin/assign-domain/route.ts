@@ -134,7 +134,24 @@ export async function POST(req: NextRequest) {
 
   const aliasData = await aliasRes.json();
   if (!aliasRes.ok) {
-    return NextResponse.json({ error: aliasData?.error?.message || "Failed to add domain", detail: aliasData }, { status: 500 });
+    // If "already in use", check if it's already on the correct project — if so, treat as success
+    const errMsg: string = aliasData?.error?.message || "";
+    if (errMsg.toLowerCase().includes("already in use")) {
+      const checkRes = await fetch(
+        `https://api.vercel.com/v9/projects/${vercelProjectName}/domains${qs}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const checkData = await checkRes.json();
+      const alreadyThere = (checkData.domains || []).find((d: any) => d.name === domain || d.apexName === domain);
+      if (alreadyThere) {
+        console.log(`[assign-domain] Domain ${domain} already on correct project ${vercelProjectName} — updating DB only`);
+        // Fall through to DB update below
+      } else {
+        return NextResponse.json({ error: errMsg, detail: aliasData }, { status: 500 });
+      }
+    } else {
+      return NextResponse.json({ error: errMsg || "Failed to add domain", detail: aliasData }, { status: 500 });
+    }
   }
 
   await saveJob(jobId, { ...job, liveDomain: domain, liveUrl: `https://${domain}` });
