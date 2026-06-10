@@ -638,7 +638,7 @@ ${jobId ? `window.WG_JOB="${jobId}";` : ""}
 window.navigateTo=function(pageId){
   // Close mobile drawer
   var drawer=document.getElementById("mobile-menu")||document.getElementById("side-drawer")||document.getElementById("mobile-nav");
-  if(drawer){drawer.style.display="none";drawer.classList.add("hidden");}
+  if(drawer){drawer.style.display="";drawer.classList.add("hidden");}
 
   // Single-page: legal pages are overlay modals
   if(!window.WG_IS_MULTIPAGE&&(pageId==="privacy"||pageId==="terms")){
