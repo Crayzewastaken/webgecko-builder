@@ -1420,6 +1420,7 @@ Return ONLY the section HTML. Start with <section or <div. No <!DOCTYPE>, no <ht
                 { file: "robots.txt", data: robots, encoding: "utf-8" },
               ];
             })(),
+            target: "production",
             projectSettings: { framework: null, outputDirectory: "./" },
           }),
         });
@@ -1612,6 +1613,7 @@ Return ONLY the section HTML. Start with <section or <div. No <!DOCTYPE>, no <ht
                   { file: "robots.txt", data: robots2, encoding: "utf-8" },
                 ];
               })(),
+              target: "production",
               projectSettings: { framework: null, outputDirectory: "./" },
             }),
           });

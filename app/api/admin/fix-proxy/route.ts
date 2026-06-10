@@ -29,6 +29,7 @@ async function deployToVercel(html: string, projectName: string): Promise<string
       name: safeName,
       teamId: process.env.VERCEL_TEAM_ID || undefined,
       files: [{ file: "index.html", data: html, encoding: "utf-8" }],
+      target: "production",
       projectSettings: { framework: null, outputDirectory: "./" },
     }),
   });
