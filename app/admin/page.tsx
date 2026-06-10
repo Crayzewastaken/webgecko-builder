@@ -1781,19 +1781,35 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                       style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:13,outline:"none",fontFamily:"monospace"}}/>
                     <div style={{fontSize:10,color:T.textMuted,marginTop:3}}>No https:// or trailing slash. Assigns domain in Vercel + updates DB.</div>
                   </div>
-                  <button disabled={intSaving||!customDomain.trim()} onClick={async()=>{
-                    setIntSaving(true); setIntMsg("");
-                    try {
-                      const r=await fetch("/api/admin/assign-domain",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:jid,domain:customDomain.trim()})});
-                      const d=await r.json();
-                      if(!r.ok)throw new Error(d.error||"Failed");
-                      setIntMsg("✓ Domain assigned to Vercel project — DNS may take up to 24h");
-                      toast("Domain assigned","ok");
-                    } catch(e){setIntMsg((e as Error).message);toast("Failed: "+(e as Error).message,"err");}
-                    finally{setIntSaving(false);}
-                  }} style={{background:(!intSaving&&customDomain.trim())?T.blue:T.raised,color:(!intSaving&&customDomain.trim())?"#fff":T.textMuted,border:"none",borderRadius:8,padding:"9px 18px",fontSize:12,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" as const,flexShrink:0}}>
-                    {intSaving?"Assigning…":"Assign in Vercel"}
-                  </button>
+                  <div style={{display:"flex",gap:6,flexShrink:0}}>
+                    <button disabled={intSaving||!customDomain.trim()} onClick={async()=>{
+                      setIntSaving(true); setIntMsg("");
+                      try {
+                        const r=await fetch("/api/admin/assign-domain",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:jid,domain:customDomain.trim()})});
+                        const d=await r.json();
+                        if(!r.ok)throw new Error(d.error||"Failed");
+                        setIntMsg("✓ Domain assigned to Vercel project — DNS may take up to 24h");
+                        toast("Domain assigned","ok");
+                      } catch(e){setIntMsg((e as Error).message);toast("Failed: "+(e as Error).message,"err");}
+                      finally{setIntSaving(false);}
+                    }} style={{background:(!intSaving&&customDomain.trim())?T.blue:T.raised,color:(!intSaving&&customDomain.trim())?"#fff":T.textMuted,border:"none",borderRadius:8,padding:"9px 18px",fontSize:12,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" as const}}>
+                      {intSaving?"Assigning…":"Assign in Vercel"}
+                    </button>
+                    <button disabled={intSaving||!customDomain.trim()} title="Domain already in use by another project — this removes it from there first, then assigns here" onClick={async()=>{
+                      if(!confirm(`Force-move ${customDomain.trim()} to this project? This removes it from whichever Vercel project currently has it.`))return;
+                      setIntSaving(true); setIntMsg("");
+                      try {
+                        const r=await fetch("/api/admin/assign-domain",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:jid,domain:customDomain.trim(),force:true})});
+                        const d=await r.json();
+                        if(!r.ok)throw new Error(d.error||"Failed");
+                        setIntMsg("✓ Domain force-assigned — removed from old project and added here");
+                        toast("Domain force-assigned","ok");
+                      } catch(e){setIntMsg((e as Error).message);toast("Force-assign failed: "+(e as Error).message,"err");}
+                      finally{setIntSaving(false);}
+                    }} style={{background:(!intSaving&&customDomain.trim())?T.amber:T.raised,color:(!intSaving&&customDomain.trim())?"#000":T.textMuted,border:"none",borderRadius:8,padding:"9px 14px",fontSize:12,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap" as const}}>
+                      ⚡ Force
+                    </button>
+                  </div>
                 </div>
 
                 {/* URL-only override (no Vercel API — just update DB) */}

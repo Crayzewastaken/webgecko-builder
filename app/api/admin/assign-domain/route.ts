@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
   }
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
-  const { jobId, domain } = body;
+  const { jobId, domain, force } = body;
   if (!jobId || !domain) {
     return NextResponse.json({ error: "jobId and domain required" }, { status: 400 });
   }
@@ -87,9 +87,44 @@ export async function POST(req: NextRequest) {
 
   const token = process.env.VERCEL_API_TOKEN!;
   const teamId = process.env.VERCEL_TEAM_ID;
+  const qs = teamId ? `?teamId=${teamId}` : "";
+
+  // If force=true, find which project currently owns this domain and remove it first
+  if (force) {
+    try {
+      // List all projects to find the one with this domain
+      const projectsRes = await fetch(
+        `https://api.vercel.com/v9/projects${qs}&limit=100`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const projectsData = await projectsRes.json();
+      const projects: any[] = projectsData.projects || [];
+      for (const proj of projects) {
+        if (proj.name === vercelProjectName) continue; // skip target project
+        // Check if this project has the domain
+        const domRes = await fetch(
+          `https://api.vercel.com/v9/projects/${proj.id}/domains${qs}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const domData = await domRes.json();
+        const found = (domData.domains || []).find((d: any) => d.name === domain || d.apexName === domain);
+        if (found) {
+          // Remove domain from this project
+          await fetch(
+            `https://api.vercel.com/v9/projects/${proj.id}/domains/${domain}${qs}`,
+            { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
+          );
+          console.log(`[assign-domain] Removed ${domain} from project ${proj.name}`);
+          break;
+        }
+      }
+    } catch (e) {
+      console.error("[assign-domain] force-remove scan error:", e);
+    }
+  }
 
   const aliasRes = await fetch(
-    `https://api.vercel.com/v10/projects/${vercelProjectName}/domains${teamId ? `?teamId=${teamId}` : ""}`,
+    `https://api.vercel.com/v10/projects/${vercelProjectName}/domains${qs}`,
     {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
