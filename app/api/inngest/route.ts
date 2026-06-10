@@ -86,16 +86,16 @@ const buildWebsite = inngest.createFunction(
     retries: 1,
     triggers: [{ event: "build/website" }],
   },
-  async ({ event, step }: { event: { data: { jobId: string; isRebuild?: boolean } }; step: any }) => {
-    const { jobId, isRebuild = false } = event.data;
+  async ({ event, step }: { event: { data: { jobId: string; isRebuild?: boolean; runId?: number } }; step: any }) => {
+    const { jobId, isRebuild = false, runId } = event.data;
     try {
 
       // ── Load job ──────────────────────────────────────────────────────────────
       const job = await step.run("load-job", async () => {
         const j = await getJob(jobId);
         if (!j) throw new Error("Job not found: " + jobId);
-        // Block concurrent builds, but allow rebuild/fullRebuild to override a stuck job
-        if (j.status === "building" && !isRebuild) throw new Error("Already building");
+        // Block concurrent builds — but always allow explicit manual rebuilds (runId present) or isRebuild flag
+        if (j.status === "building" && !isRebuild && !runId) throw new Error("Already building");
         await saveJob(jobId, { ...j, status: "building" });
         return j;
       });
