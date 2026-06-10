@@ -174,7 +174,9 @@ export function domInject(params: DomInjectParams): string {
     //   2. <p>[Project Image Placeholder N]</p> text placeholders
     //   3. <div class="aspect-[4/3]..."> aspect-ratio containers with placeholder text
     if (photoUrls.length > 0) {
-      let galleryIdx = 0;
+      // gallerySlot counter for labelling only — photo selection uses pickPhoto([])
+      // which draws from the shared usedPhotoIndices pool, preventing cross-section duplicates.
+      let gallerySlot = 0;
       const gallerySection = $("[id='gallery'], [data-page='gallery']").first();
       if (gallerySection.length) {
 
@@ -182,44 +184,51 @@ export function domInject(params: DomInjectParams): string {
         gallerySection.find("div, p").each((_, el) => {
           const $el = $(el);
           if ($el.find("img").length > 0) {
-            // Existing img — remove it if it's a Stitch aida AI placeholder and we have no photo
+            // Existing img — remove if it's a Stitch aida AI placeholder (no real photo for it)
             const $img = $el.find("img").first();
-            if (isStitchImage($img.attr("src") || "") && galleryIdx >= photoUrls.length) {
-              $img.remove();
+            if (isStitchImage($img.attr("src") || "")) {
+              const replacement = pickPhoto([]);
+              if (replacement) {
+                $img.attr("src", replacement).attr("loading", "lazy");
+                gallerySlot++;
+              } else {
+                $img.remove();
+              }
             }
             return;
           }
           const text = $el.text().trim();
           if (!/\[.*(?:image|photo|project|gallery).*placeholder/i.test(text)) return;
-          if (galleryIdx >= photoUrls.length) return; // no more photos — leave slot as-is
-          const photoUrl = photoUrls[galleryIdx];
+          const photoUrl = pickPhoto([]); // shared pool — no duplicate across sections
+          if (!photoUrl) return;
           const $parent = $el.closest(".masonry-item, [class*='gallery-item'], [class*='masonry'], div[class*='overflow-hidden'], div[class*='rounded']").first();
+          gallerySlot++;
           if ($parent.length && $parent.find("img").length === 0) {
-            $parent.html(`<img src="${photoUrl}" alt="Gallery ${galleryIdx + 1}" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.5s;" loading="lazy">`);
+            $parent.html(`<img src="${photoUrl}" alt="Gallery ${gallerySlot}" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.5s;" loading="lazy">`);
           } else {
-            $el.replaceWith(`<img src="${photoUrl}" alt="Gallery ${galleryIdx + 1}" style="width:100%;height:auto;display:block;" loading="lazy">`);
+            $el.replaceWith(`<img src="${photoUrl}" alt="Gallery ${gallerySlot}" style="width:100%;height:auto;display:block;" loading="lazy">`);
           }
-          galleryIdx++;
         });
 
         // Pattern 2: height-class divs with no <img> (bg-surface-variant etc.)
         gallerySection.find("div").each((_, el) => {
           const $el = $(el);
           if ($el.find("img").length > 0) {
-            // Remove aida AI placeholder imgs from gallery divs if no real photo available
             const $img = $el.find("img").first();
-            if (isStitchImage($img.attr("src") || "") && galleryIdx >= photoUrls.length) {
-              $img.remove();
+            if (isStitchImage($img.attr("src") || "")) {
+              const replacement = pickPhoto([]);
+              if (replacement) { $img.attr("src", replacement).attr("loading", "lazy"); gallerySlot++; }
+              else { $img.remove(); }
             }
             return;
           }
           const cls = $el.attr("class") || "";
           if (!/\bh-\[|\bh-\d+\b|\bmin-h-\[|\baspect-/.test(cls)) return;
           if ($el.text().trim().length > 80) return;
-          if (galleryIdx >= photoUrls.length) return; // no more photos — leave slot as-is
-          const photoUrl = photoUrls[galleryIdx];
-          $el.html(`<img src="${photoUrl}" alt="Gallery ${galleryIdx + 1}" class="w-full h-full object-cover" loading="lazy">`);
-          galleryIdx++;
+          const photoUrl = pickPhoto([]); // shared pool
+          if (!photoUrl) return;
+          gallerySlot++;
+          $el.html(`<img src="${photoUrl}" alt="Gallery ${gallerySlot}" class="w-full h-full object-cover" loading="lazy">`);
         });
 
         // Final sweep: remove any remaining aida AI images in the gallery
@@ -230,7 +239,7 @@ export function domInject(params: DomInjectParams): string {
           }
         });
 
-        console.log(`[DomInject] Gallery: filled ${galleryIdx} placeholder slots with client photos`);
+        console.log(`[DomInject] Gallery: filled ${gallerySlot} placeholder slots with client photos`);
       }
     }
 
@@ -328,14 +337,14 @@ export function domInject(params: DomInjectParams): string {
     const href = $el.attr("href") || "";
     const onclick = $el.attr("onclick") || "";
 
-    // Skip if already wired, external, or tel/mailto
-    if (onclick.includes("navigateTo") || /^(https?:|mailto:|tel:)/.test(href)) return;
+    // Always skip external links, tel, mailto
+    if (/^(https?:|mailto:|tel:)/.test(href)) return;
 
     const text = $el.text().trim().toLowerCase();
     const fragment = href.startsWith("#") ? href.slice(1).toLowerCase() : "";
 
-    // Resolve target from text or fragment
-    let target = navLinkMap[text] ||
+    // Resolve intended target from text label (label is authoritative) or fragment
+    const target = navLinkMap[text] ||
       Object.entries(navLinkMap).find(([k]) => text.includes(k))?.[1] ||
       navLinkMap[fragment] ||
       Object.entries(navLinkMap).find(([k]) => fragment.includes(k))?.[1] ||
@@ -346,6 +355,10 @@ export function domInject(params: DomInjectParams): string {
     // Only wire if target section actually exists in DOM
     if (!$(`[id="${target}"], [data-page="${target}"]`).length) return;
 
+    // Skip only if ALREADY correctly wired to the right target (not just any navigateTo)
+    if (onclick.includes(`navigateTo('${target}')`) || onclick.includes(`navigateTo("${target}")`)) return;
+
+    // Re-wire (this also fixes Stitch mis-wirings like "Contact Us" → booking)
     $el.attr("href", "#");
     $el.attr("onclick", `event.preventDefault();window.navigateTo&&window.navigateTo('${target}')`);
   });

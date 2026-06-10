@@ -878,6 +878,7 @@ function StitchPromptCard({ prompt, toast }: { prompt: string; toast: (msg: stri
 // ── Client slide-over panel ────────────────────────────────────────────────────
 function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:string; onClose:()=>void; toast:(msg:string,t:"ok"|"err"|"info")=>void }) {
   const [tab, setTab] = useState<"perf"|"engagement"|"seo"|"site"|"assets"|"integrations"|"content"|"payments"|"actions"|"requests"|"checklist"|"social">("perf");
+  const [localPhotoUrls, setLocalPhotoUrls] = useState<string[]>(Array.isArray(c.photoUrls)?c.photoUrls:[]);
   const [checklistDone, setChecklistDone] = useState<Record<string,boolean>>({});
   const [checklistLinks, setChecklistLinks] = useState<Record<string,string>>({});
   useEffect(()=>{
@@ -1464,12 +1465,26 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                   Upload photos for the gallery section. These will be injected into the site's gallery grid on next fix/rebuild.
                 </div>
                 <div style={{display:"flex",flexWrap:"wrap" as const,gap:8,marginBottom:12}}>
-                  {(c.photoUrls||[]).map((url:string,i:number)=>(
-                    <div key={i} style={{position:"relative",width:80,height:80,borderRadius:8,overflow:"hidden",border:`1px solid ${T.border}`}}>
+                  {localPhotoUrls.map((url:string,i:number)=>(
+                    <div key={url} style={{position:"relative",width:80,height:80,borderRadius:8,overflow:"hidden",border:`1px solid ${T.border}`}}>
                       <img src={url} style={{width:"100%",height:"100%",objectFit:"cover"}} alt={`Photo ${i+1}`}/>
+                      <button
+                        title="Delete photo"
+                        onClick={async()=>{
+                          if(!confirm("Delete this photo? This cannot be undone."))return;
+                          try{
+                            const r=await fetch("/api/admin/delete-photo",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:jid,photoUrl:url})});
+                            const d=await r.json();
+                            if(!r.ok)throw new Error(d.error||"Delete failed");
+                            toast("Photo deleted","ok");
+                            setLocalPhotoUrls(prev=>prev.filter(u=>u!==url));
+                          }catch(e){toast((e as Error).message,"err");}
+                        }}
+                        style={{position:"absolute",top:2,right:2,width:20,height:20,borderRadius:"50%",background:"rgba(0,0,0,0.65)",border:"none",color:"#fff",fontSize:12,lineHeight:"20px",textAlign:"center",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0}}
+                      >×</button>
                     </div>
                   ))}
-                  {(c.photoUrls||[]).length===0&&<div style={{fontSize:12,color:T.textMuted}}>No photos uploaded yet.</div>}
+                  {localPhotoUrls.length===0&&<div style={{fontSize:12,color:T.textMuted}}>No photos uploaded yet.</div>}
                 </div>
                 <input type="file" id={`gallery-upload-${jid}`} multiple accept="image/*" style={{display:"none"}} onChange={async(e)=>{
                   const files=Array.from(e.target.files||[]);
@@ -1485,6 +1500,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                     if(!r.ok)throw new Error(d.error||"Upload failed");
                     setAssetMsg(`✓ ${files.length} photo${files.length>1?"s":""} uploaded`);
                     toast("Photos uploaded","ok");
+                    if(d.urls?.length)setLocalPhotoUrls(prev=>[...prev,...d.urls]);
                   } catch(e){setAssetMsg((e as Error).message);toast("Upload failed","err");}
                   finally{setAssetUploading(false);}
                 }}/>
