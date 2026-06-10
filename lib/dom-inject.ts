@@ -36,6 +36,7 @@ export interface DomInjectParams {
   tawktoPropertyId?: string;
   requestedPageIds?: string[];
   accentColor?: string;
+  socialLinks?: { facebookPage?: string; instagramUrl?: string; linkedinUrl?: string; tiktokUrl?: string; youtubeUrl?: string };
 }
 
 export function domInject(params: DomInjectParams): string {
@@ -43,7 +44,7 @@ export function domInject(params: DomInjectParams): string {
     html, businessName, clientEmail, clientPhone, businessAddress,
     logoUrl, heroUrl, photoUrls = [], bookingUrl, hasBookingFeature,
     isMultiPage, jobId, ga4Id, tawktoPropertyId, requestedPageIds = [],
-    accentColor = "#10b981",
+    accentColor = "#10b981", socialLinks = {},
   } = params;
 
   const $ = cheerio.load(html, { xmlMode: false });
@@ -488,6 +489,14 @@ export function domInject(params: DomInjectParams): string {
       if (businessAddress)    schemaObj["address"]     = { "@type": "PostalAddress", "streetAddress": businessAddress };
       if (logoUrl)            schemaObj["logo"]        = logoUrl;
       if (heroUrl)            schemaObj["image"]       = heroUrl;
+      const sameAs = [
+        socialLinks.facebookPage,
+        socialLinks.instagramUrl?.startsWith("http") ? socialLinks.instagramUrl : socialLinks.instagramUrl ? `https://instagram.com/${socialLinks.instagramUrl.replace(/^@/,"")}` : undefined,
+        socialLinks.linkedinUrl,
+        socialLinks.tiktokUrl?.startsWith("http") ? socialLinks.tiktokUrl : socialLinks.tiktokUrl ? `https://tiktok.com/@${socialLinks.tiktokUrl.replace(/^@/,"")}` : undefined,
+        socialLinks.youtubeUrl,
+      ].filter(Boolean);
+      if (sameAs.length) schemaObj["sameAs"] = sameAs;
       $("head").append(`<script type="application/ld+json">${JSON.stringify(schemaObj)}</script>`);
     }
 

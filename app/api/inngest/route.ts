@@ -955,6 +955,13 @@ const buildWebsite = inngest.createFunction(
           tawktoPropertyId,
           requestedPageIds,
           accentColor: spec.palette?.accent || "#10b981",
+          socialLinks: {
+            facebookPage: userInput.facebookPage || "",
+            instagramUrl: userInput.instagramUrl || "",
+            linkedinUrl:  userInput.linkedinUrl  || "",
+            tiktokUrl:    userInput.tiktokUrl    || "",
+            youtubeUrl:   userInput.youtubeUrl   || "",
+          },
         });
         console.log(`[Step6] DOM injection complete — ${html.length} chars`);
         return html;

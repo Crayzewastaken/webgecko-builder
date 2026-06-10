@@ -497,6 +497,72 @@ function CashPaymentPanel({ jobId, paymentState, toast }: {
   );
 }
 
+// ── Social Links Editor (Actions tab) ──────────────────────────────────────────
+function SocialLinksEditor({ jobId, existing, toast }: {
+  jobId: string;
+  existing: { facebookPage?: string; instagramUrl?: string; linkedinUrl?: string; tiktokUrl?: string; youtubeUrl?: string };
+  toast: (msg: string, t: "ok"|"err"|"info") => void;
+}) {
+  const [fb,   setFb]   = useState(existing.facebookPage  || "");
+  const [ig,   setIg]   = useState(existing.instagramUrl  || "");
+  const [li,   setLi]   = useState(existing.linkedinUrl   || "");
+  const [tt,   setTt]   = useState((existing as any).tiktokUrl    || "");
+  const [yt,   setYt]   = useState((existing as any).youtubeUrl   || "");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const r = await fetch("/api/admin/clients", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobId,
+          userInput: {
+            facebookPage: fb.trim(),
+            instagramUrl: ig.trim(),
+            linkedinUrl:  li.trim(),
+            tiktokUrl:    tt.trim(),
+            youtubeUrl:   yt.trim(),
+          },
+        }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error || "Save failed");
+      toast("Social links saved — rebuild to apply", "ok");
+    } catch (e) { toast((e as Error).message, "err"); }
+    finally { setSaving(false); }
+  }
+
+  const field = (label: string, icon: string, color: string, val: string, set: (v: string) => void, placeholder: string) => (
+    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+      <div style={{ width:28, height:28, borderRadius:"50%", background:color, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#fff", flexShrink:0 }}>{icon}</div>
+      <input
+        value={val}
+        onChange={e => set(e.target.value)}
+        placeholder={placeholder}
+        style={{ flex:1, background:T.raised, border:`1px solid ${T.border}`, borderRadius:6, padding:"6px 10px", fontSize:12, color:T.text, outline:"none" }}
+      />
+    </div>
+  );
+
+  return (
+    <div style={{ background:T.raised, border:`1px solid ${T.border}`, borderRadius:12, padding:"16px 18px" }}>
+      <div style={{ fontSize:12, fontWeight:700, color:T.textSec, marginBottom:12 }}>Social media links</div>
+      {field("Facebook",  "f",  "#1877F2", fb, setFb, "https://facebook.com/yourpage")}
+      {field("Instagram", "in", "#E1306C", ig, setIg, "https://instagram.com/yourhandle  or  @handle")}
+      {field("LinkedIn",  "li", "#0A66C2", li, setLi, "https://linkedin.com/company/yourpage")}
+      {field("TikTok",    "tt", "#010101", tt, setTt, "https://tiktok.com/@yourhandle  or  @handle")}
+      {field("YouTube",   "▶",  "#FF0000", yt, setYt, "https://youtube.com/@yourchannel")}
+      <button
+        onClick={save}
+        disabled={saving}
+        style={{ marginTop:4, background:"#4a9eff", color:"#fff", border:"none", borderRadius:8, padding:"8px 18px", fontSize:12, fontWeight:600, cursor:saving?"not-allowed":"pointer", opacity:saving?0.6:1 }}
+      >{saving ? "Saving…" : "Save links"}</button>
+      <div style={{ fontSize:11, color:T.textMuted, marginTop:6, lineHeight:1.5 }}>Links are injected into the footer on the next fix/rebuild.</div>
+    </div>
+  );
+}
+
 // ── Custom Quote card (used inside ClientPanel → Actions tab) ──────────────────
 function ClientCustomQuote({ jobId, slug, secret, existingQuote, toast }: {
   jobId: string;
@@ -2120,6 +2186,18 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               )}
               {/* Upload Stitch HTML — works any time, not just when paused */}
               <StitchHtmlUpload jobId={jid} toast={toast} />
+              {/* Social media links */}
+              <SocialLinksEditor
+                jobId={jid}
+                existing={{
+                  facebookPage: c.userInput?.facebookPage,
+                  instagramUrl: c.userInput?.instagramUrl,
+                  linkedinUrl:  c.userInput?.linkedinUrl,
+                  tiktokUrl:    (c as any).userInput?.tiktokUrl,
+                  youtubeUrl:   (c as any).userInput?.youtubeUrl,
+                }}
+                toast={toast}
+              />
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                 {[
                   {title:"Release preview",color:T.green,desc:"Email the client their portal link to review the site.",label:"Release preview →",confirm:`Release preview to ${c.businessName}? This emails the client.`,fn:()=>api(`/api/unlock/release?jobId=${jid}&secret=${sec}`)},

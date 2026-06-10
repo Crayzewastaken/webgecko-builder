@@ -284,6 +284,7 @@ export function applyStep5CodeFixes(params: Step5Params): string {
     userInput.instagramUrl  ? { name:"Instagram", url: userInput.instagramUrl.startsWith("http")  ? userInput.instagramUrl  : `https://instagram.com/${userInput.instagramUrl.replace(/^@/,"")}`  , icon:"in", color:"#E1306C" } : null,
     userInput.linkedinUrl   ? { name:"LinkedIn",  url: userInput.linkedinUrl.startsWith("http")   ? userInput.linkedinUrl   : `https://${userInput.linkedinUrl}`                                    , icon:"li", color:"#0A66C2" } : null,
     userInput.tiktokUrl     ? { name:"TikTok",    url: userInput.tiktokUrl.startsWith("http")     ? userInput.tiktokUrl     : `https://tiktok.com/@${userInput.tiktokUrl.replace(/^@/,"")}`         , icon:"tt", color:"#010101" } : null,
+    userInput.youtubeUrl    ? { name:"YouTube",   url: userInput.youtubeUrl.startsWith("http")    ? userInput.youtubeUrl    : `https://youtube.com/${userInput.youtubeUrl}`                          , icon:"▶",  color:"#FF0000" } : null,
   ].filter(Boolean) as { name: string; url: string; icon: string; color: string }[];
   if (socialLinks.length > 0) {
     const socialHtml  = socialLinks.map(s => `<a href="${s.url}" target="_blank" rel="noopener noreferrer" aria-label="${s.name}" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:${s.color};color:#fff;text-decoration:none;font-size:12px;font-weight:700;margin:0 4px;">${s.icon}</a>`).join("");
