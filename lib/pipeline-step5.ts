@@ -286,12 +286,9 @@ export function applyStep5CodeFixes(params: Step5Params): string {
     userInput.tiktokUrl     ? { name:"TikTok",    url: userInput.tiktokUrl.startsWith("http")     ? userInput.tiktokUrl     : `https://tiktok.com/@${userInput.tiktokUrl.replace(/^@/,"")}`         , icon:"tt", color:"#010101" } : null,
     userInput.youtubeUrl    ? { name:"YouTube",   url: userInput.youtubeUrl.startsWith("http")    ? userInput.youtubeUrl    : `https://youtube.com/${userInput.youtubeUrl}`                          , icon:"▶",  color:"#FF0000" } : null,
   ].filter(Boolean) as { name: string; url: string; icon: string; color: string }[];
-  if (socialLinks.length > 0) {
-    const socialHtml  = socialLinks.map(s => `<a href="${s.url}" target="_blank" rel="noopener noreferrer" aria-label="${s.name}" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:${s.color};color:#fff;text-decoration:none;font-size:12px;font-weight:700;margin:0 4px;">${s.icon}</a>`).join("");
-    const socialBlock = `<div class="wg-social-links" style="display:flex;align-items:center;gap:4px;margin-top:8px;">${socialHtml}</div>`;
-    html = html.replace(/<div[^>]*class="[^"]*(?:social|social-links|socials)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, (_m: string) => _m.includes("wg-social-links") ? _m : socialBlock);
-    if (!html.includes("wg-social-links")) html = html.replace(/<footer/i, socialBlock + "\n<footer");
-  }
+  // Social link hrefs are wired by dom-inject.ts (Cheerio) which finds Stitch's
+  // existing social icon anchors in the footer and updates their href in place.
+  // We no longer prepend a new block — that created a floating duplicate icon.
 
   // ── Newsletter signup ─────────────────────────────────────────────────────
   const hasNewsletterAlready = html.includes('id="newsletter-form"') || html.includes('id="newsletter"') || /subscribe.*to.*newsletter|stay.*updated|stay.*in.*the.*loop|sign.*up.*newsletter/i.test(html);

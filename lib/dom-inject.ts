@@ -506,17 +506,64 @@ export function domInject(params: DomInjectParams): string {
     }
   }
 
-  // ── 11. Inject Tawk.to if provided ──────────────────────────────────────────
+  // ── 11. Wire social media links into Stitch's existing footer icons ──────────
+  // Stitch generates social icons in the footer. We update their href in-place
+  // rather than prepending a new block (which creates a floating duplicate).
+  if (Object.values(socialLinks).some(v => v)) {
+    const normalise = (platform: string, raw: string): string => {
+      if (!raw) return "";
+      if (raw.startsWith("http")) return raw;
+      if (platform === "instagram") return `https://instagram.com/${raw.replace(/^@/, "")}`;
+      if (platform === "tiktok")   return `https://tiktok.com/@${raw.replace(/^@/, "")}`;
+      if (platform === "youtube")  return `https://youtube.com/@${raw.replace(/^@/, "")}`;
+      return `https://${raw}`;
+    };
+    const platformUrls: Record<string, string> = {
+      facebook:  normalise("facebook",  socialLinks.facebookPage  || ""),
+      instagram: normalise("instagram", socialLinks.instagramUrl  || ""),
+      linkedin:  normalise("linkedin",  socialLinks.linkedinUrl   || ""),
+      tiktok:    normalise("tiktok",    socialLinks.tiktokUrl     || ""),
+      youtube:   normalise("youtube",   socialLinks.youtubeUrl    || ""),
+    };
+
+    $("footer a, [class*='footer'] a, [id='footer'] a").each((_, el) => {
+      const $el = $(el);
+      const href  = ($el.attr("href") || "").toLowerCase();
+      const aria  = ($el.attr("aria-label") || "").toLowerCase();
+      const title = ($el.attr("title") || "").toLowerCase();
+      const text  = $el.text().trim().toLowerCase();
+      const svgHtml = $el.find("svg").html() || "";
+
+      let platform = "";
+      if (href.includes("facebook") || aria.includes("facebook") || title.includes("facebook") || text === "f")
+        platform = "facebook";
+      else if (href.includes("instagram") || aria.includes("instagram") || title.includes("instagram"))
+        platform = "instagram";
+      else if (href.includes("linkedin") || aria.includes("linkedin") || title.includes("linkedin"))
+        platform = "linkedin";
+      else if (href.includes("tiktok") || aria.includes("tiktok") || title.includes("tiktok"))
+        platform = "tiktok";
+      else if (href.includes("youtube") || aria.includes("youtube") || title.includes("youtube"))
+        platform = "youtube";
+
+      if (!platform || !platformUrls[platform]) return;
+      $el.attr("href", platformUrls[platform])
+         .attr("target", "_blank")
+         .attr("rel", "noopener noreferrer");
+    });
+  }
+
+  // ── 13. Inject Tawk.to if provided ──────────────────────────────────────────
   if (tawktoPropertyId && !html.includes("tawk.to")) {
     $("body").append(`<script type="text/javascript">var Tawk_API=Tawk_API||{},Tawk_LoadStart=new Date();(function(){var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];s1.async=true;s1.src='https://embed.tawk.to/${tawktoPropertyId}/default';s1.charset='UTF-8';s1.setAttribute('crossorigin','*');s0.parentNode.insertBefore(s1,s0);})();</script>`);
   }
 
-  // ── 12. Inject WG_JOB global ─────────────────────────────────────────────────
+  // ── 14. Inject WG_JOB global ─────────────────────────────────────────────────
   if (jobId && !html.includes("WG_JOB")) {
     $("head").append(`<script>window.WG_JOB="${jobId}";</script>`);
   }
 
-  // ── 13. Wire Privacy/Terms footer links ──────────────────────────────────────
+  // ── 15. Wire Privacy/Terms footer links ──────────────────────────────────────
   $("footer a, [id='footer'] a, [class*='footer'] a").each((_, el) => {
     const $el = $(el);
     const text = $el.text().trim().toLowerCase();
@@ -532,7 +579,7 @@ export function domInject(params: DomInjectParams): string {
     }
   });
 
-  // ── 14. Replace aida-public URLs in CSS background-image (inline styles) ───────
+  // ── 16. Replace aida-public URLs in CSS background-image (inline styles) ───────
   // Stitch often uses `style="background-image: url('aida...')"` for hero/section
   // backgrounds. Cheerio <img> replacement above misses these entirely.
   let out = $.html();
