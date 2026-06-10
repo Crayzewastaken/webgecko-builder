@@ -253,6 +253,38 @@ export function domInject(params: DomInjectParams): string {
           $el.remove();
         });
 
+        // ── Normalize gallery layout to an even professional grid ─────────────────
+        // Stitch often uses CSS columns (masonry) which creates uneven column heights.
+        // We switch to a uniform CSS grid and enforce a consistent aspect ratio on every
+        // cell so the portfolio always looks balanced regardless of source image dimensions.
+        const galleryGrid = gallerySection.find("[class*='columns-']").first();
+        if (galleryGrid.length) {
+          // Replace masonry columns with a uniform grid
+          const cls = galleryGrid.attr("class") || "";
+          const evenGridCls = cls
+            .replace(/\bcolumns-\S+/g, "")          // strip all columns-* classes
+            .replace(/\bspace-y-\S+/g, "")          // strip space-y-* (incompatible with grid)
+            .trim()
+            + " grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4";
+          galleryGrid.attr("class", evenGridCls.replace(/\s+/g, " "));
+
+          // Normalize every cell to a consistent 4:3 aspect ratio with object-cover
+          galleryGrid.children().each((_, el) => {
+            const $cell = $(el);
+            const $img = $cell.find("img").first();
+            if (!$img.length) return;
+            // Remove break-inside-avoid (irrelevant in grid), enforce aspect-ratio container
+            const cellCls = ($cell.attr("class") || "")
+              .replace(/\bbreak-inside-avoid\b/g, "")
+              .replace(/\bh-\d+\b|\bh-\[.*?\]/g, "")  // strip explicit heights
+              .trim();
+            $cell.attr("class", (cellCls + " relative aspect-[4/3] overflow-hidden rounded-xl").replace(/\s+/g, " "));
+            // Make image fill the cell
+            const imgCls = ($img.attr("class") || "").replace(/\bw-full\b|\brounded-xl\b/g, "").trim();
+            $img.attr("class", (imgCls + " absolute inset-0 w-full h-full object-cover").replace(/\s+/g, " "));
+          });
+        }
+
         console.log(`[DomInject] Gallery: filled ${gallerySlot} placeholder slots with client photos`);
       }
     }
@@ -428,17 +460,42 @@ export function domInject(params: DomInjectParams): string {
     $("head").append(`<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${ga4Id}');</script>`);
   }
 
-  // ── 10. Inject Tawk.to if provided ───────────────────────────────────────────
+  // ── 10. Inject JSON-LD LocalBusiness + og:image ──────────────────────────────
+  // Structured data is the single biggest local SEO win for small businesses.
+  // og:image ensures proper social previews when the URL is shared.
+  {
+    // JSON-LD LocalBusiness schema
+    if (!$.html().includes('"@type":"LocalBusiness"') && !$.html().includes('"@type": "LocalBusiness"')) {
+      const schemaObj: Record<string, unknown> = {
+        "@context": "https://schema.org",
+        "@type": "LocalBusiness",
+        "name": businessName,
+      };
+      if (clientEmail)        schemaObj["email"]       = clientEmail;
+      if (clientPhone)        schemaObj["telephone"]   = clientPhone;
+      if (businessAddress)    schemaObj["address"]     = { "@type": "PostalAddress", "streetAddress": businessAddress };
+      if (logoUrl)            schemaObj["logo"]        = logoUrl;
+      if (heroUrl)            schemaObj["image"]       = heroUrl;
+      $("head").append(`<script type="application/ld+json">${JSON.stringify(schemaObj)}</script>`);
+    }
+
+    // og:image — add if hero/logo available and not already set
+    if ((heroUrl || logoUrl) && !$.html().includes('property="og:image"')) {
+      $("head").append(`<meta property="og:image" content="${heroUrl || logoUrl}">`);
+    }
+  }
+
+  // ── 11. Inject Tawk.to if provided ──────────────────────────────────────────
   if (tawktoPropertyId && !html.includes("tawk.to")) {
     $("body").append(`<script type="text/javascript">var Tawk_API=Tawk_API||{},Tawk_LoadStart=new Date();(function(){var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];s1.async=true;s1.src='https://embed.tawk.to/${tawktoPropertyId}/default';s1.charset='UTF-8';s1.setAttribute('crossorigin','*');s0.parentNode.insertBefore(s1,s0);})();</script>`);
   }
 
-  // ── 11. Inject WG_JOB global ─────────────────────────────────────────────────
+  // ── 12. Inject WG_JOB global ─────────────────────────────────────────────────
   if (jobId && !html.includes("WG_JOB")) {
     $("head").append(`<script>window.WG_JOB="${jobId}";</script>`);
   }
 
-  // ── 12. Wire Privacy/Terms footer links ──────────────────────────────────────
+  // ── 13. Wire Privacy/Terms footer links ──────────────────────────────────────
   $("footer a, [id='footer'] a, [class*='footer'] a").each((_, el) => {
     const $el = $(el);
     const text = $el.text().trim().toLowerCase();
@@ -454,7 +511,7 @@ export function domInject(params: DomInjectParams): string {
     }
   });
 
-  // ── 13. Replace aida-public URLs in CSS background-image (inline styles) ───────
+  // ── 14. Replace aida-public URLs in CSS background-image (inline styles) ───────
   // Stitch often uses `style="background-image: url('aida...')"` for hero/section
   // backgrounds. Cheerio <img> replacement above misses these entirely.
   let out = $.html();
