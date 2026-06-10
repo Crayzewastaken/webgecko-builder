@@ -962,6 +962,7 @@ const buildWebsite = inngest.createFunction(
             tiktokUrl:    userInput.tiktokUrl    || "",
             youtubeUrl:   userInput.youtubeUrl   || "",
           },
+          abn: userInput.abn || "",
         });
         console.log(`[Step6] DOM injection complete — ${html.length} chars`);
         return html;

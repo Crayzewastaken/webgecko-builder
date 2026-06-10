@@ -37,6 +37,7 @@ export interface DomInjectParams {
   requestedPageIds?: string[];
   accentColor?: string;
   socialLinks?: { facebookPage?: string; instagramUrl?: string; linkedinUrl?: string; tiktokUrl?: string; youtubeUrl?: string };
+  abn?: string;
 }
 
 export function domInject(params: DomInjectParams): string {
@@ -44,7 +45,7 @@ export function domInject(params: DomInjectParams): string {
     html, businessName, clientEmail, clientPhone, businessAddress,
     logoUrl, heroUrl, photoUrls = [], bookingUrl, hasBookingFeature,
     isMultiPage, jobId, ga4Id, tawktoPropertyId, requestedPageIds = [],
-    accentColor = "#10b981", socialLinks = {},
+    accentColor = "#10b981", socialLinks = {}, abn = "",
   } = params;
 
   const $ = cheerio.load(html, { xmlMode: false });
@@ -574,6 +575,21 @@ export function domInject(params: DomInjectParams): string {
   // ── 14. Inject WG_JOB global ─────────────────────────────────────────────────
   if (jobId && !html.includes("WG_JOB")) {
     $("head").append(`<script>window.WG_JOB="${jobId}";</script>`);
+  }
+
+  // ── 15a. Inject ABN into footer ───────────────────────────────────────────────
+  if (abn) {
+    const abnText = `ABN ${abn}`;
+    const $footer = $("footer, [id='footer'], [class*='footer']").first();
+    if ($footer.length) {
+      // Replace existing ABN placeholder if present, otherwise append
+      const footerHtml = $footer.html() || "";
+      if (/ABN\s*[\d\s]{9,14}/i.test(footerHtml)) {
+        $footer.html(footerHtml.replace(/ABN\s*[\d\s]{9,14}/gi, abnText));
+      } else {
+        $footer.append(`<p style="font-size:0.75rem;opacity:0.6;margin-top:8px;text-align:center;">${abnText}</p>`);
+      }
+    }
   }
 
   // ── 15b. Mobile fix CSS — email overflow ─────────────────────────────────────

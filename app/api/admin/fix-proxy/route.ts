@@ -314,6 +314,7 @@ export async function GET(req: NextRequest) {
         tiktokUrl: userInput?.tiktokUrl || "",
         youtubeUrl: userInput?.youtubeUrl || "",
       },
+      abn: userInput?.abn || "",
     });
 
     // Re-inject booking widget
