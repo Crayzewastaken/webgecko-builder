@@ -905,7 +905,8 @@ const buildWebsite = inngest.createFunction(
         // Fetch Pexels photos as fallback whenever the client has fewer than 10 photos.
         // This ensures every image slot in the generated HTML can receive a unique,
         // high-quality photo without cycling or leaving Stitch placeholders behind.
-        let augmentedPhotoUrls = [...photoUrls];
+        // Deduplicate by URL first — clients sometimes upload the same image twice.
+        let augmentedPhotoUrls = [...new Set(photoUrls)];
         const sitePages = Array.isArray(userInput.pages) ? userInput.pages : [];
         const PHOTO_BUFFER = 10; // always aim for at least this many photos
         if (photoUrls.length < PHOTO_BUFFER && process.env.PEXELS_API_KEY && process.env.PEXELS_API_KEY !== "YOUR_PEXELS_KEY_HERE") {

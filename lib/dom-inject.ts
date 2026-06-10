@@ -161,6 +161,10 @@ export function domInject(params: DomInjectParams): string {
       const photo = pickPhoto(contextWords);
       if (photo) {
         $(el).attr("src", photo).attr("loading", "lazy");
+      } else if (isStitchImage($(el).attr("src") || "")) {
+        // No client/Pexels photo left — remove the aida AI placeholder entirely
+        // rather than leaving a perfect render that looks obviously AI-generated.
+        $(el).remove();
       }
     });
 
@@ -177,7 +181,14 @@ export function domInject(params: DomInjectParams): string {
         // Pattern 1: divs/containers with placeholder text like "[Project Image Placeholder N]"
         gallerySection.find("div, p").each((_, el) => {
           const $el = $(el);
-          if ($el.find("img").length > 0) return; // already has real image
+          if ($el.find("img").length > 0) {
+            // Existing img — remove it if it's a Stitch aida AI placeholder and we have no photo
+            const $img = $el.find("img").first();
+            if (isStitchImage($img.attr("src") || "") && galleryIdx >= photoUrls.length) {
+              $img.remove();
+            }
+            return;
+          }
           const text = $el.text().trim();
           if (!/\[.*(?:image|photo|project|gallery).*placeholder/i.test(text)) return;
           if (galleryIdx >= photoUrls.length) return; // no more photos — leave slot as-is
@@ -194,7 +205,14 @@ export function domInject(params: DomInjectParams): string {
         // Pattern 2: height-class divs with no <img> (bg-surface-variant etc.)
         gallerySection.find("div").each((_, el) => {
           const $el = $(el);
-          if ($el.find("img").length > 0) return;
+          if ($el.find("img").length > 0) {
+            // Remove aida AI placeholder imgs from gallery divs if no real photo available
+            const $img = $el.find("img").first();
+            if (isStitchImage($img.attr("src") || "") && galleryIdx >= photoUrls.length) {
+              $img.remove();
+            }
+            return;
+          }
           const cls = $el.attr("class") || "";
           if (!/\bh-\[|\bh-\d+\b|\bmin-h-\[|\baspect-/.test(cls)) return;
           if ($el.text().trim().length > 80) return;
@@ -202,6 +220,14 @@ export function domInject(params: DomInjectParams): string {
           const photoUrl = photoUrls[galleryIdx];
           $el.html(`<img src="${photoUrl}" alt="Gallery ${galleryIdx + 1}" class="w-full h-full object-cover" loading="lazy">`);
           galleryIdx++;
+        });
+
+        // Final sweep: remove any remaining aida AI images in the gallery
+        // that weren't caught by the patterns above (e.g. break-inside-avoid wrappers)
+        gallerySection.find("img").each((_, el) => {
+          if (isStitchImage($(el).attr("src") || "")) {
+            $(el).remove();
+          }
         });
 
         console.log(`[DomInject] Gallery: filled ${galleryIdx} placeholder slots with client photos`);
