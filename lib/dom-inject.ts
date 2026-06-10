@@ -200,7 +200,7 @@ export function domInject(params: DomInjectParams): string {
           const text = $el.text().trim();
           if (!/\[.*(?:image|photo|project|gallery).*placeholder/i.test(text)) return;
           const photoUrl = pickPhoto([]); // shared pool — no duplicate across sections
-          if (!photoUrl) return;
+          if (!photoUrl) { $el.remove(); return; } // no photos left — remove placeholder entirely
           const $parent = $el.closest(".masonry-item, [class*='gallery-item'], [class*='masonry'], div[class*='overflow-hidden'], div[class*='rounded']").first();
           gallerySlot++;
           if ($parent.length && $parent.find("img").length === 0) {
@@ -226,7 +226,7 @@ export function domInject(params: DomInjectParams): string {
           if (!/\bh-\[|\bh-\d+\b|\bmin-h-\[|\baspect-/.test(cls)) return;
           if ($el.text().trim().length > 80) return;
           const photoUrl = pickPhoto([]); // shared pool
-          if (!photoUrl) return;
+          if (!photoUrl) { $el.remove(); return; } // no photos left — remove placeholder entirely
           gallerySlot++;
           $el.html(`<img src="${photoUrl}" alt="Gallery ${gallerySlot}" class="w-full h-full object-cover" loading="lazy">`);
         });
@@ -237,6 +237,20 @@ export function domInject(params: DomInjectParams): string {
           if (isStitchImage($(el).attr("src") || "")) {
             $(el).remove();
           }
+        });
+
+        // Final sweep: remove any remaining Stitch-branded placeholder divs
+        // e.g. <div class="break-inside-avoid h-48 ...">MASTEREDGE #7</div>
+        // These match: has no img, has a height class, text looks like "NAME #N" or "name project N"
+        gallerySection.find("div").each((_, el) => {
+          const $el = $(el);
+          if ($el.find("img").length > 0) return;
+          const cls = $el.attr("class") || "";
+          if (!/\bh-\[|\bh-\d+\b|\bmin-h-\[|\baspect-/.test(cls)) return;
+          const text = $el.text().trim();
+          if (text.length === 0 || text.length > 80) return;
+          // If it still has placeholder text (not replaced above), remove it
+          $el.remove();
         });
 
         console.log(`[DomInject] Gallery: filled ${gallerySlot} placeholder slots with client photos`);
