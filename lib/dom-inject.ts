@@ -504,6 +504,19 @@ export function domInject(params: DomInjectParams): string {
     if ((heroUrl || logoUrl) && !$.html().includes('property="og:image"')) {
       $("head").append(`<meta property="og:image" content="${heroUrl || logoUrl}">`);
     }
+
+    // Favicon — replace Vercel default with logo or generated letter icon
+    $('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]').remove();
+    if (logoUrl) {
+      $("head").append(`<link rel="icon" type="image/png" href="${logoUrl}">`);
+      $("head").append(`<link rel="apple-touch-icon" href="${logoUrl}">`);
+    } else {
+      // Generate a simple SVG letter favicon from the first letter of the business name
+      const letter = (businessName || "W").charAt(0).toUpperCase();
+      const svgFavicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="#1a1a2e"/><text x="50" y="72" font-family="system-ui,sans-serif" font-size="62" font-weight="700" text-anchor="middle" fill="white">${letter}</text></svg>`;
+      const encoded = Buffer.from(svgFavicon).toString("base64");
+      $("head").append(`<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,${encoded}">`);
+    }
   }
 
   // ── 11. Wire social media links into Stitch's existing footer icons ──────────
