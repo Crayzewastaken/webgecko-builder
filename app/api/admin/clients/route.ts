@@ -174,6 +174,10 @@ export async function GET(req: NextRequest) {
       ga4Id: job.ga4_id || job.ga4Id || "",
       customHeadHtml: job.metadata?.customHeadHtml || "",
       customBodyHtml: job.metadata?.customBodyHtml || "",
+      customFooterHtml: job.metadata?.customFooterHtml || "",
+      privacyPageHtml: job.metadata?.privacyPageHtml || "",
+      termsPageHtml: job.metadata?.termsPageHtml || "",
+      cookiePageHtml: job.metadata?.cookiePageHtml || "",
     };
   });
 

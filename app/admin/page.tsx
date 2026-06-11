@@ -1004,6 +1004,11 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   const [customFooterHtml, setCustomFooterHtml] = useState((c as any).customFooterHtml||"");
   const [codeSaving, setCodeSaving] = useState(false);
   const [codeMsg, setCodeMsg] = useState("");
+  const [privacyPageHtml, setPrivacyPageHtml] = useState((c as any).privacyPageHtml||"");
+  const [termsPageHtml, setTermsPageHtml] = useState((c as any).termsPageHtml||"");
+  const [cookiePageHtml, setCookiePageHtml] = useState((c as any).cookiePageHtml||"");
+  const [policySaving, setPolicySaving] = useState(false);
+  const [policyMsg, setPolicyMsg] = useState("");
   const [featureRequests, setFeatureRequests] = useState<any[]>([]);
   const [frLoading, setFrLoading] = useState(false);
   const [frUpdating, setFrUpdating] = useState<string|null>(null);
@@ -1893,6 +1898,43 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                       {codeSaving?"Saving…":"Save"}
                     </button>
                     {codeMsg&&<div style={{fontSize:12,color:codeMsg.startsWith("✓")?T.green:T.red,fontWeight:500}}>{codeMsg}</div>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Policy Pages */}
+              <div style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px"}}>
+                {sectionTitle("Policy Pages")}
+                <div style={{fontSize:13,color:T.textSec,marginBottom:16,lineHeight:1.7}}>
+                  Paste the embed code from Termly (or any provider) for each policy. These are injected as full-screen overlay pages — footer links for Privacy, Terms, and Cookie Policy will open them automatically. Get each embed code from <strong style={{color:T.text}}>Termly → Publish → Embed Code</strong>.
+                </div>
+                <div style={{display:"flex",flexDirection:"column" as const,gap:14}}>
+                  {([
+                    {label:"Privacy Policy", key:"privacy", state:privacyPageHtml, setter:setPrivacyPageHtml, placeholder:'<div name="termly-embed" data-id="YOUR-PRIVACY-ID" data-type="iframe"></div>\n<script type="text/javascript">(function(d,s,id){var js,tjs=d.getElementsByTagName(s)[0];if(d.getElementById(id))return;js=d.createElement(s);js.id=id;js.src="https://app.termly.io/embed-policy.min.js";tjs.parentNode.insertBefore(js,tjs);}(document,"script","termly-jssdk"));</script>'},
+                    {label:"Terms of Service", key:"terms", state:termsPageHtml, setter:setTermsPageHtml, placeholder:'<div name="termly-embed" data-id="YOUR-TERMS-ID" data-type="iframe"></div>\n<script ...>'},
+                    {label:"Cookie Policy", key:"cookies", state:cookiePageHtml, setter:setCookiePageHtml, placeholder:'<div name="termly-embed" data-id="YOUR-COOKIE-ID" data-type="iframe"></div>\n<script ...>'},
+                  ] as {label:string;key:string;state:string;setter:(v:string)=>void;placeholder:string}[]).map(({label,key,state,setter,placeholder})=>(
+                    <div key={key}>
+                      <label style={{fontSize:12,color:T.textSec,fontWeight:700,display:"block",marginBottom:6}}>{label} <span style={{fontWeight:400,color:state?T.green:T.textMuted}}>{state?"✓ embed code saved":"not set"}</span></label>
+                      <textarea value={state} onChange={e=>setter(e.target.value)} placeholder={placeholder}
+                        rows={4} style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${state?T.green+"60":T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:11,outline:"none",fontFamily:"monospace",resize:"vertical" as const,lineHeight:1.5}}/>
+                    </div>
+                  ))}
+                  <div style={{display:"flex",alignItems:"center",gap:12}}>
+                    <button disabled={policySaving} onClick={async()=>{
+                      setPolicySaving(true); setPolicyMsg("");
+                      try {
+                        const r=await fetch("/api/admin/update-integration",{method:"POST",headers:{"Content-Type":"application/json","x-process-secret":secret||""},body:JSON.stringify({jobId:jid,privacyPageHtml,termsPageHtml,cookiePageHtml})});
+                        const d=await r.json();
+                        if(!r.ok)throw new Error(d.error||"Failed");
+                        setPolicyMsg("✓ Saved — run Fix this site to inject policy pages");
+                        toast("Policies saved","ok");
+                      } catch(e){setPolicyMsg((e as Error).message);toast("Save failed","err");}
+                      finally{setPolicySaving(false);}
+                    }} style={{background:T.green,color:"#fff",border:"none",borderRadius:8,padding:"9px 18px",fontSize:12,fontWeight:600,cursor:"pointer",opacity:policySaving?0.6:1}}>
+                      {policySaving?"Saving…":"Save Policies"}
+                    </button>
+                    {policyMsg&&<div style={{fontSize:12,color:policyMsg.startsWith("✓")?T.green:T.red,fontWeight:500}}>{policyMsg}</div>}
                   </div>
                 </div>
               </div>

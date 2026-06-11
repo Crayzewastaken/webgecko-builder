@@ -458,6 +458,9 @@ function jobToDbJob(id: string, job: Record<string, any>) {
       ...(job.customHeadHtml !== undefined ? { customHeadHtml: job.customHeadHtml } : {}),
       ...(job.customBodyHtml !== undefined ? { customBodyHtml: job.customBodyHtml } : {}),
       ...(job.customFooterHtml !== undefined ? { customFooterHtml: job.customFooterHtml } : {}),
+      ...(job.privacyPageHtml !== undefined ? { privacyPageHtml: job.privacyPageHtml } : {}),
+      ...(job.termsPageHtml !== undefined ? { termsPageHtml: job.termsPageHtml } : {}),
+      ...(job.cookiePageHtml !== undefined ? { cookiePageHtml: job.cookiePageHtml } : {}),
     },
   };
 }
@@ -503,6 +506,9 @@ function dbJobToJob(row: Record<string, any>) {
     customHeadHtml: row.metadata?.customHeadHtml || null,
     customBodyHtml: row.metadata?.customBodyHtml || null,
     customFooterHtml: row.metadata?.customFooterHtml || null,
+    privacyPageHtml: row.metadata?.privacyPageHtml || null,
+    termsPageHtml: row.metadata?.termsPageHtml || null,
+    cookiePageHtml: row.metadata?.cookiePageHtml || null,
   };
 }
 

@@ -318,6 +318,9 @@ export async function GET(req: NextRequest) {
       customHeadHtml: (job as any).customHeadHtml || job.metadata?.customHeadHtml || "",
       customBodyHtml: (job as any).customBodyHtml || job.metadata?.customBodyHtml || "",
       customFooterHtml: (job as any).customFooterHtml || job.metadata?.customFooterHtml || "",
+      privacyPageHtml: (job as any).privacyPageHtml || job.metadata?.privacyPageHtml || "",
+      termsPageHtml: (job as any).termsPageHtml || job.metadata?.termsPageHtml || "",
+      cookiePageHtml: (job as any).cookiePageHtml || job.metadata?.cookiePageHtml || "",
     });
 
     // Re-inject booking widget
