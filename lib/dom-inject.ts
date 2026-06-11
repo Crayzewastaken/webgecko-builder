@@ -630,10 +630,49 @@ export function domInject(params: DomInjectParams): string {
   // ── 16a. WCAG 2.1 AA — every img must have an alt attribute ─────────────────────
   $("img").each((_, el) => {
     if ($(el).attr("alt") === undefined) {
-      // No alt at all — mark decorative so screen readers skip it
       $(el).attr("alt", "");
     }
   });
+
+  // ── 16b. Policy overlay pages (Privacy, Terms, Cookie Policy) ────────────────
+  // Must run BEFORE $.html() so overlays make it into the serialised string.
+  function extractPolicyContent(raw: string): string {
+    if (!/<html[\s>]/i.test(raw)) return raw;
+    const $doc = cheerio.load(raw, { xmlMode: false });
+    const headStyles = $doc("head style, head link[rel='stylesheet']").map((_, el) => $doc.html(el)).get().join("\n");
+    const bodyContent = $doc("body").html() || "";
+    return headStyles + bodyContent;
+  }
+  const policyOverlay = (id: string, rawContent: string) => {
+    const content = extractPolicyContent(rawContent);
+    return (
+      `<div id="${id}" style="display:none;position:fixed;inset:0;background:#fff;overflow-y:auto;z-index:99999;">` +
+      `<div style="max-width:900px;margin:0 auto;padding:32px 24px 100px;">` +
+      `<button onclick="document.getElementById('${id}').style.display='none'" ` +
+      `style="position:sticky;top:16px;float:right;background:#f1f5f9;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;z-index:1;">✕ Close</button>` +
+      content +
+      `</div></div>`
+    );
+  };
+  if (privacyPageHtml) {
+    $("[id='privacy']").remove();
+    $("body").append(policyOverlay("privacy", privacyPageHtml));
+  }
+  if (termsPageHtml) {
+    $("[id='terms']").remove();
+    $("body").append(policyOverlay("terms", termsPageHtml));
+  }
+  if (cookiePageHtml) {
+    $("[id='cookies']").remove();
+    $("body").append(policyOverlay("cookies", cookiePageHtml));
+    $("footer a, [id='footer'] a, [class*='footer'] a").each((_, el) => {
+      const text = $(el).text().trim().toLowerCase();
+      if (/cookie/i.test(text) && !$(el).attr("onclick")?.includes("navigateTo")) {
+        $(el).attr("onclick", "event.preventDefault();window.navigateTo&&window.navigateTo('cookies')");
+        $(el).attr("href", "#");
+      }
+    });
+  }
 
   // ── 16. Replace aida-public URLs in CSS background-image (inline styles) ───────
   // Stitch often uses `style="background-image: url('aida...')"` for hero/section
@@ -663,51 +702,6 @@ export function domInject(params: DomInjectParams): string {
     /(<iframe[^>]*src=["'])(https:\/\/www\.supersaas\.com\/schedule\/[^'"?]+)(['"][^>]*>)/gi,
     (_m, pre, url, post) => `${pre}${url}?kiosk=1${post}`
   );
-
-  // ── 17b. Inject policy overlay pages (Privacy, Terms, Cookie Policy) ────────────
-  // Supports both full HTML documents (<!DOCTYPE html>...) and embed snippets.
-  // For full HTML pages, extracts <body> content + preserves any <style>/<link> from <head>.
-  function extractPolicyContent(raw: string): string {
-    if (!/<html[\s>]/i.test(raw)) return raw; // already a snippet — use as-is
-    const $doc = cheerio.load(raw, { xmlMode: false });
-    // Grab any styles from <head> so Termly's own CSS is preserved
-    const headStyles = $doc("head style, head link[rel='stylesheet']").map((_, el) => $doc.html(el)).get().join("\n");
-    const bodyContent = $doc("body").html() || "";
-    return headStyles + bodyContent;
-  }
-
-  const policyOverlay = (id: string, title: string, rawContent: string) => {
-    const content = extractPolicyContent(rawContent);
-    return (
-      `<div id="${id}" style="display:none;position:fixed;inset:0;background:#fff;overflow-y:auto;z-index:99999;">` +
-      `<div style="max-width:900px;margin:0 auto;padding:32px 24px 100px;">` +
-      `<button onclick="document.getElementById('${id}').style.display='none'" ` +
-      `style="position:sticky;top:16px;float:right;background:#f1f5f9;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;z-index:1;">✕ Close</button>` +
-      content +
-      `</div></div>`
-    );
-  };
-
-  if (privacyPageHtml) {
-    $("[id='privacy']").remove();
-    $("body").append(policyOverlay("privacy", "Privacy Policy", privacyPageHtml));
-  }
-  if (termsPageHtml) {
-    $("[id='terms']").remove();
-    $("body").append(policyOverlay("terms", "Terms of Service", termsPageHtml));
-  }
-  if (cookiePageHtml) {
-    $("[id='cookies']").remove();
-    $("body").append(policyOverlay("cookies", "Cookie Policy", cookiePageHtml));
-    // Wire footer "Cookie Policy" links
-    $("footer a, [id='footer'] a, [class*='footer'] a").each((_, el) => {
-      const text = $(el).text().trim().toLowerCase();
-      if (/cookie/i.test(text) && !$(el).attr("onclick")?.includes("navigateTo")) {
-        $(el).attr("onclick", "event.preventDefault();window.navigateTo&&window.navigateTo('cookies')");
-        $(el).attr("href", "#");
-      }
-    });
-  }
 
   // ── 18. Inject custom head / body / footer code ──────────────────────────────
   if (customHeadHtml) {
@@ -746,7 +740,7 @@ window.navigateTo=function(pageId){
   if(drawer){drawer.style.display="";drawer.classList.add("hidden");}
 
   // Single-page: legal pages are overlay modals
-  if(!window.WG_IS_MULTIPAGE&&(pageId==="privacy"||pageId==="terms")){
+  if(!window.WG_IS_MULTIPAGE&&(pageId==="privacy"||pageId==="terms"||pageId==="cookies")){
     var overlay=document.getElementById(pageId);
     if(overlay){overlay.style.display="block";return;}
   }
