@@ -963,6 +963,8 @@ const buildWebsite = inngest.createFunction(
             youtubeUrl:   userInput.youtubeUrl   || "",
           },
           abn: userInput.abn || "",
+          customHeadHtml: (job as any).customHeadHtml || "",
+          customBodyHtml: (job as any).customBodyHtml || "",
         });
         console.log(`[Step6] DOM injection complete — ${html.length} chars`);
         return html;

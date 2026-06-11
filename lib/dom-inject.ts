@@ -38,6 +38,8 @@ export interface DomInjectParams {
   accentColor?: string;
   socialLinks?: { facebookPage?: string; instagramUrl?: string; linkedinUrl?: string; tiktokUrl?: string; youtubeUrl?: string };
   abn?: string;
+  customHeadHtml?: string;
+  customBodyHtml?: string;
 }
 
 export function domInject(params: DomInjectParams): string {
@@ -46,6 +48,7 @@ export function domInject(params: DomInjectParams): string {
     logoUrl, heroUrl, photoUrls = [], bookingUrl, hasBookingFeature,
     isMultiPage, jobId, ga4Id, tawktoPropertyId, requestedPageIds = [],
     accentColor = "#10b981", socialLinks = {}, abn = "",
+    customHeadHtml = "", customBodyHtml = "",
   } = params;
 
   const $ = cheerio.load(html, { xmlMode: false });
@@ -655,6 +658,14 @@ export function domInject(params: DomInjectParams): string {
     /(<iframe[^>]*src=["'])(https:\/\/www\.supersaas\.com\/schedule\/[^'"?]+)(['"][^>]*>)/gi,
     (_m, pre, url, post) => `${pre}${url}?kiosk=1${post}`
   );
+
+  // ── 18. Inject custom head / body code (cookie banners, policies, pixels) ──────
+  if (customHeadHtml) {
+    out = out.replace(/(<\/head>)/i, `${customHeadHtml}\n$1`);
+  }
+  if (customBodyHtml) {
+    out = out.replace(/(<\/body>)/i, `${customBodyHtml}\n$1`);
+  }
 
   return out;
 }

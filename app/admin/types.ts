@@ -42,6 +42,8 @@ export interface ClientAnalytics {
   squareAccessToken?: string;
   squareLocationId?: string;
   ga4Id?: string;
+  customHeadHtml?: string;
+  customBodyHtml?: string;
   stripeAccountId?: string;
   stripeConnectedAt?: string;
   shopPlatform?: string;

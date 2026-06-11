@@ -315,6 +315,8 @@ export async function GET(req: NextRequest) {
         youtubeUrl: userInput?.youtubeUrl || "",
       },
       abn: userInput?.abn || "",
+      customHeadHtml: (job as any).customHeadHtml || "",
+      customBodyHtml: (job as any).customBodyHtml || "",
     });
 
     // Re-inject booking widget

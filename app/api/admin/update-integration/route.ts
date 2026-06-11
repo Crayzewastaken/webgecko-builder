@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   let body: any;
   try { body = await req.json(); } catch { return Response.json({ error: "Invalid JSON" }, { status: 400 }); }
 
-  const { jobId, squareAccessToken, squareLocationId, squareRefreshToken, squareMerchantId, ga4Id, liveUrl, tawktoPropertyId } = body;
+  const { jobId, squareAccessToken, squareLocationId, squareRefreshToken, squareMerchantId, ga4Id, liveUrl, tawktoPropertyId, customHeadHtml, customBodyHtml } = body;
 
   if (!jobId) return Response.json({ error: "jobId required" }, { status: 400 });
 
@@ -29,6 +29,8 @@ export async function POST(req: NextRequest) {
   if (ga4Id !== undefined) updates.ga4Id = ga4Id;
   if (tawktoPropertyId !== undefined) updates.tawktoPropertyId = tawktoPropertyId;
   if (liveUrl !== undefined) updates.liveUrl = liveUrl;
+  if (customHeadHtml !== undefined) updates.customHeadHtml = customHeadHtml;
+  if (customBodyHtml !== undefined) updates.customBodyHtml = customBodyHtml;
 
   if (!Object.keys(updates).length) {
     return Response.json({ error: "No fields to update" }, { status: 400 });
