@@ -665,16 +665,28 @@ export function domInject(params: DomInjectParams): string {
   );
 
   // ── 17b. Inject policy overlay pages (Privacy, Terms, Cookie Policy) ────────────
-  // Each policy is a fixed full-screen overlay with a close button.
-  // navigateTo('privacy'|'terms'|'cookies') shows it; close button hides it.
-  const policyOverlay = (id: string, title: string, content: string) =>
-    `<div id="${id}" style="display:none;position:fixed;inset:0;background:#fff;overflow-y:auto;z-index:99999;padding:0;">` +
-    `<div style="max-width:860px;margin:0 auto;padding:40px 24px 80px;">` +
-    `<button onclick="document.getElementById('${id}').style.display='none'" ` +
-    `style="position:sticky;top:16px;float:right;background:#f1f5f9;border:none;borderRadius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:16px;">✕ Close</button>` +
-    `<h1 style="font-size:1.6rem;font-weight:700;margin-bottom:24px;">${title}</h1>` +
-    content +
-    `</div></div>`;
+  // Supports both full HTML documents (<!DOCTYPE html>...) and embed snippets.
+  // For full HTML pages, extracts <body> content + preserves any <style>/<link> from <head>.
+  function extractPolicyContent(raw: string): string {
+    if (!/<html[\s>]/i.test(raw)) return raw; // already a snippet — use as-is
+    const $doc = cheerio.load(raw, { xmlMode: false });
+    // Grab any styles from <head> so Termly's own CSS is preserved
+    const headStyles = $doc("head style, head link[rel='stylesheet']").map((_, el) => $doc.html(el)).get().join("\n");
+    const bodyContent = $doc("body").html() || "";
+    return headStyles + bodyContent;
+  }
+
+  const policyOverlay = (id: string, title: string, rawContent: string) => {
+    const content = extractPolicyContent(rawContent);
+    return (
+      `<div id="${id}" style="display:none;position:fixed;inset:0;background:#fff;overflow-y:auto;z-index:99999;">` +
+      `<div style="max-width:900px;margin:0 auto;padding:32px 24px 100px;">` +
+      `<button onclick="document.getElementById('${id}').style.display='none'" ` +
+      `style="position:sticky;top:16px;float:right;background:#f1f5f9;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;z-index:1;">✕ Close</button>` +
+      content +
+      `</div></div>`
+    );
+  };
 
   if (privacyPageHtml) {
     $("[id='privacy']").remove();
@@ -687,7 +699,7 @@ export function domInject(params: DomInjectParams): string {
   if (cookiePageHtml) {
     $("[id='cookies']").remove();
     $("body").append(policyOverlay("cookies", "Cookie Policy", cookiePageHtml));
-    // Also wire footer "Cookie Policy" links
+    // Wire footer "Cookie Policy" links
     $("footer a, [id='footer'] a, [class*='footer'] a").each((_, el) => {
       const text = $(el).text().trim().toLowerCase();
       if (/cookie/i.test(text) && !$(el).attr("onclick")?.includes("navigateTo")) {

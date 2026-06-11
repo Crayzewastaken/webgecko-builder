@@ -1906,7 +1906,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
               <div style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px"}}>
                 {sectionTitle("Policy Pages")}
                 <div style={{fontSize:13,color:T.textSec,marginBottom:16,lineHeight:1.7}}>
-                  Paste the embed code from Termly (or any provider) for each policy. These are injected as full-screen overlay pages — footer links for Privacy, Terms, and Cookie Policy will open them automatically. Get each embed code from <strong style={{color:T.text}}>Termly → Publish → Embed Code</strong>.
+                  Paste the full HTML page from Termly (or any provider) for each policy. Supports both full <code style={{fontSize:11,fontFamily:"monospace"}}>{"<!DOCTYPE html>"}</code> pages and embed snippets — the system automatically extracts the content. Footer links will open the correct policy as a full-screen overlay. Get each page from <strong style={{color:T.text}}>Termly → Publish → Download / Copy HTML</strong>.
                 </div>
                 <div style={{display:"flex",flexDirection:"column" as const,gap:14}}>
                   {([
@@ -1915,9 +1915,9 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                     {label:"Cookie Policy", key:"cookies", state:cookiePageHtml, setter:setCookiePageHtml, placeholder:'<div name="termly-embed" data-id="YOUR-COOKIE-ID" data-type="iframe"></div>\n<script ...>'},
                   ] as {label:string;key:string;state:string;setter:(v:string)=>void;placeholder:string}[]).map(({label,key,state,setter,placeholder})=>(
                     <div key={key}>
-                      <label style={{fontSize:12,color:T.textSec,fontWeight:700,display:"block",marginBottom:6}}>{label} <span style={{fontWeight:400,color:state?T.green:T.textMuted}}>{state?"✓ embed code saved":"not set"}</span></label>
+                      <label style={{fontSize:12,color:T.textSec,fontWeight:700,display:"block",marginBottom:6}}>{label} <span style={{fontWeight:400,color:state?T.green:T.textMuted}}>{state?`✓ ${state.length.toLocaleString()} chars`:"not set"}</span></label>
                       <textarea value={state} onChange={e=>setter(e.target.value)} placeholder={placeholder}
-                        rows={4} style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${state?T.green+"60":T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:11,outline:"none",fontFamily:"monospace",resize:"vertical" as const,lineHeight:1.5}}/>
+                        rows={8} style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${state?T.green+"60":T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:11,outline:"none",fontFamily:"monospace",resize:"vertical" as const,lineHeight:1.5}}/>
                     </div>
                   ))}
                   <div style={{display:"flex",alignItems:"center",gap:12}}>
