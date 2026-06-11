@@ -560,6 +560,8 @@ function injectLegalPages(html: string, ctx: {
       `<a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('privacy')" style="color:${clrSub};text-decoration:none;margin:0 10px;">Privacy Policy</a>` +
       `<span style="color:${clrBord};">|</span>` +
       `<a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('terms')" style="color:${clrSub};text-decoration:none;margin:0 10px;">Terms of Service</a>` +
+      `<span style="color:${clrBord};">|</span>` +
+      `<a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('cookies')" style="color:${clrSub};text-decoration:none;margin:0 10px;">Cookie Policy</a>` +
       `</div>`;
     const lastFooterIdx = result.lastIndexOf("</footer>");
     if (lastFooterIdx !== -1) {

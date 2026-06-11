@@ -665,6 +665,7 @@ export function domInject(params: DomInjectParams): string {
   if (cookiePageHtml) {
     $("[id='cookies']").remove();
     $("body").append(policyOverlay("cookies", cookiePageHtml));
+    // Wire existing cookie links
     $("footer a, [id='footer'] a, [class*='footer'] a").each((_, el) => {
       const text = $(el).text().trim().toLowerCase();
       if (/cookie/i.test(text) && !$(el).attr("onclick")?.includes("navigateTo")) {
@@ -672,6 +673,23 @@ export function domInject(params: DomInjectParams): string {
         $(el).attr("href", "#");
       }
     });
+    // Inject Cookie Policy link after Terms of Service link if not already present
+    const hasCookieFooterLink =
+      $("footer, [id='footer'], [class*='footer']").html()?.includes("navigateTo('cookies')") ||
+      $("footer, [id='footer'], [class*='footer']").html()?.includes('navigateTo("cookies")');
+    if (!hasCookieFooterLink) {
+      // Find the Terms link to insert after, else append into footer
+      const $termsLink = $("footer a[onclick*=\"navigateTo('terms')\"], footer a[onclick*='navigateTo(\"terms\")'], [id='footer'] a[onclick*=\"navigateTo('terms')\"], [class*='footer'] a[onclick*=\"navigateTo('terms')\"]").first();
+      const cookieLinkHtml = `<span style="color:inherit;"> | </span><a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('cookies')" style="color:inherit;text-decoration:none;margin:0 10px;">Cookie Policy</a>`;
+      if ($termsLink.length) {
+        $termsLink.after(cookieLinkHtml);
+      } else {
+        // Fallback: append to last footer element
+        $("footer, [id='footer'], [class*='footer']").last().append(
+          `<div style="text-align:center;padding:4px 0;font-size:12px;"><a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('cookies')" style="color:inherit;text-decoration:none;">Cookie Policy</a></div>`
+        );
+      }
+    }
   }
 
   // ── 16. Replace aida-public URLs in CSS background-image (inline styles) ───────
@@ -782,7 +800,7 @@ window.navigateTo=function(pageId){
 // Multi-page init: show first page, hide rest
 if(window.WG_IS_MULTIPAGE){
   var pages=document.querySelectorAll("[data-page]");
-  if(pages.length>1){
+  if(pages.length>0){
     var active=document.querySelector("[data-page].active");
     if(!active){
       pages[0].classList.add("active");
