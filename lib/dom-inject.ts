@@ -576,8 +576,10 @@ export function domInject(params: DomInjectParams): string {
   }
 
   // ── 14. Inject WG_JOB global ─────────────────────────────────────────────────
-  if (jobId) {
-    $("script").filter((_, el) => !!($(el).html()?.includes("window.WG_JOB="))).remove();
+  // WG_JOB is already set inside the navigateTo script; only add a separate tag
+  // if the navigateTo script was skipped (jobId missing) or as belt-and-suspenders.
+  // Do NOT remove() here — the filter would match the navigateTo script and delete it.
+  if (jobId && !$.html().includes("WG_JOB")) {
     $("head").append(`<script>window.WG_JOB="${jobId}";</script>`);
   }
 
