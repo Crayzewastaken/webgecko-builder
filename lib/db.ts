@@ -457,6 +457,7 @@ function jobToDbJob(id: string, job: Record<string, any>) {
       ...(job.builtAt ? { builtAt: job.builtAt } : {}),
       ...(job.customHeadHtml !== undefined ? { customHeadHtml: job.customHeadHtml } : {}),
       ...(job.customBodyHtml !== undefined ? { customBodyHtml: job.customBodyHtml } : {}),
+      ...(job.customFooterHtml !== undefined ? { customFooterHtml: job.customFooterHtml } : {}),
     },
   };
 }
@@ -501,6 +502,7 @@ function dbJobToJob(row: Record<string, any>) {
     metadata: row.metadata || null,
     customHeadHtml: row.metadata?.customHeadHtml || null,
     customBodyHtml: row.metadata?.customBodyHtml || null,
+    customFooterHtml: row.metadata?.customFooterHtml || null,
   };
 }
 

@@ -317,6 +317,7 @@ export async function GET(req: NextRequest) {
       abn: userInput?.abn || "",
       customHeadHtml: (job as any).customHeadHtml || job.metadata?.customHeadHtml || "",
       customBodyHtml: (job as any).customBodyHtml || job.metadata?.customBodyHtml || "",
+      customFooterHtml: (job as any).customFooterHtml || job.metadata?.customFooterHtml || "",
     });
 
     // Re-inject booking widget

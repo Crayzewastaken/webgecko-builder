@@ -965,6 +965,7 @@ const buildWebsite = inngest.createFunction(
           abn: userInput.abn || "",
           customHeadHtml: (job as any).customHeadHtml || job.metadata?.customHeadHtml || "",
           customBodyHtml: (job as any).customBodyHtml || job.metadata?.customBodyHtml || "",
+          customFooterHtml: (job as any).customFooterHtml || job.metadata?.customFooterHtml || "",
         });
         console.log(`[Step6] DOM injection complete — ${html.length} chars`);
         return html;

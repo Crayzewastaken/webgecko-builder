@@ -1001,6 +1001,7 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   const [customDomain, setCustomDomain] = useState(c.domain||"");
   const [customHeadHtml, setCustomHeadHtml] = useState((c as any).customHeadHtml||"");
   const [customBodyHtml, setCustomBodyHtml] = useState((c as any).customBodyHtml||"");
+  const [customFooterHtml, setCustomFooterHtml] = useState((c as any).customFooterHtml||"");
   const [codeSaving, setCodeSaving] = useState(false);
   const [codeMsg, setCodeMsg] = useState("");
   const [featureRequests, setFeatureRequests] = useState<any[]>([]);
@@ -1870,11 +1871,18 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
                       placeholder={"<!-- Chat widgets, tracking pixels, body scripts -->\n<script>/* Tawk.to, Intercom, FB Pixel */</script>"}
                       rows={6} style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:12,outline:"none",fontFamily:"monospace",resize:"vertical" as const,lineHeight:1.5}}/>
                   </div>
+                  <div>
+                    <label style={{fontSize:12,color:T.textSec,fontWeight:700,display:"block",marginBottom:6}}>Footer Content <span style={{fontWeight:400,color:T.textMuted}}>(injected inside &lt;footer&gt;)</span></label>
+                    <div style={{fontSize:11,color:T.textMuted,marginBottom:6}}>Good for: privacy policy links, cookie policy text, compliance disclaimers, ABN overrides.</div>
+                    <textarea value={customFooterHtml} onChange={e=>setCustomFooterHtml(e.target.value)}
+                      placeholder={"<p><a href=\"/privacy\">Privacy Policy</a> · <a href=\"/terms\">Terms</a> · <a href=\"/cookies\">Cookie Policy</a></p>"}
+                      rows={4} style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:12,outline:"none",fontFamily:"monospace",resize:"vertical" as const,lineHeight:1.5}}/>
+                  </div>
                   <div style={{display:"flex",alignItems:"center",gap:12}}>
                     <button disabled={codeSaving} onClick={async()=>{
                       setCodeSaving(true); setCodeMsg("");
                       try {
-                        const r=await fetch("/api/admin/update-integration",{method:"POST",headers:{"Content-Type":"application/json","x-process-secret":secret||""},body:JSON.stringify({jobId:jid,customHeadHtml,customBodyHtml})});
+                        const r=await fetch("/api/admin/update-integration",{method:"POST",headers:{"Content-Type":"application/json","x-process-secret":secret||""},body:JSON.stringify({jobId:jid,customHeadHtml,customBodyHtml,customFooterHtml})});
                         const d=await r.json();
                         if(!r.ok)throw new Error(d.error||"Failed");
                         setCodeMsg("✓ Saved — run Fix this site to apply");

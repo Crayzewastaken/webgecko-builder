@@ -40,6 +40,7 @@ export interface DomInjectParams {
   abn?: string;
   customHeadHtml?: string;
   customBodyHtml?: string;
+  customFooterHtml?: string;
 }
 
 export function domInject(params: DomInjectParams): string {
@@ -48,7 +49,7 @@ export function domInject(params: DomInjectParams): string {
     logoUrl, heroUrl, photoUrls = [], bookingUrl, hasBookingFeature,
     isMultiPage, jobId, ga4Id, tawktoPropertyId, requestedPageIds = [],
     accentColor = "#10b981", socialLinks = {}, abn = "",
-    customHeadHtml = "", customBodyHtml = "",
+    customHeadHtml = "", customBodyHtml = "", customFooterHtml = "",
   } = params;
 
   const $ = cheerio.load(html, { xmlMode: false });
@@ -659,12 +660,26 @@ export function domInject(params: DomInjectParams): string {
     (_m, pre, url, post) => `${pre}${url}?kiosk=1${post}`
   );
 
-  // ── 18. Inject custom head / body code (cookie banners, policies, pixels) ──────
+  // ── 18. Inject custom head / body / footer code ──────────────────────────────
   if (customHeadHtml) {
     out = out.replace(/(<\/head>)/i, `${customHeadHtml}\n$1`);
   }
   if (customBodyHtml) {
     out = out.replace(/(<\/body>)/i, `${customBodyHtml}\n$1`);
+  }
+  if (customFooterHtml) {
+    // Append inside the first <footer> element
+    out = out.replace(/(<\/footer>)/i, `${customFooterHtml}\n$1`);
+  }
+
+  // ── 18b. Auto-CSS for cookie consent banners ──────────────────────────────────
+  // If a known cookie banner provider is injected, add bottom padding so the fixed
+  // bar doesn't overlap page content, and inject a CSS variable so the banner can
+  // optionally match the site accent colour.
+  const hasCookieBanner = /termly\.io|cookieyes\.com|cookiebot\.com|osano\.com|onetrust\.com|iubenda\.com/i.test(customHeadHtml + customBodyHtml);
+  if (hasCookieBanner) {
+    const bannerCss = `<style data-wg="wg-cookie-banner-fix">body{padding-bottom:max(80px,env(safe-area-inset-bottom,0px))!important;}:root{--wg-accent:${accentColor};}</style>`;
+    out = out.replace(/(<\/head>)/i, `${bannerCss}\n$1`);
   }
 
   return out;
