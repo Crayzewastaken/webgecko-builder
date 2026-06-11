@@ -999,6 +999,10 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
   const [stripeMsg, setStripeMsg] = useState("");
   const [ga4Id, setGa4Id] = useState(c.ga4Id||"");
   const [customDomain, setCustomDomain] = useState(c.domain||"");
+  const [customHeadHtml, setCustomHeadHtml] = useState((c as any).customHeadHtml||"");
+  const [customBodyHtml, setCustomBodyHtml] = useState((c as any).customBodyHtml||"");
+  const [codeSaving, setCodeSaving] = useState(false);
+  const [codeMsg, setCodeMsg] = useState("");
   const [featureRequests, setFeatureRequests] = useState<any[]>([]);
   const [frLoading, setFrLoading] = useState(false);
   const [frUpdating, setFrUpdating] = useState<string|null>(null);
@@ -1845,6 +1849,44 @@ function ClientPanel({ c, secret, onClose, toast }: { c:ClientAnalytics; secret:
 
                 {c.metadata?.domainStatus&&<div style={{fontSize:12,color:c.metadata.domainStatus==="Active"?T.green:T.amber,marginTop:10,display:"flex",alignItems:"center",gap:6}}><span>{c.metadata.domainStatus==="Active"?"✓":"⏳"}</span> Status: <strong>{c.metadata.domainStatus}</strong></div>}
                 {intMsg&&<div style={{fontSize:12,color:intMsg.startsWith("✓")?T.green:T.red,marginTop:10,padding:"8px 12px",background:intMsg.startsWith("✓")?T.green+"10":T.red+"10",borderRadius:7,border:`1px solid ${intMsg.startsWith("✓")?T.green:T.red}30`}}>{intMsg}</div>}
+              </div>
+
+              {/* Custom Code Snippets */}
+              <div style={{background:T.raised,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 18px"}}>
+                {sectionTitle("Custom Code Snippets")}
+                <div style={{fontSize:13,color:T.textSec,marginBottom:16,lineHeight:1.7}}>
+                  Paste raw HTML/JS from third-party tools. Injected on every Fix and Rebuild. Use <strong style={{color:T.text}}>Head Code</strong> for cookie banners (CookieYes, Cookiebot, Termly), GTM, Hotjar, Clarity, verification tags. Use <strong style={{color:T.text}}>Body Code</strong> for chat widgets, pixels, anything that loads after page content.
+                </div>
+                <div style={{display:"flex",flexDirection:"column" as const,gap:14}}>
+                  <div>
+                    <label style={{fontSize:12,color:T.textSec,fontWeight:700,display:"block",marginBottom:6}}>Head Code <span style={{fontWeight:400,color:T.textMuted}}>(injected before &lt;/head&gt;)</span></label>
+                    <textarea value={customHeadHtml} onChange={e=>setCustomHeadHtml(e.target.value)}
+                      placeholder={"<!-- Cookie consent, GTM, Hotjar, Clarity, verification tags -->\n<script src=\"https://cdn.cookieyes.com/...\" />\n<script>/* Google Tag Manager */</script>"}
+                      rows={6} style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:12,outline:"none",fontFamily:"monospace",resize:"vertical" as const,lineHeight:1.5}}/>
+                  </div>
+                  <div>
+                    <label style={{fontSize:12,color:T.textSec,fontWeight:700,display:"block",marginBottom:6}}>Body Code <span style={{fontWeight:400,color:T.textMuted}}>(injected before &lt;/body&gt;)</span></label>
+                    <textarea value={customBodyHtml} onChange={e=>setCustomBodyHtml(e.target.value)}
+                      placeholder={"<!-- Chat widgets, tracking pixels, body scripts -->\n<script>/* Tawk.to, Intercom, FB Pixel */</script>"}
+                      rows={6} style={{width:"100%",boxSizing:"border-box" as const,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"10px 14px",color:T.text,fontSize:12,outline:"none",fontFamily:"monospace",resize:"vertical" as const,lineHeight:1.5}}/>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:12}}>
+                    <button disabled={codeSaving} onClick={async()=>{
+                      setCodeSaving(true); setCodeMsg("");
+                      try {
+                        const r=await fetch("/api/admin/update-integration",{method:"POST",headers:{"Content-Type":"application/json","x-process-secret":secret||""},body:JSON.stringify({jobId:jid,customHeadHtml,customBodyHtml})});
+                        const d=await r.json();
+                        if(!r.ok)throw new Error(d.error||"Failed");
+                        setCodeMsg("✓ Saved — run Fix this site to apply");
+                        toast("Custom code saved","ok");
+                      } catch(e){setCodeMsg((e as Error).message);toast("Save failed","err");}
+                      finally{setCodeSaving(false);}
+                    }} style={{background:T.blue,color:"#fff",border:"none",borderRadius:8,padding:"9px 18px",fontSize:12,fontWeight:600,cursor:"pointer",opacity:codeSaving?0.6:1}}>
+                      {codeSaving?"Saving…":"Save"}
+                    </button>
+                    {codeMsg&&<div style={{fontSize:12,color:codeMsg.startsWith("✓")?T.green:T.red,fontWeight:500}}>{codeMsg}</div>}
+                  </div>
+                </div>
               </div>
 
             </div>
