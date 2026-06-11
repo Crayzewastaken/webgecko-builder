@@ -467,11 +467,9 @@ export function domInject(params: DomInjectParams): string {
   }
 
   // ── 8. Inject WG_IS_MULTIPAGE + navigateTo script ────────────────────────────
-  const hasNavigateTo = $("script").filter((_, el) => $(el).html()?.includes("window.navigateTo =") || false).length > 0;
-  if (!hasNavigateTo) {
-    const navigateToScript = buildNavigateToScript(isMultiPage, jobId);
-    $("body").append(navigateToScript);
-  }
+  // Always remove and re-inject so every Fix run gets the latest hamburger/nav code.
+  $("script").filter((_, el) => !!($(el).html()?.includes("window.navigateTo ="))).remove();
+  $("body").append(buildNavigateToScript(isMultiPage, jobId));
 
   // ── 9. Inject GA4 if provided ────────────────────────────────────────────────
   if (ga4Id && !html.includes(ga4Id)) {
@@ -578,7 +576,8 @@ export function domInject(params: DomInjectParams): string {
   }
 
   // ── 14. Inject WG_JOB global ─────────────────────────────────────────────────
-  if (jobId && !html.includes("WG_JOB")) {
+  if (jobId) {
+    $("script").filter((_, el) => !!($(el).html()?.includes("window.WG_JOB="))).remove();
     $("head").append(`<script>window.WG_JOB="${jobId}";</script>`);
   }
 
@@ -598,9 +597,9 @@ export function domInject(params: DomInjectParams): string {
   }
 
   // ── 15b. Mobile fix CSS — email overflow ─────────────────────────────────────
-  if (!$.html().includes("wg-mobile-fixes")) {
-    $("head").append(`<style data-wg="wg-mobile-fixes">a[href^="mailto:"],a[href^="tel:"]{word-break:break-all;overflow-wrap:break-word;}</style>`);
-  }
+  // Always remove and re-inject so Fix runs pick up any CSS changes.
+  $("[data-wg='wg-mobile-fixes']").remove();
+  $("head").append(`<style data-wg="wg-mobile-fixes">a[href^="mailto:"],a[href^="tel:"]{word-break:break-all;overflow-wrap:break-word;}</style>`);
 
   // ── 15. Wire Privacy/Terms footer links ──────────────────────────────────────
   $("footer a, [id='footer'] a, [class*='footer'] a").each((_, el) => {
