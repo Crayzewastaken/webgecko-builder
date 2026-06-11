@@ -172,6 +172,8 @@ export async function GET(req: NextRequest) {
       // squareAccessToken omitted — never expose OAuth tokens to browser
       squareLocationId: job.square_location_id || "",
       ga4Id: job.ga4_id || job.ga4Id || "",
+      customHeadHtml: job.metadata?.customHeadHtml || "",
+      customBodyHtml: job.metadata?.customBodyHtml || "",
     };
   });
 

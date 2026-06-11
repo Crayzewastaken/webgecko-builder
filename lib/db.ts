@@ -452,9 +452,12 @@ function jobToDbJob(id: string, job: Record<string, any>) {
     ...(job.shopSyncedAt !== undefined ? { shop_synced_at: job.shopSyncedAt } : {}),
     ...(job.shopPlatform !== undefined ? { shop_platform: job.shopPlatform } : {}),
     // Metadata jsonb — stores sub-user creds, extra intake fields, etc.
-    ...(job.metadata !== undefined || job.builtAt !== undefined ? {
-      metadata: { ...(job.metadata || {}), ...(job.builtAt ? { builtAt: job.builtAt } : {}) }
-    } : {}),
+    metadata: {
+      ...(job.metadata || {}),
+      ...(job.builtAt ? { builtAt: job.builtAt } : {}),
+      ...(job.customHeadHtml !== undefined ? { customHeadHtml: job.customHeadHtml } : {}),
+      ...(job.customBodyHtml !== undefined ? { customBodyHtml: job.customBodyHtml } : {}),
+    },
   };
 }
 
@@ -496,6 +499,8 @@ function dbJobToJob(row: Record<string, any>) {
     liveUrl: row.metadata?.liveUrl || row.preview_url || null,
     businessName: row.user_input?.businessName || null,
     metadata: row.metadata || null,
+    customHeadHtml: row.metadata?.customHeadHtml || null,
+    customBodyHtml: row.metadata?.customBodyHtml || null,
   };
 }
 
