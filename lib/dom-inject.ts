@@ -771,13 +771,30 @@ export function domInject(params: DomInjectParams): string {
   }
 
   // ── 18b. Auto-CSS for cookie consent banners ──────────────────────────────────
-  // If a known cookie banner provider is injected, add bottom padding so the fixed
-  // bar doesn't overlap page content, and inject a CSS variable so the banner can
-  // optionally match the site accent colour.
   const hasCookieBanner = /termly\.io|cookieyes\.com|cookiebot\.com|osano\.com|onetrust\.com|iubenda\.com/i.test(customHeadHtml + customBodyHtml);
   if (hasCookieBanner) {
-    const bannerCss = `<style data-wg="wg-cookie-banner-fix">body{padding-bottom:max(80px,env(safe-area-inset-bottom,0px))!important;}:root{--wg-accent:${accentColor};}</style>`;
+    const bannerCss = `<style data-wg="wg-cookie-banner-fix">body{padding-bottom:max(80px,env(safe-area-inset-bottom,0px))!important;}:root{--wg-accent:${accentColor};}` +
+      // Hide Termly's default floating bottom-left button — we add our own inline link below
+      `#termly-consent-preferences,.termly-display-preferences,[id*="termly"][class*="preference"],[data-termly="display-preferences"],.termly-code-snippet-support{display:none!important;}</style>`;
     out = out.replace(/(<\/head>)/i, `${bannerCss}\n$1`);
+
+    // Add "Consent Preferences" link inline in the footer nav alongside Privacy/Terms/Cookie.
+    // Only inject once — skip if already present.
+    if (!out.includes("displayPreferenceModal")) {
+      const consentLink = ` | <a href="#" onclick="event.preventDefault();window.displayPreferenceModal&&window.displayPreferenceModal()" style="color:#fff;text-decoration:none;margin:0 10px;">Consent Preferences</a>`;
+      // Prefer inserting after Cookie Policy link; fall back to after Terms link
+      if (/navigateTo\('cookies'\)[^>]*>Cookie Policy<\/a>/.test(out)) {
+        out = out.replace(
+          /(navigateTo\('cookies'\)[^>]*>Cookie Policy<\/a>)/,
+          `$1${consentLink}`
+        );
+      } else if (/navigateTo\('terms'\)[^>]*>[^<]*Terms[^<]*<\/a>/.test(out)) {
+        out = out.replace(
+          /(navigateTo\('terms'\)[^>]*>[^<]*Terms[^<]*<\/a>)/,
+          `$1${consentLink}`
+        );
+      }
+    }
   }
 
   return out;
