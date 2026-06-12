@@ -372,25 +372,37 @@ export function domInject(params: DomInjectParams): string {
       $("footer").before(`<section id="booking"${dpAttr} style="padding:60px 24px;text-align:center;"><h2 style="margin-bottom:16px;">Book an Appointment</h2><p style="margin-bottom:24px;">Select a date and time that works for you</p>${containerDiv}</section>`);
     }
 
-    // Script appended to <body> — outside the (possibly hidden) booking section.
-    // Runs after full page load, well after Termly's DOM scan has completed.
+    // Script appended to <body>.
+    // Uses closed Shadow DOM so Termly's MutationObserver cannot see or intercept the iframe.
     $("script").filter((_, el) => !!($(el).html()?.includes("wg-booking-container"))).remove();
     $("body").append(`<script data-wg="wg-booking-loader">(function(){
 function loadBooking(){
   var c=document.getElementById('wg-booking-container');
   if(!c)return;
   var url=c.getAttribute('data-wg-url');
-  if(!url||c.querySelector('iframe'))return;
-  var f=document.createElement('iframe');
-  f.src=url;
-  f.width='100%';
-  f.height='800';
-  f.frameBorder='0';
-  f.scrolling='auto';
-  f.title='Book an Appointment';
-  f.style.cssText='display:block;background:#fff;border:none;min-height:700px;width:100%;';
-  c.innerHTML='';
-  c.appendChild(f);
+  if(!url)return;
+  // Shadow DOM (closed) hides the iframe from Termly's MutationObserver
+  try{
+    if(c._wgShadow)return;
+    var shadow=c.attachShadow({mode:'closed'});
+    c._wgShadow=shadow;
+    var style=document.createElement('style');
+    style.textContent='iframe{display:block;width:100%;height:800px;min-height:700px;border:none;background:#fff;}';
+    shadow.appendChild(style);
+    var f=document.createElement('iframe');
+    f.src=url;
+    f.title='Book an Appointment';
+    f.setAttribute('scrolling','auto');
+    shadow.appendChild(f);
+    c.innerHTML='';
+  }catch(e){
+    // Shadow DOM not supported — fall back to direct append
+    if(c.querySelector('iframe'))return;
+    var f2=document.createElement('iframe');
+    f2.src=url;f2.width='100%';f2.height='800';
+    f2.style.cssText='display:block;background:#fff;border:none;min-height:700px;width:100%;';
+    c.innerHTML='';c.appendChild(f2);
+  }
 }
 if(document.readyState==='complete'){loadBooking();}
 else{window.addEventListener('load',loadBooking);}
