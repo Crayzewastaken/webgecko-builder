@@ -601,8 +601,8 @@ export function domInject(params: DomInjectParams): string {
     if ($footer.length) {
       // Replace existing ABN placeholder if present, otherwise append
       const footerHtml = $footer.html() || "";
-      if (/ABN\s*[\d\s]{9,14}/i.test(footerHtml)) {
-        $footer.html(footerHtml.replace(/ABN\s*[\d\s]{9,14}/gi, abnText));
+      if (/ABN\s*:?\s*[\d\s]{9,14}/i.test(footerHtml)) {
+        $footer.html(footerHtml.replace(/ABN\s*:?\s*[\d\s]{9,14}/gi, abnText));
       } else {
         $footer.append(`<p style="font-size:0.75rem;opacity:0.6;margin-top:8px;text-align:center;">${abnText}</p>`);
       }
@@ -739,15 +739,29 @@ export function domInject(params: DomInjectParams): string {
   );
 
   // ── 18. Inject custom head / body / footer code ──────────────────────────────
+  // Strip previous marker-wrapped injections first (prevents duplicates on re-Fix).
+  out = out.replace(/<!-- wg-custom-head-start -->[\s\S]*?<!-- wg-custom-head-end -->\n?/g, "");
+  out = out.replace(/<!-- wg-custom-body-start -->[\s\S]*?<!-- wg-custom-body-end -->\n?/g, "");
+  out = out.replace(/<!-- wg-custom-footer-start -->[\s\S]*?<!-- wg-custom-footer-end -->\n?/g, "");
   if (customHeadHtml) {
-    out = out.replace(/(<\/head>)/i, `${customHeadHtml}\n$1`);
+    out = out.replace(/(<\/head>)/i, `<!-- wg-custom-head-start -->\n${customHeadHtml}\n<!-- wg-custom-head-end -->\n$1`);
   }
   if (customBodyHtml) {
-    out = out.replace(/(<\/body>)/i, `${customBodyHtml}\n$1`);
+    out = out.replace(/(<\/body>)/i, `<!-- wg-custom-body-start -->\n${customBodyHtml}\n<!-- wg-custom-body-end -->\n$1`);
   }
   if (customFooterHtml) {
-    // Append inside the first <footer> element
-    out = out.replace(/(<\/footer>)/i, `${customFooterHtml}\n$1`);
+    out = out.replace(/(<\/footer>)/i, `<!-- wg-custom-footer-start -->\n${customFooterHtml}\n<!-- wg-custom-footer-end -->\n$1`);
+  }
+
+  // Deduplicate <script src="..."> tags — catches legacy duplicates from pre-marker Fix runs.
+  {
+    const seenSrcs = new Set<string>();
+    out = out.replace(/<script([^>]+src=["'])([^"']+)(["'][^>]*)>([\s\S]*?)<\/script>/gi,
+      (match, pre, src, post) => {
+        if (seenSrcs.has(src)) return "";
+        seenSrcs.add(src);
+        return match;
+      });
   }
 
   // ── 18b. Auto-CSS for cookie consent banners ──────────────────────────────────
