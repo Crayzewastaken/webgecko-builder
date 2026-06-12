@@ -322,7 +322,8 @@ export function domInject(params: DomInjectParams): string {
   // ── 5. Inject booking iframe ──────────────────────────────────────────────────
   if (hasBookingFeature && bookingUrl) {
     const bookingSection = $("[id='booking']").first();
-    const iframeHtml = `<iframe src="${bookingUrl}" width="100%" height="800" frameborder="0" scrolling="auto" style="display:block;background:#fff;border:none;min-height:700px;" title="Book an Appointment" loading="lazy"></iframe>`;
+    // data-cookieconsent="necessary" prevents Termly autoBlock from blocking this iframe
+    const iframeHtml = `<iframe src="${bookingUrl}" width="100%" height="800" frameborder="0" scrolling="auto" style="display:block;background:#fff;border:none;min-height:700px;" title="Book an Appointment" loading="lazy" data-cookieconsent="necessary" data-category="necessary"></iframe>`;
 
     if (bookingSection.length) {
       // If real iframe already present and working, leave it
@@ -383,8 +384,10 @@ export function domInject(params: DomInjectParams): string {
       console.log(`[DomInject] Booking iframe injected. url=${bookingUrl}`);
       } // end else (no real iframe)
     } else {
-      // No booking section — append a minimal one before footer
-      const bookingWrap = `<section id="booking" style="padding:60px 24px;text-align:center;"><h2 style="margin-bottom:16px;">Book an Appointment</h2>${iframeHtml}</section>`;
+      // No booking section — append a minimal one before footer.
+      // On multi-page sites, add data-page="booking" so the multi-page CSS hides it until navigated to.
+      const dpAttr = isMultiPage ? ` data-page="booking"` : ``;
+      const bookingWrap = `<section id="booking"${dpAttr} style="padding:60px 24px;text-align:center;"><h2 style="margin-bottom:16px;">Book an Appointment</h2><p style="margin-bottom:24px;">Select a date and time that works for you</p>${iframeHtml}</section>`;
       $("footer").before(bookingWrap);
       console.log(`[DomInject] Booking section created (Stitch had none).`);
     }
@@ -609,7 +612,7 @@ export function domInject(params: DomInjectParams): string {
   // ── 15b. Mobile fix CSS — email overflow ─────────────────────────────────────
   // Always remove and re-inject so Fix runs pick up any CSS changes.
   $("[data-wg='wg-mobile-fixes']").remove();
-  $("head").append(`<style data-wg="wg-mobile-fixes">a[href^="mailto:"],a[href^="tel:"]{word-break:break-all;overflow-wrap:break-word;}</style>`);
+  $("head").append(`<style data-wg="wg-mobile-fixes">a[href^="mailto:"],a[href^="tel:"]{word-break:break-all;overflow-wrap:break-word;}footer a,footer p,footer span,footer li,#footer a,#footer p,#footer span,[class*="footer"] a,[class*="footer"] p,[class*="footer"] span,[class*="footer"] li{color:#fff!important;}</style>`);
 
   // ── 15. Wire Privacy/Terms footer links ──────────────────────────────────────
   $("footer a, [id='footer'] a, [class*='footer'] a").each((_, el) => {
