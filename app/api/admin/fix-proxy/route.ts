@@ -323,9 +323,9 @@ export async function GET(req: NextRequest) {
       cookiePageHtml: (job as any).cookiePageHtml || job.metadata?.cookiePageHtml || "",
     });
 
-    // Re-inject booking widget
+    // Re-inject booking widget — skip when SuperSaas is configured (dom-inject handles that path)
     const hasAiBookingPlaceholder = /(?:forge integration|booking system.*?recalibrat|advanced booking.*?recalibrat|calendly|acuity|setmore)/i.test(html);
-    if (hasBookingFeature || hasAiBookingPlaceholder) {
+    if ((hasBookingFeature || hasAiBookingPlaceholder) && !job.supersaasUrl) {
       try {
         const services = getServicesForIndustry(userInput?.industry || "");
         let accentColor = "#D4AF37";
