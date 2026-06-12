@@ -320,46 +320,53 @@ export function domInject(params: DomInjectParams): string {
   }
 
   // ── 5. Inject booking iframe ──────────────────────────────────────────────────
+  // Dynamic injection via JS so Termly autoBlock (which scans static DOM) never sees it.
   if (hasBookingFeature && bookingUrl) {
     const bookingSection = $("[id='booking']").first();
-    // data-cookieconsent="necessary" prevents Termly autoBlock from blocking this iframe
-    const iframeHtml = `<iframe src="${bookingUrl}" width="100%" height="800" frameborder="0" scrolling="auto" style="display:block;background:#fff;border:none;min-height:700px;" title="Book an Appointment" loading="lazy" data-cookieconsent="necessary" data-category="necessary"></iframe>`;
+    // Container div + inline script that injects the iframe after Termly has finished its DOM scan.
+    const safeUrl = bookingUrl.includes("?") ? bookingUrl : `${bookingUrl}?kiosk=1`;
+    const containerHtml =
+      `<div id="wg-booking-container" style="width:100%;min-height:700px;background:#fff;border-radius:12px;overflow:hidden;"></div>` +
+      `<script>(function(){` +
+      `function loadBooking(){` +
+      `var c=document.getElementById('wg-booking-container');` +
+      `if(!c||c.querySelector('iframe'))return;` +
+      `var f=document.createElement('iframe');` +
+      `f.src='${safeUrl}';` +
+      `f.width='100%';f.height='800';` +
+      `f.setAttribute('frameborder','0');f.setAttribute('scrolling','auto');` +
+      `f.title='Book an Appointment';` +
+      `f.style.cssText='display:block;background:#fff;border:none;min-height:700px;width:100%;';` +
+      `c.appendChild(f);` +
+      `}` +
+      `setTimeout(loadBooking,300);` +
+      `})()</script>`;
 
     if (bookingSection.length) {
-      // If real iframe already present and working, leave it
-      const hasRealIframe = bookingSection.find(`iframe[src*="supersaas.com"]`).filter((_, el) => {
-        return !($(el).attr("src") || "").includes("/template");
-      }).length > 0;
-      if (hasRealIframe) {
-        console.log("[DomInject] Real booking iframe already present — skipping");
-      } else {
-
-      // Remove stray template iframes and placeholders
-      bookingSection.find(`iframe[src*="/template"]`).remove();
+      // Always remove any existing static SuperSaas iframes and our dynamic container+script
+      // so re-Fix always injects the latest dynamic approach.
       bookingSection.find(`iframe[src*="supersaas"]`).remove();
+      bookingSection.find(`iframe[src*="/template"]`).remove();
+      bookingSection.find("#wg-booking-container").remove();
+      // Also remove the companion <script> tag that loads the iframe
+      bookingSection.find("script").filter((_, el) => !!($(el).html()?.includes("wg-booking-container"))).remove();
 
-      // Find and replace Stitch's booking placeholder — the full container, not just inner text
       let injected = false;
 
-      // Strategy 1: find the min-h container div (Stitch's standard booking placeholder pattern)
-      // This matches divs with min-h classes OR containing placeholder text/icons
+      // Strategy 1: Stitch placeholder div (min-h class or placeholder text/icon)
       bookingSection.find("div").each((_, el) => {
         if (injected) return;
         const $el = $(el);
         const classAttr = $el.attr("class") || "";
         const innerHtml = $el.html() || "";
         const innerText = $el.text().trim();
-
         const isPlaceholder =
-          /min-h-\[/.test(classAttr) ||  // has min-h-[Npx] Tailwind class = Stitch placeholder
+          /min-h-\[/.test(classAttr) ||
           /booking.*widget|booking.*loading|booking.*iframe|iframe.*placeholder|\[\s*booking/i.test(innerText) ||
           /calendar_month|calendar-month/.test(innerHtml);
-
         if (isPlaceholder) {
-          // Replace the entire placeholder with the iframe at full size
-          $el.replaceWith(`<div style="width:100%;border-radius:12px;overflow:hidden;background:#fff;">${iframeHtml}</div>`);
+          $el.replaceWith(`<div style="width:100%;border-radius:12px;overflow:hidden;">${containerHtml}</div>`);
           injected = true;
-          console.log("[DomInject] Replaced Stitch booking placeholder container with iframe");
         }
       });
 
@@ -367,27 +374,25 @@ export function domInject(params: DomInjectParams): string {
       if (!injected) {
         const named = bookingSection.find("#booking-iframe-container, [class*='booking-placeholder'], [class*='iframe-placeholder']").first();
         if (named.length) {
-          named.replaceWith(`<div style="width:100%;border-radius:12px;overflow:hidden;background:#fff;">${iframeHtml}</div>`);
+          named.replaceWith(`<div style="width:100%;border-radius:12px;overflow:hidden;">${containerHtml}</div>`);
           injected = true;
         }
       }
 
-      // Strategy 3: append to the section's main content div
+      // Strategy 3: append
       if (!injected) {
         const mainDiv = bookingSection.find("> div").first();
         if (mainDiv.length) {
-          mainDiv.append(`<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;background:#fff;">${iframeHtml}</div>`);
+          mainDiv.append(`<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;">${containerHtml}</div>`);
         } else {
-          bookingSection.append(`<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;background:#fff;">${iframeHtml}</div>`);
+          bookingSection.append(`<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;">${containerHtml}</div>`);
         }
       }
-      console.log(`[DomInject] Booking iframe injected. url=${bookingUrl}`);
-      } // end else (no real iframe)
+      console.log(`[DomInject] Booking dynamic script injected. url=${safeUrl}`);
     } else {
-      // No booking section — append a minimal one before footer.
-      // On multi-page sites, add data-page="booking" so the multi-page CSS hides it until navigated to.
+      // No booking section — create one before footer.
       const dpAttr = isMultiPage ? ` data-page="booking"` : ``;
-      const bookingWrap = `<section id="booking"${dpAttr} style="padding:60px 24px;text-align:center;"><h2 style="margin-bottom:16px;">Book an Appointment</h2><p style="margin-bottom:24px;">Select a date and time that works for you</p>${iframeHtml}</section>`;
+      const bookingWrap = `<section id="booking"${dpAttr} style="padding:60px 24px;text-align:center;"><h2 style="margin-bottom:16px;">Book an Appointment</h2><p style="margin-bottom:24px;">Select a date and time that works for you</p>${containerHtml}</section>`;
       $("footer").before(bookingWrap);
       console.log(`[DomInject] Booking section created (Stitch had none).`);
     }
@@ -732,7 +737,8 @@ export function domInject(params: DomInjectParams): string {
       }
     );
   }
-  // ── 17. Add kiosk=1 to SuperSaas iframes to hide their header/branding ─────────
+  // ── 17. Add kiosk=1 to any residual static SuperSaas iframes ────────────────
+  // (dynamic-injection approach above already includes kiosk=1; this catches any leftovers)
   out = out.replace(
     /(<iframe[^>]*src=["'])(https:\/\/www\.supersaas\.com\/schedule\/[^'"?]+)(['"][^>]*>)/gi,
     (_m, pre, url, post) => `${pre}${url}?kiosk=1${post}`
