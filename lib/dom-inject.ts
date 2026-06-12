@@ -320,36 +320,21 @@ export function domInject(params: DomInjectParams): string {
   }
 
   // ── 5. Inject booking iframe ──────────────────────────────────────────────────
-  // Dynamic injection via JS so Termly autoBlock (which scans static DOM) never sees it.
+  // Dynamic injection via a <script> appended to <body> so Termly's DOM scan never intercepts it.
+  // URL stored in a data-attribute (HTML-encoded) to avoid JS string escaping issues.
   if (hasBookingFeature && bookingUrl) {
     const bookingSection = $("[id='booking']").first();
-    // Container div + inline script that injects the iframe after Termly has finished its DOM scan.
     const safeUrl = bookingUrl.includes("?") ? bookingUrl : `${bookingUrl}?kiosk=1`;
-    const containerHtml =
-      `<div id="wg-booking-container" style="width:100%;min-height:700px;background:#fff;border-radius:12px;overflow:hidden;"></div>` +
-      `<script>(function(){` +
-      `function loadBooking(){` +
-      `var c=document.getElementById('wg-booking-container');` +
-      `if(!c||c.querySelector('iframe'))return;` +
-      `var f=document.createElement('iframe');` +
-      `f.src='${safeUrl}';` +
-      `f.width='100%';f.height='800';` +
-      `f.setAttribute('frameborder','0');f.setAttribute('scrolling','auto');` +
-      `f.title='Book an Appointment';` +
-      `f.style.cssText='display:block;background:#fff;border:none;min-height:700px;width:100%;';` +
-      `c.appendChild(f);` +
-      `}` +
-      `setTimeout(loadBooking,300);` +
-      `})()</script>`;
+
+    // Container div placed in the section — URL stored as data-attribute, no inline JS here.
+    const containerDiv = `<div id="wg-booking-container" data-wg-url="${safeUrl}" style="width:100%;min-height:700px;background:#f8fafc;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;"><p style="color:#94a3b8;font-size:14px;">Loading booking calendar…</p></div>`;
 
     if (bookingSection.length) {
-      // Always remove any existing static SuperSaas iframes and our dynamic container+script
-      // so re-Fix always injects the latest dynamic approach.
+      // Remove all legacy booking content so each Fix run starts clean.
       bookingSection.find(`iframe[src*="supersaas"]`).remove();
       bookingSection.find(`iframe[src*="/template"]`).remove();
       bookingSection.find("#wg-booking-container").remove();
-      // Also remove the companion <script> tag that loads the iframe
-      bookingSection.find("script").filter((_, el) => !!($(el).html()?.includes("wg-booking-container"))).remove();
+      $("script").filter((_, el) => !!($(el).html()?.includes("wg-booking-container"))).remove();
 
       let injected = false;
 
@@ -365,7 +350,7 @@ export function domInject(params: DomInjectParams): string {
           /booking.*widget|booking.*loading|booking.*iframe|iframe.*placeholder|\[\s*booking/i.test(innerText) ||
           /calendar_month|calendar-month/.test(innerHtml);
         if (isPlaceholder) {
-          $el.replaceWith(`<div style="width:100%;border-radius:12px;overflow:hidden;">${containerHtml}</div>`);
+          $el.replaceWith(containerDiv);
           injected = true;
         }
       });
@@ -373,29 +358,44 @@ export function domInject(params: DomInjectParams): string {
       // Strategy 2: named containers
       if (!injected) {
         const named = bookingSection.find("#booking-iframe-container, [class*='booking-placeholder'], [class*='iframe-placeholder']").first();
-        if (named.length) {
-          named.replaceWith(`<div style="width:100%;border-radius:12px;overflow:hidden;">${containerHtml}</div>`);
-          injected = true;
-        }
+        if (named.length) { named.replaceWith(containerDiv); injected = true; }
       }
 
-      // Strategy 3: append
+      // Strategy 3: append to section
       if (!injected) {
         const mainDiv = bookingSection.find("> div").first();
-        if (mainDiv.length) {
-          mainDiv.append(`<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;">${containerHtml}</div>`);
-        } else {
-          bookingSection.append(`<div style="width:100%;border-radius:12px;overflow:hidden;margin-top:24px;">${containerHtml}</div>`);
-        }
+        (mainDiv.length ? mainDiv : bookingSection).append(`<div style="margin-top:24px;">${containerDiv}</div>`);
       }
-      console.log(`[DomInject] Booking dynamic script injected. url=${safeUrl}`);
     } else {
       // No booking section — create one before footer.
       const dpAttr = isMultiPage ? ` data-page="booking"` : ``;
-      const bookingWrap = `<section id="booking"${dpAttr} style="padding:60px 24px;text-align:center;"><h2 style="margin-bottom:16px;">Book an Appointment</h2><p style="margin-bottom:24px;">Select a date and time that works for you</p>${containerHtml}</section>`;
-      $("footer").before(bookingWrap);
-      console.log(`[DomInject] Booking section created (Stitch had none).`);
+      $("footer").before(`<section id="booking"${dpAttr} style="padding:60px 24px;text-align:center;"><h2 style="margin-bottom:16px;">Book an Appointment</h2><p style="margin-bottom:24px;">Select a date and time that works for you</p>${containerDiv}</section>`);
     }
+
+    // Script appended to <body> — outside the (possibly hidden) booking section.
+    // Runs after full page load, well after Termly's DOM scan has completed.
+    $("script").filter((_, el) => !!($(el).html()?.includes("wg-booking-container"))).remove();
+    $("body").append(`<script data-wg="wg-booking-loader">(function(){
+function loadBooking(){
+  var c=document.getElementById('wg-booking-container');
+  if(!c)return;
+  var url=c.getAttribute('data-wg-url');
+  if(!url||c.querySelector('iframe'))return;
+  var f=document.createElement('iframe');
+  f.src=url;
+  f.width='100%';
+  f.height='800';
+  f.frameBorder='0';
+  f.scrolling='auto';
+  f.title='Book an Appointment';
+  f.style.cssText='display:block;background:#fff;border:none;min-height:700px;width:100%;';
+  c.innerHTML='';
+  c.appendChild(f);
+}
+if(document.readyState==='complete'){loadBooking();}
+else{window.addEventListener('load',loadBooking);}
+})()</script>`);
+    console.log(`[DomInject] Booking loader script injected. url=${safeUrl}`);
   }
 
   // ── 6. Wire navigation links ─────────────────────────────────────────────────
