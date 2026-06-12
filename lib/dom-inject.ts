@@ -627,6 +627,20 @@ export function domInject(params: DomInjectParams): string {
     }
   });
 
+  // Remove duplicate legalFooter divs injected by auditor.ts if nav already has wired policy links.
+  // auditor.ts injects a small centered div (font-size:12px) before the build wires the nav links —
+  // on re-Fix runs the nav links are already wired, making the small div redundant.
+  $("footer, [id='footer'], [class*='footer']").find("div").each((_, el) => {
+    const $div = $(el);
+    const style = $div.attr("style") || "";
+    if (!style.includes("font-size:12px")) return;
+    const links = $div.find("a");
+    const allPolicyLinks = links.toArray().every(a =>
+      /privacy|terms|cookie/i.test($(a).text())
+    );
+    if (links.length >= 2 && allPolicyLinks) $div.remove();
+  });
+
   // ── 16a. WCAG 2.1 AA — every img must have an alt attribute ─────────────────────
   $("img").each((_, el) => {
     if ($(el).attr("alt") === undefined) {
