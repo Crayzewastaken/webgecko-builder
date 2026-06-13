@@ -333,9 +333,23 @@ export function domInject(params: DomInjectParams): string {
       if (isMultiPage && !bookingSection.attr("data-page")) {
         bookingSection.attr("data-page", "booking");
       }
-      // Remove overflow constraints that clip the iframe content on desktop.
+      // Strip max-width and overflow constraints from section and its direct inner div.
+      // Stitch typically wraps section content in <div class="max-w-2xl mx-auto ..."> which
+      // narrows the booking iframe to ~550px on desktop. We expand it to full width.
       const secStyle = (bookingSection.attr("style") || "").replace(/overflow\s*:\s*[^;]+;?/gi, "").trim();
       bookingSection.attr("style", secStyle ? secStyle + ";overflow:visible;" : "overflow:visible;");
+      const secClass = (bookingSection.attr("class") || "").replace(/\boverflow-hidden\b|\boverflow-auto\b|\boverflow-scroll\b/g, "overflow-visible");
+      bookingSection.attr("class", secClass);
+      // Expand the inner container div — remove Tailwind max-w-* and replace with max-w-none.
+      bookingSection.find("> div").each((_, el) => {
+        const $el = $(el);
+        const cls = ($el.attr("class") || "")
+          .replace(/\bmax-w-\S+/g, "max-w-none")
+          .replace(/\boverflow-hidden\b|\boverflow-auto\b|\boverflow-scroll\b/g, "overflow-visible");
+        $el.attr("class", cls);
+        const divStyle = ($el.attr("style") || "").replace(/overflow\s*:\s*[^;]+;?/gi, "").replace(/max-width\s*:\s*[^;]+;?/gi, "").trim();
+        $el.attr("style", divStyle ? divStyle + ";overflow:visible;max-width:none;" : "overflow:visible;max-width:none;");
+      });
       // Remove all legacy booking content so each Fix run starts clean.
       bookingSection.find(`iframe[src*="supersaas"]`).remove();
       bookingSection.find(`iframe[src*="/template"]`).remove();
@@ -423,7 +437,7 @@ window.addEventListener('message',function(e){
 });
 function loadAll(){
   var b=document.getElementById('wg-booking-container');
-  if(b){var bu=b.getAttribute('data-wg-url');if(bu)makeIframe(b,bu,'display:block;width:100%;height:950px;border:none;background:#fff;','wg-booking-iframe');}
+  if(b){var bu=b.getAttribute('data-wg-url');if(bu)makeIframe(b,bu,'display:block;width:100%;height:1200px;border:none;background:#fff;','wg-booking-iframe');}
   document.querySelectorAll('[data-wg-maps-url]').forEach(function(c){
     var mu=c.getAttribute('data-wg-maps-url');
     if(mu)makeIframe(c,mu,'display:block;width:100%;height:100%;border:none;');
