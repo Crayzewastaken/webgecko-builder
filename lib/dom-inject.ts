@@ -326,8 +326,8 @@ export function domInject(params: DomInjectParams): string {
     const bookingSection = $("[id='booking']").first();
     const safeUrl = bookingUrl.includes("?") ? bookingUrl : `${bookingUrl}?kiosk=1`;
 
-    // Container div — fills viewport. background:transparent so no colour bleeds on other pages.
-    const containerDiv = `<div id="wg-booking-container" data-wg-url="${safeUrl}" style="width:100%;height:calc(100vh - 160px);min-height:600px;border-radius:12px;overflow:hidden;"><p style="color:#94a3b8;font-size:14px;padding:24px;">Loading booking calendar…</p></div>`;
+    // Container div — full width, fixed height so calendar fits without page overflow.
+    const containerDiv = `<div id="wg-booking-container" data-wg-url="${safeUrl}" style="width:100%;max-width:100%;height:900px;border-radius:12px;overflow:hidden;"><p style="color:#94a3b8;font-size:14px;padding:24px;">Loading booking calendar…</p></div>`;
 
     if (bookingSection.length) {
       // Ensure data-page="booking" is set on the section so multi-page CSS hides it correctly.
@@ -373,7 +373,7 @@ export function domInject(params: DomInjectParams): string {
     } else {
       // No booking section — create one before footer.
       const dpAttr = isMultiPage ? ` data-page="booking"` : ``;
-      $("footer").before(`<section id="booking"${dpAttr} style="padding:60px 24px;text-align:center;"><h2 style="margin-bottom:16px;">Book an Appointment</h2><p style="margin-bottom:24px;">Select a date and time that works for you</p>${containerDiv}</section>`);
+      $("footer").before(`<section id="booking"${dpAttr} style="padding:24px;text-align:center;"><h2 style="margin-bottom:8px;">Book an Appointment</h2><p style="margin-bottom:16px;">Select a date and time that works for you</p>${containerDiv}</section>`);
     }
 
     console.log(`[DomInject] Booking dynamic script injected. url=${safeUrl}`);
@@ -405,7 +405,7 @@ function makeIframe(c,url,iframeStyle){
 }
 function loadAll(){
   var b=document.getElementById('wg-booking-container');
-  if(b){var bu=b.getAttribute('data-wg-url');if(bu)makeIframe(b,bu,'display:block;width:100%;height:calc(100vh - 160px);min-height:600px;border:none;');}
+  if(b){var bu=b.getAttribute('data-wg-url');if(bu)makeIframe(b,bu,'display:block;width:100%;height:900px;border:none;');}
   document.querySelectorAll('[data-wg-maps-url]').forEach(function(c){
     var mu=c.getAttribute('data-wg-maps-url');
     if(mu)makeIframe(c,mu,'display:block;width:100%;height:100%;border:none;');

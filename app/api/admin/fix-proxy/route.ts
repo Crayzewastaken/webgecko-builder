@@ -362,7 +362,8 @@ export async function GET(req: NextRequest) {
     html = html.replace(/<style[^>]*["']wg-footer-fix["'][^>]*>[\s\S]*?<\/style>/gi, "");
     {
       const multiPageCss = isMultiPage ? `[data-page]{display:none!important;opacity:0;}[data-page].active{display:block!important;opacity:1;}` : ``;
-      const footerFixStyle = `<style data-wg="wg-footer-fix">body{display:flex;flex-direction:column;min-height:100vh;}${multiPageCss}[data-page]{flex:1 0 auto;}footer,#wg-footer{margin-top:auto;flex-shrink:0;padding-bottom:0;}</style>`;
+      // main/wrapper also needs flex:1 so footer reaches the bottom even when sections live inside <main>
+      const footerFixStyle = `<style data-wg="wg-footer-fix">body{display:flex;flex-direction:column;min-height:100vh;}${multiPageCss}[data-page],main,#main,[role="main"]{flex:1 0 auto;}footer,#wg-footer,#footer,[class*="footer"]{margin-top:auto;flex-shrink:0;padding-bottom:0;}</style>`;
       html = html.includes("</head>")
         ? html.replace(/<\/head>/i, footerFixStyle + "\n</head>")
         : footerFixStyle + html;
