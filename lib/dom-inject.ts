@@ -930,6 +930,27 @@ if(window.WG_IS_MULTIPAGE){
     });
   });
 })();
+
+// Runtime CTA wiring — Stitch rebuilds the mobile menu in JS after page load, so static HTML
+// wiring misses those dynamically-created elements. Re-scan and wire after DOM is ready.
+(function(){
+  function wireCtaButtons(){
+    var hasBooking=!!(document.getElementById('booking')||document.querySelector('[data-page="booking"]'));
+    if(!hasBooking)return;
+    var ctaRe=/^(?:get\s+(?:a\s+)?(?:free\s+)?quote|book\s+(?:now|a(?:n\s+appointment)?)?|request\s+(?:a\s+)?quote|schedule\s+(?:an?\s+)?appointment|get\s+started)$/i;
+    document.querySelectorAll('a,button').forEach(function(el){
+      var text=(el.textContent||'').trim().replace(/^[^\w]+/,'').replace(/[^\w]+$/,'').trim();
+      if(!ctaRe.test(text))return;
+      var oc=el.getAttribute('onclick')||'';
+      if(oc.indexOf("'booking'")!==-1||oc.indexOf('"booking"')!==-1)return;
+      el.setAttribute('href','#');
+      el.setAttribute('onclick',"event.preventDefault();window.navigateTo&&window.navigateTo('booking')");
+    });
+  }
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',wireCtaButtons);}
+  else{wireCtaButtons();}
+  setTimeout(wireCtaButtons,600);
+})();
 })();
 </script>`;
 }
