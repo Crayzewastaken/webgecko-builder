@@ -358,9 +358,11 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Footer always at bottom
+    // Footer always at bottom — always replace so multi-page hide rule stays current.
+    html = html.replace(/<style[^>]*data-wg="wg-footer-fix"[^>]*>[\s\S]*?<\/style>/gi, "");
     if (!html.includes("wg-footer-fix")) {
-      const footerFixStyle = `<style data-wg="wg-footer-fix">body{display:flex;flex-direction:column;min-height:100vh;}[data-page]{flex:1 0 auto;}footer,#wg-footer{margin-top:auto;flex-shrink:0;}</style>`;
+      const multiPageCss = isMultiPage ? `[data-page]{display:none!important;opacity:0;}[data-page].active{display:block!important;opacity:1;}` : ``;
+      const footerFixStyle = `<style data-wg="wg-footer-fix">body{display:flex;flex-direction:column;min-height:100vh;}${multiPageCss}[data-page]{flex:1 0 auto;}footer,#wg-footer{margin-top:auto;flex-shrink:0;}</style>`;
       html = html.replace(/<\/head>/i, footerFixStyle + "\n</head>");
       html = html.replace(/<body([^>]*)>/i, (m: string, attrs: string) => {
         if (attrs.includes("display:flex")) return m;

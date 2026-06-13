@@ -869,14 +869,19 @@ window.navigateTo=function(pageId){
   if(el){el.scrollIntoView({behavior:"smooth",block:"start"});}
 };
 
-// Multi-page init: show first page, hide rest
+// Multi-page init: inject hide/show CSS and activate first page
 if(window.WG_IS_MULTIPAGE){
+  if(!document.querySelector("style[data-wg-mp]")){
+    var mp=document.createElement("style");
+    mp.setAttribute("data-wg-mp","1");
+    mp.textContent="[data-page]{display:none!important;opacity:0;}[data-page].active{display:block!important;opacity:1;}";
+    document.head.appendChild(mp);
+  }
   var pages=document.querySelectorAll("[data-page]");
   if(pages.length>0){
-    var active=document.querySelector("[data-page].active");
-    if(!active){
-      pages[0].classList.add("active");
-    }
+    var active=document.querySelector("[data-page].active")||pages[0];
+    pages.forEach(function(p){p.classList.remove("active");});
+    active.classList.add("active");
   }
 }
 
