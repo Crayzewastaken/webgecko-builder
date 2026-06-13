@@ -339,6 +339,11 @@ export function domInject(params: DomInjectParams): string {
       bookingSection.find(`iframe[src*="/template"]`).remove();
       bookingSection.find("#wg-booking-container").remove();
       $("script").filter((_, el) => !!($(el).html()?.includes("wg-booking-container"))).remove();
+      // Remove accumulated empty strategy-3 wrapper divs (each Fix run previously left one behind).
+      bookingSection.find("div").filter((_, el) => {
+        const $el = $(el);
+        return ($el.attr("style") || "").includes("margin-top:24px") && $el.children().length === 0 && $el.text().trim() === "";
+      }).remove();
 
       let injected = false;
 
@@ -501,7 +506,8 @@ else{window.addEventListener('load',loadAll);}
 
   // ── 8. Inject WG_IS_MULTIPAGE + navigateTo script ────────────────────────────
   // Always remove and re-inject so every Fix run gets the latest hamburger/nav code.
-  $("script").filter((_, el) => !!($(el).html()?.includes("window.navigateTo ="))).remove();
+  // Match both "window.navigateTo=" and "window.navigateTo =" (with or without space).
+  $("script").filter((_, el) => !!($(el).html()?.includes("window.navigateTo"))).remove();
   $("body").append(buildNavigateToScript(isMultiPage, jobId));
 
   // ── 9. Inject GA4 if provided ────────────────────────────────────────────────
@@ -790,9 +796,9 @@ else{window.addEventListener('load',loadAll);}
   // ── 18b. Auto-CSS for cookie consent banners ──────────────────────────────────
   const hasCookieBanner = /termly\.io|cookieyes\.com|cookiebot\.com|osano\.com|onetrust\.com|iubenda\.com/i.test(customHeadHtml + customBodyHtml);
   if (hasCookieBanner) {
-    // No padding-bottom — we hide the floating button via CSS so no overlap to prevent.
+    // Remove ALL previous wg-cookie-banner-fix tags (old ones had padding-bottom which caused footer gap).
+    out = out.replace(/<style[^>]*data-wg="wg-cookie-banner-fix"[^>]*>[\s\S]*?<\/style>/gi, "");
     const bannerCss = `<style data-wg="wg-cookie-banner-fix">:root{--wg-accent:${accentColor};}` +
-      // Hide Termly's floating bottom-left "Consent Preferences" button (we have a footer link instead)
       `#termly-consent-preferences,.termly-display-preferences,[id*="termly"][class*="preference"],[data-termly="display-preferences"],.termly-code-snippet-support{display:none!important;}</style>`;
     out = out.replace(/(<\/head>)/i, `${bannerCss}\n$1`);
 
