@@ -437,7 +437,7 @@ window.addEventListener('message',function(e){
 });
 function loadAll(){
   var b=document.getElementById('wg-booking-container');
-  if(b){var bu=b.getAttribute('data-wg-url');if(bu)makeIframe(b,bu,'display:block;width:100%;height:1200px;border:none;background:#fff;','wg-booking-iframe');}
+  if(b){var bu=b.getAttribute('data-wg-url');if(bu)makeIframe(b,bu,'display:block;width:100%;height:900px;border:none;background:#fff;','wg-booking-iframe');}
   document.querySelectorAll('[data-wg-maps-url]').forEach(function(c){
     var mu=c.getAttribute('data-wg-maps-url');
     if(mu)makeIframe(c,mu,'display:block;width:100%;height:100%;border:none;');
