@@ -493,10 +493,10 @@ else{window.addEventListener('load',loadAll);}
     $el.attr("onclick", `event.preventDefault();window.navigateTo&&window.navigateTo('${target}')`);
   });
 
-  // ── 6b. Rewire CTA buttons to booking when client has a booking service ─────────
-  // "Get a Quote", "Get Free Quote", "Book Now", "Book an Appointment", "Request a Quote" etc.
-  // should always go to #booking (not #contact) when the client has a booking system.
-  if (hasBookingFeature && $("[id='booking'], [data-page='booking']").length) {
+  // ── 6b. Rewire CTA buttons to booking whenever a booking section exists ─────────
+  // hasBookingFeature can be false even when SuperSaaS is configured (bookingUrl set but
+  // hasBooking flag not persisted). Guard only on the section actually being present.
+  if ($("[id='booking'], [data-page='booking']").length) {
     const ctaRe = /^(?:get\s+(?:a\s+)?(?:free\s+)?quote|book\s+(?:now|a(?:n appointment)?)?|request\s+(?:a\s+)?quote|schedule\s+(?:an?\s+)?appointment|get\s+started|contact\s+us\s+today)$/i;
     $("a, button").each((_, el) => {
       const $el = $(el);
@@ -931,19 +931,16 @@ if(window.WG_IS_MULTIPAGE){
   });
 })();
 
-// Delegated booking-CTA handler — capture phase so it fires even for elements created after
-// page load (Stitch builds the mobile menu on hamburger click, not at DOMContentLoaded).
-// Skips elements already statically wired to 'booking' so no double-fire.
+// Delegated booking-CTA handler — capture phase fires before any element-level handler,
+// including Stitch's mobile menu listeners and dynamically-created elements.
+// Handles ALL matching clicks unconditionally so a broken/missing onclick can't interfere.
 (function(){
-  var ctaRe=/^(?:get\s+(?:a\s+)?(?:free\s+)?quote|book\s+(?:now|a(?:n\s+appointment)?)?|request\s+(?:a\s+)?quote|schedule\s+(?:an?\s+)?appointment|get\s+started)$/i;
+  var ctaRe=/^(?:book\s+now|book\s+an?\s+appointment|get\s+(?:a\s+)?(?:free\s+)?quote|request\s+(?:a\s+)?quote|schedule\s+(?:an?\s+)?appointment|get\s+started)$/i;
   document.addEventListener('click',function(e){
-    var hasBooking=!!(document.getElementById('booking')||document.querySelector('[data-page="booking"]'));
-    if(!hasBooking)return;
+    if(!(document.getElementById('booking')||document.querySelector('[data-page="booking"]')))return;
     var el=e.target;
     while(el&&el!==document.body){if(el.tagName==='A'||el.tagName==='BUTTON')break;el=el.parentElement;}
     if(!el||el===document.body)return;
-    var oc=el.getAttribute('onclick')||'';
-    if(oc.indexOf("'booking'")!==-1||oc.indexOf('"booking"')!==-1)return;
     var text=(el.textContent||'').trim().replace(/^[^\w]+/,'').replace(/[^\w]+$/,'').trim();
     if(!ctaRe.test(text))return;
     e.preventDefault();
