@@ -470,7 +470,7 @@ else{window.addEventListener('load',loadAll);}
     // Always skip external links, tel, mailto
     if (/^(https?:|mailto:|tel:)/.test(href)) return;
 
-    const text = $el.text().trim().toLowerCase();
+    const text = $el.text().trim().replace(/^[^a-z]+/i, "").replace(/[^a-z]+$/i, "").trim().toLowerCase();
     const fragment = href.startsWith("#") ? href.slice(1).toLowerCase() : "";
 
     // Resolve intended target from text label (label is authoritative) or fragment
@@ -500,7 +500,9 @@ else{window.addEventListener('load',loadAll);}
     const ctaRe = /^(?:get\s+(?:a\s+)?(?:free\s+)?quote|book\s+(?:now|a(?:n appointment)?)?|request\s+(?:a\s+)?quote|schedule\s+(?:an?\s+)?appointment|get\s+started|contact\s+us\s+today)$/i;
     $("a, button").each((_, el) => {
       const $el = $(el);
-      const text = $el.text().trim();
+      // Strip leading/trailing non-letter characters (arrows →, icons, punctuation)
+      // so "Book Now →" or "Book Now ›" still matches the regex.
+      const text = $el.text().trim().replace(/^[^a-z]+/i, "").replace(/[^a-z]+$/i, "").trim();
       if (!ctaRe.test(text)) return;
       // Rewire unless already correctly pointing to booking.
       const href = $el.attr("href") || "";
