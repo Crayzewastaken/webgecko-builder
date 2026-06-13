@@ -326,8 +326,8 @@ export function domInject(params: DomInjectParams): string {
     const bookingSection = $("[id='booking']").first();
     const safeUrl = bookingUrl.includes("?") ? bookingUrl : `${bookingUrl}?kiosk=1`;
 
-    // Container div — height fills viewport minus header; iframe loader replaces placeholder.
-    const containerDiv = `<div id="wg-booking-container" data-wg-url="${safeUrl}" style="width:100%;height:calc(100vh - 80px);min-height:700px;background:#f8fafc;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;"><p style="color:#94a3b8;font-size:14px;">Loading booking calendar…</p></div>`;
+    // Container div — fills viewport. background:transparent so no colour bleeds on other pages.
+    const containerDiv = `<div id="wg-booking-container" data-wg-url="${safeUrl}" style="width:100%;height:calc(100vh - 160px);min-height:600px;border-radius:12px;overflow:hidden;"><p style="color:#94a3b8;font-size:14px;padding:24px;">Loading booking calendar…</p></div>`;
 
     if (bookingSection.length) {
       // Ensure data-page="booking" is set on the section so multi-page CSS hides it correctly.
@@ -405,7 +405,7 @@ function makeIframe(c,url,iframeStyle){
 }
 function loadAll(){
   var b=document.getElementById('wg-booking-container');
-  if(b){var bu=b.getAttribute('data-wg-url');if(bu)makeIframe(b,bu,'display:block;width:100%;height:calc(100vh - 80px);min-height:700px;border:none;background:#fff;');}
+  if(b){var bu=b.getAttribute('data-wg-url');if(bu)makeIframe(b,bu,'display:block;width:100%;height:calc(100vh - 160px);min-height:600px;border:none;');}
   document.querySelectorAll('[data-wg-maps-url]').forEach(function(c){
     var mu=c.getAttribute('data-wg-maps-url');
     if(mu)makeIframe(c,mu,'display:block;width:100%;height:100%;border:none;');

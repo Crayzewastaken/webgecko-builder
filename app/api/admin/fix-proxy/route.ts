@@ -358,21 +358,26 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Footer always at bottom — always replace so multi-page hide rule stays current.
-    html = html.replace(/<style[^>]*data-wg="wg-footer-fix"[^>]*>[\s\S]*?<\/style>/gi, "");
-    if (!html.includes("wg-footer-fix")) {
+    // Footer always at bottom — strip and unconditionally re-inject so multi-page CSS stays current.
+    html = html.replace(/<style[^>]*["']wg-footer-fix["'][^>]*>[\s\S]*?<\/style>/gi, "");
+    {
       const multiPageCss = isMultiPage ? `[data-page]{display:none!important;opacity:0;}[data-page].active{display:block!important;opacity:1;}` : ``;
-      const footerFixStyle = `<style data-wg="wg-footer-fix">body{display:flex;flex-direction:column;min-height:100vh;}${multiPageCss}[data-page]{flex:1 0 auto;}footer,#wg-footer{margin-top:auto;flex-shrink:0;}</style>`;
-      html = html.replace(/<\/head>/i, footerFixStyle + "\n</head>");
-      html = html.replace(/<body([^>]*)>/i, (m: string, attrs: string) => {
-        if (attrs.includes("display:flex")) return m;
-        if (attrs.includes("style=")) return m.replace(/style=["']/, (s: string) => s + "display:flex;flex-direction:column;min-height:100vh;");
-        return `<body${attrs} style="display:flex;flex-direction:column;min-height:100vh;">`;
-      });
-      html = html.replace(/<footer(?![^>]*margin-top)([^>]*)>/i, (m: string, attrs: string) => {
-        if (attrs.includes("style=")) return m.replace(/style=["']/, (s: string) => s + "margin-top:auto;");
-        return `<footer${attrs} style="margin-top:auto;">`;
-      });
+      const footerFixStyle = `<style data-wg="wg-footer-fix">body{display:flex;flex-direction:column;min-height:100vh;}${multiPageCss}[data-page]{flex:1 0 auto;}footer,#wg-footer{margin-top:auto;flex-shrink:0;padding-bottom:0;}</style>`;
+      html = html.includes("</head>")
+        ? html.replace(/<\/head>/i, footerFixStyle + "\n</head>")
+        : footerFixStyle + html;
+      if (!html.match(/<body[^>]*display:flex/i)) {
+        html = html.replace(/<body([^>]*)>/i, (m: string, attrs: string) => {
+          if (attrs.includes("style=")) return m.replace(/style=["']/, (s: string) => s + "display:flex;flex-direction:column;min-height:100vh;");
+          return `<body${attrs} style="display:flex;flex-direction:column;min-height:100vh;">`;
+        });
+      }
+      if (!html.match(/<footer[^>]*margin-top/i)) {
+        html = html.replace(/<footer([^>]*)>/i, (m: string, attrs: string) => {
+          if (attrs.includes("style=")) return m.replace(/style=["']/, (s: string) => s + "margin-top:auto;");
+          return `<footer${attrs} style="margin-top:auto;">`;
+        });
+      }
     }
 
     // ── Multi-page Page Structure Verification ─────────────────────────────────
