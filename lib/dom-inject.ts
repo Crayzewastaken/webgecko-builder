@@ -326,13 +326,16 @@ export function domInject(params: DomInjectParams): string {
     const bookingSection = $("[id='booking']").first();
     const safeUrl = bookingUrl.includes("?") ? bookingUrl : `${bookingUrl}?kiosk=1`;
 
-    const containerDiv = `<div id="wg-booking-container" data-wg-url="${safeUrl}" style="width:100%;background:#f8fafc;border-radius:12px;"><p style="color:#94a3b8;font-size:14px;padding:24px;">Loading booking calendar…</p></div>`;
+    const containerDiv = `<div id="wg-booking-container" data-wg-url="${safeUrl}" style="width:100%;min-height:600px;overflow:visible;background:#f8fafc;border-radius:12px;"><p style="color:#94a3b8;font-size:14px;padding:24px;">Loading booking calendar…</p></div>`;
 
     if (bookingSection.length) {
       // Ensure data-page="booking" is set on the section so multi-page CSS hides it correctly.
       if (isMultiPage && !bookingSection.attr("data-page")) {
         bookingSection.attr("data-page", "booking");
       }
+      // Remove overflow constraints that clip the iframe content on desktop.
+      const secStyle = (bookingSection.attr("style") || "").replace(/overflow\s*:\s*[^;]+;?/gi, "").trim();
+      bookingSection.attr("style", secStyle ? secStyle + ";overflow:visible;" : "overflow:visible;");
       // Remove all legacy booking content so each Fix run starts clean.
       bookingSection.find(`iframe[src*="supersaas"]`).remove();
       bookingSection.find(`iframe[src*="/template"]`).remove();
@@ -401,15 +404,26 @@ export function domInject(params: DomInjectParams): string {
   // Plain iframes — Termly allows supersaas.com and google.com/maps as Essential.
   $("script").filter((_, el) => !!($(el).html()?.includes("wg-booking-container") || $(el).html()?.includes("wg-maps-url"))).remove();
   $("body").append(`<script data-wg="wg-iframe-loader">(function(){
-function makeIframe(c,url,iframeStyle){
+function makeIframe(c,url,iframeStyle,iframeId){
   if(c.querySelector('iframe'))return;
   var f=document.createElement('iframe');
   f.src=url;f.setAttribute('scrolling','auto');f.setAttribute('style',iframeStyle);
+  if(iframeId)f.id=iframeId;
   c.innerHTML='';c.appendChild(f);
 }
+// Listen for SuperSaaS postMessage resize events — adjusts iframe height to actual content.
+window.addEventListener('message',function(e){
+  var f=document.getElementById('wg-booking-iframe');
+  if(!f||!e.data)return;
+  var h=0;
+  if(typeof e.data==='number'&&e.data>200)h=e.data;
+  else if(typeof e.data==='object'&&e.data.height>200)h=e.data.height;
+  else if(typeof e.data==='string'){var m=e.data.match(/height[=:]\\s*(\\d+)/i);if(m)h=parseInt(m[1]);}
+  if(h>200){f.style.height=h+'px';var c=document.getElementById('wg-booking-container');if(c)c.style.minHeight=h+'px';}
+});
 function loadAll(){
   var b=document.getElementById('wg-booking-container');
-  if(b){var bu=b.getAttribute('data-wg-url');if(bu)makeIframe(b,bu,'display:block;width:100%;height:1600px;border:none;background:#fff;');}
+  if(b){var bu=b.getAttribute('data-wg-url');if(bu)makeIframe(b,bu,'display:block;width:100%;height:950px;border:none;background:#fff;','wg-booking-iframe');}
   document.querySelectorAll('[data-wg-maps-url]').forEach(function(c){
     var mu=c.getAttribute('data-wg-maps-url');
     if(mu)makeIframe(c,mu,'display:block;width:100%;height:100%;border:none;');
@@ -474,12 +488,11 @@ else{window.addEventListener('load',loadAll);}
       const $el = $(el);
       const text = $el.text().trim();
       if (!ctaRe.test(text)) return;
-      // Only rewire if currently pointing to contact or bare #
+      // Rewire unless already correctly pointing to booking.
       const href = $el.attr("href") || "";
       const onclick = $el.attr("onclick") || "";
-      const pointsToContact = href.includes("contact") || onclick.includes("'contact'") || onclick.includes('"contact"');
-      const isUnwired = href === "#" && !onclick.includes("navigateTo");
-      if (!pointsToContact && !isUnwired) return;
+      const alreadyBooking = onclick.includes("'booking'") || onclick.includes('"booking"');
+      if (alreadyBooking) return;
       $el.attr("href", "#");
       $el.attr("onclick", `event.preventDefault();window.navigateTo&&window.navigateTo('booking')`);
     });
