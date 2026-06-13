@@ -372,43 +372,54 @@ export function domInject(params: DomInjectParams): string {
       $("footer").before(`<section id="booking"${dpAttr} style="padding:60px 24px;text-align:center;"><h2 style="margin-bottom:16px;">Book an Appointment</h2><p style="margin-bottom:24px;">Select a date and time that works for you</p>${containerDiv}</section>`);
     }
 
-    // Script appended to <body>.
-    // Uses closed Shadow DOM so Termly's MutationObserver cannot see or intercept the iframe.
-    $("script").filter((_, el) => !!($(el).html()?.includes("wg-booking-container"))).remove();
-    $("body").append(`<script data-wg="wg-booking-loader">(function(){
-function loadBooking(){
-  var c=document.getElementById('wg-booking-container');
-  if(!c)return;
-  var url=c.getAttribute('data-wg-url');
-  if(!url)return;
-  // Shadow DOM (closed) hides the iframe from Termly's MutationObserver
+    console.log(`[DomInject] Booking dynamic script injected. url=${safeUrl}`);
+  }
+
+  // ── 5b. Replace static Google Maps iframes with Shadow DOM containers ─────────
+  // Termly blocks google.com/maps iframes. Replace with data-attribute containers;
+  // the loader script below will init them via Shadow DOM after page load.
+  $("iframe").each((_, el) => {
+    const src = $(el).attr("src") || "";
+    if (!/maps\.google\.com|google\.com\/maps/i.test(src)) return;
+    const w = $(el).attr("width") || "100%";
+    const h = $(el).attr("height") || "450";
+    const existingStyle = $(el).attr("style") || "";
+    $(el).replaceWith(
+      `<div data-wg-maps-url="${src}" style="width:${/^\d+$/.test(w) ? w + "px" : w};height:${/^\d+$/.test(h) ? h + "px" : h};overflow:hidden;border-radius:8px;${existingStyle}"></div>`
+    );
+  });
+
+  // ── 5c. Shadow DOM loader — handles both booking and Google Maps ───────────────
+  // Appended to <body> so it always runs regardless of booking/maps presence.
+  // Closed Shadow DOM hides iframes from Termly's MutationObserver.
+  $("script").filter((_, el) => !!($(el).html()?.includes("wg-booking-container") || $(el).html()?.includes("wg-maps-url"))).remove();
+  $("body").append(`<script data-wg="wg-iframe-loader">(function(){
+function makeShadowIframe(c,url,cssText){
   try{
     if(c._wgShadow)return;
     var shadow=c.attachShadow({mode:'closed'});
     c._wgShadow=shadow;
-    var style=document.createElement('style');
-    style.textContent='iframe{display:block;width:100%;height:800px;min-height:700px;border:none;background:#fff;}';
-    shadow.appendChild(style);
-    var f=document.createElement('iframe');
-    f.src=url;
-    f.title='Book an Appointment';
-    f.setAttribute('scrolling','auto');
-    shadow.appendChild(f);
+    var s=document.createElement('style');s.textContent=cssText;shadow.appendChild(s);
+    var f=document.createElement('iframe');f.src=url;f.setAttribute('scrolling','auto');shadow.appendChild(f);
     c.innerHTML='';
   }catch(e){
-    // Shadow DOM not supported — fall back to direct append
     if(c.querySelector('iframe'))return;
     var f2=document.createElement('iframe');
-    f2.src=url;f2.width='100%';f2.height='800';
-    f2.style.cssText='display:block;background:#fff;border:none;min-height:700px;width:100%;';
+    f2.src=url;f2.style.cssText=cssText.replace(/iframe\{([^}]*)\}/,'$1');
     c.innerHTML='';c.appendChild(f2);
   }
 }
-if(document.readyState==='complete'){loadBooking();}
-else{window.addEventListener('load',loadBooking);}
+function loadAll(){
+  var b=document.getElementById('wg-booking-container');
+  if(b){var bu=b.getAttribute('data-wg-url');if(bu)makeShadowIframe(b,bu,'iframe{display:block;width:100%;height:800px;min-height:700px;border:none;background:#fff;}');}
+  document.querySelectorAll('[data-wg-maps-url]').forEach(function(c){
+    var mu=c.getAttribute('data-wg-maps-url');
+    if(mu)makeShadowIframe(c,mu,'iframe{display:block;width:100%;height:100%;border:none;}');
+  });
+}
+if(document.readyState==='complete'){loadAll();}
+else{window.addEventListener('load',loadAll);}
 })()</script>`);
-    console.log(`[DomInject] Booking loader script injected. url=${safeUrl}`);
-  }
 
   // ── 6. Wire navigation links ─────────────────────────────────────────────────
   // Replace href="#section" and bare href="#" nav links with navigateTo() calls
@@ -785,8 +796,9 @@ else{window.addEventListener('load',loadBooking);}
   // ── 18b. Auto-CSS for cookie consent banners ──────────────────────────────────
   const hasCookieBanner = /termly\.io|cookieyes\.com|cookiebot\.com|osano\.com|onetrust\.com|iubenda\.com/i.test(customHeadHtml + customBodyHtml);
   if (hasCookieBanner) {
-    const bannerCss = `<style data-wg="wg-cookie-banner-fix">body{padding-bottom:max(80px,env(safe-area-inset-bottom,0px))!important;}:root{--wg-accent:${accentColor};}` +
-      // Hide Termly's default floating bottom-left button — we add our own inline link below
+    // No padding-bottom — we hide the floating button via CSS so no overlap to prevent.
+    const bannerCss = `<style data-wg="wg-cookie-banner-fix">:root{--wg-accent:${accentColor};}` +
+      // Hide Termly's floating bottom-left "Consent Preferences" button (we have a footer link instead)
       `#termly-consent-preferences,.termly-display-preferences,[id*="termly"][class*="preference"],[data-termly="display-preferences"],.termly-code-snippet-support{display:none!important;}</style>`;
     out = out.replace(/(<\/head>)/i, `${bannerCss}\n$1`);
 
