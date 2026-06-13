@@ -389,32 +389,22 @@ export function domInject(params: DomInjectParams): string {
     );
   });
 
-  // ── 5c. Shadow DOM loader — handles both booking and Google Maps ───────────────
-  // Appended to <body> so it always runs regardless of booking/maps presence.
-  // Closed Shadow DOM hides iframes from Termly's MutationObserver.
+  // ── 5c. Iframe loader — handles both booking and Google Maps ─────────────────
+  // Plain iframes — Termly allows supersaas.com and google.com/maps as Essential.
   $("script").filter((_, el) => !!($(el).html()?.includes("wg-booking-container") || $(el).html()?.includes("wg-maps-url"))).remove();
   $("body").append(`<script data-wg="wg-iframe-loader">(function(){
-function makeShadowIframe(c,url,cssText){
-  try{
-    if(c._wgShadow)return;
-    var shadow=c.attachShadow({mode:'closed'});
-    c._wgShadow=shadow;
-    var s=document.createElement('style');s.textContent=cssText;shadow.appendChild(s);
-    var f=document.createElement('iframe');f.src=url;f.setAttribute('scrolling','auto');shadow.appendChild(f);
-    c.innerHTML='';
-  }catch(e){
-    if(c.querySelector('iframe'))return;
-    var f2=document.createElement('iframe');
-    f2.src=url;f2.style.cssText=cssText.replace(/iframe\{([^}]*)\}/,'$1');
-    c.innerHTML='';c.appendChild(f2);
-  }
+function makeIframe(c,url,iframeStyle){
+  if(c.querySelector('iframe'))return;
+  var f=document.createElement('iframe');
+  f.src=url;f.setAttribute('scrolling','auto');f.setAttribute('style',iframeStyle);
+  c.innerHTML='';c.appendChild(f);
 }
 function loadAll(){
   var b=document.getElementById('wg-booking-container');
-  if(b){var bu=b.getAttribute('data-wg-url');if(bu)makeShadowIframe(b,bu,'iframe{display:block;width:100%;height:800px;min-height:700px;border:none;background:#fff;}');}
+  if(b){var bu=b.getAttribute('data-wg-url');if(bu)makeIframe(b,bu,'display:block;width:100%;height:800px;min-height:700px;border:none;background:#fff;');}
   document.querySelectorAll('[data-wg-maps-url]').forEach(function(c){
     var mu=c.getAttribute('data-wg-maps-url');
-    if(mu)makeShadowIframe(c,mu,'iframe{display:block;width:100%;height:100%;border:none;}');
+    if(mu)makeIframe(c,mu,'display:block;width:100%;height:100%;border:none;');
   });
 }
 if(document.readyState==='complete'){loadAll();}
