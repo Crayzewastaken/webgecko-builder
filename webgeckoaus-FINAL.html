@@ -193,12 +193,12 @@ tailwind.config = {
       <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;color:#f0f6ff;">Web<span style="color:#22c55e;">Gecko</span></span>
     </div>
     <!-- Desktop Nav -->
-    <nav style="display:none;" id="desktop-nav" class="md:flex" style="gap:8px;align-items:center;">
-      <button onclick="window.navigateTo('home')" id="nav-home" style="padding:8px 16px;border-radius:8px;background:transparent;border:none;color:#8ba4cc;font-size:14px;font-weight:500;cursor:pointer;transition:color 0.2s;" onmouseover="this.style.color='#f0f6ff'" onmouseout="this.style.color='#8ba4cc'">Home</button>
-      <button onclick="window.navigateTo('services')" style="padding:8px 16px;border-radius:8px;background:transparent;border:none;color:#8ba4cc;font-size:14px;font-weight:500;cursor:pointer;" onmouseover="this.style.color='#f0f6ff'" onmouseout="this.style.color='#8ba4cc'">Services</button>
-      <button onclick="window.navigateTo('about')" style="padding:8px 16px;border-radius:8px;background:transparent;border:none;color:#8ba4cc;font-size:14px;font-weight:500;cursor:pointer;" onmouseover="this.style.color='#f0f6ff'" onmouseout="this.style.color='#8ba4cc'">About</button>
-      <button onclick="window.navigateTo('pricing')" style="padding:8px 16px;border-radius:8px;background:transparent;border:none;color:#8ba4cc;font-size:14px;font-weight:500;cursor:pointer;" onmouseover="this.style.color='#f0f6ff'" onmouseout="this.style.color='#8ba4cc'">Pricing</button>
-      <button onclick="window.navigateTo('contact')" style="padding:8px 16px;border-radius:8px;background:transparent;border:none;color:#8ba4cc;font-size:14px;font-weight:500;cursor:pointer;" onmouseover="this.style.color='#f0f6ff'" onmouseout="this.style.color='#8ba4cc'">Contact</button>
+    <nav id="desktop-nav" style="display:none;gap:8px;align-items:center;">
+      <button onclick="window.navigateTo('home')"    id="nav-home"    style="padding:8px 16px;border-radius:8px;background:transparent;border:none;color:#8ba4cc;font-size:14px;font-weight:500;cursor:pointer;transition:color 0.2s;" onmouseover="this.style.color='#f0f6ff'" onmouseout="this.style.color='#8ba4cc'">Home</button>
+      <button onclick="window.navigateTo('services')" id="nav-services" style="padding:8px 16px;border-radius:8px;background:transparent;border:none;color:#8ba4cc;font-size:14px;font-weight:500;cursor:pointer;transition:color 0.2s;" onmouseover="this.style.color='#f0f6ff'" onmouseout="this.style.color='#8ba4cc'">Services</button>
+      <button onclick="window.navigateTo('about')"    id="nav-about"   style="padding:8px 16px;border-radius:8px;background:transparent;border:none;color:#8ba4cc;font-size:14px;font-weight:500;cursor:pointer;transition:color 0.2s;" onmouseover="this.style.color='#f0f6ff'" onmouseout="this.style.color='#8ba4cc'">About</button>
+      <button onclick="window.navigateTo('pricing')"  id="nav-pricing"  style="padding:8px 16px;border-radius:8px;background:transparent;border:none;color:#8ba4cc;font-size:14px;font-weight:500;cursor:pointer;transition:color 0.2s;" onmouseover="this.style.color='#f0f6ff'" onmouseout="this.style.color='#8ba4cc'">Pricing</button>
+      <button onclick="window.navigateTo('contact')"  id="nav-contact"  style="padding:8px 16px;border-radius:8px;background:transparent;border:none;color:#8ba4cc;font-size:14px;font-weight:500;cursor:pointer;transition:color 0.2s;" onmouseover="this.style.color='#f0f6ff'" onmouseout="this.style.color='#8ba4cc'">Contact</button>
       <button onclick="window.navigateTo('contact')" style="margin-left:8px;padding:10px 22px;background:#22c55e;color:#000;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='#22c55e'">Get Started →</button>
     </nav>
     <!-- Hamburger -->
@@ -812,13 +812,37 @@ window.navigateTo = function(pageId) {
     var current = document.querySelector('[data-page].active');
     var target = document.querySelector('[data-page="' + pageId + '"]') || document.getElementById(pageId);
     if (!target || target === current) return;
-    if (current) { current.classList.remove('active'); }
-    target.classList.add('active');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    // Update active nav
-    document.querySelectorAll('[id^="nav-"]').forEach(function(b) { b.style.color = '#8ba4cc'; b.style.fontWeight = '500'; });
+
+    // Update nav active highlight immediately
+    document.querySelectorAll('[id^="nav-"]').forEach(function(b) {
+      b.style.color = '#8ba4cc'; b.style.fontWeight = '500';
+    });
     var activeBtn = document.getElementById('nav-' + pageId);
     if (activeBtn) { activeBtn.style.color = '#22c55e'; activeBtn.style.fontWeight = '700'; }
+
+    // Fade out → swap → fade in
+    if (current) {
+      current.style.transition = 'opacity 0.18s ease';
+      current.style.opacity = '0';
+      setTimeout(function() {
+        current.classList.remove('active');
+        current.style.opacity = '';
+        current.style.transition = '';
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        target.style.opacity = '0';
+        target.classList.add('active');
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() {
+            target.style.transition = 'opacity 0.22s ease';
+            target.style.opacity = '1';
+            setTimeout(function() { target.style.transition = ''; target.style.opacity = ''; }, 240);
+          });
+        });
+      }, 190);
+    } else {
+      target.classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
     return;
   }
   var el = document.getElementById(pageId);
