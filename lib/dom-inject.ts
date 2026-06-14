@@ -320,8 +320,16 @@ export function domInject(params: DomInjectParams): string {
   }
 
   // ── 5. Inject booking iframe ──────────────────────────────────────────────────
-  // Dynamic injection via a <script> appended to <body> so Termly's DOM scan never intercepts it.
-  // URL stored in a data-attribute (HTML-encoded) to avoid JS string escaping issues.
+  // Global pre-cleanup: remove every SuperSaaS iframe and booking container from the
+  // entire document before any injection, so Stitch stray iframes never double-up
+  // alongside the one we inject below.
+  if (hasBookingFeature && bookingUrl) {
+    $(`iframe[src*="supersaas"]`).remove();
+    $(`iframe[src*="/template"]`).remove();
+    $(`#wg-booking-container`).remove();
+    $("script").filter((_, el) => !!($(el).html()?.includes("wg-booking-container"))).remove();
+  }
+
   if (hasBookingFeature && bookingUrl) {
     const bookingSection = $("[id='booking']").first();
     const safeUrl = bookingUrl.includes("?") ? bookingUrl : `${bookingUrl}?kiosk=1`;
@@ -350,13 +358,7 @@ export function domInject(params: DomInjectParams): string {
         const divStyle = ($el.attr("style") || "").replace(/overflow\s*:\s*[^;]+;?/gi, "").replace(/max-width\s*:\s*[^;]+;?/gi, "").trim();
         $el.attr("style", divStyle ? divStyle + ";overflow:visible;max-width:none;" : "overflow:visible;max-width:none;");
       });
-      // Global cleanup — remove ALL SuperSaaS iframes and booking containers from the
-      // entire document, not just within this section, so Stitch's stray iframes don't
-      // produce a duplicate calendar alongside the injected one.
-      $(`iframe[src*="supersaas"]`).remove();
-      $(`iframe[src*="/template"]`).remove();
-      $(`#wg-booking-container`).remove();
-      $("script").filter((_, el) => !!($(el).html()?.includes("wg-booking-container"))).remove();
+      // (Global SuperSaaS cleanup already ran above before section lookup)
       // Remove accumulated empty strategy-3 wrapper divs (each Fix run previously left one behind).
       bookingSection.find("div").filter((_, el) => {
         const $el = $(el);
@@ -846,6 +848,12 @@ else{window.addEventListener('load',loadAll);}
     const bannerCss = `<style data-wg="wg-cookie-banner-fix">:root{--wg-accent:${accentColor};}` +
       `#termly-consent-preferences,.termly-display-preferences,[id*="termly"][class*="preference"],[data-termly="display-preferences"],.termly-code-snippet-support{display:none!important;}</style>`;
     out = out.replace(/(<\/head>)/i, `${bannerCss}\n$1`);
+
+    // Strip any Stitch-generated "Consent Preferences" / "Content Preferences" footer links
+    // before injecting the real Termly one — Stitch produces these as decorative placeholders
+    // that don't call displayPreferenceModal(), causing a duplicate to appear.
+    out = out.replace(/<a[^>]*>[^<]*(?:Consent|Content)\s+Preferences[^<]*<\/a>\s*(?:\||\s)*/gi, "");
+    out = out.replace(/<button[^>]*>[^<]*(?:Consent|Content)\s+Preferences[^<]*<\/button>\s*/gi, "");
 
     // Add "Consent Preferences" link inline in the footer nav alongside Privacy/Terms/Cookie.
     // Only inject once — skip if already present.
