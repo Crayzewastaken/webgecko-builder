@@ -946,6 +946,12 @@ if(window.WG_IS_MULTIPAGE){
     e.preventDefault();
     e.stopImmediatePropagation();
     window.navigateTo&&window.navigateTo('booking');
+    // After any page-transition or menu-close animation, scroll directly to the
+    // booking container (iframe wrapper) — not just the section heading.
+    setTimeout(function(){
+      var bc=document.getElementById('wg-booking-container')||document.getElementById('booking');
+      if(bc){bc.scrollIntoView({behavior:'smooth',block:'start'});}
+    },320);
   },true);
 })();
 })();

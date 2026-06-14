@@ -369,11 +369,11 @@ function injectLegalPages(html: string, ctx: {
   clrText: string; clrSub: string; clrBord: string; clrAcct: string; yr: number;
   isMultiPage?: boolean;
 }): string {
-  // Detect stub content — "Content coming soon." or a thin section with no real policy prose
-  const isStubPrivacy = /id="privacy"[^>]*>[\s\S]{0,600}Content coming soon/i.test(html)
-    || /data-page="privacy"[^>]*>[\s\S]{0,600}Content coming soon/i.test(html);
-  const isStubTerms   = /id="terms"[^>]*>[\s\S]{0,600}Content coming soon/i.test(html)
-    || /data-page="terms"[^>]*>[\s\S]{0,600}Content coming soon/i.test(html);
+  // Detect stub content — "Content coming soon." OR Stitch placeholder "______" as business name
+  const isStubPrivacy = /id="privacy"[^>]*>[\s\S]{0,800}(?:Content coming soon|______)/i.test(html)
+    || /data-page="privacy"[^>]*>[\s\S]{0,800}(?:Content coming soon|______)/i.test(html);
+  const isStubTerms   = /id="terms"[^>]*>[\s\S]{0,800}(?:Content coming soon|______)/i.test(html)
+    || /data-page="terms"[^>]*>[\s\S]{0,800}(?:Content coming soon|______)/i.test(html);
 
   const rawHasTerms   = /id="terms"|data-page="terms"/i.test(html);
   const rawHasPrivacy = /id="privacy"|data-page="privacy"/i.test(html);
