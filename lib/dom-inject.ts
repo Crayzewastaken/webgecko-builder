@@ -350,10 +350,12 @@ export function domInject(params: DomInjectParams): string {
         const divStyle = ($el.attr("style") || "").replace(/overflow\s*:\s*[^;]+;?/gi, "").replace(/max-width\s*:\s*[^;]+;?/gi, "").trim();
         $el.attr("style", divStyle ? divStyle + ";overflow:visible;max-width:none;" : "overflow:visible;max-width:none;");
       });
-      // Remove all legacy booking content so each Fix run starts clean.
-      bookingSection.find(`iframe[src*="supersaas"]`).remove();
-      bookingSection.find(`iframe[src*="/template"]`).remove();
-      bookingSection.find("#wg-booking-container").remove();
+      // Global cleanup — remove ALL SuperSaaS iframes and booking containers from the
+      // entire document, not just within this section, so Stitch's stray iframes don't
+      // produce a duplicate calendar alongside the injected one.
+      $(`iframe[src*="supersaas"]`).remove();
+      $(`iframe[src*="/template"]`).remove();
+      $(`#wg-booking-container`).remove();
       $("script").filter((_, el) => !!($(el).html()?.includes("wg-booking-container"))).remove();
       // Remove accumulated empty strategy-3 wrapper divs (each Fix run previously left one behind).
       bookingSection.find("div").filter((_, el) => {
@@ -493,27 +495,42 @@ else{window.addEventListener('load',loadAll);}
     $el.attr("onclick", `event.preventDefault();window.navigateTo&&window.navigateTo('${target}')`);
   });
 
-  // ── 6b. Rewire CTA buttons to booking whenever a booking section exists ─────────
+  // ── 6b. Rewire CTA buttons ──────────────────────────────────────────────────────
+  // "Get a Quote" / "Request a Quote" → click-to-call the client phone (service businesses
+  //   need a quote conversation before a booking, so sending these to the booking calendar
+  //   creates friction).
+  // "Book Now" / "See Availability" / "Schedule" → booking section.
   // hasBookingFeature can be false even when SuperSaaS is configured (bookingUrl set but
   // hasBooking flag not persisted). Guard only on the section actually being present.
-  if ($("[id='booking'], [data-page='booking']").length) {
-    const ctaRe = /^(?:get\s+(?:a\s+)?(?:free\s+)?quote|book\s+(?:now|a(?:n appointment)?)?|request\s+(?:a\s+)?quote|schedule\s+(?:an?\s+)?appointment|get\s+started|contact\s+us\s+today)$/i;
-    $("a, button").each((_, el) => {
-      const $el = $(el);
-      // Strip leading/trailing non-letter characters (arrows →, icons, punctuation)
-      // so "Book Now →" or "Book Now ›" still matches the regex.
-      const text = $el.text().trim().replace(/^[^a-z]+/i, "").replace(/[^a-z]+$/i, "").trim();
-      if (!ctaRe.test(text)) return;
-      // Rewire unless already correctly pointing to booking.
-      const href = $el.attr("href") || "";
-      const onclick = $el.attr("onclick") || "";
+  const quoteRe = /^(?:get\s+(?:a\s+)?(?:free\s+)?quote|request\s+(?:a\s+)?quote)$/i;
+  const bookRe  = /^(?:book\s+(?:now|a(?:n\s+appointment)?)?|see\s+availability|schedule\s+(?:an?\s+)?appointment|get\s+started|contact\s+us\s+today)$/i;
+  const hasBookingSection = !!$("[id='booking'], [data-page='booking']").length;
+
+  $("a, button").each((_, el) => {
+    const $el = $(el);
+    const href = $el.attr("href") || "";
+    const onclick = $el.attr("onclick") || "";
+    // Skip external links, tel, mailto
+    if (/^(https?:|mailto:|tel:)/.test(href)) return;
+    // Strip leading/trailing non-letter characters (arrows →, icons, punctuation)
+    const text = $el.text().trim().replace(/^[^a-z]+/i, "").replace(/[^a-z]+$/i, "").trim();
+
+    if (quoteRe.test(text) && clientPhone) {
+      // Wire quote CTAs to click-to-call
+      const already = href.startsWith("tel:") || onclick.includes("tel:");
+      if (already) return;
+      const digits = clientPhone.replace(/\s+/g, "");
+      $el.attr("href", `tel:${digits}`);
+      $el.removeAttr("onclick");
+    } else if (bookRe.test(text) && hasBookingSection) {
+      // Wire booking CTAs to the booking section
       const alreadyBooking = onclick.includes("'booking'") || onclick.includes('"booking"');
       if (alreadyBooking) return;
       $el.attr("href", "#");
       $el.attr("onclick", `event.preventDefault();window.navigateTo&&window.navigateTo('booking')`);
-    });
-    console.log("[DomInject] CTA buttons rewired to #booking");
-  }
+    }
+  });
+  console.log("[DomInject] CTA buttons rewired (quote→phone, book→#booking)");
 
   // ── 7. Stamp id="hero" on first section if missing ───────────────────────────
   if (!$("[id='hero']").length) {
@@ -935,7 +952,7 @@ if(window.WG_IS_MULTIPAGE){
 // including Stitch's mobile menu listeners and dynamically-created elements.
 // Handles ALL matching clicks unconditionally so a broken/missing onclick can't interfere.
 (function(){
-  var ctaRe=/^(?:book\s+now|book\s+an?\s+appointment|get\s+(?:a\s+)?(?:free\s+)?quote|request\s+(?:a\s+)?quote|schedule\s+(?:an?\s+)?appointment|get\s+started)$/i;
+  var ctaRe=/^(?:book\s+now|book\s+an?\s+appointment|see\s+availability|schedule\s+(?:an?\s+)?appointment|get\s+started)$/i;
   document.addEventListener('click',function(e){
     if(!(document.getElementById('booking')||document.querySelector('[data-page="booking"]')))return;
     var el=e.target;
