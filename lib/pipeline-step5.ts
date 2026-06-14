@@ -174,8 +174,18 @@ export function applyStep5CodeFixes(params: Step5Params): string {
     }
 
     if (!target) return match;
-    // Only wire if the target page/section actually exists in the HTML
-    if (!html.includes(`id="${target}"`) && !html.includes(`data-page="${target}"`)) return match;
+    // Check the canonical ID OR any common Stitch alias (e.g. id="hero" for home, id="our-services" for services)
+    const step5Aliases: Record<string, string[]> = {
+      home: ["hero","banner","landing","top","intro"],
+      about: ["about-us","our-story","who-we-are"],
+      services: ["our-services","what-we-do","offerings"],
+      contact: ["contact-us","get-in-touch"],
+      gallery: ["portfolio","our-work","projects"],
+      booking: ["book","appointments","schedule"],
+    };
+    const allIds = [target, ...(step5Aliases[target] || [])];
+    const exists = allIds.some(id => html.includes(`id="${id}"`) || html.includes(`data-page="${id}"`));
+    if (!exists) return match;
     const attrsNoHref = attrs.replace(/\s*href=["'][^"']*["']/gi, '');
     return `<a${attrsNoHref} href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('${target}')">${inner}</a>`;
   });

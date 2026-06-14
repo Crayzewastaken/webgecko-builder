@@ -466,6 +466,24 @@ else{window.addEventListener('load',loadAll);}
     "blog": "blog", "team": "team",
   };
 
+  // Common ID aliases Stitch uses instead of the canonical target name.
+  // Used to relax the section-existence check so nav links aren't left unwired.
+  const sectionAliases: Record<string, string[]> = {
+    home:         ["hero", "banner", "landing", "top", "main", "intro"],
+    about:        ["about-us", "our-story", "who-we-are", "story"],
+    services:     ["our-services", "what-we-do", "offerings", "service"],
+    contact:      ["contact-us", "get-in-touch", "reach-us", "connect"],
+    gallery:      ["portfolio", "our-work", "work", "projects", "showcase"],
+    testimonials: ["reviews", "feedback", "what-clients-say"],
+    pricing:      ["packages", "rates", "plans"],
+    faq:          ["faqs", "questions", "help"],
+    booking:      ["book", "appointments", "schedule", "availability"],
+  };
+
+  const sectionExists = (target: string) =>
+    !!$(`[id="${target}"], [data-page="${target}"]`).length ||
+    (sectionAliases[target] || []).some(a => !!$(`[id="${a}"], [data-page="${a}"]`).length);
+
   $("header a, nav a, [class*='nav'] a, [class*='header'] a").each((_, el) => {
     const $el = $(el);
     const href = $el.attr("href") || "";
@@ -486,13 +504,13 @@ else{window.addEventListener('load',loadAll);}
 
     if (!target) return;
 
-    // Only wire if target section actually exists in DOM
-    if (!$(`[id="${target}"], [data-page="${target}"]`).length) return;
+    // Skip if target section doesn't exist at all (direct ID or any alias)
+    if (!sectionExists(target)) return;
 
-    // Skip only if ALREADY correctly wired to the right target (not just any navigateTo)
+    // Skip if ALREADY correctly wired to the right target
     if (onclick.includes(`navigateTo('${target}')`) || onclick.includes(`navigateTo("${target}")`)) return;
 
-    // Re-wire (this also fixes Stitch mis-wirings like "Contact Us" → booking)
+    // Re-wire
     $el.attr("href", "#");
     $el.attr("onclick", `event.preventDefault();window.navigateTo&&window.navigateTo('${target}')`);
   });
@@ -514,20 +532,21 @@ else{window.addEventListener('load',loadAll);}
     const onclick = $el.attr("onclick") || "";
     // Skip external links, tel, mailto
     if (/^(https?:|mailto:|tel:)/.test(href)) return;
+    // Section 6 already wired this element to a specific page — never override it.
+    // This prevents "Get Started" (wired to contact by section 6) being stolen by bookRe.
+    if (onclick.includes("navigateTo")) return;
     // Strip leading/trailing non-letter characters (arrows →, icons, punctuation)
     const text = $el.text().trim().replace(/^[^a-z]+/i, "").replace(/[^a-z]+$/i, "").trim();
 
     if (quoteRe.test(text) && clientPhone) {
-      // Wire quote CTAs to click-to-call
+      // Wire quote CTAs to click-to-call — only on elements not already pointing somewhere
       const already = href.startsWith("tel:") || onclick.includes("tel:");
       if (already) return;
       const digits = clientPhone.replace(/\s+/g, "");
       $el.attr("href", `tel:${digits}`);
-      $el.removeAttr("onclick");
+      // Don't removeAttr("onclick") — leave any existing handler alone; href is enough for tel:
     } else if (bookRe.test(text) && hasBookingSection) {
       // Wire booking CTAs to the booking section
-      const alreadyBooking = onclick.includes("'booking'") || onclick.includes('"booking"');
-      if (alreadyBooking) return;
       $el.attr("href", "#");
       $el.attr("onclick", `event.preventDefault();window.navigateTo&&window.navigateTo('booking')`);
     }
@@ -883,6 +902,14 @@ function buildNavigateToScript(isMultiPage: boolean, jobId?: string): string {
 (function(){
 window.WG_IS_MULTIPAGE=${isMultiPage};
 ${jobId ? `window.WG_JOB="${jobId}";` : ""}
+var WG_ALIASES={home:["hero","banner","landing","top","intro","main"],about:["about-us","our-story","who-we-are"],services:["our-services","what-we-do","offerings"],contact:["contact-us","get-in-touch","reach-us","connect"],gallery:["portfolio","our-work","work","projects"],testimonials:["reviews","feedback"],pricing:["packages","rates","plans"],faq:["faqs","questions"],booking:["book","appointments","schedule","availability"]};
+function wgFindEl(pageId){
+  var el=document.querySelector("[data-page='"+pageId+"']")||document.getElementById(pageId);
+  if(el)return el;
+  var alts=WG_ALIASES[pageId]||[];
+  for(var i=0;i<alts.length;i++){el=document.querySelector("[data-page='"+alts[i]+"']")||document.getElementById(alts[i]);if(el)return el;}
+  return null;
+}
 window.navigateTo=function(pageId){
   // Close mobile drawer
   var drawer=document.getElementById("mobile-menu")||document.getElementById("side-drawer")||document.getElementById("mobile-nav");
@@ -894,24 +921,38 @@ window.navigateTo=function(pageId){
     if(overlay){overlay.style.display="block";return;}
   }
 
-  // Multi-page: fade transition
+  // Multi-page: smooth fade transition
   if(window.WG_IS_MULTIPAGE){
     var current=document.querySelector("[data-page].active");
-    var target=document.querySelector("[data-page='"+pageId+"']")||document.getElementById(pageId);
+    var target=wgFindEl(pageId);
     if(!target||target===current)return;
+    var FADE=220;
     if(current){
+      current.style.transition="opacity "+FADE+"ms ease";
       current.style.opacity="0";
       setTimeout(function(){
         current.classList.remove("active");
+        current.style.transition="";current.style.opacity="";
         target.classList.add("active");
+        target.style.transition="opacity "+FADE+"ms ease";
         target.style.opacity="0";
-        requestAnimationFrame(function(){requestAnimationFrame(function(){target.style.opacity="1";});});
-        window.scrollTo({top:0,behavior:"smooth"});
-      },200);
+        // Scroll instantly so the fade reveals the top of the new page cleanly
+        window.scrollTo({top:0,behavior:"instant"});
+        requestAnimationFrame(function(){requestAnimationFrame(function(){
+          target.style.opacity="1";
+          setTimeout(function(){target.style.transition="";},FADE+50);
+        });});
+      },FADE);
     }else{
       document.querySelectorAll("[data-page]").forEach(function(s){s.classList.remove("active");});
       target.classList.add("active");
-      window.scrollTo({top:0,behavior:"smooth"});
+      target.style.transition="opacity "+FADE+"ms ease";
+      target.style.opacity="0";
+      window.scrollTo({top:0,behavior:"instant"});
+      requestAnimationFrame(function(){requestAnimationFrame(function(){
+        target.style.opacity="1";
+        setTimeout(function(){target.style.transition="";},FADE+50);
+      });});
     }
     // Update nav active states
     document.querySelectorAll("nav a,header a").forEach(function(link){
@@ -922,9 +963,9 @@ window.navigateTo=function(pageId){
     return;
   }
 
-  // Single-page: smooth scroll
+  // Single-page: smooth scroll — try exact ID then aliases
   if(pageId==="home"||pageId==="top"){window.scrollTo({top:0,behavior:"smooth"});return;}
-  var el=document.getElementById(pageId);
+  var el=wgFindEl(pageId);
   if(el){el.scrollIntoView({behavior:"smooth",block:"start"});}
 };
 
