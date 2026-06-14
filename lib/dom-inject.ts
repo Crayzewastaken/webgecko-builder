@@ -11,6 +11,7 @@
 //   7. Appends what is COMPLETELY absent (contact form, footer) — never replaces
 
 import * as cheerio from "cheerio";
+import { applyAccessibility, buildAccessibilityStatement } from "./accessibility";
 
 // Stitch generates placeholder images from Google's CDN — two known patterns:
 // Old: lh3.googleusercontent.com/aida-public/...
@@ -893,6 +894,49 @@ else{window.addEventListener('load',loadAll);}
     }
   }
 
+  // ── 19. WCAG 2.1 AA accessibility auto-fix + statement ──────────────────────
+  {
+    const { html: a11yHtml, result } = applyAccessibility({
+      html: out,
+      businessName,
+      clientEmail,
+      clientPhone,
+      accentColor,
+      isMultiPage,
+    });
+    out = a11yHtml;
+
+    const a11yStatement = buildAccessibilityStatement({
+      businessName,
+      clientEmail,
+      result,
+      isMultiPage,
+      clrBg: "#ffffff",
+      clrText: "#111827",
+      clrSub: "#6b7280",
+      clrAcct: accentColor,
+      clrBord: "#e5e7eb",
+    });
+
+    // Deduplicate on re-Fix runs, then inject
+    out = out.replace(/<!-- wg-a11y-start -->[\s\S]*?<!-- wg-a11y-end -->\n?/g, "");
+    out = out.replace(/(<\/body>)/i, `<!-- wg-a11y-start -->\n${a11yStatement}\n<!-- wg-a11y-end -->\n$1`);
+
+    // Add Accessibility link in footer alongside Privacy / Terms / Cookie / Consent
+    if (!out.includes("navigateTo('accessibility')")) {
+      const a11yLink = ` | <a href="#" onclick="event.preventDefault();window.navigateTo&&window.navigateTo('accessibility')" style="color:inherit;text-decoration:none;margin:0 10px;">Accessibility</a>`;
+      if (/displayPreferenceModal[^\n<]{0,60}<\/a>/.test(out)) {
+        out = out.replace(/(displayPreferenceModal[^\n<]{0,60}<\/a>)/, `$1${a11yLink}`);
+      } else if (/navigateTo\('cookies'\)[^>]*>Cookie Policy<\/a>/.test(out)) {
+        out = out.replace(/(navigateTo\('cookies'\)[^>]*>Cookie Policy<\/a>)/, `$1${a11yLink}`);
+      } else if (/navigateTo\('terms'\)[^>]*>[^<]{0,25}Terms[^<]{0,25}<\/a>/.test(out)) {
+        out = out.replace(/(navigateTo\('terms'\)[^>]*>[^<]{0,25}Terms[^<]{0,25}<\/a>)/, `$1${a11yLink}`);
+      } else if (/navigateTo\('privacy'\)[^>]*>[^<]{0,25}Privacy[^<]{0,25}<\/a>/.test(out)) {
+        out = out.replace(/(navigateTo\('privacy'\)[^>]*>[^<]{0,25}Privacy[^<]{0,25}<\/a>)/, `$1${a11yLink}`);
+      }
+    }
+  }
+
   return out;
 }
 
@@ -915,10 +959,10 @@ window.navigateTo=function(pageId){
   var drawer=document.getElementById("mobile-menu")||document.getElementById("side-drawer")||document.getElementById("mobile-nav");
   if(drawer){drawer.style.display="";drawer.classList.add("hidden");}
 
-  // Single-page: legal pages are overlay modals
-  if(!window.WG_IS_MULTIPAGE&&(pageId==="privacy"||pageId==="terms"||pageId==="cookies")){
+  // Policy / legal overlays — work on both single-page and multi-page
+  if(pageId==="privacy"||pageId==="terms"||pageId==="cookies"||pageId==="accessibility"){
     var overlay=document.getElementById(pageId);
-    if(overlay){overlay.style.display="block";return;}
+    if(overlay){overlay.style.display="block";window.scrollTo({top:0,behavior:"instant"});return;}
   }
 
   // Multi-page: smooth fade transition
